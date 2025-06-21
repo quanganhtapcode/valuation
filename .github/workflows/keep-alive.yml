@@ -1,0 +1,17 @@
+name: Keep Render Service Alive
+
+on:
+  schedule:
+    # Ping every 10 minutes (GitHub Actions min interval is 5 minutes)
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Service
+        run: |
+          echo "Pinging Render service to keep it alive..."
+          curl -f https://your-app-name.onrender.com/health || echo "Service might be sleeping, this will wake it up"
+          echo "Ping completed!" 
