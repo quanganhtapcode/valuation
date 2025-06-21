@@ -1,0 +1,7 @@
+flask
+flask-cors
+vnstock
+pandas
+numpy
+requests
+gunicorn

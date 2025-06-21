@@ -1,0 +1,23 @@
+{
+  "name": "vietnam-stock-valuation",
+  "version": "1.0.0",
+  "description": "Vietnamese Stock Valuation Tool",
+  "main": "index.html",
+  "scripts": {
+    "start": "python backend_server.py",
+    "dev": "python backend_server.py"
+  },
+  "keywords": [
+    "stock",
+    "valuation",
+    "vietnam",
+    "finance",
+    "investment"
+  ],
+  "author": "quanganhdeptrai",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0",
+    "python": ">=3.8.0"
+  }
+}
