@@ -1,0 +1,1283 @@
+symbol,organ_name,industry,market_cap,is_top_10
+MWG,Công ty Cổ phần Đầu tư Thế Giới Di Động,Bán lẻ,93469.0,True
+FRT,Công ty Cổ phần Bán lẻ Kỹ thuật số FPT,Bán lẻ,23311.0,True
+DGW,Công ty Cổ phần Thế Giới Số,Bán lẻ,8832.0,True
+DHT,Công ty Cổ phần Dược phẩm Hà Tây,Bán lẻ,6752.0,True
+SAS,Công ty Cổ phần Dịch vụ Hàng không Sân bay Tân Sơn Nhất,Bán lẻ,5907.0,True
+AST,Công ty Cổ phần Dịch vụ Hàng không Taseco,Bán lẻ,2898.0,True
+PET,Tổng Công ty Cổ phần Dịch vụ Tổng hợp Dầu khí,Bán lẻ,2481.0,True
+HTM,Tổng Công ty Thương mại Hà Nội – Công ty cổ phần,Bán lẻ,2115.0,True
+PSD,Công ty Cổ phần Dịch vụ Phân phối Tổng hợp Dầu khí,Bán lẻ,601.0,True
+BTT,Công ty Cổ phần Thương mại - Dịch vụ Bến Thành,Bán lẻ,515.0,True
+COM,Công ty Cổ phần Vật tư Xăng dầu,Bán lẻ,441.0,False
+AFX,Công ty Cổ phần Xuất Nhập khẩu Nông sản Thực phẩm An Giang,Bán lẻ,269.0,False
+SBV,Công ty Cổ phần Siam Brothers Việt Nam,Bán lẻ,242.0,False
+CMV,Công ty Cổ phần Thương nghiệp Cà Mau,Bán lẻ,152.0,False
+KGM,Công ty Cổ phần Xuất nhập khẩu Kiên Giang,Bán lẻ,140.0,False
+PIT,Công ty Cổ phần Xuất nhập khẩu Petrolimex,Bán lẻ,101.0,False
+TH1,Công ty Cổ phần Xuất nhập khẩu Tổng hợp I Việt Nam,Bán lẻ,49.0,False
+CEN,Công ty Cổ phần CENCON Việt Nam,Bán lẻ,48.0,False
+THS,Công ty Cổ phần Thanh Hoa Sông Đà,Bán lẻ,42.0,False
+HTT,Công ty Cổ phần Thương mại Hà Tây,Bán lẻ,32.0,False
+TOP,Công ty Cổ phần Phân phối Top One,Bán lẻ,23.0,False
+BVH,Tập đoàn Bảo Việt,Bảo hiểm,36597.0,True
+PVI,Công ty Cổ phần PVI,Bảo hiểm,12930.0,True
+BIC,Tổng Công ty Cổ phần Bảo hiểm Ngân hàng Đầu tư và Phát triển Việt Nam,Bảo hiểm,4351.0,True
+VNR,Tổng Công ty Cổ phần Tái bảo hiểm Quốc gia Việt Nam,Bảo hiểm,4067.0,True
+MIG,Tổng Công ty Cổ phần Bảo hiểm Quân đội,Bảo hiểm,3273.0,True
+BMI,Tổng Công ty Cổ phần Bảo Minh,Bảo hiểm,2746.0,True
+PTI,Tổng Công ty Cổ phần Bảo hiểm Bưu điện,Bảo hiểm,2484.0,True
+PGI,Tổng Công ty Cổ phần Bảo hiểm Petrolimex,Bảo hiểm,2318.0,True
+PRE,Tổng Công ty Cổ phần Tái bảo hiểm Hà Nội,Bảo hiểm,2088.0,True
+ABI,Công ty Cổ phần Bảo hiểm Ngân hàng Nông Nghiệp,Bảo hiểm,2052.0,True
+BHI,Tổng Công ty Cổ phần Bảo hiểm Sài Gòn - Hà Nội,Bảo hiểm,1160.0,False
+AIC,Công ty Cổ phần Tập đoàn Bảo hiểm DBV,Bảo hiểm,1110.0,False
+BLI,Tổng Công ty Cổ phần Bảo hiểm Bảo Long,Bảo hiểm,534.0,False
+VIC,Tập đoàn Vingroup - Công ty CP,Bất động sản,326923.0,True
+VHM,Công ty Cổ phần Vinhomes,Bất động sản,280947.0,True
+BCM,Tổng Công ty Đầu tư và Phát triển Công nghiệp - CTCP,Bất động sản,61582.0,True
+VRE,Công ty Cổ phần Vincom Retail,Bất động sản,55785.0,True
+SSH,Công ty Cổ phần Phát triển Sunshine Homes,Bất động sản,32909.0,True
+KDH,Công ty Cổ phần Đầu tư và Kinh doanh nhà Khang Điền,Bất động sản,29576.0,True
+VEF,Công ty Cổ phần Trung tâm Hội chợ Triển lãm Việt Nam,Bất động sản,29423.0,True
+NVL,Công ty Cổ phần Tập đoàn Đầu tư Địa ốc No Va,Bất động sản,27886.0,True
+KSF,Công ty Cổ phần Tập đoàn Sunshine,Bất động sản,19770.0,True
+KBC,Tổng Công ty Phát triển Đô thị Kinh Bắc,Bất động sản,18730.0,True
+VPI,Công ty Cổ phần Phát triển Bất động sản Văn Phú,Bất động sản,16739.0,False
+DXG,Công ty Cổ phần Tập đoàn Đất Xanh,Bất động sản,16047.0,False
+PDR,Công ty Cổ phần Phát triển Bất động sản Phát Đạt,Bất động sản,15196.0,False
+NLG,Công ty Cổ phần Đầu tư Nam Long,Bất động sản,14421.0,False
+SIP,Công ty Cổ phần Đầu tư Sài Gòn VRG,Bất động sản,13558.0,False
+IDC,Tổng Công ty IDICO - CTCP,Bất động sản,13299.0,False
+TCH,Công ty Cổ phần Đầu tư Dịch vụ Tài chính Hoàng Huy,Bất động sản,12730.0,False
+DIG,Tổng Công ty Cổ phần Đầu tư Phát triển Xây dựng,Bất động sản,10828.0,False
+THD,Công ty Cổ phần Thaiholdings,Bất động sản,10780.0,False
+SJS,Công ty Cổ phần SJ Group,Bất động sản,10444.0,False
+CEO,Công ty Cổ phần Tập đoàn C.E.O,Bất động sản,9403.0,False
+HDG,Công ty Cổ phần Tập đoàn Hà Đô,Bất động sản,9027.0,False
+KOS,Công ty Cổ phần KOSY,Bất động sản,8378.0,False
+TAL,Công Ty Cổ Phần Đầu Tư Bất Động Sản Taseco,Bất động sản,7319.0,False
+VCR,Công ty Cổ phần Đầu tư và Phát triển Du lịch Vinaconex,Bất động sản,7203.0,False
+SZC,Công ty Cổ phần Sonadezi Châu Đức,Bất động sản,5850.0,False
+DXS,Công ty Cổ phần Dịch vụ Bất động sản Đất Xanh,Bất động sản,5212.0,False
+TID,Công ty Cổ phần Tổng Công ty Tín Nghĩa,Bất động sản,4722.0,False
+IJC,Công ty Cổ phần Phát triển Hạ tầng Kỹ thuật,Bất động sản,4571.0,False
+HDC,Công ty Cổ phần Phát triển Nhà Bà Rịa Vũng Tàu,Bất động sản,4370.0,False
+CRE,Công ty Cổ phần Bất động sản Thế Kỷ,Bất động sản,3788.0,False
+NTC,Công ty Cổ phần Khu Công nghiệp Nam Tân Uyên,Bất động sản,3595.0,False
+VC3,Công ty Cổ phần Tập đoàn Nam Mê Kông,Bất động sản,3442.0,False
+SCR,Công ty Cổ phần Địa Ốc Sài Gòn Thương Tín,Bất động sản,3143.0,False
+QCG,Công ty Cổ phần Quốc Cường Gia Lai,Bất động sản,3109.0,False
+PRT,Tổng Công ty Sản xuất - Xuất nhập khẩu Bình Dương - Công ty cổ phần,Bất động sản,2919.0,False
+KHG,Công ty Cổ phần Tập đoàn Khải Hoàn Land,Bất động sản,2715.0,False
+AGG,Công ty Cổ phần Đầu tư và Phát triển Bất động sản An Gia,Bất động sản,2682.0,False
+FLC,Công ty Cổ phần Tập đoàn FLC,Bất động sản,2485.0,False
+CKG,Công ty Cổ phần Tập đoàn Tư vấn Đầu tư Xây dựng Kiên Giang,Bất động sản,2219.0,False
+NBB,Công ty Cổ phần Đầu tư Năm Bảy Bảy,Bất động sản,2204.0,False
+PXL,Công ty Cổ phần Đầu tư Khu Công Nghiệp Dầu khí Long Sơn,Bất động sản,2160.0,False
+ITA,Công ty Cổ phần Đầu tư và Công nghiệp Tân Tạo,Bất động sản,2158.0,False
+NTL,Công ty Cổ phần Phát triển Đô thị Từ Liêm,Bất động sản,2104.0,False
+SZG,Công ty Cổ phần Sonadezi Giang Điền,Bất động sản,2031.0,False
+SGR,Công ty Cổ phần Tổng Công ty Cổ phần Địa ốc Sài Gòn,Bất động sản,1960.0,False
+HQC,Công ty Cổ phần Tư vấn - Thương mại - Dịch vụ Địa ốc Hoàng Quân,Bất động sản,1868.0,False
+SID,Công ty Cổ phần Đầu tư Phát triển Sài Gòn Co.op,Bất động sản,1570.0,False
+LHG,Công ty Cổ phần Long Hậu,Bất động sản,1530.0,False
+LSG,Công ty Cổ phần Bất động sản Sài Gòn Vi na,Bất động sản,1529.0,False
+TDC,Công ty Cổ phần Kinh doanh và Phát triển Bình Dương,Bất động sản,1425.0,False
+TIG,Công ty Cổ phần Tập đoàn Đầu tư Thăng Long,Bất động sản,1375.0,False
+ITC,Công ty Cổ phần Đầu tư - Kinh doanh nhà,Bất động sản,1329.0,False
+HPI,Công ty Cổ phần Khu công nghiệp Hiệp Phước,Bất động sản,1320.0,False
+HPX,Công ty Cổ phần Đầu tư Hải Phát,Bất động sản,1271.0,False
+TIP,Công ty Cổ phần Phát triển Khu công nghiệp Tín Nghĩa,Bất động sản,1222.0,False
+BVL,Công ty Cổ phần BV Land,Bất động sản,1213.0,False
+SZB,Công ty Cổ phần Sonadezi Long Bình,Bất động sản,1197.0,False
+VGV,Tổng Công ty Tư vấn Xây dựng Việt Nam - CTCP,Bất động sản,1145.0,False
+TIX,Công ty Cổ phần Sản xuất Kinh doanh Xuất nhập khẩu Dịch vụ và Đầu tư Tân Bình,Bất động sản,1140.0,False
+SZL,Công ty Cổ phần Sonadezi Long Thành,Bất động sản,1121.0,False
+IDV,Công ty Cổ phần Phát triển Hạ tầng Vĩnh Phúc,Bất động sản,1101.0,False
+DTD,Công ty Cổ phần Đầu tư Phát triển Thành Đạt,Bất động sản,1087.0,False
+D2D,Công ty Cổ phần Phát triển Đô thị Công nghiệp số 2,Bất động sản,1009.0,False
+HTN,Công ty Cổ phần Hưng Thịnh Incons,Bất động sản,856.0,False
+IDJ,Công ty Cổ phần Đầu tư IDJ Việt Nam,Bất động sản,815.0,False
+TEG,Công ty Cổ phần Năng Lượng và Bất động sản Trường Thành,Bất động sản,780.0,False
+NVT,Công ty Cổ phần Bất động sản Du lịch Ninh Vân Bay,Bất động sản,750.0,False
+HLD,Công ty Cổ phần Đầu tư và Phát triển Bất động sản HUDLAND,Bất động sản,731.0,False
+MH3,Công ty Cổ phần Khu công nghiệp Cao su Bình Long,Bất động sản,693.0,False
+FDC,Công ty Cổ phần Ngoại thương và Phát triển Đầu tư Thành phố Hồ Chí Minh,Bất động sản,657.0,False
+NDN,Công ty Cổ phần Đầu tư Phát triển Nhà Đà Nẵng,Bất động sản,638.0,False
+VRC,Công ty Cổ phần Bất động sản và Đầu tư VRC,Bất động sản,628.0,False
+TN1,Công ty Cổ phần Rox Key Holdings,Bất động sản,617.0,False
+API,Công ty Cổ phần Đầu tư Châu Á - Thái Bình Dương,Bất động sản,605.0,False
+FIR,Công ty Cổ phần Địa ốc First Real,Bất động sản,596.0,False
+VRG,Công ty Cổ phần Phát triển Đô thị và Khu Công nghiệp Cao Su Việt Nam,Bất động sản,553.0,False
+LDG,Công ty Cổ phần Đầu tư LDG,Bất động sản,542.0,False
+TLD,Công ty Cổ phần Đầu tư Xây dựng và Phát triển Đô thị Thăng Long,Bất động sản,530.0,False
+KAC,Công ty Cổ phần Đầu tư Địa ốc Khang An,Bất động sản,504.0,False
+VPH,Công ty Cổ phần Vạn Phát Hưng,Bất động sản,500.0,False
+AAV,Công ty Cổ phần AAV Group,Bất động sản,476.0,False
+TDH,Công ty Cổ phần Phát triển Nhà Thủ Đức,Bất động sản,463.0,False
+XDH,Công ty Cổ phần Đầu tư Xây dựng Dân dụng Hà Nội,Bất động sản,460.0,False
+NRC,Công ty Cổ phần Tập đoàn Danh Khôi,Bất động sản,426.0,False
+CCL,Công ty Cổ phần Đầu tư và Phát triển Đô thị Dầu khí Cửu Long,Bất động sản,399.0,False
+DRH,Công ty Cổ phần DRH Holdings,Bất động sản,344.0,False
+HAR,Công ty Cổ phần Đầu tư Thương mại Bất động sản An Dương Thảo Điền,Bất động sản,311.0,False
+C21,Công ty Cổ phần Thế kỷ 21,Bất động sản,284.0,False
+PTL,Công ty Cổ phần Victory Group,Bất động sản,269.0,False
+VHD,Công ty Cổ phần Đầu tư phát triển nhà và đô thị VINAHUD,Bất động sản,243.0,False
+PVL,Công ty Cổ phần Đầu tư Nhà Đất Việt,Bất động sản,191.0,False
+HD6,Công ty Cổ phần Đầu tư và Phát triển nhà số 6 Hà Nội,Bất động sản,188.0,False
+RCL,Công ty Cổ phần Địa ốc Chợ Lớn,Bất động sản,186.0,False
+AMD,Công ty Cổ phần Đầu tư và Khoáng sản FLC Stone,Bất động sản,180.0,False
+LGL,Công ty Cổ phần Đầu tư và Phát triển Đô thị Long Giang,Bất động sản,163.0,False
+LEC,Công ty Cổ phần Bất động sản Điện lực Miền Trung,Bất động sản,115.0,False
+VNI,Công ty Cổ phần Đầu tư Bất động sản Việt Nam,Bất động sản,111.0,False
+MGR,Công ty cổ phần Tập đoàn MGROUP,Bất động sản,102.0,False
+PV2,Công ty Cổ phần Đầu tư PV2,Bất động sản,92.0,False
+V21,Công ty Cổ phần Vinaconex 21,Bất động sản,79.0,False
+DTA,Công ty Cổ phần Đệ Tam,Bất động sản,77.0,False
+D11,Công ty Cổ phần Địa ốc 11,Bất động sản,73.0,False
+VES,Công ty Cổ phần Đầu tư và Xây dựng Điện MÊ CA VNECO,Bất động sản,68.0,False
+PVR,Công ty Cổ phần Đầu tư PVR Hà Nội,Bất động sản,57.0,False
+PIV,Công ty Cổ phần PIV,Bất động sản,49.0,False
+BSC,Công ty Cổ phần Dịch vụ Bến Thành,Bất động sản,46.0,False
+PLA,Công ty Cổ phần Đầu tư và Dịch vụ hạ tầng Xăng dầu,Bất động sản,41.0,False
+BII,Công ty Cổ phần Đầu tư và Phát triển Công nghiệp Bảo Thư,Bất động sản,40.0,False
+EFI,Công ty Cổ phần Đầu tư Tài chính Giáo dục,Bất động sản,26.0,False
+LMH,Công ty Cổ phần Quốc Tế Holding,Bất động sản,23.0,False
+PPI,Công ty Cổ phần Đầu tư và Phát triển dự án hạ tầng Thái Bình Dương,Bất động sản,19.0,False
+NTB,Công ty Cổ phần Đầu tư Xây dựng và Khai thác Công trình giao thông 584,Bất động sản,16.0,False
+STL,Công ty Cổ phần Sông Đà - Thăng Long,Bất động sản,15.0,False
+PXC,Công ty Cổ phần Phát triển Đô thị Dầu khí,Bất động sản,14.0,False
+PXA,Công ty Cổ phần Đầu tư và Thương mại Dầu khí Nghệ An,Bất động sản,11.0,False
+CLG,Công ty Cổ phần Đầu tư và Phát triển Nhà đất Cotec,Bất động sản,11.0,False
+FPT,Công ty Cổ phần FPT,Công nghệ Thông tin,170945.0,True
+CMG,Công ty Cổ phần Tập đoàn Công nghệ CMC,Công nghệ Thông tin,7406.0,True
+SGT,Công ty Cổ phần Công nghệ Viễn thông Sài Gòn,Công nghệ Thông tin,2634.0,True
+SAM,Công ty Cổ phần SAM Holdings,Công nghệ Thông tin,2451.0,True
+ELC,Công ty Cổ phần Công nghệ - Viễn thông ELCOM,Công nghệ Thông tin,2239.0,True
+VEC,Tổng Công ty Cổ phần Điện tử và Tin học Việt Nam,Công nghệ Thông tin,434.0,True
+ICT,Công ty Cổ phần Viễn thông - Tin học Bưu điện,Công nghệ Thông tin,396.0,True
+UNI,Công ty Cổ phần Đầu tư và Phát triển Sao Mai Việt,Công nghệ Thông tin,341.0,True
+ITD,Công ty Cổ phần Công nghệ Tiên Phong,Công nghệ Thông tin,335.0,True
+POT,Công ty Cổ phần Thiết bị Bưu điện,Công nghệ Thông tin,330.0,True
+HIG,Công ty Cổ phần Tập đoàn HIPT,Công nghệ Thông tin,301.0,False
+ST8,Công ty Cổ phần Tập đoàn ST8,Công nghệ Thông tin,167.0,False
+SRA,Công ty Cổ phần SARA Việt Nam,Công nghệ Thông tin,143.0,False
+SBD,Công ty Cổ phần Công nghệ Sao Bắc Đẩu,Công nghệ Thông tin,103.0,False
+CMT,Công ty Cổ phần Công nghệ mạng và Truyền thông,Công nghệ Thông tin,98.0,False
+KST,Công ty Cổ phần KASATI,Công nghệ Thông tin,81.0,False
+VTE,Công ty Cổ phần VINACAP Kim Long,Công nghệ Thông tin,62.0,False
+SMT,Công ty Cổ phần SAMETEL,Công nghệ Thông tin,53.0,False
+CKV,Công ty Cổ phần CokyVina,Công nghệ Thông tin,49.0,False
+VLA,Công ty Cổ phần Đầu tư và Phát triển Công nghệ Văn Lang,Công nghệ Thông tin,43.0,False
+ONE,Công ty Cổ phần Công nghệ ONE,Công nghệ Thông tin,40.0,False
+PMT,Công ty Cổ phần Viễn thông Telvina Việt Nam,Công nghệ Thông tin,37.0,False
+VTC,Công ty Cổ phần Viễn Thông VTC,Công nghệ Thông tin,35.0,False
+TST,Công ty Cổ phần Dịch vụ Kỹ thuật Viễn thông,Công nghệ Thông tin,32.0,False
+VIE,Công ty Cổ phần Công nghệ Viễn thông VI TE CO,Công nghệ Thông tin,28.0,False
+SRB,Công ty Cổ phần Tập đoàn Sara,Công nghệ Thông tin,18.0,False
+LTC,Công ty Cổ phần Điện nhẹ Viễn Thông,Công nghệ Thông tin,9.0,False
+HVN,Tổng Công ty Hàng không Việt Nam - CTCP,Du lịch và Giải trí,84368.0,True
+VJC,Công ty Cổ phần Hàng không Vietjet,Du lịch và Giải trí,47662.0,True
+SCS,Công ty Cổ phần Dịch vụ Hàng hóa Sài Gòn,Du lịch và Giải trí,5997.0,True
+TSJ,Công ty Cổ phần Du lịch Dịch vụ Hà Nội,Du lịch và Giải trí,2543.0,True
+DSP,Công ty Cổ phần Dịch vụ Du lịch Phú Thọ,Du lịch và Giải trí,1306.0,True
+BSG,Công ty Cổ phần Xe khách Sài Gòn,Du lịch và Giải trí,1074.0,True
+VTR,Công ty Cổ phần Du lịch và tiếp thị giao thông vận tải Việt Nam - Vietravel,Du lịch và Giải trí,959.0,True
+VNG,Công ty Cổ phần Du Lịch Thành Thành Công,Du lịch và Giải trí,764.0,True
+SKG,Công ty Cổ phần Tàu Cao tốc Superdong - Kiên Giang,Du lịch và Giải trí,692.0,True
+VNS,Công ty Cổ phần Ánh Dương Việt Nam,Du lịch và Giải trí,655.0,True
+DSD,Công ty cổ phần DHC Suối Đôi,Du lịch và Giải trí,612.0,False
+DSN,Công ty Cổ phần Công viên nước Đầm Sen,Du lịch và Giải trí,561.0,False
+SGH,Công ty Cổ phần Khách sạn Sài Gòn,Du lịch và Giải trí,334.0,False
+RIC,Công ty Cổ phần Quốc Tế Hoàng Gia,Du lịch và Giải trí,320.0,False
+BTV,Công ty Cổ phần Dịch vụ Du lịch Bến Thành,Du lịch và Giải trí,285.0,False
+DAH,Công ty Cổ phần Tập đoàn Khách sạn Đông Á,Du lịch và Giải trí,277.0,False
+VTD,Công ty Cổ phần Vietourist Holdings,Du lịch và Giải trí,215.0,False
+HGT,Công ty Cổ phần Du lịch Hương Giang,Du lịch và Giải trí,214.0,False
+TCT,Công ty Cổ phần Cáp treo Núi Bà Tây Ninh,Du lịch và Giải trí,210.0,False
+VTG,Công ty Cổ phần Du lịch tỉnh Bà Rịa - Vũng Tàu,Du lịch và Giải trí,168.0,False
+MAS,Công ty cổ phần Dịch vụ Hàng Không Sân Bay Đà Nẵng,Du lịch và Giải trí,143.0,False
+TTT,Công ty Cổ phần Du Lịch - Thương Mại Tây Ninh,Du lịch và Giải trí,137.0,False
+KLF,Công ty Cổ phần Đầu tư Thương mại và Xuất nhập khẩu CFS,Du lịch và Giải trí,132.0,False
+HOT,Công ty Cổ phần Du lịch - Dịch vụ Hội An,Du lịch và Giải trí,118.0,False
+EIN,Công ty Cổ phần Đầu tư - Thương Mại - Dịch vụ Điện lực,Du lịch và Giải trí,95.0,False
+PGT,Công ty Cổ phần PGT Holdings,Du lịch và Giải trí,89.0,False
+PDC,Công ty Cổ phần Du lịch Dầu khí Phương Đông,Du lịch và Giải trí,87.0,False
+ATS,Công ty Cổ phần Tập đoàn Đầu tư ATS,Du lịch và Giải trí,63.0,False
+DLD,Công ty Cổ phần Du lịch Đắk Lắk,Du lịch và Giải trí,53.0,False
+HHG,Công ty Cổ phần Hoàng Hà,Du lịch và Giải trí,49.0,False
+DTI,Công ty Cổ phần Đầu tư Đức Trung,Du lịch và Giải trí,41.0,False
+DLT,Công ty Cổ phần Du lịch và Thương mại - Vinacomin,Du lịch và Giải trí,38.0,False
+STT,Công ty Cổ phần Vận chuyển Sài Gòn Tourist,Du lịch và Giải trí,15.0,False
+GTT,Công ty Cổ phần Thuận Thảo,Du lịch và Giải trí,13.0,False
+BSR,Công ty Cổ phần Lọc Hóa dầu Bình Sơn,Dầu khí,57359.0,True
+PLX,Tập đoàn Xăng dầu Việt Nam,Dầu khí,47901.0,True
+PVS,Tổng Công ty Cổ phần Dịch vụ Kỹ thuật Dầu khí Việt Nam,Dầu khí,16633.0,True
+OIL,Tổng Công ty Dầu Việt Nam - Công ty Cổ phần,Dầu khí,11664.0,True
+PVD,Tổng Công ty Cổ phần Khoan và Dịch vụ khoan Dầu khí,Dầu khí,11368.0,True
+TOS,Công ty Cổ phần Dịch vụ biển Tân Cảng,Dầu khí,4551.0,True
+PVC,Tổng Công ty Hóa chất và Dịch vụ Dầu khí - Công ty Cổ phần,Dầu khí,893.0,True
+POS,"Công ty Cổ phần Dịch vụ lắp đặt, vận hành và bảo dưỡng công trình dầu khí biển PTSC",Dầu khí,750.0,True
+PVB,Công ty Cổ phần Bọc ống Dầu khí Việt Nam,Dầu khí,642.0,True
+PTV,Công ty Cổ phần Thương mại Dầu khí,Dầu khí,76.0,True
+PVE,Tổng Công ty Tư vấn Thiết kế Dầu khí - Công ty Cổ phần,Dầu khí,60.0,False
+SSI,Công ty Cổ phần Chứng khoán SSI,Dịch vụ tài chính,45649.0,True
+VCI,Công ty Cổ phần Chứng khoán Vietcap,Dịch vụ tài chính,25385.0,True
+VND,Công ty Cổ phần Chứng khoán VNDIRECT,Dịch vụ tài chính,24585.0,True
+VIX,Công ty Cổ phần Chứng khoán VIX,Dịch vụ tài chính,18961.0,True
+HCM,Công ty Cổ phần Chứng khoán Thành phố Hồ Chí Minh,Dịch vụ tài chính,18143.0,True
+MBS,Công ty Cổ phần Chứng khoán MB,Dịch vụ tài chính,15121.0,True
+FTS,Công ty Cổ phần Chứng khoán FPT,Dịch vụ tài chính,11963.0,True
+SHS,Công ty Cổ phần Chứng khoán Sài Gòn - Hà Nội,Dịch vụ tài chính,11449.0,True
+BSI,Công ty Cổ phần Chứng khoán BIDV,Dịch vụ tài chính,9827.0,True
+EVF,Công ty Tài chính Cổ phần Điện Lực,Dịch vụ tài chính,7720.0,True
+DSE,Công ty Cổ phần Chứng khoán DNSE,Dịch vụ tài chính,7474.0,False
+CTS,Công ty Cổ phần Chứng khoán Ngân hàng Công thương Việt Nam,Dịch vụ tài chính,5402.0,False
+VDS,Công ty Cổ phần Chứng khoán Rồng Việt,Dịch vụ tài chính,3729.0,False
+TIN,Công ty Tài chính tổng hợp cổ phần Tín Việt,Dịch vụ tài chính,3605.0,False
+VFS,Công ty Cổ phần Chứng khoán Nhất Việt,Dịch vụ tài chính,3408.0,False
+AGR,Công ty Cổ phần Chứng khoán AGRIBANK,Dịch vụ tài chính,3288.0,False
+DSC,Công ty Cổ phần Chứng khoán DSC,Dịch vụ tài chính,3093.0,False
+ORS,Công ty Cổ phần Chứng khoán Tiên Phong,Dịch vụ tài chính,3041.0,False
+TVS,Công ty Cổ phần Chứng khoán Thiên Việt,Dịch vụ tài chính,2889.0,False
+APG,Công ty Cổ phần Chứng khoán APG,Dịch vụ tài chính,2706.0,False
+BCG,Công ty Cổ phần Tập đoàn Bamboo Capital,Dịch vụ tài chính,2509.0,False
+BVS,Công ty Cổ phần Chứng khoán Bảo Việt,Dịch vụ tài chính,2267.0,False
+PHS,Công ty Cổ phần Chứng khoán Phú Hưng,Dịch vụ tài chính,2140.0,False
+AAS,Công ty Cổ phần Chứng khoán SmartInvest,Dịch vụ tài chính,1997.0,False
+OGC,Công ty Cổ phần Tập đoàn Đại Dương,Dịch vụ tài chính,1203.0,False
+EVS,Công ty Cổ phần Chứng khoán EVS,Dịch vụ tài chính,956.0,False
+TCI,Công ty Cổ phần Chứng khoán Thành Công,Dịch vụ tài chính,943.0,False
+IVS,Công ty Cổ phần Chứng khoán Guotai Junan (Việt Nam),Dịch vụ tài chính,934.0,False
+TVB,Công ty Cổ phần Chứng khoán Trí Việt,Dịch vụ tài chính,932.0,False
+TVC,Công ty Cổ phần Tập đoàn Quản lý Tài sản Trí Việt,Dịch vụ tài chính,929.0,False
+BMS,Công ty Cổ phần Chứng khoán Bảo Minh,Dịch vụ tài chính,863.0,False
+ABW,Công ty Cổ phần Chứng khoán An Bình,Dịch vụ tài chính,778.0,False
+SBS,Công ty Cổ phần Chứng khoán SBS,Dịch vụ tài chính,672.0,False
+CSI,Công ty Cổ phần Chứng khoán Kiến thiết Việt Nam,Dịch vụ tài chính,591.0,False
+VUA,Công ty Cổ phần Chứng khoán Stanley Brothers,Dịch vụ tài chính,502.0,False
+APS,Công ty Cổ phần Chứng khoán Châu Á - Thái Bình Dương,Dịch vụ tài chính,481.0,False
+PSI,Công ty Cổ phần Chứng khoán Dầu khí,Dịch vụ tài chính,389.0,False
+VIG,Công ty Cổ phần Chứng khoán Đầu tư Tài chính Việt Nam,Dịch vụ tài chính,284.0,False
+HAC,Công ty Cổ phần Chứng khoán Hải Phòng,Dịch vụ tài chính,257.0,False
+WSS,Công ty Cổ phần Chứng khoán Phố Wall,Dịch vụ tài chính,252.0,False
+HBS,Công ty Cổ phần Chứng khoán Hòa Bình,Dịch vụ tài chính,214.0,False
+HVA,Công ty Cổ phần Đầu tư HVA,Dịch vụ tài chính,171.0,False
+IBC,Công ty Cổ phần Đầu tư APAX Holdings,Dịch vụ tài chính,141.0,False
+ART,Công ty Cổ phần Chứng khoán BOS,Dịch vụ tài chính,126.0,False
+ACV,Tổng Công ty Cảng Hàng không Việt Nam - CTCP,Hàng & Dịch vụ Công nghiệp,200861.0,True
+MVN,Tổng Công ty Hàng hải Việt Nam - CTCP,Hàng & Dịch vụ Công nghiệp,72816.0,True
+VEA,Tổng Công ty Máy động lực và Máy nông nghiệp Việt Nam - CTCP,Hàng & Dịch vụ Công nghiệp,52135.0,True
+GEE,Công ty Cổ phần Điện lực Gelex,Hàng & Dịch vụ Công nghiệp,34367.0,True
+GEX,Công ty Cổ phần Tập đoàn Gelex,Hàng & Dịch vụ Công nghiệp,30591.0,True
+GMD,Công ty Cổ phần Gemadept,Hàng & Dịch vụ Công nghiệp,23363.0,True
+VTP,Tổng Công ty Cổ phần Bưu chính Viettel,Hàng & Dịch vụ Công nghiệp,14370.0,True
+PHP,Công ty Cổ phần Cảng Hải Phòng,Hàng & Dịch vụ Công nghiệp,12289.0,True
+HAH,Công ty Cổ phần Vận tải và Xếp dỡ Hải An,Hàng & Dịch vụ Công nghiệp,9080.0,True
+PVT,Tổng Công ty Cổ phần Vận tải Dầu khí,Hàng & Dịch vụ Công nghiệp,8473.0,True
+TMS,Công ty Cổ phần Transimex,Hàng & Dịch vụ Công nghiệp,6909.0,False
+VSC,Công ty Cổ phần Container Việt Nam,Hàng & Dịch vụ Công nghiệp,6140.0,False
+PAP,Công ty Cổ phần Dầu khí đầu tư khai thác Cảng Phước An,Hàng & Dịch vụ Công nghiệp,5980.0,False
+SGP,Công ty Cổ phần Cảng Sài Gòn,Hàng & Dịch vụ Công nghiệp,5743.0,False
+PDN,Công ty Cổ phần Cảng Đồng Nai,Hàng & Dịch vụ Công nghiệp,5186.0,False
+TBD,Tổng công ty Thiết bị điện Đông Anh - Công ty Cổ phần,Hàng & Dịch vụ Công nghiệp,3874.0,False
+VGR,Công ty Cổ phần Cảng xanh VIP,Hàng & Dịch vụ Công nghiệp,3858.0,False
+VFC,Công ty Cổ phần VINAFCO,Hàng & Dịch vụ Công nghiệp,3651.0,False
+STG,Công ty Cổ phần Kho Vận Miền Nam,Hàng & Dịch vụ Công nghiệp,3572.0,False
+DVP,Công ty Cổ phần Đầu tư và Phát triển Cảng Đình Vũ,Hàng & Dịch vụ Công nghiệp,3128.0,False
+CDN,Công ty Cổ phần Cảng Đà Nẵng,Hàng & Dịch vụ Công nghiệp,3118.0,False
+IPA,Công ty Cổ phần Tập đoàn Đầu tư I.P.A,Hàng & Dịch vụ Công nghiệp,2844.0,False
+TDP,Công ty Cổ phần Thuận Đức,Hàng & Dịch vụ Công nghiệp,2801.0,False
+NCT,Công ty Cổ phần Dịch vụ Hàng hóa Nội Bài,Hàng & Dịch vụ Công nghiệp,2747.0,False
+TV2,Công ty Cổ phần Tư vấn Xây dựng Điện 2,Hàng & Dịch vụ Công nghiệp,2552.0,False
+CQN,Công ty Cổ phần Cảng Quảng Ninh,Hàng & Dịch vụ Công nghiệp,2418.0,False
+SWC,Tổng Công ty Cổ phần Đường Sông Miền Nam,Hàng & Dịch vụ Công nghiệp,2335.0,False
+SGN,Công ty Cổ phần Phục vụ mặt đất Sài Gòn,Hàng & Dịch vụ Công nghiệp,2146.0,False
+VOS,Công ty Cổ phần Vận tải Biển Việt Nam,Hàng & Dịch vụ Công nghiệp,2051.0,False
+PAC,Công ty Cổ phần Pin Ắc quy Miền Nam,Hàng & Dịch vụ Công nghiệp,1719.0,False
+ASG,Công ty Cổ phần Tập đoàn ASG,Hàng & Dịch vụ Công nghiệp,1598.0,False
+PVP,Công ty Cổ phần Vận tải Dầu khí Thái Bình Dương,Hàng & Dịch vụ Công nghiệp,1576.0,False
+APH,Công ty Cổ phần Tập đoàn An Phát Holdings,Hàng & Dịch vụ Công nghiệp,1517.0,False
+QNP,Công ty Cổ phần Cảng Quy Nhơn,Hàng & Dịch vụ Công nghiệp,1354.0,False
+LLM,Tổng Công ty lắp máy Việt Nam - Công ty Cổ phần,Hàng & Dịch vụ Công nghiệp,1342.0,False
+BTH,Công ty Cổ phần Chế tạo Biến thế và Vật liệu Điện Hà Nội,Hàng & Dịch vụ Công nghiệp,1271.0,False
+CLL,Công ty Cổ phần Cảng Cát Lái,Hàng & Dịch vụ Công nghiệp,1164.0,False
+ILB,Công ty Cổ phần ICD Tân Cảng - Long Bình,Hàng & Dịch vụ Công nghiệp,1050.0,False
+INN,Công ty Cổ phần Bao bì và In Nông nghiệp,Hàng & Dịch vụ Công nghiệp,1041.0,False
+VTO,Công ty Cổ phần Vận tải Xăng dầu VITACO,Hàng & Dịch vụ Công nghiệp,1018.0,False
+TCL,Công ty Cổ phần Đại lý Giao nhận Vận tải Xếp dỡ Tân Cảng,Hàng & Dịch vụ Công nghiệp,1004.0,False
+MIE,Tổng Công ty Máy và Thiết bị Công nghiệp - CTCP,Hàng & Dịch vụ Công nghiệp,966.0,False
+WCS,Công ty Cổ phần Bến xe Miền Tây,Hàng & Dịch vụ Công nghiệp,950.0,False
+DL1,Công ty Cổ phần Tập đoàn Alpha Seven,Hàng & Dịch vụ Công nghiệp,924.0,False
+PDV,Công ty Cổ phần Vận tải và Tiếp vận Phương Đông Việt,Hàng & Dịch vụ Công nghiệp,913.0,False
+VIP,Công ty Cổ phần Vận tải Xăng dầu VIPCO,Hàng & Dịch vụ Công nghiệp,876.0,False
+GSP,Công ty Cổ phần Vận tải Sản phẩm Khí Quốc tế,Hàng & Dịch vụ Công nghiệp,780.0,False
+CKD,Công ty Cổ phần Cơ khí Đông Anh Licogi,Hàng & Dịch vụ Công nghiệp,760.0,False
+TV1,Công ty Cổ phần Tư vấn Xây dựng Điện 1,Hàng & Dịch vụ Công nghiệp,687.0,False
+SVI,Công ty Cổ phần Bao bì Biên Hòa,Hàng & Dịch vụ Công nghiệp,681.0,False
+TCW,Công ty Cổ phần Kho Vận Tân Cảng,Hàng & Dịch vụ Công nghiệp,673.0,False
+VNA,Công ty Cổ phần Vận tải biển Vinaship,Hàng & Dịch vụ Công nghiệp,666.0,False
+SFI,Công ty Cổ phần Đại lý Vận tải SAFI,Hàng & Dịch vụ Công nghiệp,639.0,False
+SCY,Công ty Cổ phần Đóng tàu Sông Cấm,Hàng & Dịch vụ Công nghiệp,633.0,False
+SBG,Công ty Cổ Phần Tập Đoàn Cơ Khí Công Nghệ Cao Siba,Hàng & Dịch vụ Công nghiệp,627.0,False
+PVM,Công ty Cổ phần Máy - Thiết bị Dầu khí,Hàng & Dịch vụ Công nghiệp,592.0,False
+DXP,Công ty Cổ phần Cảng Đoạn Xá,Hàng & Dịch vụ Công nghiệp,581.0,False
+PCT,Công ty Cổ phần Vận tải Biển Global Pacific,Hàng & Dịch vụ Công nghiệp,580.0,False
+VNC,Công ty Cổ phần Tập đoàn Vinacontrol,Hàng & Dịch vụ Công nghiệp,556.0,False
+ILS,Công ty Cổ phần Đầu tư Thương mại và Dịch vụ Quốc tế,Hàng & Dịch vụ Công nghiệp,551.0,False
+MCP,Công ty Cổ phần In và Bao bì Mỹ Châu,Hàng & Dịch vụ Công nghiệp,542.0,False
+IST,Công ty Cổ phần ICD Tân Cảng Sóng Thần,Hàng & Dịch vụ Công nghiệp,529.0,False
+NAG,Công ty Cổ phần Tập đoàn Nagakawa,Hàng & Dịch vụ Công nghiệp,526.0,False
+EMS,Tổng Công ty Chuyển phát nhanh Bưu điện - Công ty Cổ phần,Hàng & Dịch vụ Công nghiệp,525.0,False
+PSP,Công ty Cổ phần Cảng Dịch vụ Dầu khí Đình Vũ,Hàng & Dịch vụ Công nghiệp,523.0,False
+PHN,Công ty Cổ phần Pin Hà Nội,Hàng & Dịch vụ Công nghiệp,508.0,False
+TPP,Công ty Cổ phần Tân Phú Việt Nam,Hàng & Dịch vụ Công nghiệp,482.0,False
+PSN,Công ty Cổ phần Dịch vụ Kỹ thuật PTSC Thanh Hóa,Hàng & Dịch vụ Công nghiệp,472.0,False
+TYA,Công ty Cổ phần Dây và Cáp điện Taya Việt Nam,Hàng & Dịch vụ Công nghiệp,465.0,False
+MAC,Công ty Cổ phần Tập đoàn Macstar,Hàng & Dịch vụ Công nghiệp,454.0,False
+VNF,Công ty Cổ phần Vinafreight,Hàng & Dịch vụ Công nghiệp,444.0,False
+AMS,Công ty Cổ phần Cơ khí Xây dựng AMECC,Hàng & Dịch vụ Công nghiệp,444.0,False
+VNT,Công ty Cổ phần Giao nhận Vận tải Ngoại Thương,Hàng & Dịch vụ Công nghiệp,406.0,False
+VIN,Công ty Cổ phần Giao nhận Kho vận Ngoại thương Việt Nam,Hàng & Dịch vụ Công nghiệp,360.0,False
+PNP,Công ty Cổ phần Tân Cảng – Phú Hữu,Hàng & Dịch vụ Công nghiệp,359.0,False
+SZE,Công ty Cổ phần Môi trường Sonadezi,Hàng & Dịch vụ Công nghiệp,350.0,False
+MHC,Công ty Cổ phần MHC,Hàng & Dịch vụ Công nghiệp,346.0,False
+CCT,Công ty Cổ phần Cảng Cần Thơ,Hàng & Dịch vụ Công nghiệp,342.0,False
+CTB,Công ty Cổ phần Chế tạo Bơm Hải Dương,Hàng & Dịch vụ Công nghiệp,338.0,False
+VSA,Công ty Cổ phần Đại lý Hàng hải Việt Nam,Hàng & Dịch vụ Công nghiệp,331.0,False
+TCO,Công ty Cổ phần TCO Holdings,Hàng & Dịch vụ Công nghiệp,327.0,False
+AME,Công ty cổ phần Alphanam E&C,Hàng & Dịch vụ Công nghiệp,326.0,False
+CCR,Công ty Cổ phần Cảng Cam Ranh,Hàng & Dịch vụ Công nghiệp,315.0,False
+SRF,Công ty Cổ phần Searefico,Hàng & Dịch vụ Công nghiệp,302.0,False
+VNL,Công ty Cổ phần Logistics Vinalink,Hàng & Dịch vụ Công nghiệp,284.0,False
+TV4,Công ty Cổ phần Tư vấn Xây dựng Điện 4,Hàng & Dịch vụ Công nghiệp,283.0,False
+PBT,Công ty Cổ Phần Bao bì và Thương mại Dầu khí Bình Sơn,Hàng & Dịch vụ Công nghiệp,270.0,False
+CMP,Công ty Cổ phần Cảng Chân Mây,Hàng & Dịch vụ Công nghiệp,262.0,False
+HSA,Công ty Cổ phần HESTIA,Hàng & Dịch vụ Công nghiệp,260.0,False
+SGS,Công ty Cổ phần Vận tải biển Sài Gòn,Hàng & Dịch vụ Công nghiệp,258.0,False
+PJT,Công ty Cổ phần Vận tải Xăng dầu đường thủy Petrolimex,Hàng & Dịch vụ Công nghiệp,255.0,False
+ABR,Công ty Cổ phần Đầu tư Nhãn Hiệu Việt,Hàng & Dịch vụ Công nghiệp,244.0,False
+VHG,Công ty Cổ phần Đầu tư và Phát triển Việt Trung Nam,Hàng & Dịch vụ Công nghiệp,242.0,False
+PMS,Công ty Cổ phần Cơ khí Xăng dầu,Hàng & Dịch vụ Công nghiệp,235.0,False
+VST,Công ty Cổ phần Vận tải và Thuê Tàu biển Việt Nam,Hàng & Dịch vụ Công nghiệp,231.0,False
+VGP,Công ty Cổ phần Cảng Rau Quả,Hàng & Dịch vụ Công nghiệp,231.0,False
+TSB,Công ty Cổ phần Ắc quy Tia Sáng,Hàng & Dịch vụ Công nghiệp,226.0,False
+NAP,Công ty Cổ phần Cảng Nghệ Tĩnh,Hàng & Dịch vụ Công nghiệp,217.0,False
+L10,Công ty Cổ phần Lilama 10,Hàng & Dịch vụ Công nghiệp,217.0,False
+VMS,Công ty Cổ phần Phát triển Hàng Hải,Hàng & Dịch vụ Công nghiệp,206.0,False
+SVG,Công ty Cổ phần Hơi kỹ nghệ Que hàn,Hàng & Dịch vụ Công nghiệp,197.0,False
+PTT,Công ty Cổ phần Vận tải Dầu khí Đông Dương,Hàng & Dịch vụ Công nghiệp,193.0,False
+HMH,Công ty Cổ phần Hải Minh,Hàng & Dịch vụ Công nghiệp,193.0,False
+CJC,Công ty Cổ phần Cơ điện Miền Trung,Hàng & Dịch vụ Công nghiệp,192.0,False
+QHD,Công ty Cổ phần Que hàn điện Việt Đức,Hàng & Dịch vụ Công nghiệp,189.0,False
+GIC,Công ty Cổ phần VSC Green Logistics,Hàng & Dịch vụ Công nghiệp,182.0,False
+CIA,Công ty Cổ Phần Dịch Vụ Sân Bay Quốc Tế Cam Ranh,Hàng & Dịch vụ Công nghiệp,181.0,False
+VFR,Công ty Cổ phần Vận tải và Thuê tàu,Hàng & Dịch vụ Công nghiệp,178.0,False
+PPS,Công ty Cổ phần Dịch vụ Kỹ thuật Điện lực Dầu khí Việt Nam,Hàng & Dịch vụ Công nghiệp,178.0,False
+TJC,Công ty Cổ phần Dịch vụ Vận tải và Thương mại,Hàng & Dịch vụ Công nghiệp,172.0,False
+NO1,Công ty Cổ phần Tâp đoàn 911,Hàng & Dịch vụ Công nghiệp,172.0,False
+CPI,Công ty Cổ phần Đầu tư Cảng Cái Lân,Hàng & Dịch vụ Công nghiệp,170.0,False
+TOT,Công ty Cổ phần Transimex Logistics,Hàng & Dịch vụ Công nghiệp,169.0,False
+SDG,Công ty Cổ phần Sadico Cần Thơ,Hàng & Dịch vụ Công nghiệp,152.0,False
+VTX,Công ty Cổ phần Vận tải Đa phương thức VIETRANSTIMEX,Hàng & Dịch vụ Công nghiệp,151.0,False
+VBC,"Công ty Cổ phần Nhựa, Bao bì Vinh",Hàng & Dịch vụ Công nghiệp,149.0,False
+ITS,"Công ty Cổ phần Đầu tư, Thương mại và Dịch vụ - Vinacomin",Hàng & Dịch vụ Công nghiệp,148.0,False
+HNB,Công ty Cổ phần Bến xe Hà Nội,Hàng & Dịch vụ Công nghiệp,133.0,False
+VLG,Công ty Cổ phần VIMC Logistics,Hàng & Dịch vụ Công nghiệp,128.0,False
+MTS,Công ty Cổ phần Vật tư - TKV,Hàng & Dịch vụ Công nghiệp,128.0,False
+HTV,Công ty Cổ phần Logistics Vicem,Hàng & Dịch vụ Công nghiệp,121.0,False
+PQN,Công ty Cổ phần Dịch vụ Dầu khí Quảng Ngãi PTSC,Hàng & Dịch vụ Công nghiệp,120.0,False
+DHP,Công ty Cổ phần Điện cơ Hải Phòng,Hàng & Dịch vụ Công nghiệp,114.0,False
+CCP,Công ty Cổ phần Cảng Cửa Cấm Hải Phòng,Hàng & Dịch vụ Công nghiệp,109.0,False
+VTB,Công ty Cổ phần Viettronics Tân Bình,Hàng & Dịch vụ Công nghiệp,108.0,False
+CAG,Công ty Cổ phần Cảng An Giang,Hàng & Dịch vụ Công nghiệp,106.0,False
+KIP,Công ty Cổ phần K.I.P Việt Nam,Hàng & Dịch vụ Công nghiệp,105.0,False
+ARM,Công ty Cổ phần Xuất nhập khẩu Hàng không,Hàng & Dịch vụ Công nghiệp,88.0,False
+LPT,Công ty Cổ phần Thương mại và Sản xuất Lập Phương Thành,Hàng & Dịch vụ Công nghiệp,83.0,False
+BBS,Công ty Cổ phần VICEM Bao bì Bút Sơn,Hàng & Dịch vụ Công nghiệp,83.0,False
+VSM,Công ty Cổ phần Container Miền Trung,Hàng & Dịch vụ Công nghiệp,78.0,False
+CTT,Công ty Cổ phần Chế tạo máy - Vinacomin,Hàng & Dịch vụ Công nghiệp,77.0,False
+STP,Công ty Cổ phần Công nghiệp Thương mại Sông Đà,Hàng & Dịch vụ Công nghiệp,73.0,False
+SDA,Công ty Cổ phần SIMCO Sông Đà,Hàng & Dịch vụ Công nghiệp,71.0,False
+PSC,Công ty Cổ phần Vận tải và Dịch vụ Petrolimex Sài Gòn,Hàng & Dịch vụ Công nghiệp,71.0,False
+PRC,Công ty Cổ phần Logistics Portserco,Hàng & Dịch vụ Công nghiệp,69.0,False
+HPB,Công ty Cổ phần Bao bì PP,Hàng & Dịch vụ Công nghiệp,69.0,False
+VTH,Công ty Cổ phần Dây cáp điện Việt Thái,Hàng & Dịch vụ Công nghiệp,65.0,False
+PBP,Công ty Cổ phần Bao bì Dầu khí Việt Nam,Hàng & Dịch vụ Công nghiệp,60.0,False
+DS3,Công ty Cổ phần DS3,Hàng & Dịch vụ Công nghiệp,59.0,False
+DUS,Công ty Cổ phần Dịch vụ Đô thị Đà Lạt,Hàng & Dịch vụ Công nghiệp,58.0,False
+SAC,Công ty Cổ phần Xếp dỡ và Dịch vụ cảng Sài Gòn,Hàng & Dịch vụ Công nghiệp,57.0,False
+PMP,Công ty Cổ phần Bao bì Đạm Phú Mỹ,Hàng & Dịch vụ Công nghiệp,56.0,False
+SHC,Công ty Cổ phần Hàng hải Sài Gòn,Hàng & Dịch vụ Công nghiệp,55.0,False
+SDK,Công ty Cổ phần Cơ khí Luyện Kim,Hàng & Dịch vụ Công nghiệp,55.0,False
+PTS,Công ty Cổ phần Vận tải và Dịch vụ Petrolimex Hải Phòng,Hàng & Dịch vụ Công nghiệp,52.0,False
+VQC,Công ty Cổ phần Giám định Vinaconmin,Hàng & Dịch vụ Công nghiệp,51.0,False
+SFN,Công ty Cổ phần Dệt lưới Sài Gòn,Hàng & Dịch vụ Công nghiệp,51.0,False
+SSG,Công ty Cổ phần Vận tải Biển Hải Âu,Hàng & Dịch vụ Công nghiệp,48.0,False
+VCM,Công ty Cổ phần BV Life,Hàng & Dịch vụ Công nghiệp,47.0,False
+BXH,Công ty Cổ phần VICEM Bao bì Hải Phòng,Hàng & Dịch vụ Công nghiệp,45.0,False
+ILC,Công ty Cổ phần Hợp tác lao động với nước ngoài,Hàng & Dịch vụ Công nghiệp,41.0,False
+BPC,Công ty Cổ phần Vicem Bao bì Bỉm Sơn,Hàng & Dịch vụ Công nghiệp,40.0,False
+CMC,Công ty Cổ phần Đầu tư CMC,Hàng & Dịch vụ Công nghiệp,34.0,False
+DPC,Công ty Cổ phần Nhựa Đà Nẵng,Hàng & Dịch vụ Công nghiệp,33.0,False
+TIE,Công ty Cổ phần TIE,Hàng & Dịch vụ Công nghiệp,31.0,False
+VPA,Công ty Cổ phần Vận tải Hóa dầu VP,Hàng & Dịch vụ Công nghiệp,30.0,False
+HBD,Công ty Cổ phần Bao bì PP Bình Dương,Hàng & Dịch vụ Công nghiệp,30.0,False
+VSG,Công ty Cổ phần Container Phía Nam,Hàng & Dịch vụ Công nghiệp,28.0,False
+L62,Công ty Cổ phần Lilama 69 - 2,Hàng & Dịch vụ Công nghiệp,27.0,False
+BAL,Công ty Cổ phần Bao bì Bia - Rượu - Nước giải khát,Hàng & Dịch vụ Công nghiệp,26.0,False
+PPE,Công ty Cổ phần Tư vấn Đầu tư PP Enterprise,Hàng & Dịch vụ Công nghiệp,25.0,False
+HCT,Công ty Cổ phần Thương mại - Dịch vụ - Vận tải Xi măng Hải Phòng,Hàng & Dịch vụ Công nghiệp,24.0,False
+DDM,Công ty Cổ phần Hàng hải Đông Đô,Hàng & Dịch vụ Công nghiệp,20.0,False
+VBH,Công ty Cổ phần Điện tử Bình Hòa,Hàng & Dịch vụ Công nghiệp,19.0,False
+SDC,Công ty Cổ phần Tư vấn Sông Đà,Hàng & Dịch vụ Công nghiệp,19.0,False
+SCO,Công ty Cổ phần Công nghiệp Thủy sản,Hàng & Dịch vụ Công nghiệp,17.0,False
+DZM,Công ty Cổ phần Cơ điện Dzĩ An,Hàng & Dịch vụ Công nghiệp,16.0,False
+NOS,Công ty Cổ phần Vận tải Biển và Thương mại Phương Đông,Hàng & Dịch vụ Công nghiệp,15.0,False
+LM7,Công ty Cổ phần Lilama 7,Hàng & Dịch vụ Công nghiệp,12.0,False
+L61,Công ty Cổ phần Lilama 69-1,Hàng & Dịch vụ Công nghiệp,10.0,False
+L35,Công ty Cổ phần Cơ khí Lắp máy Lilama,Hàng & Dịch vụ Công nghiệp,10.0,False
+BTG,Công ty Cổ phần Bao bì Tiền Giang,Hàng & Dịch vụ Công nghiệp,10.0,False
+NHP,Công ty Cổ phần Sản xuất Xuất nhập khẩu NHP,Hàng & Dịch vụ Công nghiệp,8.0,False
+HDO,Công ty Cổ phần Hưng Đạo Container,Hàng & Dịch vụ Công nghiệp,7.0,False
+LO5,Công ty Cổ phần Lilama 5,Hàng & Dịch vụ Công nghiệp,6.0,False
+L44,Công ty Cổ phần Lilama 45.4,Hàng & Dịch vụ Công nghiệp,2.0,False
+PNJ,Công ty Cổ phần Vàng bạc Đá quý Phú Nhuận,Hàng cá nhân & Gia dụng,26357.0,True
+VGT,Tập đoàn Dệt May Việt Nam,Hàng cá nhân & Gia dụng,5582.0,True
+TLG,Công ty Cổ phần Tập đoàn Thiên Long,Hàng cá nhân & Gia dụng,4478.0,True
+MSH,Công ty Cổ phần May Sông Hồng,Hàng cá nhân & Gia dụng,3978.0,True
+TCM,Công ty Cổ phần Dệt may - Đầu tư - Thương mại Thành Công,Hàng cá nhân & Gia dụng,3227.0,True
+STK,Công ty Cổ phần Sợi Thế Kỷ,Hàng cá nhân & Gia dụng,2571.0,True
+RAL,Công ty Cổ phần Bóng đèn Phích nước Rạng Đông,Hàng cá nhân & Gia dụng,2284.0,True
+TNG,Công ty Cổ phần Đầu tư và Thương mại TNG,Hàng cá nhân & Gia dụng,2256.0,True
+VGG,Tổng Công Ty Cổ phần May Việt Tiến,Hàng cá nhân & Gia dụng,2067.0,True
+PPH,Tổng Công ty Cổ phần Phong Phú,Hàng cá nhân & Gia dụng,2016.0,True
+LIX,Công ty Cổ phần Bột Giặt LiX,Hàng cá nhân & Gia dụng,1954.0,False
+NET,Công ty Cổ phần Bột giặt Net,Hàng cá nhân & Gia dụng,1834.0,False
+GIL,Công ty Cổ phần Sản xuất Kinh doanh Xuất nhập khẩu Bình Thạnh,Hàng cá nhân & Gia dụng,1727.0,False
+HTG,Tổng Công ty Cổ phần Dệt may Hòa Thọ,Hàng cá nhân & Gia dụng,1546.0,False
+CLC,Công ty Cổ phần Cát Lợi,Hàng cá nhân & Gia dụng,1337.0,False
+SGI,Công ty Cổ phần Đầu tư phát triển Sài Gòn 3 Group,Hàng cá nhân & Gia dụng,981.0,False
+BDG,Công ty Cổ phần May mặc Bình Dương,Hàng cá nhân & Gia dụng,845.0,False
+HUG,Tổng công ty May Hưng Yên - Công ty Cổ phần,Hàng cá nhân & Gia dụng,712.0,False
+MNB,Tổng Công ty May Nhà Bè - Công ty Cổ phần,Hàng cá nhân & Gia dụng,682.0,False
+HDM,Công ty Cổ phần Dệt May Huế,Hàng cá nhân & Gia dụng,645.0,False
+M10,Tổng công ty May 10 - Công ty Cổ phần,Hàng cá nhân & Gia dụng,637.0,False
+ADS,Công ty Cổ phần DAMSAN,Hàng cá nhân & Gia dụng,599.0,False
+HNI,Công ty Cổ phần May Hữu Nghị,Hàng cá nhân & Gia dụng,571.0,False
+GDT,Công ty Cổ phần Chế biến Gỗ Đức Thành,Hàng cá nhân & Gia dụng,537.0,False
+XHC,Công ty Cổ phần Xuân Hòa Việt Nam,Hàng cá nhân & Gia dụng,401.0,False
+EVE,Công ty Cổ phần Everpia,Hàng cá nhân & Gia dụng,390.0,False
+DM7,Công ty Cổ phần Dệt may 7,Hàng cá nhân & Gia dụng,350.0,False
+TVT,Tổng Công ty Việt Thắng - CTCP,Hàng cá nhân & Gia dụng,342.0,False
+GLT,Công ty Cổ phần Kỹ thuật điện Toàn Cầu,Hàng cá nhân & Gia dụng,317.0,False
+DQC,Công ty Cổ phần Tập đoàn Điện Quang,Hàng cá nhân & Gia dụng,305.0,False
+NHT,Công ty Cổ phần Sản xuất và Thương mại Nam Hoa,Hàng cá nhân & Gia dụng,254.0,False
+SPB,Công ty Cổ phần Sợi Phú Bài,Hàng cá nhân & Gia dụng,234.0,False
+X20,Công ty Cổ phần X20,Hàng cá nhân & Gia dụng,233.0,False
+AAT,Công ty Cổ phần Tập đoàn Tiên Sơn Thanh Hóa,Hàng cá nhân & Gia dụng,220.0,False
+BKG,Công ty Cổ phần Đầu tư BKG Việt Nam,Hàng cá nhân & Gia dụng,204.0,False
+NTT,Công ty Cổ phần Dệt - May Nha Trang,Hàng cá nhân & Gia dụng,202.0,False
+XPH,Công ty Cổ phần Xà phòng Hà Nội,Hàng cá nhân & Gia dụng,190.0,False
+BBT,Công ty Cổ phần Bông Bạch Tuyết,Hàng cá nhân & Gia dụng,182.0,False
+KMR,Công ty Cổ phần Mirae,Hàng cá nhân & Gia dụng,172.0,False
+TDT,Công ty Cổ phần Đầu tư và Phát triển TDT,Hàng cá nhân & Gia dụng,162.0,False
+TET,Công ty Cổ phần Vải sợi May mặc Miền Bắc,Hàng cá nhân & Gia dụng,155.0,False
+GMC,Công ty Cổ phần Garmex Sài Gòn,Hàng cá nhân & Gia dụng,137.0,False
+NST,Công ty Cổ phần Ngân Sơn,Hàng cá nhân & Gia dụng,134.0,False
+ASA,Công ty Cổ phần ASA,Hàng cá nhân & Gia dụng,126.0,False
+HSM,Tổng Công ty Cổ phần Dệt May Hà Nội,Hàng cá nhân & Gia dụng,107.0,False
+SHE,Công ty Cổ phần Phát triển Năng Lượng Sơn Hà,Hàng cá nhân & Gia dụng,106.0,False
+SVD,Công ty Cổ phần Đầu tư & Thương mại Vũ Đăng,Hàng cá nhân & Gia dụng,88.0,False
+NDT,Tổng Công ty Cổ phần Dệt may Nam Định,Hàng cá nhân & Gia dụng,80.0,False
+HJC,Công ty Cổ phần Hoà Việt,Hàng cá nhân & Gia dụng,80.0,False
+DCS,Công ty Cổ phần Tập đoàn Đại Châu,Hàng cá nhân & Gia dụng,60.0,False
+KSD,Công ty Cổ phần Đầu tư DNA,Hàng cá nhân & Gia dụng,58.0,False
+VTJ,Công ty Cổ phần Thương mại và Đầu tư VI NA TA BA,Hàng cá nhân & Gia dụng,42.0,False
+FTM,Công ty Cổ phần Đầu tư và Phát triển Đức Quân,Hàng cá nhân & Gia dụng,30.0,False
+CET,Công ty Cổ phần HTC Holding,Hàng cá nhân & Gia dụng,27.0,False
+MPT,Công ty Cổ phần Tập đoàn MPT,Hàng cá nhân & Gia dụng,14.0,False
+G20,Công ty Cổ phần Đầu tư Dệt may Vĩnh Phúc,Hàng cá nhân & Gia dụng,7.0,False
+GVR,Tập đoàn Công nghiệp Cao su Việt Nam - Công ty Cổ phần,Hóa chất,108800.0,True
+DGC,Công ty Cổ phần Tập đoàn Hóa chất Đức Giang,Hóa chất,35205.0,True
+DCM,Công ty Cổ phần Phân bón Dầu Khí Cà Mau,Hóa chất,18053.0,True
+DPM,Tổng Công ty Phân bón và Hóa chất Dầu khí - Công ty Cổ phần,Hóa chất,13931.0,True
+PHR,Công ty Cổ phần Cao su Phước Hòa,Hóa chất,6910.0,True
+CSV,Công ty Cổ phần Hóa chất Cơ bản miền Nam,Hóa chất,4033.0,True
+DDV,Công ty Cổ phần DAP - Vinachem,Hóa chất,3819.0,True
+DPR,Công ty Cổ phần Cao su Đồng Phú,Hóa chất,3254.0,True
+VFG,Công ty Cổ phần Khử trùng Việt Nam,Hóa chất,2699.0,True
+AAA,Công ty Cổ phần Nhựa An Phát Xanh,Hóa chất,2695.0,True
+RTB,Công ty Cổ phần Cao su Tân Biên,Hóa chất,2601.0,False
+BFC,Công ty Cổ phần Phân bón Bình Điền,Hóa chất,2510.0,False
+DHB,Công ty Cổ phần Phân đạm và Hóa chất Hà Bắc,Hóa chất,2450.0,False
+LAS,Công ty Cổ phần Supe Phốt phát và Hóa chất Lâm Thao,Hóa chất,2449.0,False
+PAT,Công ty Cổ phần Phốt pho Apatit Việt Nam,Hóa chất,2233.0,False
+BRR,Công ty Cổ phần Cao su Bà Rịa,Hóa chất,2171.0,False
+PLC,Tổng Công ty Hóa dầu Petrolimex - Công ty Cổ phần,Hóa chất,2085.0,False
+TRC,Công ty Cổ phần Cao su Tây Ninh,Hóa chất,1943.0,False
+VTZ,Công ty Cổ phần Sản xuất và Thương mại Nhựa Việt Thành,Hóa chất,1302.0,False
+DRG,Công ty Cổ phần Cao su Đắk Lắk,Hóa chất,1293.0,False
+NHH,Công ty Cổ phần Nhựa Hà Nội,Hóa chất,1137.0,False
+HRC,Công ty Cổ phần Cao su Hòa Bình,Hóa chất,997.0,False
+DRI,Công ty Cổ phần Đầu tư Cao su Đắk Lắk,Hóa chất,895.0,False
+NFC,Công ty Cổ phần Phân lân Ninh Bình,Hóa chất,834.0,False
+HVT,Công ty Cổ phần Hóa chất Việt Trì,Hóa chất,805.0,False
+VAF,Công ty Cổ phần Phân lân nung chảy Văn Điển,Hóa chất,766.0,False
+SBR,Công ty Cổ phần Cao su Sông Bé,Hóa chất,659.0,False
+TNC,Công ty Cổ phần Cao su Thống Nhất,Hóa chất,580.0,False
+SFG,Công ty Cổ phần Phân bón Miền Nam,Hóa chất,570.0,False
+TSC,Công ty Cổ phần Vật tư Kỹ thuật Nông nghiệp Cần Thơ,Hóa chất,551.0,False
+PCH,Công ty Cổ phần Nhựa Picomat,Hóa chất,411.0,False
+VNP,Công ty Cổ phần Nhựa Việt Nam,Hóa chất,335.0,False
+AVG,Công ty Cổ phần Phân Bón Quốc Tế Âu Việt,Hóa chất,311.0,False
+HII,Công ty Cổ phần An Tiến Industries,Hóa chất,302.0,False
+PLP,Công ty Cổ phần Sản xuất và Công nghệ Nhựa Pha Lê,Hóa chất,297.0,False
+ABS,Công ty Cổ phần Dịch vụ Nông nghiệp Bình Thuận,Hóa chất,278.0,False
+HAI,Công ty Cổ phần Nông dược HAI,Hóa chất,274.0,False
+HCD,Công ty Cổ phần Đầu tư Sản xuất và Thương mại HCD,Hóa chất,265.0,False
+VET,Công ty Cổ phần Thuốc Thú y Trung ương NAVETCO,Hóa chất,261.0,False
+VPS,Công ty Cổ phần Thuốc sát trùng Việt Nam,Hóa chất,230.0,False
+PCE,Công ty Cổ phần Phân bón và hóa chất dầu khí Miền Trung,Hóa chất,210.0,False
+TPC,Công ty Cổ phần Nhựa Tân Đại Hưng,Hóa chất,194.0,False
+BRC,Công ty Cổ phần Cao su Bến Thành,Hóa chất,173.0,False
+DTT,Công ty Cổ phần Kỹ nghệ Đô Thành,Hóa chất,143.0,False
+PSE,Công ty Cổ phần Phân bón và hóa chất dầu khí Đông Nam Bộ,Hóa chất,142.0,False
+IRC,Công ty Cổ phần Cao su Công nghiệp,Hóa chất,140.0,False
+VTQ,Công ty Cổ phần Việt Trung Quảng Bình,Hóa chất,137.0,False
+PSW,Công ty Cổ phần Phân bón và hóa chất dầu khí Tây Nam Bộ,Hóa chất,136.0,False
+SJF,Công ty Cổ phần Đầu tư Sao Thái Dương,Hóa chất,135.0,False
+PMB,Công ty Cổ phần Phân bón và Hóa chất Dầu khí Miền Bắc,Hóa chất,128.0,False
+VNY,Công ty Cổ phần Thuốc thú y Trung ương I,Hóa chất,117.0,False
+SPC,Công ty Cổ phần Bảo vệ Thực vật Sài Gòn,Hóa chất,103.0,False
+DAG,Công ty Cổ phần Tập đoàn Nhựa Đông Á,Hóa chất,84.0,False
+CPC,Công ty Cổ phần Thuốc sát trùng Cần Thơ,Hóa chất,80.0,False
+RDP,Công ty Cổ phần Rạng Đông Holding,Hóa chất,64.0,False
+PGN,Công ty Cổ phần Phụ Gia Nhựa,Hóa chất,59.0,False
+QBS,Công ty Cổ phần Xuất nhập khẩu Quảng Bình,Hóa chất,42.0,False
+APP,Công ty Cổ phần Phát triển Phụ gia và Sản phẩm dầu mỏ,Hóa chất,26.0,False
+HSI,Công ty Cổ phần Vật tư Tổng hợp và Phân bón Hóa sinh,Hóa chất,10.0,False
+VKP,Công ty Cổ phần Nhựa Tân Hóa,Hóa chất,4.0,False
+VCB,Ngân hàng Thương mại Cổ phần Ngoại thương Việt Nam,Ngân hàng,469589.0,True
+BID,Ngân hàng Thương mại Cổ phần Đầu tư và Phát triển Việt Nam,Ngân hàng,249609.0,True
+TCB,Ngân hàng Thương mại Cổ phần Kỹ thương Việt Nam,Ngân hàng,220423.0,True
+CTG,Ngân hàng Thương mại Cổ phần Công thương Việt Nam,Ngân hàng,214263.0,True
+MBB,Ngân hàng Thương mại Cổ phần Quân đội,Ngân hàng,151641.0,True
+VPB,Ngân hàng Thương mại Cổ phần Việt Nam Thịnh Vượng,Ngân hàng,144001.0,True
+ACB,Ngân hàng Thương mại Cổ phần Á Châu,Ngân hàng,108127.0,True
+LPB,Ngân hàng Thương mại Cổ phần Lộc Phát Việt Nam,Ngân hàng,94398.0,True
+STB,Ngân hàng Thương mại Cổ phần Sài Gòn Thương Tín,Ngân hàng,84646.0,True
+HDB,Ngân hàng Thương mại Cổ phần Phát Triển Thành phố Hồ Chí Minh,Ngân hàng,75493.0,True
+VIB,Ngân hàng Thương mại Cổ phần Quốc tế Việt Nam,Ngân hàng,53326.0,False
+SHB,Ngân hàng Thương mại Cổ phần Sài Gòn – Hà Nội,Ngân hàng,52442.0,False
+SSB,Ngân hàng Thương mại Cổ phần Đông Nam Á,Ngân hàng,51068.0,False
+EIB,Ngân hàng Thương mại Cổ phần Xuất nhập khẩu Việt Nam,Ngân hàng,42191.0,False
+TPB,Ngân hàng Thương mại Cổ phần Tiên Phong,Ngân hàng,34874.0,False
+MSB,Ngân hàng Thương mại Cổ phần Hàng Hải Việt Nam,Ngân hàng,31070.0,False
+OCB,Ngân hàng Thương mại Cổ phần Phương Đông,Ngân hàng,27863.0,False
+NAB,Ngân hàng Thương mại Cổ phần Nam Á,Ngân hàng,22510.0,False
+NVB,Ngân hàng Thương mại Cổ phần Quốc Dân,Ngân hàng,13156.0,False
+BAB,Ngân hàng Thương mại Cổ phần Bắc Á,Ngân hàng,10921.0,False
+ABB,Ngân hàng Thương mại Cổ phần An Bình,Ngân hàng,8453.0,False
+BVB,Ngân hàng Thương mại Cổ phần Bản Việt,Ngân hàng,7942.0,False
+VBB,Ngân hàng Thương mại Cổ phần Việt Nam Thương Tín,Ngân hàng,7633.0,False
+VAB,Ngân hàng Thương mại Cổ phần Việt Á,Ngân hàng,7419.0,False
+PGB,Ngân hàng Thương mại Cổ phần Thịnh vượng và Phát triển,Ngân hàng,7035.0,False
+KLB,Ngân hàng Thương mại Cổ phần Kiên Long,Ngân hàng,6173.0,False
+SGB,Ngân hàng Thương mại Cổ phần Sài Gòn Công thương,Ngân hàng,4303.0,False
+MCH,Công ty Cổ phần Hàng Tiêu Dùng MaSan,Thực phẩm và đồ uống,133283.0,True
+VNM,Công ty Cổ phần Sữa Việt Nam,Thực phẩm và đồ uống,115993.0,True
+MSN,Công ty Cổ phần Tập đoàn Masan,Thực phẩm và đồ uống,94068.0,True
+SAB,Tổng Công ty Cổ phần Bia - Rượu - Nước Giải khát Sài Gòn,Thực phẩm và đồ uống,62974.0,True
+QNS,Công ty Cổ phần Đường Quảng Ngãi,Thực phẩm và đồ uống,17319.0,True
+VSF,Tổng Công ty Lương thực Miền Nam - Công ty Cổ phần,Thực phẩm và đồ uống,16498.0,True
+SBT,Công ty Cổ phần Thành Thành Công - Biên Hòa,Thực phẩm và đồ uống,15395.0,True
+KDC,Công ty Cổ phần Tập đoàn KIDO,Thực phẩm và đồ uống,15273.0,True
+IDP,Công ty Cổ phần Sữa Quốc tế LOF,Thực phẩm và đồ uống,13597.0,True
+HAG,Công ty Cổ phần Hoàng Anh Gia Lai,Thực phẩm và đồ uống,13535.0,True
+VHC,Công ty Cổ phần Vĩnh Hoàn,Thực phẩm và đồ uống,12053.0,False
+MML,Công ty Cổ phần Masan MEATLife,Thực phẩm và đồ uống,11421.0,False
+BAF,Công ty Cổ phần Nông nghiệp BAF Việt Nam,Thực phẩm và đồ uống,10656.0,False
+DBC,Công ty Cổ phần Tập đoàn Dabaco Việt Nam,Thực phẩm và đồ uống,10157.0,False
+BHN,Tổng Công ty Cổ phần Bia - Rượu - Nước giải khát Hà Nội,Thực phẩm và đồ uống,8484.0,False
+VCF,Công ty Cổ phần VinaCafé Biên Hòa,Thực phẩm và đồ uống,7774.0,False
+HNG,Công ty Cổ phần Nông nghiệp Quốc tế Hoàng Anh Gia Lai,Thực phẩm và đồ uống,6573.0,False
+PAN,Công ty Cổ phần Tập đoàn PAN,Thực phẩm và đồ uống,5598.0,False
+SEA,Tổng Công ty Thủy sản Việt Nam - Công ty Cổ phần,Thực phẩm và đồ uống,4881.0,False
+MPC,Công ty Cổ phần Tập đoàn Thủy sản Minh Phú,Thực phẩm và đồ uống,4675.0,False
+ANV,Công ty Cổ phần Nam Việt,Thực phẩm và đồ uống,4273.0,False
+VLC,Tổng Công ty Chăn nuôi Việt Nam - Công ty Cổ phần,Thực phẩm và đồ uống,3194.0,False
+MCM,Công ty Cổ phần Giống bò sữa Mộc Châu,Thực phẩm và đồ uống,3058.0,False
+ASM,Công ty Cổ phần Tập đoàn Sao Mai,Thực phẩm và đồ uống,2602.0,False
+CMF,Công ty Cổ phần Thực phẩm Cholimex,Thực phẩm và đồ uống,2511.0,False
+FMC,Công ty Cổ phần Thực phẩm Sao Ta,Thực phẩm và đồ uống,2325.0,False
+IFS,Công ty Cổ phần Thực phẩm Quốc tế,Thực phẩm và đồ uống,2179.0,False
+HHC,Công ty Cổ phần Bánh kẹo Hải Hà,Thực phẩm và đồ uống,2148.0,False
+CMM,Công ty Cổ phần Camimex,Thực phẩm và đồ uống,2134.0,False
+SLS,Công ty Cổ phần Mía đường Sơn La,Thực phẩm và đồ uống,1963.0,False
+VOC,Tổng Công ty Công nghiệp Dầu thực vật Việt Nam - Công ty Cổ phần,Thực phẩm và đồ uống,1883.0,False
+IDI,Công ty Cổ phần Đầu tư và Phát triển Đa Quốc Gia I.D.I,Thực phẩm và đồ uống,1683.0,False
+APF,Công ty Cổ phần Nông sản Thực phẩm Quảng Ngãi,Thực phẩm và đồ uống,1536.0,False
+NSC,Công ty Cổ phần Tập đoàn Giống cây trồng Việt Nam,Thực phẩm và đồ uống,1459.0,False
+BCF,Công ty Cổ phần Thực phẩm Bích Chi,Thực phẩm và đồ uống,1446.0,False
+VSN,Công ty Cổ phần Việt Nam Kỹ Nghệ Súc Sản,Thực phẩm và đồ uống,1406.0,False
+CLX,Công ty Cổ phần Xuất nhập khẩu và Đầu tư Chợ Lớn (CHOLIMEX),Thực phẩm và đồ uống,1384.0,False
+SBB,Công ty Cổ phần Tập đoàn Bia Sài Gòn Bình Tây,Thực phẩm và đồ uống,1299.0,False
+TFC,Công ty Cổ phần Trang,Thực phẩm và đồ uống,1296.0,False
+NAF,Công ty Cổ phần Nafoods Group,Thực phẩm và đồ uống,1288.0,False
+SMB,Công ty Cổ phần Bia Sài Gòn - Miền Trung,Thực phẩm và đồ uống,1215.0,False
+OCH,Công ty Cổ phần One Capital Hospitality,Thực phẩm và đồ uống,1200.0,False
+NCG,Công ty Cổ phần Tập đoàn Nova Consumer,Thực phẩm và đồ uống,1078.0,False
+GCF,Công ty Cổ phần Thực phẩm G.C,Thực phẩm và đồ uống,1030.0,False
+HNF,Công ty Cổ phần Thực phẩm Hữu Nghị,Thực phẩm và đồ uống,1026.0,False
+BBC,Công ty Cổ phần Bibica,Thực phẩm và đồ uống,975.0,False
+WSB,Công ty Cổ phần Bia Sài Gòn - Miền Tây,Thực phẩm và đồ uống,927.0,False
+LTG,Công ty Cổ phần Tập đoàn Lộc Trời,Thực phẩm và đồ uống,867.0,False
+SKH,Công ty Cổ phần Nước giải khát Sanest Khánh Hòa,Thực phẩm và đồ uống,862.0,False
+BSQ,Công ty Cổ phần Bia Sài Gòn - Quảng Ngãi,Thực phẩm và đồ uống,855.0,False
+LSS,Công ty Cổ phần Mía đường Lam Sơn,Thực phẩm và đồ uống,797.0,False
+SGC,Công ty Cổ phần Xuất nhập khẩu Sa Giang,Thực phẩm và đồ uống,750.0,False
+SKV,Công ty Cổ phần Nước Giải khát Yến sào Khánh Hòa,Thực phẩm và đồ uống,734.0,False
+CMX,Công ty Cổ phần CAMIMEX Group,Thực phẩm và đồ uống,662.0,False
+SAF,Công ty Cổ phần Lương thực Thực phẩm SAFOCO,Thực phẩm và đồ uống,617.0,False
+ANT,Công ty Cổ phần Rau quả Thực phẩm An Giang,Thực phẩm và đồ uống,577.0,False
+ABT,Công ty Cổ phần Xuất nhập khẩu Thủy sản Bến Tre,Thực phẩm và đồ uống,550.0,False
+ACL,Công ty Cổ phần Xuất nhập khẩu Thủy sản Cửu Long An Giang,Thực phẩm và đồ uống,537.0,False
+NCS,Công ty Cổ phần Suất ăn Hàng không Nội Bài,Thực phẩm và đồ uống,497.0,False
+DAT,Công ty Cổ phần Đầu tư Du lịch và Phát triển Thủy sản,Thực phẩm và đồ uống,493.0,False
+SJ1,Công ty Cổ phần Nông nghiệp Hùng Hậu,Thực phẩm và đồ uống,456.0,False
+SSC,Công ty Cổ phần Giống cây trồng Miền Nam,Thực phẩm và đồ uống,445.0,False
+BSL,Công ty Cổ phần Bia Sài Gòn - Sông Lam,Thực phẩm và đồ uống,428.0,False
+VHF,Công ty Cổ phần Xây dựng và Chế biến lương thực Vĩnh Hà,Thực phẩm và đồ uống,419.0,False
+HNM,Công ty Cổ phần Sữa Hà Nội,Thực phẩm và đồ uống,411.0,False
+TAR,Công ty Cổ phần Nông nghiệp Công nghệ cao Trung An,Thực phẩm và đồ uống,370.0,False
+CFV,Công ty Cổ phần Cà phê Thắng Lợi,Thực phẩm và đồ uống,342.0,False
+BSH,Công ty Cổ phần Bia Sài Gòn - Hà Nội,Thực phẩm và đồ uống,326.0,False
+KHS,Công ty Cổ phần Kiên Hùng,Thực phẩm và đồ uống,325.0,False
+HVG,Công ty Cổ phần Hùng Vương,Thực phẩm và đồ uống,318.0,False
+KTC,Công ty Cổ phần Thương mại Kiên Giang,Thực phẩm và đồ uống,317.0,False
+HAF,Công ty Cổ phần Thực phẩm Hà Nội,Thực phẩm và đồ uống,300.0,False
+LAF,Công ty Cổ phần Chế biến Hàng Xuất khẩu Long An,Thực phẩm và đồ uống,269.0,False
+FCS,Công ty Cổ phần Lương thực Thành phố Hồ Chí Minh,Thực phẩm và đồ uống,265.0,False
+KTS,Công ty Cổ phần Đường Kon Tum,Thực phẩm và đồ uống,249.0,False
+BNA,Công ty Cổ phần Tập đoàn Đầu tư Bảo Ngọc,Thực phẩm và đồ uống,247.0,False
+CCA,Công ty Cổ phần Xuất nhập khẩu Thủy sản Cần Thơ,Thực phẩm và đồ uống,246.0,False
+HSL,Công ty Cổ phần Đầu tư Phát triển Thực phẩm Hồng Hà,Thực phẩm và đồ uống,240.0,False
+HNR,Công ty Cổ phần Rượu và Nước Giải Khát Hà Nội,Thực phẩm và đồ uống,240.0,False
+UXC,Công ty Cổ phần Chế biến Thủy sản Út Xi,Thực phẩm và đồ uống,227.0,False
+CTP,Công ty Cổ phần Hoà Bình Takara,Thực phẩm và đồ uống,206.0,False
+THP,Công ty Cổ phần Thủy sản và Thương mại Thuận Phước,Thực phẩm và đồ uống,194.0,False
+CAN,Công ty Cổ phần Đồ hộp Hạ Long,Thực phẩm và đồ uống,190.0,False
+CPA,Công ty Cổ phần Cà phê Phước An,Thực phẩm và đồ uống,175.0,False
+FGL,Công ty Cổ phần Cà phê Gia Lai,Thực phẩm và đồ uống,148.0,False
+VDL,Công ty Cổ phần Thực phẩm Lâm Đồng,Thực phẩm và đồ uống,144.0,False
+BMV,Công ty Cổ phần Bột mỳ Vinafood 1,Thực phẩm và đồ uống,133.0,False
+HAT,Công ty Cổ phần Thương mại Bia Hà Nội,Thực phẩm và đồ uống,130.0,False
+THB,Công ty Cổ phần Bia Hà Nội - Thanh Hóa,Thực phẩm và đồ uống,123.0,False
+TT6,Công ty Cổ Phần Tập Đoàn Tiến Thịnh,Thực phẩm và đồ uống,117.0,False
+BSP,Công ty Cổ phần Bia Sài Gòn - Phú Thọ,Thực phẩm và đồ uống,112.0,False
+SPD,Công ty Cổ phần Xuất nhập khẩu Thủy sản Miền Trung,Thực phẩm và đồ uống,96.0,False
+SCD,Công ty Cổ phần Nước giải khát Chương Dương,Thực phẩm và đồ uống,96.0,False
+MLS,Công ty Cổ phần Chăn nuôi - Mitraco,Thực phẩm và đồ uống,93.0,False
+ILA,Công ty Cổ phần ILA,Thực phẩm và đồ uống,88.0,False
+MCF,Công ty Cổ phần Xây lắp Cơ khí và Lương thực Thực phẩm,Thực phẩm và đồ uống,81.0,False
+HBH,Công ty Cổ phần HABECO - Hải Phòng,Thực phẩm và đồ uống,80.0,False
+SBL,Công ty Cổ phần Bia Sài Gòn - Bạc Liêu,Thực phẩm và đồ uống,78.0,False
+AAM,Công ty Cổ Phần Thủy Sản MeKong,Thực phẩm và đồ uống,72.0,False
+DMN,Công ty Cổ phần Domenal,Thực phẩm và đồ uống,68.0,False
+HAD,Công ty Cổ phần Bia Hà Nội - Hải Dương,Thực phẩm và đồ uống,65.0,False
+VTL,Công ty Cổ phần Vang Thăng Long,Thực phẩm và đồ uống,64.0,False
+AGF,Công ty Cổ phần Xuất nhập khẩu Thủy sản An Giang,Thực phẩm và đồ uống,64.0,False
+BHP,Công ty Cổ phần Bia Hà Nội - Hải Phòng,Thực phẩm và đồ uống,63.0,False
+HKT,Công ty Cổ phần Đầu tư QP Xanh,Thực phẩm và đồ uống,58.0,False
+AGM,Công ty Cổ phần Xuất nhập khẩu An Giang,Thực phẩm và đồ uống,58.0,False
+SSN,Công ty Cổ phần Xuất nhập khẩu Thủy sản Sài Gòn,Thực phẩm và đồ uống,48.0,False
+BTB,Công ty Cổ phần Bia Hà Nội - Thái Bình,Thực phẩm và đồ uống,39.0,False
+ICF,Công ty Cổ phần Đầu tư - Thương mại - Thuỷ sản,Thực phẩm và đồ uống,38.0,False
+BLF,Công ty Cổ phần Thủy sản Bạc Liêu,Thực phẩm và đồ uống,38.0,False
+HKB,Công ty Cổ phần Nông nghiệp và Thực phẩm Hà Nội - Kinh Bắc,Thực phẩm và đồ uống,32.0,False
+BQB,Công ty Cổ phần Bia Hà Nội - Quảng Bình,Thực phẩm và đồ uống,23.0,False
+TS4,Công ty Cổ phần Thủy sản số 4,Thực phẩm và đồ uống,19.0,False
+PCF,Công ty Cổ phần Cà phê PETEC,Thực phẩm và đồ uống,17.0,False
+AVF,Công ty Cổ phần Việt An,Thực phẩm và đồ uống,17.0,False
+JOS,Công ty Cổ phần Chế biến Thủy sản Xuất khẩu Minh Hải,Thực phẩm và đồ uống,14.0,False
+VLF,Công ty Cổ phần Lương thực Thực phẩm Vĩnh Long,Thực phẩm và đồ uống,11.0,False
+CAD,Công ty Cổ phần Chế biến và Xuất khẩu Thủy sản Cadovimex,Thực phẩm và đồ uống,11.0,False
+VNH,Công ty Cổ phần Đầu tư Việt Việt Nhật,Thực phẩm và đồ uống,10.0,False
+NDF,Công ty Cổ phần Chế biến thực phẩm nông sản xuất khẩu Nam Định,Thực phẩm và đồ uống,7.0,False
+ATA,Công ty Cổ phần NTACO,Thực phẩm và đồ uống,6.0,False
+NGC,Công ty Cổ phần Chế biến Thủy sản Xuất khẩu Ngô Quyền,Thực phẩm và đồ uống,4.0,False
+VNZ,Công ty Cổ phần VNG,Truyền thông,10214.0,True
+YEG,Công ty Cổ phần Tập đoàn Yeah1,Truyền thông,2561.0,True
+FOC,Công ty Cổ phần Dịch vụ Trực tuyến FPT,Truyền thông,1209.0,True
+VNB,Công ty Cổ phần Sách Việt Nam,Truyền thông,912.0,True
+STH,Công ty Cổ phần Phát hành sách Thái Nguyên,Truyền thông,414.0,True
+EID,Công ty Cổ phần Đầu tư và Phát triển Giáo dục Hà Nội,Truyền thông,380.0,True
+FHS,Công ty Cổ phần Phát hành sách Thành phố Hồ Chí Minh - FAHASA,Truyền thông,320.0,True
+DST,Công ty Cổ phần Đầu tư Sao Thăng Long,Truyền thông,258.0,True
+PNC,Công ty Cổ phần Văn hóa Phương Nam,Truyền thông,248.0,True
+SED,Công ty Cổ phần Đầu tư và Phát triển Giáo dục Phương Nam,Truyền thông,229.0,True
+ADG,Công ty Cổ phần Clever Group,Truyền thông,188.0,False
+EBS,Công ty Cổ phần Sách Giáo dục tại Thành phố Hà Nội,Truyền thông,106.0,False
+HTP,Công ty Cổ phần In Sách Giáo Khoa Hòa Phát,Truyền thông,101.0,False
+STC,Công ty Cổ phần Sách và Thiết bị trường học Thành phố Hồ Chí Minh,Truyền thông,91.0,False
+DAD,Công ty Cổ phần Đầu tư và Phát triển Giáo dục Đà Nẵng,Truyền thông,88.0,False
+ADC,Công ty Cổ phần Mĩ thuật và Truyền thông,Truyền thông,78.0,False
+BED,Công ty Cổ phần Sách và Thiết bị trường học Đà Nẵng,Truyền thông,77.0,False
+ALT,Công ty Cổ phần Văn hóa Tân Bình,Truyền thông,69.0,False
+QST,Công ty Cổ phần Sách và Thiết bị trường học Quảng Ninh,Truyền thông,58.0,False
+LBE,Công ty Cổ phần Thương mại và Dịch vụ LVA,Truyền thông,56.0,False
+SMN,Công ty Cổ phần Sách và thiết bị giáo dục Miền Nam,Truyền thông,55.0,False
+SGD,Công ty Cổ phần Sách Giáo dục tại Thành phố Hồ Chí Minh,Truyền thông,44.0,False
+IHK,Công ty Cổ phần In Hàng Không,Truyền thông,30.0,False
+SAP,Công ty Cổ phần In Sách Giáo khoa TP.Hồ Chí Minh,Truyền thông,29.0,False
+DAE,Công ty Cổ phần Sách Giáo dục tại Thành phố Đà Nẵng,Truyền thông,28.0,False
+TPH,Công ty Cổ phần In Sách giáo khoa tại Thành phố Hà Nội,Truyền thông,26.0,False
+ECI,Công ty Cổ phần Tập đoàn ECI,Truyền thông,26.0,False
+HEV,Công ty Cổ phần Sách Đại học - Dạy nghề,Truyền thông,13.0,False
+BST,Công ty Cổ phần Sách và Thiết bị Bình Thuận,Truyền thông,11.0,False
+BDB,Công ty Cổ phần Sách và Thiết bị Bình Định,Truyền thông,9.0,False
+HPG,Công ty Cổ phần Tập đoàn Hòa Phát,Tài nguyên Cơ bản,168861.0,True
+KSV,Tổng Công ty Khoáng sản TKV - Công ty Cổ phần,Tài nguyên Cơ bản,34200.0,True
+MSR,Công ty Cổ phần Masan High-Tech Materials,Tài nguyên Cơ bản,19976.0,True
+HSG,Công ty Cổ phần Tập đoàn Hoa Sen,Tài nguyên Cơ bản,10122.0,True
+VIF,Tổng Công ty Lâm nghiệp Việt Nam - Công ty Cổ phần,Tài nguyên Cơ bản,5950.0,True
+NKG,Công ty Cổ phần Thép Nam Kim,Tài nguyên Cơ bản,5818.0,True
+ACG,Công ty Cổ phần Gỗ An Cường,Tài nguyên Cơ bản,5564.0,True
+TVN,Tổng Công ty Thép Việt Nam - Công ty Cổ phần,Tài nguyên Cơ bản,4880.0,True
+HGM,Công ty Cổ phần Cơ khí và Khoáng sản Hà Giang,Tài nguyên Cơ bản,3476.0,True
+PTB,Công ty Cổ phần Phú Tài,Tài nguyên Cơ bản,3447.0,True
+DHC,Công ty Cổ phần Đông Hải Bến Tre,Tài nguyên Cơ bản,2405.0,False
+SHI,Công ty Cổ phần Quốc tế Sơn Hà,Tài nguyên Cơ bản,2355.0,False
+GDA,Công ty Cổ phần Tôn Đông Á,Tài nguyên Cơ bản,2240.0,False
+KSB,Công ty Cổ phần Khoáng sản và Xây dựng Bình Dương,Tài nguyên Cơ bản,1980.0,False
+MVB,Tổng Công ty Công nghiệp mỏ Việt Bắc TKV - Công ty Cổ phần,Tài nguyên Cơ bản,1911.0,False
+MTA,Tổng Công ty Khoáng sản và Thương mại Hà Tĩnh - Công ty Cổ phần,Tài nguyên Cơ bản,1894.0,False
+SQC,Công ty Cổ phần Khoáng sản Sài Gòn - Quy Nhơn,Tài nguyên Cơ bản,1824.0,False
+VGS,Công ty Cổ phần Ống thép Việt - Đức VG PIPE,Tài nguyên Cơ bản,1437.0,False
+TMG,Công ty Cổ phần Kim loại màu Thái Nguyên - Vimico,Tài nguyên Cơ bản,1188.0,False
+BMJ,Công ty Cổ phần Khoáng sản Miền Đông AHP,Tài nguyên Cơ bản,1050.0,False
+TMB,Công ty Cổ phần Kinh doanh Than Miền Bắc - Vinacomin,Tài nguyên Cơ bản,1042.0,False
+TIS,Công ty Cổ phần Gang thép Thái Nguyên,Tài nguyên Cơ bản,1012.0,False
+TTF,Công ty Cổ phần Tập đoàn Kỹ nghệ Gỗ Trường Thành,Tài nguyên Cơ bản,988.0,False
+GVT,Công ty Cổ phần Giấy Việt Trì,Tài nguyên Cơ bản,905.0,False
+CLM,Công ty Cổ phần Xuất nhập khẩu Than - Vinacomin,Tài nguyên Cơ bản,868.0,False
+SHN,Công ty Cổ phần Đầu tư Tổng hợp Hà Nội,Tài nguyên Cơ bản,842.0,False
+SMC,Công ty Cổ phần Đầu tư Thương mại SMC,Tài nguyên Cơ bản,835.0,False
+HHP,Công ty Cổ phần HHP Global,Tài nguyên Cơ bản,741.0,False
+VPG,Công ty Cổ phần Đầu tư Thương mại Xuất nhập khẩu Việt Phát,Tài nguyên Cơ bản,727.0,False
+CST,Công ty Cổ phần Than Cao Sơn - TKV,Tài nguyên Cơ bản,673.0,False
+TKU,Công ty Cổ phần Công nghiệp Tung Kuang,Tài nguyên Cơ bản,666.0,False
+DLG,Công ty Cổ phần Tập đoàn Đức Long Gia Lai,Tài nguyên Cơ bản,661.0,False
+HAP,Công ty Cổ phần Tập Đoàn Hapaco,Tài nguyên Cơ bản,621.0,False
+DTL,Công ty Cổ phần Đại Thiên Lộc,Tài nguyên Cơ bản,606.0,False
+TLH,Công ty Cổ phần Tập đoàn Thép Tiến Lên,Tài nguyên Cơ bản,592.0,False
+CAP,Công ty Cổ phần Lâm Nông sản Thực phẩm Yên Bái,Tài nguyên Cơ bản,568.0,False
+CBI,Công ty Cổ phần Gang thép Cao Bằng,Tài nguyên Cơ bản,542.0,False
+BCA,Công ty cổ phần B.C.H,Tài nguyên Cơ bản,524.0,False
+BKC,Công ty Cổ phần Khoáng sản Bắc Kạn,Tài nguyên Cơ bản,493.0,False
+TVD,Công ty Cổ phần Than Vàng Danh - Vinacomin,Tài nguyên Cơ bản,481.0,False
+SAV,Công ty Cổ phần Hợp tác Kinh tế và Xuất nhập khẩu Savimex,Tài nguyên Cơ bản,461.0,False
+AAH,Công ty Cổ phần Hợp Nhất,Tài nguyên Cơ bản,460.0,False
+POM,Công ty Cổ phần Thép Pomina,Tài nguyên Cơ bản,420.0,False
+MDF,Công ty Cổ phần Gỗ MDF VRG - Quảng Trị,Tài nguyên Cơ bản,391.0,False
+NBC,Công ty Cổ phần Than Núi Béo - Vinacomin,Tài nguyên Cơ bản,363.0,False
+PIS,Tổng Công ty Pisico Bình Định - Công ty Cổ phần,Tài nguyên Cơ bản,341.0,False
+HMC,Công ty Cổ phần Kim khí Thành phố Hồ Chí Minh - VNSTEEL,Tài nguyên Cơ bản,336.0,False
+KTL,Công ty Cổ phần Kim khí Thăng Long,Tài nguyên Cơ bản,321.0,False
+HLC,Công ty Cổ phần Than Hà Lầm - Vinacomin,Tài nguyên Cơ bản,318.0,False
+TNB,Công ty Cổ phần Thép Nhà Bè - VNSTEEL,Tài nguyên Cơ bản,280.0,False
+TNT,Công ty Cổ phần Tập đoàn TNT,Tài nguyên Cơ bản,252.0,False
+BMC,Công ty Cổ phần Khoáng sản Bình Định,Tài nguyên Cơ bản,239.0,False
+MDC,Công ty Cổ phần Than Mông Dương - Vinacomin,Tài nguyên Cơ bản,233.0,False
+DHM,Công ty Cổ phần Thương mại & Khai thác Khoáng sản Dương Hiếu,Tài nguyên Cơ bản,232.0,False
+TTS,Công ty Cổ phần Cán thép Thái Trung,Tài nguyên Cơ bản,218.0,False
+SVT,Công ty Cổ phần Công nghệ Sài Gòn Viễn Đông,Tài nguyên Cơ bản,218.0,False
+YBM,Công ty Cổ phần Khoáng sản Công nghiệp Yên Bái,Tài nguyên Cơ bản,209.0,False
+VID,Công ty Cổ phần Đầu tư Phát triển Thương mại Viễn Đông,Tài nguyên Cơ bản,207.0,False
+THT,Công ty Cổ phần Than Hà Tu - Vinacomin,Tài nguyên Cơ bản,201.0,False
+VGL,Công ty Cổ phần Mạ kẽm công nghiệp Vingal-Vnsteel,Tài nguyên Cơ bản,183.0,False
+TNA,Công ty Cổ phần Thương mại Xuất nhập khẩu Thiên Nam,Tài nguyên Cơ bản,182.0,False
+MIC,Công ty Cổ phần Kỹ nghệ Khoáng sản Quảng Nam,Tài nguyên Cơ bản,149.0,False
+VCA,Công ty Cổ phần Thép VICASA - VNSTEEL,Tài nguyên Cơ bản,147.0,False
+SHA,Công ty Cổ phần Sơn Hà Sài Gòn,Tài nguyên Cơ bản,134.0,False
+TNI,Công ty Cổ phần Tập đoàn Thành Nam,Tài nguyên Cơ bản,115.0,False
+HMG,Công ty Cổ phần Kim Khí Hà Nội - VNSTEEL,Tài nguyên Cơ bản,108.0,False
+TDS,Công ty Cổ phần Thép Thủ Đức - VNSTEEL,Tài nguyên Cơ bản,102.0,False
+KMT,Công ty Cổ phần Kim khí Miền Trung,Tài nguyên Cơ bản,98.0,False
+TTH,Công ty Cổ phần Thương mại và Dịch vụ Tiến Thành,Tài nguyên Cơ bản,97.0,False
+GTA,Công ty Cổ phần Chế biến Gỗ Thuận An,Tài nguyên Cơ bản,95.0,False
+MEL,Công ty Cổ phần Thép Mê Lin,Tài nguyên Cơ bản,92.0,False
+NSH,Công ty Cổ phần Tập đoàn Nhôm Sông Hồng Shalumi,Tài nguyên Cơ bản,87.0,False
+ITQ,Công ty Cổ phần Tập đoàn Thiên Quang,Tài nguyên Cơ bản,83.0,False
+TNS,Công ty Cổ phần Thép tấm lá Thống Nhất,Tài nguyên Cơ bản,80.0,False
+PAS,Công ty Cổ phần Quốc tế Phương Anh,Tài nguyên Cơ bản,76.0,False
+KVC,Công ty Cổ phần Sản xuất Xuất nhập khẩu Inox Kim Vĩ,Tài nguyên Cơ bản,74.0,False
+GLC,Công ty Cổ phần Vàng Lào Cai,Tài nguyên Cơ bản,63.0,False
+HSV,Công ty Cổ phần Tập đoàn HSV Việt Nam,Tài nguyên Cơ bản,61.0,False
+AMC,Công ty Cổ phần Khoáng sản Á Châu,Tài nguyên Cơ bản,53.0,False
+ATG,Công ty Cổ phần An Trường An,Tài nguyên Cơ bản,52.0,False
+KHD,"Công ty Cổ phần Khai thác, Chế biến Khoáng sản Hải Dương",Tài nguyên Cơ bản,33.0,False
+KKC,Công ty Cổ phần Tập đoàn Thành Thái,Tài nguyên Cơ bản,31.0,False
+SPI,Công ty Cổ phần Spiral Galaxy,Tài nguyên Cơ bản,30.0,False
+LCM,Công ty Cổ phần Khai thác và Chế biến Khoáng sản Lào Cai,Tài nguyên Cơ bản,30.0,False
+ACM,Công ty Cổ phần Tập đoàn Khoáng sản Á Cường,Tài nguyên Cơ bản,30.0,False
+HPM,Công ty Cổ phần Xây dựng Thương mại và Khoáng sản Hoàng Phúc,Tài nguyên Cơ bản,28.0,False
+SSM,Công ty Cổ phần Chế tạo kết cấu thép VNECO.SSM,Tài nguyên Cơ bản,25.0,False
+KSH,Công ty Cổ phần Damac GLS,Tài nguyên Cơ bản,23.0,False
+BVG,Công ty Cổ phần Group Bắc Việt,Tài nguyên Cơ bản,23.0,False
+MHL,Công ty Cổ phần Minh Hữu Liên,Tài nguyên Cơ bản,17.0,False
+TKG,Công ty Cổ phần Sản xuất và Thương mại Tùng Khánh,Tài nguyên Cơ bản,15.0,False
+MIM,Công ty Cổ phần Khoáng sản và Cơ khí,Tài nguyên Cơ bản,14.0,False
+HLA,Công ty Cổ phần Hữu Liên Á Châu,Tài nguyên Cơ bản,14.0,False
+DPS,Công ty Cổ phần Đầu tư Phát triển Sóc Sơn,Tài nguyên Cơ bản,9.0,False
+VGI,Tổng Công ty Cổ phần Đầu tư Quốc tế Viettel,Viễn thông,220822.0,True
+FOX,Công ty Cổ phần Viễn thông FPT,Viễn thông,46917.0,True
+TTN,Công ty Cổ phần Công nghệ & Truyền thông Việt Nam,Viễn thông,655.0,True
+ABC,Công ty Cổ phần Truyền thông VMG,Viễn thông,209.0,True
+PIA,Công ty Cổ phần Tin học Viễn thông Petrolimex,Viễn thông,113.0,True
+PAI,"Công ty Cổ phần Công nghê thông tin, Viễn thông và Tự động hóa Dầu khí",Viễn thông,46.0,True
+VGC,Tổng Công ty Viglacera - Công ty Cổ phần,Xây dựng và Vật liệu,19458.0,True
+VCG,Tổng Công ty Cổ phần Xuất nhập khẩu và Xây dựng Việt Nam,Xây dựng và Vật liệu,12736.0,True
+LGC,Công ty Cổ phần Đầu tư Cầu đường CII,Xây dựng và Vật liệu,11726.0,True
+SNZ,Tổng Công ty Cổ phần Phát triển Khu Công nghiệp,Xây dựng và Vật liệu,11408.0,True
+BMP,Công ty Cổ phần Nhựa Bình Minh,Xây dựng và Vật liệu,11174.0,True
+CTR,Tổng Công ty Cổ phần Công trình Viettel,Xây dựng và Vật liệu,11038.0,True
+NTP,Công ty Cổ phần Nhựa Thiếu niên Tiền Phong,Xây dựng và Vật liệu,10676.0,True
+CTD,Công ty Cổ phần Xây dựng Coteccons,Xây dựng và Vật liệu,8014.0,True
+SJG,Tổng Công ty Sông Đà,Xây dựng và Vật liệu,7912.0,True
+VCS,Công ty Cổ phần VICOSTONE,Xây dựng và Vật liệu,7872.0,True
+CC1,Tổng Công ty Xây dựng số 1 - CTCP,Xây dựng và Vật liệu,7848.0,False
+PC1,Công ty Cổ phần Tập đoàn PC1,Xây dựng và Vật liệu,7832.0,False
+CII,Công ty Cổ phần Đầu tư Hạ tầng Kỹ thuật Thành phố Hồ Chí Minh,Xây dựng và Vật liệu,7702.0,False
+HHV,Công ty Cổ phần Đầu tư Hạ tầng Giao thông Đèo Cả,Xây dựng và Vật liệu,5709.0,False
+SCG,Công ty Cổ phần Tập đoàn Xây dựng SCG,Xây dựng và Vật liệu,5466.0,False
+HT1,Công ty Cổ phần Xi măng VICEM Hà Tiên,Xây dựng và Vật liệu,4426.0,False
+DPG,Công ty Cổ phần Tập đoàn Đạt Phương,Xây dựng và Vật liệu,4183.0,False
+LIC,Tổng Công ty LICOGI - Công ty Cổ phần,Xây dựng và Vật liệu,3560.0,False
+GAB,Công ty Cổ phần Đầu tư Khai khoáng & Quản lý Tài sản FLC,Xây dựng và Vật liệu,2927.0,False
+C4G,Công ty Cổ phần Tập Đoàn Cienco4,Xây dựng và Vật liệu,2887.0,False
+DNP,Công ty Cổ phần DNP Holding,Xây dựng và Vật liệu,2721.0,False
+VLB,Công ty Cổ phần Xây dựng và Sản xuất Vật liệu Xây dựng Biên Hòa,Xây dựng và Vật liệu,2206.0,False
+HBC,Công ty Cổ phần Tập đoàn Xây dựng Hòa Bình,Xây dựng và Vật liệu,2193.0,False
+FCN,Công ty Cổ phần FECON,Xây dựng và Vật liệu,2133.0,False
+DCF,Công ty Cổ phần Xây dựng và Thiết kế số 1,Xây dựng và Vật liệu,1978.0,False
+LCG,Công ty Cổ phần Lizen,Xây dựng và Vật liệu,1788.0,False
+THG,Công ty Cổ phần Đầu tư và Xây dựng Tiền Giang,Xây dựng và Vật liệu,1686.0,False
+SBM,Công ty Cổ phần Đầu tư phát triển Bắc Minh,Xây dựng và Vật liệu,1536.0,False
+ACC,Công ty Cổ phần Đầu tư và Xây dựng Bình Dương ACC,Xây dựng và Vật liệu,1512.0,False
+FIC,Tổng Công ty Vật liệu Xây dựng số 1 - Công ty Cổ phần,Xây dựng và Vật liệu,1503.0,False
+DC4,Công ty Cổ phần Dicera Holdings,Xây dựng và Vật liệu,1315.0,False
+L18,Công ty Cổ phần Đầu tư và Xây dựng số 18,Xây dựng và Vật liệu,1304.0,False
+EVG,Công ty Cổ phần Tập đoàn Everland,Xây dựng và Vật liệu,1302.0,False
+CTI,Công ty Cổ phần Đầu tư Phát triển Cường Thuận IDICO,Xây dựng và Vật liệu,1299.0,False
+HAN,Tổng Công ty Xây dựng Hà Nội - CTCP,Xây dựng và Vật liệu,1298.0,False
+ICN,Công ty Cổ phần Đầu tư Xây dựng Dầu khí IDICO,Xây dựng và Vật liệu,1254.0,False
+LBM,Công ty Cổ phần Khoáng sản và Vật liệu xây dựng Lâm Đồng,Xây dựng và Vật liệu,1144.0,False
+CTX,Tổng Công ty Cổ phần Đầu tư Xây dựng và Thương mại Việt Nam,Xây dựng và Vật liệu,1096.0,False
+MVC,Công ty Cổ phần Vật liệu và Xây dựng Bình Dương,Xây dựng và Vật liệu,1093.0,False
+LHC,Công ty Cổ phần Đầu tư và Xây dựng Thủy lợi Lâm Đồng,Xây dựng và Vật liệu,1032.0,False
+CVT,Công ty Cổ phần CMC,Xây dựng và Vật liệu,1026.0,False
+BCC,Công ty Cổ phần Xi măng Bỉm Sơn,Xây dựng và Vật liệu,986.0,False
+NHA,Tổng Công ty Đầu tư Phát triển Nhà và Đô thị Nam Hà Nội,Xây dựng và Vật liệu,969.0,False
+G36,Tổng Công ty 36 - Công ty Cổ phần,Xây dựng và Vật liệu,967.0,False
+VIT,Công ty Cổ phần Viglacera Tiên Sơn,Xây dựng và Vật liệu,930.0,False
+L14,Công ty Cổ phần Licogi 14,Xây dựng và Vật liệu,904.0,False
+VC7,Công ty Cổ phần Tập đoàn BGI,Xây dựng và Vật liệu,846.0,False
+CSC,Công ty Cổ phần Tập đoàn COTANA,Xây dựng và Vật liệu,845.0,False
+EIC,Công ty Cổ phần EVN Quốc Tế,Xây dựng và Vật liệu,825.0,False
+BCR,Công ty Cổ phần BCG Land,Xây dựng và Vật liệu,766.0,False
+NNC,Công ty Cổ phần Đá Núi Nhỏ,Xây dựng và Vật liệu,723.0,False
+S99,Công ty Cổ phần SCI,Xây dựng và Vật liệu,694.0,False
+CNT,Công ty Cổ phần Tập đoàn CNT,Xây dựng và Vật liệu,691.0,False
+ADP,Công ty Cổ phần Sơn Á Đông,Xây dựng và Vật liệu,689.0,False
+CDC,Công ty Cổ phần Chương Dương,Xây dựng và Vật liệu,688.0,False
+RCC,Công ty Cổ phần Tổng Công ty Công trình Đường sắt,Xây dựng và Vật liệu,670.0,False
+PVX,Tổng Công ty Cổ phần Xây lắp Dầu khí Việt Nam,Xây dựng và Vật liệu,670.0,False
+CRC,Công ty Cổ phần Create Capital Việt Nam,Xây dựng và Vật liệu,659.0,False
+CCC,Công ty Cổ Phần Xây Dựng CDC,Xây dựng và Vật liệu,656.0,False
+TED,Tổng Công ty Tư vấn Thiết kế Giao thông Vận tải - CTCP,Xây dựng và Vật liệu,643.0,False
+DHA,Công ty Cổ phần Hóa An,Xây dựng và Vật liệu,633.0,False
+TCD,Công ty cổ phần Tập đoàn Xây dựng Tracodi,Xây dựng và Vật liệu,625.0,False
+BTS,Công ty Cổ phần Xi măng VICEM Bút Sơn,Xây dựng và Vật liệu,618.0,False
+SCL,Công ty Cổ phần Sông Đà Cao Cường,Xây dựng và Vật liệu,593.0,False
+RYG,Công ty Cổ phần Sản xuất và Đầu tư Hoàng Gia,Xây dựng và Vật liệu,592.0,False
+HVH,Công ty Cổ phần Đầu tư và Công nghệ HVC,Xây dựng và Vật liệu,587.0,False
+HC3,Công ty Cổ phần Xây dựng số 3 Hải Phòng,Xây dựng và Vật liệu,563.0,False
+S55,Công ty Cổ phần Sông Đà 505,Xây dựng và Vật liệu,560.0,False
+VC2,Công ty Cổ phần Đầu tư và Xây dựng VINA2,Xây dựng và Vật liệu,550.0,False
+SJE,Công ty Cổ phần Sông Đà 11,Xây dựng và Vật liệu,508.0,False
+TSA,Công ty Cổ Phần Đầu Tư Và Xây Lắp Trường Sơn,Xây dựng và Vật liệu,503.0,False
+VIW,Tổng công ty Đầu tư Nước và Môi trường Việt Nam - Công ty Cổ phần,Xây dựng và Vật liệu,493.0,False
+MST,Công ty Cổ phần Đầu tư MST,Xây dựng và Vật liệu,456.0,False
+HTI,Công ty Cổ phần Đầu tư Phát triển Hạ tầng IDICO,Xây dựng và Vật liệu,442.0,False
+VC6,Công ty cổ phần Xây dựng và Đầu tư Visicons,Xây dựng và Vật liệu,438.0,False
+HUB,Công ty Cổ phần Xây lắp Thừa Thiên Huế,Xây dựng và Vật liệu,435.0,False
+VNE,Tổng Công ty Cổ phần Xây dựng điện Việt Nam,Xây dựng và Vật liệu,423.0,False
+DGT,Công ty Cổ phần Công trình Giao thông Đồng Nai,Xây dựng và Vật liệu,423.0,False
+XMC,Công ty cổ phần Đầu tư và Xây dựng Xuân Mai,Xây dựng và Vật liệu,418.0,False
+CIG,Công ty Cổ phần COMA 18,Xây dựng và Vật liệu,405.0,False
+QNC,Công ty Cổ phần Xi măng và Xây dựng Quảng Ninh,Xây dựng và Vật liệu,402.0,False
+C69,Công ty Cổ phần Xây dựng 1369,Xây dựng và Vật liệu,402.0,False
+SD9,Công ty Cổ phần Sông Đà 9,Xây dựng và Vật liệu,394.0,False
+MBG,Công ty Cổ phần Tập đoàn MBG,Xây dựng và Vật liệu,385.0,False
+VTV,Công ty Cổ phần Năng lượng và Môi trường VICEM,Xây dựng và Vật liệu,374.0,False
+BCE,Công ty Cổ phần Xây dựng và Giao thông Bình Dương,Xây dựng và Vật liệu,350.0,False
+SDU,Công ty Cổ phần Đầu tư Xây dựng và Phát triển Đô thị Sông Đà,Xây dựng và Vật liệu,344.0,False
+TTL,Tổng Công ty Thăng Long - Công ty Cổ phần,Xây dựng và Vật liệu,310.0,False
+HOM,Công ty Cổ phần Xi măng VICEM Hoàng Mai,Xây dựng và Vật liệu,302.0,False
+BAX,Công ty Cổ phần Thống Nhất,Xây dựng và Vật liệu,302.0,False
+GTS,Công ty Cổ phần Công trình Giao thông Sài Gòn,Xây dựng và Vật liệu,299.0,False
+NED,Công ty Cổ phần Đầu tư và Phát triển Điện Tây Bắc,Xây dựng và Vật liệu,288.0,False
+LIG,Công ty Cổ phần Licogi 13,Xây dựng và Vật liệu,283.0,False
+TDF,Công ty Cổ phần Trung Đô,Xây dựng và Vật liệu,276.0,False
+C32,Công ty Cổ phần Đầu tư và Xây dựng 3-2,Xây dựng và Vật liệu,273.0,False
+L40,Công ty Cổ phần Đầu tư và Xây dựng 40,Xây dựng và Vật liệu,271.0,False
+VHL,Công ty Cổ phần Viglacera Hạ Long,Xây dựng và Vật liệu,270.0,False
+VE4,Công ty Cổ phần Xây dựng điện VNECO4,Xây dựng và Vật liệu,267.0,False
+BDT,Công ty Cổ phần Xây lắp và Vật liệu xây dựng Đồng Tháp,Xây dựng và Vật liệu,265.0,False
+CMD,Công ty Cổ phần Vật liệu xây dựng và Trang trí nội thất TP Hồ Chí Minh,Xây dựng và Vật liệu,259.0,False
+C47,Công ty Cổ phần Xây dựng 47,Xây dựng và Vật liệu,258.0,False
+PHC,Công ty Cổ phần Xây dựng Phục Hưng Holdings,Xây dựng và Vật liệu,257.0,False
+VSI,Công ty Cổ phần Đầu tư và Xây dựng Cấp thoát nước,Xây dựng và Vật liệu,252.0,False
+VCX,Công ty Cổ phần Xi măng Yên Bình,Xây dựng và Vật liệu,252.0,False
+SC5,Công ty Cổ phần Xây dựng số 5,Xây dựng và Vật liệu,252.0,False
+CLH,Công ty Cổ phần Xi măng La Hiên VVMI,Xây dựng và Vật liệu,246.0,False
+CCM,Công ty Cổ phần Khoáng sản và Xi măng Cần Thơ,Xây dựng và Vật liệu,241.0,False
+PSB,Công ty Cổ phần Đầu tư Dầu khí Sao Mai Bến Đình,Xây dựng và Vật liệu,232.0,False
+SD5,Công ty Cổ phần Sông Đà 5,Xây dựng và Vật liệu,229.0,False
+SDT,Công ty Cổ phần Sông Đà 10,Xây dựng và Vật liệu,222.0,False
+SCJ,Công ty Cổ phần Xi măng Sài Sơn,Xây dựng và Vật liệu,220.0,False
+VCC,Công ty Cổ phần Vinaconex 25,Xây dựng và Vật liệu,218.0,False
+SCI,Công ty Cổ phần SCI E&C,Xây dựng và Vật liệu,216.0,False
+CQT,Công ty Cổ phần Xi măng Quán Triều VVMI,Xây dựng và Vật liệu,205.0,False
+HID,Công ty Cổ phần Halcom Vietnam,Xây dựng và Vật liệu,200.0,False
+CMS,Công ty Cổ phần Tập đoàn CMH Việt Nam,Xây dựng và Vật liệu,196.0,False
+MES,Công ty Cổ phần Cơ điện Công trình,Xây dựng và Vật liệu,186.0,False
+TTB,Công ty Cổ phần TTBGROUP,Xây dựng và Vật liệu,183.0,False
+PTC,Công ty Cổ phần Đầu tư ICAPITAL,Xây dựng và Vật liệu,183.0,False
+FCM,Công ty Cổ phần Bê tông Phan Vũ Hà Nam,Xây dựng và Vật liệu,180.0,False
+HSP,Công ty Cổ phần Sơn Tổng hợp Hà Nội,Xây dựng và Vật liệu,178.0,False
+VMC,Công ty Cổ phần VIMECO,Xây dựng và Vật liệu,175.0,False
+PXS,Công ty Cổ phần Kết cấu Kim loại và Lắp máy Dầu khí,Xây dựng và Vật liệu,175.0,False
+TA9,Công ty Cổ phần Xây lắp Thành An 96,Xây dựng và Vật liệu,173.0,False
+HU4,Công ty Cổ phần Đầu tư và Xây dựng HUD4,Xây dựng và Vật liệu,171.0,False
+UDC,Công ty Cổ phần Xây dựng và Phát triển đô thị Tỉnh Bà Rịa - Vũng Tàu,Xây dựng và Vật liệu,168.0,False
+ICG,Công ty Cổ phần Xây dựng Sông Hồng,Xây dựng và Vật liệu,165.0,False
+GMX,Công ty Cổ phần Gạch ngói Gốm xây dựng Mỹ Xuân,Xây dựng và Vật liệu,160.0,False
+DDB,Công ty Cổ Phần Thương Mại Và Xây Dựng Đông Dương,Xây dựng và Vật liệu,157.0,False
+V12,Công ty Cổ phần Xây dựng số 12,Xây dựng và Vật liệu,145.0,False
+TCR,Công ty Cổ phần Công nghiệp Gốm sứ TAICERA,Xây dựng và Vật liệu,139.0,False
+BOT,Công ty Cổ phần BOT Cầu Thái Hà,Xây dựng và Vật liệu,139.0,False
+NAV,Công ty Cổ phần Nam Việt,Xây dựng và Vật liệu,136.0,False
+GMH,Công ty Cổ phần Minh Hưng Quảng Trị,Xây dựng và Vật liệu,135.0,False
+MDG,Công ty Cổ phần Miền Đông,Xây dựng và Vật liệu,134.0,False
+PVY,Công ty Cổ phần Chế tạo Giàn khoan Dầu khí,Xây dựng và Vật liệu,133.0,False
+SVN,Công ty Cổ phần Tập đoàn Vexilla Việt Nam,Xây dựng và Vật liệu,132.0,False
+YBC,Công ty Cổ phần Xi măng và Khoáng sản Yên Bái,Xây dựng và Vật liệu,126.0,False
+TL4,Tổng Công ty Xây dựng Thủy lợi 4 - Công ty Cổ phần,Xây dựng và Vật liệu,124.0,False
+UDJ,Công ty Cổ phần Phát triển Đô thị,Xây dựng và Vật liệu,123.0,False
+GKM,Công ty Cổ phần GKM Holdings,Xây dựng và Vật liệu,123.0,False
+VC1,Công ty Cổ phần Xây dựng số 1,Xây dựng và Vật liệu,121.0,False
+LM8,Công ty Cổ phần Lilama 18,Xây dựng và Vật liệu,120.0,False
+HCC,Công ty Cổ phần Bê tông Hòa Cầm - Intimex,Xây dựng và Vật liệu,117.0,False
+DSG,Công ty Cổ phần Kính Đáp Cầu,Xây dựng và Vật liệu,117.0,False
+HDA,Công ty Cổ phần Hãng sơn Đông Á,Xây dựng và Vật liệu,116.0,False
+PFL,Công ty Cổ phần Dầu khí Đông Đô,Xây dựng và Vật liệu,115.0,False
+TV3,Công ty Cổ phần Tư vấn Xây dựng Điện 3,Xây dựng và Vật liệu,112.0,False
+KDM,Công ty Cổ phần Tập đoàn GCL,Xây dựng và Vật liệu,112.0,False
+BT6,Công ty Cổ phần BETON 6,Xây dựng và Vật liệu,112.0,False
+VVN,Tổng Công ty Cổ phần Xây dựng Công nghiệp Việt Nam,Xây dựng và Vật liệu,110.0,False
+DIH,Công ty Cổ phần Đầu tư Phát triển Xây dựng - Hội An,Xây dựng và Vật liệu,109.0,False
+S74,Công ty Cổ phần Sông Đà 7.04,Xây dựng và Vật liệu,106.0,False
+SD3,Công ty Cổ phần Sông Đà 3,Xây dựng và Vật liệu,104.0,False
+HVX,Công ty Cổ phần Xi măng Vicem Hải Vân,Xây dựng và Vật liệu,104.0,False
+TLT,Công ty Cổ phần Viglacera Thăng Long,Xây dựng và Vật liệu,101.0,False
+PDB,Công ty Cổ phần Tập đoàn Đầu tư DIN Capital,Xây dựng và Vật liệu,101.0,False
+BTD,Công ty Cổ phần Bê tông ly tâm Thủ Đức,Xây dựng và Vật liệu,99.0,False
+VXB,Công ty Cổ phần Vật liệu xây dựng Bến Tre,Xây dựng và Vật liệu,97.0,False
+DFF,Công ty Cổ phần Tập đoàn Đua Fat,Xây dựng và Vật liệu,96.0,False
+MCG,Công ty Cổ phần Năng lượng và Bất động sản MCG,Xây dựng và Vật liệu,85.0,False
+DLR,Công ty Cổ phần Địa ốc Đà Lạt,Xây dựng và Vật liệu,84.0,False
+TCK,Tổng Công ty Cơ khí Xây dựng - CTCP,Xây dựng và Vật liệu,83.0,False
+S72,Công ty Cổ phần Sông Đà 7.02,Xây dựng và Vật liệu,83.0,False
+PHH,Công ty Cổ phần Hồng Hà Việt Nam,Xây dựng và Vật liệu,83.0,False
+DC2,Công ty Cổ phần Đầu tư Phát triển - Xây dựng (DIC) số 2,Xây dựng và Vật liệu,83.0,False
+SD6,Công ty Cổ phần Sông Đà 6,Xây dựng và Vật liệu,80.0,False
+SDN,Công ty Cổ phần Sơn Đồng Nai,Xây dựng và Vật liệu,74.0,False
+KPF,Công ty Cổ phần Đầu tư Tài sản KOJI,Xây dựng và Vật liệu,74.0,False
+VC9,Công ty Cổ phần Xây dựng số 9 - VC9,Xây dựng và Vật liệu,68.0,False
+HMR,Công ty cổ phần Đá Hoàng Mai,Xây dựng và Vật liệu,67.0,False
+DID,Công ty Cổ phần DIC - Đồng Tiến,Xây dựng và Vật liệu,67.0,False
+TGG,Công ty Cổ phần The Golden Group,Xây dựng và Vật liệu,63.0,False
+SHG,Tổng Công ty Cổ phần Sông Hồng,Xây dựng và Vật liệu,63.0,False
+MCC,Công ty Cổ phần Gạch ngói cao cấp,Xây dựng và Vật liệu,62.0,False
+NHC,Công ty Cổ phần Gạch ngói Nhị Hiệp,Xây dựng và Vật liệu,61.0,False
+HAS,Công ty Cổ phần Hacisco,Xây dựng và Vật liệu,61.0,False
+HU1,Công ty Cổ phần Đầu tư và Xây dựng HUD1,Xây dựng và Vật liệu,59.0,False
+INC,Công ty Cổ phần Tư vấn Đầu tư IDICO,Xây dựng và Vật liệu,58.0,False
+TMX,Công ty Cổ phần VICEM Thương mại Xi măng,Xây dựng và Vật liệu,57.0,False
+CDO,Công ty Cổ phần Tư vấn Thiết kế và Phát triển Đô thị,Xây dựng và Vật liệu,57.0,False
+DTC,Công ty Cổ phần Viglacera Đông Triều,Xây dựng và Vật liệu,56.0,False
+CT6,Công ty Cổ phần Công trình 6,Xây dựng và Vật liệu,56.0,False
+SD2,Công ty Cổ phần Sông Đà 2,Xây dựng và Vật liệu,53.0,False
+KSQ,Công ty Cổ phần CNC Capital Việt Nam,Xây dựng và Vật liệu,52.0,False
+PCM,Công ty Cổ phần Vật liệu Xây dựng Bưu điện,Xây dựng và Vật liệu,49.0,False
+NDX,Công ty Cổ phần Xây lắp Phát triển Nhà Đà Nẵng,Xây dựng và Vật liệu,49.0,False
+ALV,Công ty Cổ phần Tập đoàn MCST,Xây dựng và Vật liệu,48.0,False
+FID,Công ty Cổ phần Đầu tư và Phát triển Doanh nghiệp Việt Nam,Xây dựng và Vật liệu,44.0,False
+E29,Công ty cổ phần Đầu tư Xây dựng và Kỹ thuật 29,Xây dựng và Vật liệu,43.0,False
+QTC,Công ty Cổ phần Công trình Giao thông Vận tải Quảng Nam,Xây dựng và Vật liệu,42.0,False
+PTE,Công ty Cổ phần Xi măng Phú Thọ,Xây dựng và Vật liệu,40.0,False
+PXI,Công ty Cổ phần Xây dựng Công nghiệp và Dân dụng Dầu khí,Xây dựng và Vật liệu,39.0,False
+PVV,Công ty Cổ phần Vinaconex 39,Xây dựng và Vật liệu,38.0,False
+DXV,Công ty Cổ phần VICEM Vật liệu Xây dựng Đà Nẵng,Xây dựng và Vật liệu,38.0,False
+TTC,Công ty Cổ phần Gạch men Thanh Thanh,Xây dựng và Vật liệu,37.0,False
+PTD,Công ty Cổ phần Thiết kế - Xây dựng - Thương mại Phúc Thịnh,Xây dựng và Vật liệu,36.0,False
+PEN,Công ty Cổ phần Xây lắp III Petrolimex,Xây dựng và Vật liệu,36.0,False
+VTA,Công ty Cổ phần VITALY,Xây dựng và Vật liệu,35.0,False
+MEC,Công ty Cổ phần Cơ khí - Lắp máy Sông Đà,Xây dựng và Vật liệu,35.0,False
+HU3,Công ty Cổ phần Đầu tư và Xây dựng HUD3,Xây dựng và Vật liệu,35.0,False
+MCO,Công ty Cổ phần Đầu tư và Xây dựng BDC Việt Nam,Xây dựng và Vật liệu,34.0,False
+VE9,Công ty Cổ phần Đầu tư và Xây dựng VNECO 9,Xây dựng và Vật liệu,33.0,False
+PXT,Công ty Cổ phần Xây lắp Đường ống Bể chứa Dầu khí,Xây dựng và Vật liệu,33.0,False
+TXM,Công ty Cổ phần VICEM Thạch cao Xi Măng,Xây dựng và Vật liệu,32.0,False
+DVG,Công ty Cổ phần Đại Việt Group DVG,Xây dựng và Vật liệu,31.0,False
+SD7,Công ty Cổ phần Sông Đà 7,Xây dựng và Vật liệu,30.0,False
+LCD,Công ty Cổ phần Lắp máy - Thí nghiệm cơ điện,Xây dựng và Vật liệu,29.0,False
+L12,Công ty Cổ phần Licogi 12,Xây dựng và Vật liệu,29.0,False
+XMD,Công ty Cổ phần Xuân Mai - Đạo Tú,Xây dựng và Vật liệu,28.0,False
+VHH,Công ty Cổ phần Đầu tư Kinh doanh nhà Thành Đạt,Xây dựng và Vật liệu,28.0,False
+SJC,Công ty Cổ phần Sông Đà 1.01,Xây dựng và Vật liệu,28.0,False
+SJM,Công ty Cổ phần Sông Đà 19,Xây dựng và Vật liệu,27.0,False
+DIC,Công ty Cổ phần Đầu tư và Thương mại DIC,Xây dựng và Vật liệu,24.0,False
+CX8,Công ty Cổ phần Đầu tư và Xây lắp Constrexim số 8,Xây dựng và Vật liệu,24.0,False
+VE1,Công ty Cổ phần Xây dựng điện VNECO 1,Xây dựng và Vật liệu,22.0,False
+SD4,Công ty Cổ phần Sông Đà 4,Xây dựng và Vật liệu,22.0,False
+C92,Công ty Cổ phần Xây dựng và Đầu tư 492,Xây dựng và Vật liệu,22.0,False
+VE2,Công ty Cổ phần Xây dựng Điện VNECO 2,Xây dựng và Vật liệu,21.0,False
+VTS,Công ty Cổ phần Gạch Ngói Từ Sơn,Xây dựng và Vật liệu,20.0,False
+SDD,Công ty Cổ phần Đầu tư và Xây lắp Sông Đà,Xây dựng và Vật liệu,19.0,False
+TKC,Công ty Cổ phần Xây dựng và Kinh doanh Địa ốc Tân Kỷ,Xây dựng và Vật liệu,18.0,False
+PSG,Công ty Cổ phần Đầu tư và Xây lắp Dầu khí Sài Gòn,Xây dựng và Vật liệu,18.0,False
+KCE,Công ty Cổ phần Bê tông Ly tâm Điện lực Khánh Hòa,Xây dựng và Vật liệu,18.0,False
+PVH,Công ty Cổ phần Xây lắp Dầu khí Thanh Hóa,Xây dựng và Vật liệu,17.0,False
+CID,Công ty Cổ phần Xây dựng và Phát triển Cơ sở Hạ tầng,Xây dựng và Vật liệu,17.0,False
+LM3,Công ty Cổ phần Lilama 3,Xây dựng và Vật liệu,16.0,False
+CDG,Công ty Cổ phần Cầu Đuống,Xây dựng và Vật liệu,16.0,False
+SCC,Công ty Cổ phần Thương mại Đầu tư SHB,Xây dựng và Vật liệu,15.0,False
+CYC,Công ty Cổ phần Gạch men Chang Yih,Xây dựng và Vật liệu,15.0,False
+TTZ,Công ty Cổ phần Đầu tư Xây dựng và Công nghệ Tiến Trung,Xây dựng và Vật liệu,14.0,False
+TBX,Công ty Cổ phần Xi măng Thái Bình,Xây dựng và Vật liệu,14.0,False
+QCC,Công ty Cổ phần Đầu tư Xây dựng và Phát triển Hạ tầng Viễn Thông,Xây dựng và Vật liệu,14.0,False
+DCT,Công ty Cổ phần Tấm lợp Vật liệu Xây dựng Đồng Nai,Xây dựng và Vật liệu,14.0,False
+CTA,Công ty Cổ phần Vinavico,Xây dựng và Vật liệu,13.0,False
+HLY,Công ty Cổ phần Gốm xây dựng Yên Hưng,Xây dựng và Vật liệu,12.0,False
+CMI,Công ty Cổ phần CMISTONE Việt Nam,Xây dựng và Vật liệu,12.0,False
+PVA,Công ty Cổ phần Tổng Công ty Xây lắp Dầu khí Nghệ An,Xây dựng và Vật liệu,11.0,False
+PID,Công ty Cổ phần Trang trí nội thất Dầu khí,Xây dựng và Vật liệu,11.0,False
+L43,Công ty Cổ phần Lilama 45.3,Xây dựng và Vật liệu,11.0,False
+E12,Công ty Cổ phần Xây Dựng Điện VNECO 12,Xây dựng và Vật liệu,11.0,False
+SDP,Công ty Cổ phần SDP,Xây dựng và Vật liệu,10.0,False
+S12,Công ty Cổ phần Sông Đà 12,Xây dựng và Vật liệu,10.0,False
+VPC,Công ty Cổ phần Đầu tư và Phát triển Năng lượng Việt Nam,Xây dựng và Vật liệu,9.0,False
+VE3,Công ty Cổ phần Xây dựng điện VNECO 3,Xây dựng và Vật liệu,9.0,False
+PXM,Công ty Cổ phần Xây lắp Dầu khí Miền Trung,Xây dựng và Vật liệu,8.0,False
+LUT,Công ty Cổ phần Đầu tư Xây dựng Lương Tài,Xây dựng và Vật liệu,8.0,False
+KHL,Công ty Cổ phần Khoáng sản và Vật liệu Xây dựng Hưng Long,Xây dựng và Vật liệu,8.0,False
+BHC,Công ty Cổ phần Bê tông Biên Hòa,Xây dựng và Vật liệu,8.0,False
+KTT,Công ty Cổ phần Tập đoàn Đầu tư KTT,Xây dựng và Vật liệu,7.0,False
+ATB,Công ty Cổ phần An Thịnh,Xây dựng và Vật liệu,7.0,False
+SDB,Công ty Cổ phần Sông Đà 207,Xây dựng và Vật liệu,6.0,False
+SD1,Công ty Cổ phần Sông Đà 1,Xây dựng và Vật liệu,6.0,False
+SDY,Công ty Cổ phần Xi măng Sông Đà Yaly,Xây dựng và Vật liệu,5.0,False
+LCS,Công ty Cổ phần Licogi 16.6,Xây dựng và Vật liệu,5.0,False
+DAC,Công ty Cổ phần 382 Đông Anh,Xây dựng và Vật liệu,5.0,False
+VE8,Công ty Cổ phần Xây dựng Điện Vneco 8,Xây dựng và Vật liệu,4.0,False
+VC5,Công ty Cổ phần Xây dựng Số 5,Xây dựng và Vật liệu,4.0,False
+V15,Công ty Cổ phần Xây dựng số 15,Xây dựng và Vật liệu,4.0,False
+SD8,Công ty Cổ phần Sông Đà 8,Xây dựng và Vật liệu,4.0,False
+S96,Công ty Cổ phần Sông Đà 9.06,Xây dựng và Vật liệu,4.0,False
+CTN,Công ty Cổ phần Xây dựng Công trình ngầm,Xây dựng và Vật liệu,2.0,False
+S27,Công ty Cổ phần Sông Đà 27,Xây dựng và Vật liệu,1.0,False
+DHG,Công ty Cổ phần Dược Hậu Giang,Y tế,12918.0,True
+IMP,Công ty Cổ phần Dược phẩm IMEXPHARM,Y tế,7762.0,True
+DVN,Tổng Công ty Dược Việt Nam - CTCP,Y tế,5449.0,True
+DBD,Công ty Cổ phần Dược - Trang thiết bị y tế Bình Định (BIDIPHAR),Y tế,5108.0,True
+TRA,Công ty Cổ phần Traphaco,Y tế,2914.0,True
+DTP,Công ty Cổ phần Dược phẩm CPC1 Hà Nội,Y tế,2626.0,True
+TNH,Công ty Cổ phần Tập đoàn Bệnh viện TNH,Y tế,2414.0,True
+DMC,Công ty Cổ phần Xuất nhập khẩu Y tế DOMESCO,Y tế,2150.0,True
+DCL,Công ty Cổ phần Dược phẩm Cửu Long,Y tế,1950.0,True
+OPC,Công ty Cổ phần Dược Phẩm OPC,Y tế,1518.0,True
+FIT,Công ty Cổ phần Tập đoàn F.I.T,Y tế,1506.0,False
+AGP,Công ty Cổ phần Dược phẩm AGIMEXPHARM,Y tế,1174.0,False
+DP3,Công ty Cổ Phần Dược Phẩm Trung Ương 3,Y tế,1135.0,False
+TTD,Công ty Cổ phần Bệnh viện Tim Tâm Đức,Y tế,1084.0,False
+DHD,Công ty Cổ phần Dược Vật Tư Y Tế Hải Dương,Y tế,1008.0,False
+PMC,Công ty Cổ phần Dược phẩm Dược liệu Pharmedic,Y tế,961.0,False
+DP1,Công ty Cổ phần Dược phẩm Trung ương CPC1,Y tế,795.0,False
+PBC,Công ty Cổ phần Dược Phẩm Trung ương 1 - Pharbaco,Y tế,788.0,False
+VDP,Công ty Cổ phần Dược phẩm Trung ương VIDIPHA,Y tế,762.0,False
+DAN,Công ty Cổ phần Dược Danapha,Y tế,762.0,False
+MKP,Công ty Cổ phần Hóa - Dược phẩm Mekophar,Y tế,662.0,False
+JVC,Công ty Cổ phần Đầu tư và Phát triển Y tế Việt Nhật,Y tế,568.0,False
+MED,Công ty Cổ phần Dược Trung ương Mediplantex,Y tế,329.0,False
+DVM,Công ty Cổ phần Dược liệu Việt Nam,Y tế,299.0,False
+AMV,Công ty Cổ phần Sản xuất Kinh doanh Dược và Trang thiết bị Y tế Việt Mỹ,Y tế,262.0,False
+NDP,Công ty Cổ phần Dược phẩm 2/9,Y tế,261.0,False
+VMD,Công ty Cổ phần Y Dược phẩm Vimedimex,Y tế,259.0,False
+DBT,Công ty Cổ phần Dược phẩm Bến Tre,Y tế,242.0,False
+AMP,Công ty Cổ phần Armephaco,Y tế,199.0,False
+CDP,Công ty Cổ phần Dược phẩm Trung ương Codupha,Y tế,196.0,False
+PPP,Công ty Cổ phần Dược phẩm Phong Phú,Y tế,179.0,False
+APC,Công ty Cổ phần Chiếu xạ An Phú,Y tế,167.0,False
+SPM,Công ty Cổ phần S.P.M,Y tế,156.0,False
+DPH,Công ty Cổ phần Dược phẩm Hải Phòng,Y tế,149.0,False
+VHE,Công ty Cổ phần Dược liệu và Thực phẩm Việt Nam,Y tế,143.0,False
+GPC,Công ty Cổ phần Tập đoàn Green+,Y tế,143.0,False
+LDP,Công ty Cổ phần Dược Lâm Đồng - Ladophar,Y tế,140.0,False
+DTG,Công ty Cổ phần Dược phẩm Tipharco,Y tế,139.0,False
+UPH,Công ty Cổ phần Dược phẩm TW25,Y tế,125.0,False
+DDN,Công ty Cổ phần Dược - Thiết bị y tế Đà Nẵng,Y tế,113.0,False
+DP2,Công ty Cổ phần Dược phẩm Trung ương 2,Y tế,92.0,False
+DBM,Công ty Cổ phần Dược - Vật tư Y tế Đắk Lắk,Y tế,55.0,False
+CVN,Công ty Cổ phần Vinam,Y tế,53.0,False
+MKV,Công ty Cổ phần Dược Thú Y Cai Lậy,Y tế,48.0,False
+DNM,Tổng Công ty Cổ phần Y tế Danameco,Y tế,39.0,False
+HUT,Công ty Cổ phần Tasco,Ô tô và phụ tùng,11603.0,True
+HHS,Công ty Cổ phần Đầu tư Dịch vụ Hoàng Huy,Ô tô và phụ tùng,6609.0,True
+DRC,Công ty Cổ phần Cao su Đà Nẵng,Ô tô và phụ tùng,2394.0,True
+CTF,Công ty Cổ phần City Auto,Ô tô và phụ tùng,2066.0,True
+HAX,Công ty Cổ phần Dịch vụ Ô tô Hàng Xanh,Ô tô và phụ tùng,1553.0,True
+CSM,Công ty Cổ phần Công nghiệp Cao su Miền Nam,Ô tô và phụ tùng,1337.0,True
+SVC,Công ty Cổ phần Dịch vụ tổng hợp Sài Gòn,Ô tô và phụ tùng,1302.0,True
+GMA,Công ty Cổ phần G-Automobile,Ô tô và phụ tùng,1110.0,True
+SRC,Công ty Cổ phần Cao su Sao Vàng,Ô tô và phụ tùng,731.0,True
+TMT,Công ty Cổ phần Ô tô TMT,Ô tô và phụ tùng,452.0,True
+VVS,Công ty Cổ phần Đầu tư Phát triển Máy Việt Nam,Ô tô và phụ tùng,446.0,False
+HTL,Công ty Cổ phần Kỹ thuật và Ô tô Trường Long,Ô tô và phụ tùng,348.0,False
+GGG,Công ty Cổ phần Ô tô Giải Phóng,Ô tô và phụ tùng,94.0,False
+VKC,Công ty Cổ phần VKC Holdings,Ô tô và phụ tùng,13.0,False
+GAS,Tổng Công ty Khí Việt Nam - Công ty Cổ phần,"Điện, nước & xăng dầu khí đốt",150868.0,True
+REE,Công ty Cổ phần Cơ điện Lạnh,"Điện, nước & xăng dầu khí đốt",36292.0,True
+POW,Tổng Công ty Điện lực Dầu khí Việt Nam - CTCP,"Điện, nước & xăng dầu khí đốt",29976.0,True
+PGV,Tổng Công ty Phát điện 3 - Công ty Cổ phần,"Điện, nước & xăng dầu khí đốt",21346.0,True
+DNH,Công ty Cổ phần Thủy điện Đa Nhim - Hàm Thuận - Đa Mi,"Điện, nước & xăng dầu khí đốt",21078.0,True
+VSH,Công ty Cổ phần Thủy điện Vĩnh Sơn - Sông Hinh,"Điện, nước & xăng dầu khí đốt",11434.0,True
+BWE,Công ty Cổ phần - Tổng công ty Nước - Môi trường Bình Dương,"Điện, nước & xăng dầu khí đốt",10458.0,True
+DTK,Tổng Công ty Điện lực TKV - Công ty Cổ phần,"Điện, nước & xăng dầu khí đốt",8398.0,True
+TDM,Công ty Cổ phần Nước Thủ Dầu Một,"Điện, nước & xăng dầu khí đốt",6160.0,True
+QTP,Công ty Cổ phần Nhiệt điện Quảng Ninh,"Điện, nước & xăng dầu khí đốt",5945.0,True
+HND,Công ty Cổ phần Nhiệt điện Hải Phòng,"Điện, nước & xăng dầu khí đốt",5862.0,False
+SBH,Công ty Cổ phần Thủy điện Sông Ba Hạ,"Điện, nước & xăng dầu khí đốt",5839.0,False
+HNA,Công ty Cổ phần Thủy điện Hủa Na,"Điện, nước & xăng dầu khí đốt",5763.0,False
+GEG,Công ty Cổ phần Điện Gia Lai,"Điện, nước & xăng dầu khí đốt",5608.0,False
+NT2,Công ty Cổ phần Điện lực Dầu khí Nhơn Trạch 2,"Điện, nước & xăng dầu khí đốt",5153.0,False
+CHP,Công ty Cổ phần Thủy điện Miền Trung,"Điện, nước & xăng dầu khí đốt",5039.0,False
+TMP,Công ty Cổ phần Thủy điện Thác Mơ,"Điện, nước & xăng dầu khí đốt",4697.0,False
+AVC,Công ty Cổ phần Thủy điện A Vương,"Điện, nước & xăng dầu khí đốt",4128.0,False
+DNW,Công ty Cổ phần Cấp nước Đồng Nai,"Điện, nước & xăng dầu khí đốt",3775.0,False
+PPC,Công ty Cổ phần Nhiệt điện Phả Lại,"Điện, nước & xăng dầu khí đốt",3719.0,False
+SHP,Công ty Cổ phần Thủy điện Miền Nam,"Điện, nước & xăng dầu khí đốt",3643.0,False
+BGE,Công ty Cổ phần BCG Energy,"Điện, nước & xăng dầu khí đốt",3539.0,False
+BWS,Công ty Cổ phần Cấp Nước Bà Rịa - Vũng Tàu,"Điện, nước & xăng dầu khí đốt",3380.0,False
+PGD,Công ty Cổ phần Phân phối khí thấp áp dầu khí Việt Nam,"Điện, nước & xăng dầu khí đốt",2772.0,False
+VPD,Công ty Cổ phần Phát triển Điện lực Việt Nam,"Điện, nước & xăng dầu khí đốt",2622.0,False
+TBC,Công ty Cổ phần Thủy điện Thác Bà,"Điện, nước & xăng dầu khí đốt",2445.0,False
+VCW,Công ty Cổ phần Đầu tư Nước sạch Sông Đà,"Điện, nước & xăng dầu khí đốt",2438.0,False
+VCP,Công ty Cổ phần Xây dựng và Năng lượng VCP,"Điện, nước & xăng dầu khí đốt",2198.0,False
+PMW,Công ty Cổ phần Cấp Nước Phú Mỹ,"Điện, nước & xăng dầu khí đốt",2185.0,False
+ND2,Công ty Cổ phần Đầu tư và Phát triển điện Miền Bắc 2,"Điện, nước & xăng dầu khí đốt",1871.0,False
+VAV,Công ty Cổ phần VIWACO,"Điện, nước & xăng dầu khí đốt",1840.0,False
+TTA,Công ty Cổ phần Đầu tư Xây dựng và Phát triển Trường Thành,"Điện, nước & xăng dầu khí đốt",1828.0,False
+SBA,Công ty Cổ phần Sông Ba,"Điện, nước & xăng dầu khí đốt",1809.0,False
+LDW,Công ty Cổ phần Cấp thoát nước Lâm Đồng,"Điện, nước & xăng dầu khí đốt",1710.0,False
+BHA,Công ty Cổ phần Thủy điện Bắc Hà,"Điện, nước & xăng dầu khí đốt",1643.0,False
+SEB,Công ty Cổ phần Đầu tư và Phát triển Điện Miền Trung,"Điện, nước & xăng dầu khí đốt",1552.0,False
+PGS,Công ty Cổ phần Kinh doanh Khí Miền Nam,"Điện, nước & xăng dầu khí đốt",1550.0,False
+S4A,Công ty Cổ phần Thủy điện Sê San 4A,"Điện, nước & xăng dầu khí đốt",1511.0,False
+BSA,Công ty Cổ phần Thủy điện Buôn Đôn,"Điện, nước & xăng dầu khí đốt",1491.0,False
+TLP,Tổng Công ty Thương mại Xuất nhập khẩu Thanh Lễ - CTCP,"Điện, nước & xăng dầu khí đốt",1490.0,False
+GHC,Công ty Cổ phần Thủy điện Gia Lai,"Điện, nước & xăng dầu khí đốt",1437.0,False
+HWS,Công ty Cổ phần Cấp nước Huế,"Điện, nước & xăng dầu khí đốt",1422.0,False
+HPW,Công ty Cổ phần Cấp nước Hải Phòng,"Điện, nước & xăng dầu khí đốt",1373.0,False
+DNA,Công ty Cổ phần Điện nước An Giang,"Điện, nước & xăng dầu khí đốt",1352.0,False
+ISH,Công ty Cổ phần Thủy điện Srok Phu Miêng IDICO,"Điện, nước & xăng dầu khí đốt",1192.0,False
+TTE,Công ty Cổ phần Đầu tư Năng lượng Trường Thịnh,"Điện, nước & xăng dầu khí đốt",1064.0,False
+KHW,Công ty Cổ phần Cấp thoát nước Khánh Hòa,"Điện, nước & xăng dầu khí đốt",1015.0,False
+SJD,Công ty Cổ phần Thủy điện Cần Đơn,"Điện, nước & xăng dầu khí đốt",1011.0,False
+CNG,Công ty Cổ phần CNG Việt Nam,"Điện, nước & xăng dầu khí đốt",1011.0,False
+PGC,Tổng Công ty Gas Petrolimex - Công ty Cổ phần,"Điện, nước & xăng dầu khí đốt",929.0,False
+SII,Công ty Cổ phần Hạ tầng Nước Sài Gòn,"Điện, nước & xăng dầu khí đốt",890.0,False
+NS2,Công ty Cổ phần Nước sạch số 2 Hà Nội,"Điện, nước & xăng dầu khí đốt",880.0,False
+PEG,Tổng Công ty Thương mại Kỹ thuật và Đầu tư - Công ty Cổ phần,"Điện, nước & xăng dầu khí đốt",877.0,False
+CTW,Công ty Cổ phần Cấp thoát nước Cần Thơ,"Điện, nước & xăng dầu khí đốt",874.0,False
+GSM,Công ty Cổ phần Thủy điện Hương Sơn,"Điện, nước & xăng dầu khí đốt",870.0,False
+NQN,Công ty Cổ phần Nước sạch Quảng Ninh,"Điện, nước & xăng dầu khí đốt",818.0,False
+VLW,Công ty Cổ phần Cấp nước Vĩnh Long,"Điện, nước & xăng dầu khí đốt",812.0,False
+KHP,Công ty Cổ phần Điện lực Khánh Hòa,"Điện, nước & xăng dầu khí đốt",752.0,False
+BTP,Công ty Cổ phần Nhiệt điện Bà Rịa,"Điện, nước & xăng dầu khí đốt",726.0,False
+PIC,Công ty Cổ phần Đầu tư Điện lực 3,"Điện, nước & xăng dầu khí đốt",663.0,False
+HJS,Công ty Cổ phần Thủy điện Nậm Mu,"Điện, nước & xăng dầu khí đốt",636.0,False
+DNC,Công ty Cổ phần Điện nước Lắp máy Hải Phòng,"Điện, nước & xăng dầu khí đốt",618.0,False
+QPH,Công ty Cổ phần Thủy điện Quế Phong,"Điện, nước & xăng dầu khí đốt",570.0,False
+NTH,Công ty Cổ phần Thủy điện Nước Trong,"Điện, nước & xăng dầu khí đốt",562.0,False
+NBT,Công ty Cổ phần Cấp thoát nước Bến Tre,"Điện, nước & xăng dầu khí đốt",544.0,False
+DRL,Công ty Cổ phần Thủy điện - Điện lực 3,"Điện, nước & xăng dầu khí đốt",541.0,False
+CLW,Công ty Cổ phần Cấp nước Chợ Lớn,"Điện, nước & xăng dầu khí đốt",528.0,False
+STW,Công ty Cổ phần Cấp nước Sóc Trăng,"Điện, nước & xăng dầu khí đốt",500.0,False
+SP2,Công ty Cổ phần Thủy điện Sử Pán 2,"Điện, nước & xăng dầu khí đốt",495.0,False
+TDW,Công ty Cổ phần Cấp nước Thủ Đức,"Điện, nước & xăng dầu khí đốt",490.0,False
+HDW,Công ty Cổ phần Kinh doanh Nước sạch Hải Dương,"Điện, nước & xăng dầu khí đốt",485.0,False
+PWS,Công ty Cổ phần Cấp thoát nước Phú Yên,"Điện, nước & xăng dầu khí đốt",480.0,False
+DWC,Công ty Cổ phần Cấp nước Đắk Lắk,"Điện, nước & xăng dầu khí đốt",466.0,False
+HTC,Công ty Cổ phần Thương mại Hóc Môn,"Điện, nước & xăng dầu khí đốt",429.0,False
+PMG,Công ty Cổ phần Đầu tư và Sản xuất Petro Miền Trung,"Điện, nước & xăng dầu khí đốt",419.0,False
+DWS,Công ty Cổ phần Cấp nước và Môi trường Đô thị Đồng Tháp,"Điện, nước & xăng dầu khí đốt",417.0,False
+QNW,Công ty Cổ phần Cấp thoát nước và xây dựng Quảng Ngãi,"Điện, nước & xăng dầu khí đốt",400.0,False
+CCI,Công ty Cổ phần Đầu tư Phát triển Công nghiệp Thương mại Củ Chi,"Điện, nước & xăng dầu khí đốt",399.0,False
+NBW,Công ty Cổ phần Cấp nước Nhà Bè,"Điện, nước & xăng dầu khí đốt",370.0,False
+BDW,Công ty Cổ phần Cấp thoát nước Bình Định,"Điện, nước & xăng dầu khí đốt",354.0,False
+BTW,Công ty Cổ phần Cấp nước Bến Thành,"Điện, nước & xăng dầu khí đốt",347.0,False
+LAW,Công ty Cổ phần Cấp thoát nước Long An,"Điện, nước & xăng dầu khí đốt",344.0,False
+CHS,Công ty Cổ phần Chiếu sáng Công cộng Thành phố Hồ Chí Minh,"Điện, nước & xăng dầu khí đốt",341.0,False
+UIC,Công ty Cổ phần Đầu tư Phát triển Nhà và Đô thị IDICO,"Điện, nước & xăng dầu khí đốt",317.0,False
+GDW,Công ty Cổ phần Cấp nước Gia Định,"Điện, nước & xăng dầu khí đốt",314.0,False
+BNW,Công ty Cổ phần Nước sạch Bắc Ninh,"Điện, nước & xăng dầu khí đốt",304.0,False
+NAW,Công ty Cổ phần Cấp nước Nghệ An,"Điện, nước & xăng dầu khí đốt",303.0,False
+BGW,Công ty Cổ phần Nước sạch Bắc Giang,"Điện, nước & xăng dầu khí đốt",290.0,False
+PVG,Công ty Cổ phần Kinh doanh LPG Việt Nam,"Điện, nước & xăng dầu khí đốt",268.0,False
+SFC,Công ty Cổ phần Nhiên liệu Sài Gòn,"Điện, nước & xăng dầu khí đốt",241.0,False
+PPT,Công ty cổ phần Petro Times,"Điện, nước & xăng dầu khí đốt",235.0,False
+NDW,Công ty Cổ phần Cấp nước Nam Định,"Điện, nước & xăng dầu khí đốt",229.0,False
+XMP,Công ty Cổ phần Thủy điện Xuân Minh,"Điện, nước & xăng dầu khí đốt",228.0,False
+PSH,Công ty Cổ phần Thương mại Đầu tư Dầu khí Nam Sông Hậu,"Điện, nước & xăng dầu khí đốt",223.0,False
+DDG,Công ty Cổ phần Đầu tư Công nghiệp Xuất nhập khẩu Đông Dương,"Điện, nước & xăng dầu khí đốt",208.0,False
+PJC,Công ty Cổ phần Thương mại và Vận tải Petrolimex Hà Nội,"Điện, nước & xăng dầu khí đốt",205.0,False
+SMA,Công ty Cổ phần Thiết bị Phụ tùng Sài Gòn,"Điện, nước & xăng dầu khí đốt",204.0,False
+ASP,Công ty Cổ phần Tập đoàn Dầu khí An Pha,"Điện, nước & xăng dầu khí đốt",202.0,False
+CMW,Công ty Cổ phần Cấp nước Cà Mau,"Điện, nước & xăng dầu khí đốt",199.0,False
+GLW,Công ty Cổ phần Cấp thoát nước Gia Lai,"Điện, nước & xăng dầu khí đốt",198.0,False
+DTE,Công ty Cổ phần Đầu tư Năng lượng Đại Trường Thành Holdings,"Điện, nước & xăng dầu khí đốt",188.0,False
+TNW,Công ty Cổ phần Nước sạch Thái Nguyên,"Điện, nước & xăng dầu khí đốt",178.0,False
+THN,Công ty Cổ phần Cấp nước Thanh Hóa,"Điện, nước & xăng dầu khí đốt",168.0,False
+HPD,Công ty Cổ phần Thủy điện Đăk Đoa,"Điện, nước & xăng dầu khí đốt",157.0,False
+NQT,Công ty Cổ phần Nước sạch Quảng Trị,"Điện, nước & xăng dầu khí đốt",144.0,False
+HIO,Công ty Cổ Phần Helio Energy,"Điện, nước & xăng dầu khí đốt",142.0,False
+NQB,Công ty Cổ phần Cấp nước Quảng Bình,"Điện, nước & xăng dầu khí đốt",138.0,False
+BMF,Công ty Cổ phần Vật liệu Xây dựng và Chất đốt Đồng Nai,"Điện, nước & xăng dầu khí đốt",135.0,False
+NBP,Công ty Cổ phần Nhiệt Điện Ninh Bình,"Điện, nước & xăng dầu khí đốt",131.0,False
+TMC,Công ty Cổ phần Thương mại Xuất nhập khẩu Thủ Đức,"Điện, nước & xăng dầu khí đốt",102.0,False
+POV,Công ty Cổ phần Xăng dầu Dầu khí Vũng Áng,"Điện, nước & xăng dầu khí đốt",97.0,False
+SVH,Công ty Cổ phần Thủy điện Sông Vàng,"Điện, nước & xăng dầu khí đốt",89.0,False
+HTE,Công ty Cổ phần Đầu tư Kinh doanh Điện lực Thành phố Hồ Chí Minh,"Điện, nước & xăng dầu khí đốt",87.0,False
+PPY,Công ty Cổ phần Xăng dầu dầu khí Phú Yên,"Điện, nước & xăng dầu khí đốt",80.0,False
+MTG,Công ty Cổ phần MT Gas,"Điện, nước & xăng dầu khí đốt",80.0,False
+TDG,Công ty Cổ phần Đầu tư TDG Global,"Điện, nước & xăng dầu khí đốt",77.0,False
+DNN,Công ty Cổ phần Cấp nước Đà Nẵng,"Điện, nước & xăng dầu khí đốt",64.0,False
+PND,Công ty Cổ phần Xăng dầu Dầu khí Nam Định,"Điện, nước & xăng dầu khí đốt",46.0,False
+PCG,Công ty Cổ phần Đầu tư Phát triển Gas Đô thị,"Điện, nước & xăng dầu khí đốt",40.0,False
+PTH,Công ty Cổ phần Vận tải và Dịch vụ Petrolimex Hà Tây,"Điện, nước & xăng dầu khí đốt",35.0,False
+VMG,Công ty Cổ phần Thương mại và Dịch vụ Dầu khí Vũng Tàu,"Điện, nước & xăng dầu khí đốt",34.0,False
