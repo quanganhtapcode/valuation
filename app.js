@@ -28,8 +28,8 @@ class StockValuationApp {
         this.valuationResults = null;
         // Tự động detect environment
         this.apiBaseUrl = window.location.hostname === 'localhost' 
-            ? 'https://valuation-e1ue.onrender.com' 
-            : window.location.origin;
+            ? 'http://localhost:5000' 
+            : 'https://valuation-e1ue.onrender.com';
         this.charts = {
             roeRoa: null,
             pePb: null,
