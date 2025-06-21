@@ -23,6 +23,7 @@ class StockDataProvider:
         self.vnstock = Vnstock()
         self._all_symbols = None
         self._industry_mapping = None
+        self._organ_name_mapping = None
         logger.info("StockDataProvider initialized with VCI source only (symbols will be loaded on first request)")
 
     def _load_industry_mapping(self):
@@ -31,16 +32,26 @@ class StockDataProvider:
         try:
             df = pd.read_csv('top10_industries.csv')
             self._industry_mapping = dict(zip(df['symbol'].str.upper(), df['industry']))
+            # Also load organ_name mapping
+            self._organ_name_mapping = dict(zip(df['symbol'].str.upper(), df['organ_name']))
             logger.info(f"Successfully loaded industry mapping for {len(self._industry_mapping)} symbols")
             return self._industry_mapping
         except Exception as e:
             logger.warning(f"Failed to load industry mapping from top10_industries.csv: {e}")
             self._industry_mapping = {}
+            self._organ_name_mapping = {}
             return self._industry_mapping
 
     def _get_industry_for_symbol(self, symbol: str) -> str:
         mapping = self._load_industry_mapping()
         return mapping.get(symbol.upper(), "Unknown")
+
+    def _get_organ_name_for_symbol(self, symbol: str) -> str:
+        # Ensure industry mapping is loaded first (which also loads organ_name_mapping)
+        self._load_industry_mapping()
+        if hasattr(self, '_organ_name_mapping'):
+            return self._organ_name_mapping.get(symbol.upper(), symbol)
+        return symbol
 
     def _get_all_symbols(self):
         if self._all_symbols is not None:
@@ -73,7 +84,7 @@ class StockDataProvider:
         if vci_data and vci_data.get('success'):
             vci_data.update({
                 "symbol": symbol,
-                "name": symbol,
+                "name": self._get_organ_name_for_symbol(symbol),
                 "exchange": "HOSE",
                 "sector": self._get_industry_for_symbol(symbol),
                 "data_period": period,
@@ -113,7 +124,9 @@ class StockDataProvider:
             industries_df = stock.listing.symbols_by_industries()
             company_info = symbols_df[symbols_df['symbol'] == symbol] if not symbols_df.empty else pd.DataFrame()
             industry_info = industries_df[industries_df['symbol'] == symbol] if not industries_df.empty else pd.DataFrame()
-            name = symbol
+            
+            # First try to get company name from CSV file
+            name = self._get_organ_name_for_symbol(symbol)
             exchange = "HOSE"
             sector = self._get_industry_for_symbol(symbol)
             shares = np.nan
