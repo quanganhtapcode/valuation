@@ -37,7 +37,7 @@ Visit the live application: [https://valuation-fawn.vercel.app]
 ### Backend Setup
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/vietnam-stock-valuation.git
+git clone https://github.com/quanganhtapcode/vietnam-stock-valuation.git
 cd vietnam-stock-valuation
 ```
 
@@ -63,7 +63,7 @@ The server will start on `http://localhost:5000`
 1. Push your code to a GitHub repository
 2. Go to repository Settings > Pages
 3. Select source branch (usually `main`)
-4. Your site will be available at `https://yourusername.github.io/repository-name`
+4. Your site will be available at `https://quanganhtapcode.github.io/valuation`
 
 ### Vercel (Recommended for Full Stack)
 1. Connect your GitHub repository to Vercel
