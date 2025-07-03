@@ -4,7 +4,7 @@ A comprehensive web application for valuing Vietnamese stocks using multiple fin
 
 ## 🚀 Live Demo
 
-Visit the live application: [https://yourusername.github.io/vietnam-stock-valuation](https://yourusername.github.io/vietnam-stock-valuation)
+Visit the live application: [https://valuation-fawn.vercel.app]
 
 ## 📋 Features
 
