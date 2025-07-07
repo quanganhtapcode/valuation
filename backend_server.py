@@ -23,7 +23,6 @@ class StockDataProvider:
         self.vnstock = Vnstock()
         self._all_symbols = None
         self._industry_mapping = None
-        self._organ_name_mapping = None
         logger.info("StockDataProvider initialized with VCI source only (symbols will be loaded on first request)")
 
     def _load_industry_mapping(self):
@@ -32,26 +31,16 @@ class StockDataProvider:
         try:
             df = pd.read_csv('top10_industries.csv')
             self._industry_mapping = dict(zip(df['symbol'].str.upper(), df['industry']))
-            # Also load organ_name mapping
-            self._organ_name_mapping = dict(zip(df['symbol'].str.upper(), df['organ_name']))
             logger.info(f"Successfully loaded industry mapping for {len(self._industry_mapping)} symbols")
             return self._industry_mapping
         except Exception as e:
             logger.warning(f"Failed to load industry mapping from top10_industries.csv: {e}")
             self._industry_mapping = {}
-            self._organ_name_mapping = {}
             return self._industry_mapping
 
     def _get_industry_for_symbol(self, symbol: str) -> str:
         mapping = self._load_industry_mapping()
         return mapping.get(symbol.upper(), "Unknown")
-
-    def _get_organ_name_for_symbol(self, symbol: str) -> str:
-        # Ensure industry mapping is loaded first (which also loads organ_name_mapping)
-        self._load_industry_mapping()
-        if hasattr(self, '_organ_name_mapping'):
-            return self._organ_name_mapping.get(symbol.upper(), symbol)
-        return symbol
 
     def _get_all_symbols(self):
         if self._all_symbols is not None:
@@ -84,7 +73,7 @@ class StockDataProvider:
         if vci_data and vci_data.get('success'):
             vci_data.update({
                 "symbol": symbol,
-                "name": self._get_organ_name_for_symbol(symbol),
+                "name": symbol,
                 "exchange": "HOSE",
                 "sector": self._get_industry_for_symbol(symbol),
                 "data_period": period,
@@ -124,9 +113,7 @@ class StockDataProvider:
             industries_df = stock.listing.symbols_by_industries()
             company_info = symbols_df[symbols_df['symbol'] == symbol] if not symbols_df.empty else pd.DataFrame()
             industry_info = industries_df[industries_df['symbol'] == symbol] if not industries_df.empty else pd.DataFrame()
-            
-            # First try to get company name from CSV file
-            name = self._get_organ_name_for_symbol(symbol)
+            name = symbol
             exchange = "HOSE"
             sector = self._get_industry_for_symbol(symbol)
             shares = np.nan
@@ -873,6 +860,36 @@ def get_historical_chart_data(symbol):
         ratio_quarter[('Meta', 'lengthReport')] = ratio_quarter[('Meta', 'lengthReport')].astype(int)
         ratio_quarter = ratio_quarter.sort_values([('Meta', 'yearReport'), ('Meta', 'lengthReport')], ascending=[True, True])
         last_20_quarters = ratio_quarter.tail(20)
+        # --------- BEGIN NIM PREPARATION ---------
+        # Fetch quarterly income statement & balance sheet for NIM calculation
+        income_quarter = stock.finance.income_statement(period='quarter', lang='en', dropna=True)
+        balance_quarter = stock.finance.balance_sheet(period='quarter', lang='en', dropna=True)
+        if income_quarter.empty:
+            income_quarter = stock.finance.income_statement(period='quarter', lang='vn', dropna=True)
+        if balance_quarter.empty:
+            balance_quarter = stock.finance.balance_sheet(period='quarter', lang='vn', dropna=True)
+
+        # Ensure chronological order matches ratio_quarter ordering
+        for _df in [income_quarter, balance_quarter]:
+            if ('Meta', 'yearReport') in _df.columns and ('Meta', 'lengthReport') in _df.columns:
+                _df[('Meta', 'yearReport')] = _df[('Meta', 'yearReport')].astype(int)
+                _df[('Meta', 'lengthReport')] = _df[('Meta', 'lengthReport')].astype(int)
+                _df.sort_values([('Meta', 'yearReport'), ('Meta', 'lengthReport')], ascending=[True, True], inplace=True)
+
+        def _pick_value(series, candidates):
+            """Helper: pick first non-nan value matching any candidate label (case-insensitive substring search)."""
+            for col in series.index:
+                label = " ".join(col).strip().lower() if isinstance(col, tuple) else str(col).lower()
+                for cand in candidates:
+                    if cand.lower() in label:
+                        val = series[col]
+                        if pd.notna(val):
+                            try:
+                                return float(val)
+                            except Exception:
+                                continue
+            return 0.0
+        # --------- END NIM PREPARATION ---------
         historical_data = {
             "years": [],
             "roe_data": [],
@@ -881,7 +898,8 @@ def get_historical_chart_data(symbol):
             "quick_ratio_data": [],
             "cash_ratio_data": [],
             "pe_ratio_data": [],
-            "pb_ratio_data": []
+            "pb_ratio_data": [],
+            "nim_data": []
         }
         for index, row in last_20_quarters.iterrows():
             year = row[('Meta', 'yearReport')]
@@ -901,6 +919,58 @@ def get_historical_chart_data(symbol):
             cash_ratio_val = float(cash_ratio) if pd.notna(cash_ratio) else 0
             pe_ratio_val = float(pe_ratio) if pd.notna(pe_ratio) else 0
             pb_ratio_val = float(pb_ratio) if pd.notna(pb_ratio) else 0
+            # --------- NIM CALCULATION ---------
+            nim_val = np.nan
+            try:
+                mask_income = (income_quarter[('Meta', 'yearReport')] == year) & (income_quarter[('Meta', 'lengthReport')] == quarter)
+                if mask_income.any():
+                    idx_current = income_quarter[mask_income].index[0]
+                    pos = income_quarter.index.get_loc(idx_current)
+                    if pos >= 3:
+                        idxs = income_quarter.index[pos-3:pos+1]
+                        numerator = 0.0
+                        denominator_total = 0.0
+                        for jdx in idxs:
+                            inc_row = income_quarter.loc[jdx]
+                            bal_row = balance_quarter.loc[jdx] if jdx in balance_quarter.index else None
+                            numerator += _pick_value(inc_row, [
+                                'Net Interest Income',
+                                'Net interest income',
+                                'Lãi thuần từ hoạt động cho vay',
+                                'Interest income - interest expense'
+                            ])
+                            if bal_row is not None:
+                                sbv = _pick_value(bal_row, [
+                                    'Balances with the SBV',
+                                    'Balance with SBV',
+                                    'Tiền gửi tại NHNN'
+                                ])
+                                placements = _pick_value(bal_row, [
+                                    'Placements with and loans to other credit institutions',
+                                    'Due from other credit institutions',
+                                    'Tiền gửi và cho vay TCTD khác'
+                                ])
+                                trading = _pick_value(bal_row, [
+                                    'Trading securities, net',
+                                    'Trading securities',
+                                    'Chứng khoán kinh doanh'
+                                ])
+                                investment = _pick_value(bal_row, [
+                                    'Investment securities',
+                                    'Investment Securities',
+                                    'Chứng khoán đầu tư'
+                                ])
+                                loans = _pick_value(bal_row, [
+                                    'Loans and advances to customers, net',
+                                    'Loans to customers',
+                                    'Cho vay khách hàng'
+                                ])
+                                denominator_total += sbv + placements + trading + investment + loans
+                        if denominator_total != 0:
+                            nim_val = (numerator / denominator_total) * 100
+            except Exception:
+                nim_val = np.nan
+            nim_val = float(nim_val) if pd.notna(nim_val) else 0
             historical_data["years"].append(period_label)
             historical_data["roe_data"].append(roe_val)
             historical_data["roa_data"].append(roa_val)
@@ -909,6 +979,7 @@ def get_historical_chart_data(symbol):
             historical_data["cash_ratio_data"].append(cash_ratio_val)
             historical_data["pe_ratio_data"].append(pe_ratio_val)
             historical_data["pb_ratio_data"].append(pb_ratio_val)
+            historical_data["nim_data"].append(nim_val)
         logger.info(f"Successfully retrieved {len(historical_data['years'])} periods of historical data for {symbol}")
         return jsonify({
             "success": True,
