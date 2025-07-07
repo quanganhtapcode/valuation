@@ -30,7 +30,8 @@ class StockValuationApp {
         this.charts = {
             roeRoa: null,
             liquidity: null,
-            pePb: null
+            pePb: null,
+            nim: null
         };
 
         this.init();
@@ -355,6 +356,48 @@ class StockValuationApp {
         
         console.log('P/E P/B chart created successfully');
         
+        // Initialize NIM Chart
+        const nimCtx = document.getElementById('nim-chart')?.getContext('2d');
+        if (nimCtx) {
+            this.charts.nim = new Chart(nimCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'NIM (%)',
+                        data: [],
+                        backgroundColor: 'rgba(255, 206, 86, 0.3)',
+                        borderColor: 'rgba(255, 206, 86, 1)',
+                        borderWidth: 3,
+                        fill: 'origin',
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(255, 206, 86, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 5 } },
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { maxTicksLimit: 6 } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#fff', cornerRadius: 8, displayColors: true }
+                    },
+                    elements: { point: { hoverBorderWidth: 3 } }
+                }
+            });
+        }
+        
         } catch (error) {
             console.error('Error creating P/E P/B chart:', error);
         }
@@ -649,6 +692,12 @@ class StockValuationApp {
             this.charts.pePb.data.datasets[1].data = this.historicalData.pb_ratio_data || [];
             this.charts.pePb.update();
         }
+        // Update NIM Chart
+        if (this.charts.nim) {
+            this.charts.nim.data.labels = this.historicalData.years;
+            this.charts.nim.data.datasets[0].data = this.historicalData.nim_data || [];
+            this.charts.nim.update();
+        }
     }
 
     clearCharts() {
@@ -664,6 +713,11 @@ class StockValuationApp {
             this.charts.pePb.data.labels = [];
             this.charts.pePb.data.datasets.forEach(dataset => dataset.data = []);
             this.charts.pePb.update();
+        }
+        if (this.charts.nim) {
+            this.charts.nim.data.labels = [];
+            this.charts.nim.data.datasets.forEach(dataset => dataset.data = []);
+            this.charts.nim.update();
         }
     }
 
