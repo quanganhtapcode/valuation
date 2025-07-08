@@ -26,7 +26,7 @@ class StockValuationApp {
             justified_pb: 25
         };
         this.valuationResults = null;
-        this.apiBaseUrl = 'https://valuation-e1ue.onrender.com';
+        this.apiBaseUrl = 'http://localhost:5000';
         this.charts = {
             roeRoa: null,
             liquidity: null,
@@ -48,6 +48,11 @@ class StockValuationApp {
         // Tab navigation
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+        });
+
+        // Prevent form submit from reloading/clearing input
+        document.querySelector('.search-form').addEventListener('submit', function(e) {
+            e.preventDefault();
         });
 
         // Stock search
@@ -386,12 +391,42 @@ class StockValuationApp {
                         mode: 'index'
                     },
                     scales: {
-                        x: { grid: { display: false }, ticks: { maxTicksLimit: 5 } },
-                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { maxTicksLimit: 6 } }
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { maxTicksLimit: 5 } 
+                        },
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            ticks: { 
+                                maxTicksLimit: 6,
+                                callback: function(value) {
+                                    return value.toFixed(2) + '%';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'NIM (%)'
+                            }
+                        }
                     },
                     plugins: {
-                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
-                        tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#fff', cornerRadius: 8, displayColors: true }
+                        legend: { 
+                            position: 'top', 
+                            labels: { usePointStyle: true, padding: 20 } 
+                        },
+                        tooltip: { 
+                            backgroundColor: 'rgba(0,0,0,0.8)', 
+                            titleColor: '#fff', 
+                            bodyColor: '#fff', 
+                            cornerRadius: 8, 
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    return `NIM: ${context.parsed.y.toFixed(3)}%`;
+                                }
+                            }
+                        }
                     },
                     elements: { point: { hoverBorderWidth: 3 } }
                 }
