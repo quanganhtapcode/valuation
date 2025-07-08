@@ -674,7 +674,7 @@ def api_stock(symbol):
 @app.route("/api/app-data/<symbol>")
 def api_app(symbol):
     try:
-        period = request.args.get("period", "year")
+        period = request.args.get("period", "quarter")  # Default to quarter
         data = provider.get_stock_data(symbol, period)
         if period == "quarter":
             yearly_data = provider.get_stock_data(symbol, "year")
@@ -943,56 +943,71 @@ def get_historical_chart_data(symbol):
             nim_val = np.nan
             try:
                 mask_income = (income_quarter['yearReport'] == year) & (income_quarter['lengthReport'] == quarter)
-                if mask_income.any():
+                if hasattr(mask_income, 'any') and mask_income.any():
                     idx_current = income_quarter[mask_income].index[0]
                     pos = income_quarter.index.get_loc(idx_current)
                     if pos >= 3:
                         idxs = income_quarter.index[pos-3:pos+1]
                         numerator = 0.0
-                        denominator = 0.0
-                        print(f"[NIM DEBUG] {symbol} {period_label} using 4 quarters idxs: {[income_quarter.loc[i][['yearReport','lengthReport']].to_dict() for i in idxs]}")
                         for jdx in idxs:
-                            inc_row = income_quarter.loc[jdx]
-                            num_part = _pick_value(inc_row, [
-                                'Net Interest Income',
-                                'Net interest income',
-                                'Lãi thuần từ hoạt động cho vay',
-                                'Interest income - interest expense'
-                            ])
-                            print(f"[NIM DEBUG] {symbol} {period_label} Net Interest Income (jdx={jdx}): {num_part}")
-                            numerator += 0 if pd.isna(num_part) else num_part
-                        # denominator: only use earning assets of the most recent quarter
-                        jdx = idxs[-1]
-                        bal_row = balance_quarter.loc[jdx] if jdx in balance_quarter.index else None
-                        if bal_row is not None and not isinstance(bal_row, pd.DataFrame):
-                            sbv = _pick_value(bal_row, [
-                                'Balances with the SBV',
-                                'Balance with SBV',
-                                'Tiền gửi tại NHNN'
-                            ])
-                            placements = _pick_value(bal_row, [
-                                'Placements with and loans to other credit institutions',
-                                'Due from other credit institutions',
-                                'Tiền gửi và cho vay TCTD khác'
-                            ])
-                            trading = _pick_value(bal_row, [
-                                'Trading securities, net',
-                                'Trading securities',
-                                'Chứng khoán kinh doanh'
-                            ])
-                            investment = _pick_value(bal_row, [
-                                'Investment securities',
-                                'Investment Securities',
-                                'Chứng khoán đầu tư'
-                            ])
-                            loans = _pick_value(bal_row, [
-                                'Loans and advances to customers, net',
-                                'Loans to customers',
-                                'Cho vay khách hàng'
-                            ])
-                            print(f"[NIM DEBUG] {symbol} {period_label} earning assets (latest jdx={jdx}): sbv={sbv}, placements={placements}, trading={trading}, investment={investment}, loans={loans}")
-                            denominator = sum(v for v in [sbv, placements, trading, investment, loans] if pd.notna(v))
-                        print(f"[NIM DEBUG] {symbol} {period_label} 4Q SUM numerator: {numerator}, denominator (latest quarter): {denominator}")
+                            inc_row = income_quarter.loc[jdx] if (isinstance(income_quarter, pd.DataFrame) and jdx in income_quarter.index) else None
+                            if isinstance(inc_row, pd.Series) and not inc_row.empty:
+                                num_part = _pick_value(inc_row, [
+                                    'Net Interest Income',
+                                    'Net interest income',
+                                    'Lãi thuần từ hoạt động cho vay',
+                                    'Interest income - interest expense'
+                                ])
+                                print(f"[NIM DEBUG] {symbol} {period_label} Net Interest Income (jdx={jdx}): {num_part}")
+                                numerator += 0 if pd.isna(num_part) else num_part
+                        # denominator: average earning assets of the last 4 quarters
+                        total_sbv = total_placements = total_trading = total_investment = total_loans = 0.0
+                        count = 0
+                        for jdx in idxs:
+                            bal_row = balance_quarter.loc[jdx] if (isinstance(balance_quarter, pd.DataFrame) and jdx in balance_quarter.index) else None
+                            if isinstance(bal_row, pd.Series) and not bal_row.empty:
+                                sbv = _pick_value(bal_row, [
+                                    'Balances with the SBV',
+                                    'Balance with SBV',
+                                    'Tiền gửi tại NHNN'
+                                ])
+                                placements = _pick_value(bal_row, [
+                                    'Placements with and loans to other credit institutions',
+                                    'Due from other credit institutions',
+                                    'Tiền gửi và cho vay TCTD khác'
+                                ])
+                                trading = _pick_value(bal_row, [
+                                    'Trading securities, net',
+                                    'Trading securities',
+                                    'Chứng khoán kinh doanh'
+                                ])
+                                investment = _pick_value(bal_row, [
+                                    'Investment securities',
+                                    'Investment Securities',
+                                    'Chứng khoán đầu tư'
+                                ])
+                                loans = _pick_value(bal_row, [
+                                    'Loans and advances to customers, net',
+                                    'Loans to customers',
+                                    'Cho vay khách hàng'
+                                ])
+                                print(f"[NIM DEBUG] {symbol} {period_label} earning assets (jdx={jdx}): sbv={sbv}, placements={placements}, trading={trading}, investment={investment}, loans={loans}")
+                                total_sbv += 0 if pd.isna(sbv) else sbv
+                                total_placements += 0 if pd.isna(placements) else placements
+                                total_trading += 0 if pd.isna(trading) else trading
+                                total_investment += 0 if pd.isna(investment) else investment
+                                total_loans += 0 if pd.isna(loans) else loans
+                                count += 1
+                        if count > 0:
+                            avg_sbv = total_sbv / count
+                            avg_placements = total_placements / count
+                            avg_trading = total_trading / count
+                            avg_investment = total_investment / count
+                            avg_loans = total_loans / count
+                            denominator = avg_sbv + avg_placements + avg_trading + avg_investment + avg_loans
+                        else:
+                            denominator = 0.0
+                        print(f"[NIM DEBUG] {symbol} {period_label} 4Q SUM numerator: {numerator}, denominator (avg 4Q): {denominator}")
                         if denominator != 0:
                             nim_val = (numerator / denominator) * 100
                             print(f"[NIM DEBUG] {symbol} {period_label} nim_val (after *100): {nim_val}")
