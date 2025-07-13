@@ -26,7 +26,7 @@ class StockValuationApp {
             justified_pb: 25
         };
         this.valuationResults = null;
-        this.apiBaseUrl = 'https://b51q9s9e8g.execute-api.ap-southeast-1.amazonaws.com/default/my-api-backend';
+        this.apiBaseUrl = 'https://l4ctlnxl12.execute-api.ap-southeast-1.amazonaws.com/default/test-web';
         this.charts = {
             roeRoa: null,
             liquidity: null,
