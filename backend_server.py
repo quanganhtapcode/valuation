@@ -42,6 +42,17 @@ class StockDataProvider:
         mapping = self._load_industry_mapping()
         return mapping.get(symbol.upper(), "Unknown")
 
+    def _get_organ_name_for_symbol(self, symbol: str) -> str:
+        # Load mapping from top10_industries.csv
+        try:
+            df = pd.read_csv('top10_industries.csv')
+            row = df[df['symbol'].str.upper() == symbol.upper()]
+            if not row.empty and 'organ_name' in row.columns:
+                return str(row.iloc[0]['organ_name'])
+        except Exception as e:
+            logger.warning(f"Failed to get organ_name for {symbol}: {e}")
+        return symbol
+
     def _get_all_symbols(self):
         if self._all_symbols is not None:
             return self._all_symbols
@@ -71,9 +82,11 @@ class StockDataProvider:
         logger.info(f"Attempting to get comprehensive data from VCI for {symbol}")
         vci_data = self._get_vci_data(symbol, period)
         if vci_data and vci_data.get('success'):
+            # Use organ_name from CSV if available
+            organ_name = self._get_organ_name_for_symbol(symbol)
             vci_data.update({
                 "symbol": symbol,
-                "name": symbol,
+                "name": organ_name,
                 "exchange": "HOSE",
                 "sector": self._get_industry_for_symbol(symbol),
                 "data_period": period,
@@ -95,6 +108,9 @@ class StockDataProvider:
             company = self._get_company_overview(stock, symbol)
             financials = self._get_financial_statements(stock, period)
             market = self._get_price_data(stock, company["shares_outstanding"], symbol)
+            # Use organ_name from CSV if available
+            organ_name = self._get_organ_name_for_symbol(symbol)
+            company["name"] = organ_name
             return {
                 **company,
                 **financials,
@@ -244,18 +260,11 @@ class StockDataProvider:
         def _calculate_ebitda(income_df, cashfl_df):
             if income_df.empty:
                 return np.nan
-            gross_profit = _pick(income_df, ["Gross Profit", "Gross profit", "gross_profit", "grossProfit"])
-            selling_expenses = _pick(income_df, ["Selling Expenses", "Selling expenses", "selling_expenses", "sellingExpenses"])
-            admin_expenses = _pick(income_df, ["General & Admin Expenses", "General & admin expenses", "admin_expenses", "adminExpenses", "general_admin_expenses"])
-            depreciation = _pick(cashfl_df, ["Depreciation and Amortisation", "Depreciation", "depreciation", "depreciationAndAmortisation"])
-            components = [gross_profit, selling_expenses, admin_expenses, depreciation]
-            if any(pd.notna(comp) for comp in components):
-                total = sum(comp for comp in components if pd.notna(comp))
-                return total if total != 0 else np.nan
-            return _pick(income_df, ["EBITDA", "ebitda"])
+            # Only pick EBITDA directly, do not calculate from components
+            return _pick(income_df, ["EBITDA", "ebitda", "EBITDA (Bn. VND)"])
 
         if is_quarter:
-            net_income_ttm = _sum_last_4_quarters(income, ["Net Profit For the Year", "Net income", "net_income", "netIncome", "profit"])
+            net_income_ttm = _sum_last_4_quarters(income, ["Net Profit For the Year", "Net income", "net_income", "netIncome", "profit", "Attributable to parent company"])
             revenue_ttm = _sum_last_4_quarters(income, ["Revenue (Bn. VND)", "Revenue", "revenue", "netRevenue", "totalRevenue"])
             ebit_ttm = _sum_last_4_quarters(income, ["Lợi nhuận từ hoạt động kinh doanh", "Operating income", "EBIT", "Operating profit", "operationProfit"])
             depreciation_ttm = _sum_last_4_quarters(cashfl, ["Depreciation and Amortisation", "Depreciation", "depreciation"])
@@ -290,8 +299,8 @@ class StockDataProvider:
                 "is_quarterly_data": is_quarter
             }
         else:
-            net_income = _pick(income, ["Lợi nhuận sau thuế", "Net income", "net_income", "netIncome", "profit"])
-            revenue = _pick(income, ["Doanh thu thuần", "Revenue", "revenue", "netRevenue", "totalRevenue"])
+            net_income = _pick(income, ["Lợi nhuận sau thuế", "Net income", "net_income", "netIncome", "profit", "Net Profit For the Year", "Attributable to parent company"])
+            revenue = _pick(income, ["Doanh thu thuần", "Revenue", "revenue", "netRevenue", "totalRevenue", "Revenue (Bn. VND)"])
             total_assets = _pick(balance, ["TỔNG CỘNG TÀI SẢN", "Total assets", "totalAsset", "totalAssets"])
             total_liabilities = _pick(balance, ["TỔNG CỘNG NỢ PHẢI TRẢ", "Total liabilities", "totalLiabilities", "totalDebt"])
             cash = _pick(balance, ["Tiền và tương đương tiền", "Cash", "cash", "cashAndEquivalents"])
@@ -371,8 +380,8 @@ class StockDataProvider:
                 except:
                     return default
             financial_data = {
-                'revenue_ttm': safe_get('revenue', 0),
-                'net_income_ttm': safe_get('net_profit', 0),
+                'revenue_ttm': safe_get('revenue', np.nan),
+                'net_income_ttm': safe_get('net_profit', np.nan),
                 'revenue_growth': safe_get('revenue_growth', 0) * 100,
                 'net_profit_margin': safe_get('net_profit_margin', 0) * 100,
                 'gross_margin': safe_get('gross_margin', 0) * 100,
@@ -394,8 +403,8 @@ class StockDataProvider:
                 'enterprise_value': safe_get('ev'),
                 'shares_outstanding': safe_get('issue_share'),
                 'charter_capital': safe_get('charter_capital'),
-                'ebitda': safe_get('ebitda', 0),
-                'ebit': safe_get('ebit', 0),
+                'ebitda': safe_get('ebitda', np.nan),
+                'ebit': safe_get('ebit', np.nan),
                 'ebit_margin': safe_get('ebit_margin', 0) * 100,
                 'dividend_per_share': safe_get('dividend', 0),
                 'data_source': 'VCI',
@@ -481,6 +490,8 @@ class StockDataProvider:
                     if pd.notna(latest_eps):
                         enhanced_ratios['EPS (VND)'] = latest_eps
                         logger.info(f"Found {period} EPS from ratios: {latest_eps}")
+                        # Always override main EPS with period-specific value
+                        financial_data['eps'] = latest_eps
                     if pd.notna(latest_bvps):
                         enhanced_ratios['BVPS (VND)'] = latest_bvps
                         logger.info(f"Found {period} BVPS from ratios: {latest_bvps}")
@@ -589,6 +600,31 @@ class StockDataProvider:
                     logger.info(f"Set net_profit_margin: {financial_data['net_profit_margin']}%")
                 if pd.notna(financial_data.get('ebit_margin')):
                     logger.info(f"Set ebit_margin: {financial_data['ebit_margin']}%")
+                # Override revenue, net income, and EBITDA with period-specific financial statement data
+                try:
+                    stock = self.vnstock.stock(symbol=symbol, source='VCI')
+                    period_specific_data = self._get_financial_statements(stock, period)
+                    
+                    # Override key financial metrics with period-specific data if available
+                    if pd.notna(period_specific_data.get('revenue_ttm')):
+                        financial_data['revenue_ttm'] = period_specific_data['revenue_ttm']
+                        logger.info(f"Override revenue_ttm with {period} data: {period_specific_data['revenue_ttm']}")
+                    
+                    if pd.notna(period_specific_data.get('net_income_ttm')):
+                        financial_data['net_income_ttm'] = period_specific_data['net_income_ttm']
+                        logger.info(f"Override net_income_ttm with {period} data: {period_specific_data['net_income_ttm']}")
+                    
+                    if pd.notna(period_specific_data.get('ebitda')):
+                        financial_data['ebitda'] = period_specific_data['ebitda']
+                        logger.info(f"Override ebitda with {period} data: {period_specific_data['ebitda']}")
+                    
+                    if pd.notna(period_specific_data.get('ebit')):
+                        financial_data['ebit'] = period_specific_data['ebit']
+                        logger.info(f"Override ebit with {period} data: {period_specific_data['ebit']}")
+                        
+                except Exception as e:
+                    logger.warning(f"Could not get period-specific financial data for {symbol}: {e}")
+                
                 logger.info(f"Successfully extracted VCI data for {symbol}")
                 return financial_data
             except Exception as e:
