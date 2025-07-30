@@ -11,6 +11,12 @@ class StockValuationApp {
         this.currentStock = null;
         this.stockData = null;
         this.historicalData = null;
+        this.chartsLoaded = false;
+        this.chartCache = new Map(); // Cache chart data by symbol
+        this.loadingState = {
+            stockData: false,
+            chartData: false
+        };
         this.assumptions = {
             revenueGrowth: 8.0,
             terminalGrowth: 3.0,
@@ -26,7 +32,9 @@ class StockValuationApp {
             justified_pb: 25
         };
         this.valuationResults = null;
-        this.apiBaseUrl = 'http://localhost:5000';
+        this.apiBaseUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5000' 
+            : 'http://54.169.243.74';
         this.charts = {
             roeRoa: null,
             liquidity: null,
@@ -59,6 +67,18 @@ class StockValuationApp {
         document.getElementById('load-data-btn').addEventListener('click', () => this.loadStockData());
         document.getElementById('stock-symbol').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.loadStockData();
+        });
+
+        // Reset cache when symbol input changes
+        document.getElementById('stock-symbol').addEventListener('input', () => {
+            this.resetChartsState();
+        });
+
+        // Period selector
+        document.getElementById('period-select').addEventListener('change', () => {
+            if (this.currentStock) {
+                this.loadStockData();
+            }
         });
 
         // Assumptions form
@@ -552,27 +572,34 @@ class StockValuationApp {
         this.loadDefaultAssumptions();
     }    async loadStockData() {
         const symbol = document.getElementById('stock-symbol').value.trim().toUpperCase();
-        const period = 'year'; // Default to year data
+        const period = document.getElementById('period-select').value || 'year'; // Get period from dropdown, default to year
 
         if (!symbol) {
             this.showStatus('Please enter a stock symbol', 'error');
             return;
         }
 
+        // Fast loading: Load stock data immediately without waiting for charts
+        await this.loadStockDataOnly(symbol, period);
+        
+        // Background loading: Load charts in the background if needed
+        this.loadChartsInBackground(symbol, period);
+    }
+
+    async loadStockDataOnly(symbol, period) {
         this.showLoading(true);
         this.showStatus('Loading data...', 'info');
+        this.loadingState.stockData = true;
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // Reduced timeout for stock data
 
-            // Fetch stock data
-            const stockResponse = await fetch(`${this.apiBaseUrl}/api/app-data/${symbol}?period=${period}`, {
-                signal: controller.signal
-            });
-
-            // Fetch historical chart data
-            const chartResponse = await fetch(`${this.apiBaseUrl}/api/historical-chart-data/${symbol}`, {
+            // Determine if we need to fetch current price
+            const fetchPrice = period === 'quarter'; // Only fetch price for quarter data
+            
+            // Fetch stock data only - fastest possible loading
+            const stockResponse = await fetch(`${this.apiBaseUrl}/api/app-data/${symbol}?period=${period}&fetch_price=${fetchPrice}`, {
                 signal: controller.signal
             });
 
@@ -588,12 +615,7 @@ class StockValuationApp {
                 }
             }
 
-            if (!chartResponse.ok) {
-                console.warn('Failed to load historical chart data');
-            }
-
             const stockData = await stockResponse.json();
-            const chartData = chartResponse.ok ? await chartResponse.json() : { success: false, data: {} };
 
             if (!stockData.success) {
                 throw new Error(stockData.error || 'Unable to load data from server');
@@ -601,29 +623,114 @@ class StockValuationApp {
 
             this.stockData = stockData;
             this.currentStock = symbol;
-            this.historicalData = chartData.success ? chartData.data : null;
-
+            
             this.updateOverviewDisplay(stockData);
-            this.updateCharts();
             this.showStatus('Data loaded successfully', 'success');
+            this.showLoading(false);
+            this.loadingState.stockData = false;
 
         } catch (error) {
-            console.error('Error loading data:', error);
-
+            console.error('Error loading stock data:', error);
+            
             if (error.name === 'AbortError') {
-                this.showStatus('Timeout - Please try again later.', 'error');
+                this.showStatus('Request timed out. Please try again.', 'error');
             } else {
-                this.showStatus(`Data loading error: ${error.message}`, 'error');
+                this.showStatus(`Error: ${error.message}`, 'error');
             }
-
+            
             this.stockData = null;
             this.currentStock = null;
-            this.historicalData = null;
             this.clearDisplay();
-            this.clearCharts();
-
-        } finally {
             this.showLoading(false);
+            this.loadingState.stockData = false;
+        }
+    }
+
+    async loadChartsInBackground(symbol, period) {
+        // Check if we have cached chart data for this symbol
+        if (this.chartCache.has(symbol)) {
+            this.historicalData = this.chartCache.get(symbol);
+            this.chartsLoaded = true;
+            this.updateCharts();
+            return;
+        }
+
+        // Only load charts if we don't have them cached
+        if (this.chartsLoaded && this.currentStock === symbol) {
+            return; // Charts already loaded for this symbol
+        }
+
+        this.loadingState.chartData = true;
+        this.showChartLoadingIndicator(true);
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000); // Longer timeout for chart data
+
+            const chartResponse = await fetch(`${this.apiBaseUrl}/api/historical-chart-data/${symbol}`, {
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+            
+            if (chartResponse.ok) {
+                const chartData = await chartResponse.json();
+                
+                if (chartData.success) {
+                    this.historicalData = chartData.data;
+                    this.chartsLoaded = true;
+                    
+                    // Cache the chart data for future use
+                    this.chartCache.set(symbol, chartData.data);
+                    
+                    this.updateCharts();
+                    this.showStatus('Charts loaded', 'success');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading chart data:', error);
+            if (error.name !== 'AbortError') {
+                this.showStatus('Charts could not be loaded', 'warning');
+            }
+        } finally {
+            this.loadingState.chartData = false;
+            this.showChartLoadingIndicator(false);
+        }
+    }
+
+    showChartLoadingIndicator(show) {
+        // Add a subtle loading indicator for charts
+        const chartsSection = document.querySelector('.charts-grid');
+        if (chartsSection) {
+            if (show) {
+                chartsSection.style.opacity = '0.7';
+                // Add loading text if it doesn't exist
+                if (!document.getElementById('chart-loading-indicator')) {
+                    const indicator = document.createElement('div');
+                    indicator.id = 'chart-loading-indicator';
+                    indicator.style.cssText = `
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: rgba(0,0,0,0.8);
+                        color: white;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        z-index: 1000;
+                        font-size: 14px;
+                    `;
+                    indicator.textContent = 'Loading charts...';
+                    chartsSection.style.position = 'relative';
+                    chartsSection.appendChild(indicator);
+                }
+            } else {
+                chartsSection.style.opacity = '1';
+                const indicator = document.getElementById('chart-loading-indicator');
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
         }
     }
 
@@ -754,6 +861,14 @@ class StockValuationApp {
             this.charts.nim.data.datasets.forEach(dataset => dataset.data = []);
             this.charts.nim.update();
         }
+    }
+
+    resetChartsState() {
+        // Reset chart state when symbol input changes - this will force fresh loading for new symbols
+        this.chartsLoaded = false;
+        this.historicalData = null;
+        // Note: We don't clear the entire cache, just reset the current state
+        // The cache is still preserved for quick switching between symbols
     }
 
     updateValuationDisplay() {

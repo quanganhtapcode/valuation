@@ -11,10 +11,19 @@
 <body class="app-container">    <header class="app-header py-16">
         <div class="container flex justify-between items-center">
             <h1 class="app-title">Vietnam Stock Valuation</h1>
-            <button id="theme-toggle-btn" class="btn btn--outline theme-toggle" aria-label="Toggle theme">
-                <span class="theme-icon light-icon">☀️</span>
-                <span class="theme-icon dark-icon">🌙</span>
-            </button>
+            <div class="header-controls">
+                <div class="period-selector">
+                    <label for="period-select" class="period-label">Data Period:</label>
+                    <select id="period-select" class="period-dropdown">
+                        <option value="year">Latest Year</option>
+                        <option value="quarter">Latest Quarter</option>
+                    </select>
+                </div>
+                <button id="theme-toggle-btn" class="btn btn--outline theme-toggle" aria-label="Toggle theme">
+                    <span class="theme-icon light-icon">☀️</span>
+                    <span class="theme-icon dark-icon">🌙</span>
+                </button>
+            </div>
         </div>
     </header><main class="app-main">
         <section class="search-section container">
