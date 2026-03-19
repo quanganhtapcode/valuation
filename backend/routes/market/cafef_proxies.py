@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import logging
+import os
+import sqlite3
+from pathlib import Path
 from typing import Any
 
 import requests as http_requests
@@ -18,6 +21,11 @@ _VCI_INDEX_VALUATION_URL = (
     "https://trading.vietcap.com.vn/api/iq-insight-service/v1/market-watch/index-valuation"
 )
 _VCI_OHLC_URL = "https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart"
+
+# SQLite written daily by fetch_sqlite/fetch_vci_valuation.py
+_VALUATION_SQLITE = (
+    Path(__file__).resolve().parents[3] / "fetch_sqlite" / "vci_valuation.sqlite"
+)
 
 
 _INDEX_ID_TO_VCI_SYMBOL = {
@@ -117,6 +125,33 @@ def _fetch_vnindex_ohlc_series(*, count_back: int = 5000) -> list[dict[str, Any]
     return out
 
 
+def _read_valuation_from_sqlite() -> dict[str, list[dict[str, Any]]] | None:
+    """Read all valuation history from SQLite. Returns None if DB unavailable."""
+    db = _VALUATION_SQLITE
+    if not db.exists():
+        return None
+    try:
+        with sqlite3.connect(str(db)) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT date, pe, pb, vnindex FROM valuation_history ORDER BY date"
+            ).fetchall()
+        if not rows:
+            return None
+        pe_series, pb_series, vnindex_series = [], [], []
+        for r in rows:
+            if r["pe"] is not None:
+                pe_series.append({"date": r["date"], "value": r["pe"]})
+            if r["pb"] is not None:
+                pb_series.append({"date": r["date"], "value": r["pb"]})
+            if r["vnindex"] is not None:
+                vnindex_series.append({"date": r["date"], "value": r["vnindex"]})
+        return {"pe": pe_series, "pb": pb_series, "vnindex": vnindex_series}
+    except Exception as exc:
+        logger.warning("Failed to read valuation SQLite: %s", exc)
+        return None
+
+
 def fetch_vci_index_valuation_payload(
     *,
     metric: str = "both",
@@ -124,28 +159,38 @@ def fetch_vci_index_valuation_payload(
     time_frame: str = "ALL",
 ) -> dict[str, Any]:
     selected = _normalize_metric(metric)
-    pe_series: list[dict[str, Any]] = []
-    pb_series: list[dict[str, Any]] = []
-    if selected in {"pe", "both"}:
-        pe_series = _fetch_vci_index_valuation_series(
-            metric="pe", com_group_code=com_group_code, time_frame=time_frame
-        )
-    if selected in {"pb", "both"}:
-        pb_series = _fetch_vci_index_valuation_series(
-            metric="pb", com_group_code=com_group_code, time_frame=time_frame
-        )
 
-    vnindex_series: list[dict[str, Any]] = []
-    if com_group_code.upper() == "VNINDEX":
-        try:
-            vnindex_series = _fetch_vnindex_ohlc_series()
-        except Exception as exc:
-            logger.warning("Failed to fetch VNINDEX OHLC: %s", exc)
+    # Try SQLite first (populated daily by fetch_vci_valuation.py)
+    sqlite_data = _read_valuation_from_sqlite() if com_group_code.upper() == "VNINDEX" else None
 
-    # Keep legacy-friendly keys while exposing normalized PE/PB TTM series.
+    if sqlite_data:
+        source = "SQLite"
+        pe_series = sqlite_data["pe"]
+        pb_series = sqlite_data["pb"]
+        vnindex_series = sqlite_data["vnindex"]
+    else:
+        # Fall back to live VCI API
+        source = "VCI"
+        pe_series: list[dict[str, Any]] = []
+        pb_series: list[dict[str, Any]] = []
+        if selected in {"pe", "both"}:
+            pe_series = _fetch_vci_index_valuation_series(
+                metric="pe", com_group_code=com_group_code, time_frame=time_frame
+            )
+        if selected in {"pb", "both"}:
+            pb_series = _fetch_vci_index_valuation_series(
+                metric="pb", com_group_code=com_group_code, time_frame=time_frame
+            )
+        vnindex_series: list[dict[str, Any]] = []
+        if com_group_code.upper() == "VNINDEX":
+            try:
+                vnindex_series = _fetch_vnindex_ohlc_series()
+            except Exception as exc:
+                logger.warning("Failed to fetch VNINDEX OHLC: %s", exc)
+
     return {
         "success": True,
-        "source": "VCI",
+        "source": source,
         "index": com_group_code,
         "timeFrame": time_frame,
         "metric": selected,
