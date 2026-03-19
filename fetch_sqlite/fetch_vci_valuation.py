@@ -56,13 +56,15 @@ def _post_json(url: str, payload: dict) -> Any:
         return json.loads(resp.read())
 
 
-def fetch_valuation_series(metric: str) -> list[dict[str, Any]]:
+def fetch_valuation_series(metric: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Returns (series, stats) where stats has average/plusOneSD/plusTwoSD/minusOneSD/minusTwoSD."""
     result = _get_json(_VALUATION_URL, {
         "type": metric,
         "comGroupCode": "VNINDEX",
         "timeFrame": "ALL",
     })
-    values = ((result or {}).get("data") or {}).get("values") or []
+    data = (result or {}).get("data") or {}
+    values = data.get("values") or []
     out = []
     for item in values:
         date = str(item.get("date") or "").strip()
@@ -73,7 +75,15 @@ def fetch_valuation_series(metric: str) -> list[dict[str, Any]]:
             out.append({"date": date, "value": float(raw)})
         except (TypeError, ValueError):
             continue
-    return out
+    stats: dict[str, Any] = {}
+    for key in ("average", "plusOneSD", "plusTwoSD", "minusOneSD", "minusTwoSD"):
+        v = data.get(key)
+        if v is not None:
+            try:
+                stats[key] = float(v)
+            except (TypeError, ValueError):
+                pass
+    return out, stats
 
 
 def fetch_vnindex_ohlc(count_back: int = 6000) -> list[dict[str, Any]]:
@@ -108,11 +118,49 @@ def init_db(conn: sqlite3.Connection) -> None:
             vnindex    REAL,
             updated_at TEXT
         );
+        CREATE TABLE IF NOT EXISTS valuation_stats (
+            metric        TEXT PRIMARY KEY,
+            average       REAL,
+            plus_one_sd   REAL,
+            plus_two_sd   REAL,
+            minus_one_sd  REAL,
+            minus_two_sd  REAL,
+            updated_at    TEXT
+        );
         CREATE TABLE IF NOT EXISTS meta (
             k TEXT PRIMARY KEY,
             v TEXT
         );
     """)
+    conn.commit()
+
+
+def upsert_stats(conn: sqlite3.Connection, metric: str, stats: dict[str, Any]) -> None:
+    if not stats:
+        return
+    now = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT INTO valuation_stats (metric, average, plus_one_sd, plus_two_sd, minus_one_sd, minus_two_sd, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(metric) DO UPDATE SET
+            average      = excluded.average,
+            plus_one_sd  = excluded.plus_one_sd,
+            plus_two_sd  = excluded.plus_two_sd,
+            minus_one_sd = excluded.minus_one_sd,
+            minus_two_sd = excluded.minus_two_sd,
+            updated_at   = excluded.updated_at
+        """,
+        (
+            metric,
+            stats.get("average"),
+            stats.get("plusOneSD"),
+            stats.get("plusTwoSD"),
+            stats.get("minusOneSD"),
+            stats.get("minusTwoSD"),
+            now,
+        ),
+    )
     conn.commit()
 
 
@@ -150,14 +198,14 @@ def main() -> None:
     ts = lambda: _dt.datetime.now().strftime("%H:%M:%S")
 
     print(f"[{ts()}] Fetching PE TTM from VCI...")
-    pe_series = fetch_valuation_series("pe")
-    print(f"         {len(pe_series)} rows")
+    pe_series, pe_stats = fetch_valuation_series("pe")
+    print(f"         {len(pe_series)} rows, stats: {pe_stats}")
 
     time.sleep(1)
 
     print(f"[{ts()}] Fetching PB TTM from VCI...")
-    pb_series = fetch_valuation_series("pb")
-    print(f"         {len(pb_series)} rows")
+    pb_series, pb_stats = fetch_valuation_series("pb")
+    print(f"         {len(pb_series)} rows, stats: {pb_stats}")
 
     time.sleep(1)
 
@@ -180,6 +228,8 @@ def main() -> None:
     conn = sqlite3.connect(args.db)
     init_db(conn)
     upsert(conn, rows)
+    upsert_stats(conn, "pe", pe_stats)
+    upsert_stats(conn, "pb", pb_stats)
     conn.execute(
         "INSERT OR REPLACE INTO meta(k,v) VALUES('last_run_utc', ?)",
         (_dt.datetime.now(_dt.timezone.utc).isoformat(),),
