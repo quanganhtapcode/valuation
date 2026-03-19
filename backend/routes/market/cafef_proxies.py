@@ -125,8 +125,8 @@ def _fetch_vnindex_ohlc_series(*, count_back: int = 5000) -> list[dict[str, Any]
     return out
 
 
-def _read_valuation_from_sqlite() -> dict[str, list[dict[str, Any]]] | None:
-    """Read all valuation history from SQLite. Returns None if DB unavailable."""
+def _read_valuation_from_sqlite() -> dict[str, Any] | None:
+    """Read all valuation history + stats from SQLite. Returns None if DB unavailable."""
     db = _VALUATION_SQLITE
     if not db.exists():
         return None
@@ -136,8 +136,17 @@ def _read_valuation_from_sqlite() -> dict[str, list[dict[str, Any]]] | None:
             rows = conn.execute(
                 "SELECT date, pe, pb, vnindex FROM valuation_history ORDER BY date"
             ).fetchall()
-        if not rows:
-            return None
+            if not rows:
+                return None
+            # valuation_stats may not exist yet on older DBs
+            try:
+                stat_rows = conn.execute(
+                    "SELECT metric, average, plus_one_sd, plus_two_sd, minus_one_sd, minus_two_sd "
+                    "FROM valuation_stats"
+                ).fetchall()
+            except Exception:
+                stat_rows = []
+
         pe_series, pb_series, vnindex_series = [], [], []
         for r in rows:
             if r["pe"] is not None:
@@ -146,7 +155,18 @@ def _read_valuation_from_sqlite() -> dict[str, list[dict[str, Any]]] | None:
                 pb_series.append({"date": r["date"], "value": r["pb"]})
             if r["vnindex"] is not None:
                 vnindex_series.append({"date": r["date"], "value": r["vnindex"]})
-        return {"pe": pe_series, "pb": pb_series, "vnindex": vnindex_series}
+
+        stats: dict[str, Any] = {}
+        for sr in stat_rows:
+            stats[sr["metric"]] = {
+                "average":    sr["average"],
+                "plusOneSD":  sr["plus_one_sd"],
+                "plusTwoSD":  sr["plus_two_sd"],
+                "minusOneSD": sr["minus_one_sd"],
+                "minusTwoSD": sr["minus_two_sd"],
+            }
+
+        return {"pe": pe_series, "pb": pb_series, "vnindex": vnindex_series, "stats": stats}
     except Exception as exc:
         logger.warning("Failed to read valuation SQLite: %s", exc)
         return None
@@ -168,6 +188,7 @@ def fetch_vci_index_valuation_payload(
         pe_series = sqlite_data["pe"]
         pb_series = sqlite_data["pb"]
         vnindex_series = sqlite_data["vnindex"]
+        stats = sqlite_data.get("stats", {})
     else:
         # Fall back to live VCI API
         source = "VCI"
@@ -187,6 +208,7 @@ def fetch_vci_index_valuation_payload(
                 vnindex_series = _fetch_vnindex_ohlc_series()
             except Exception as exc:
                 logger.warning("Failed to fetch VNINDEX OHLC: %s", exc)
+        stats: dict[str, Any] = {}
 
     return {
         "success": True,
@@ -195,6 +217,7 @@ def fetch_vci_index_valuation_payload(
         "timeFrame": time_frame,
         "metric": selected,
         "series": {"pe": pe_series, "pb": pb_series, "vnindex": vnindex_series},
+        "stats": stats,
         "pe": pe_series,
         "pb": pb_series,
         "Data": pe_series if selected == "pe" else (pb_series if selected == "pb" else pe_series),
