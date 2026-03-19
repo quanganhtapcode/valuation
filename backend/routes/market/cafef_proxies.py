@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 _VCI_INDEX_VALUATION_URL = (
     "https://trading.vietcap.com.vn/api/iq-insight-service/v1/market-watch/index-valuation"
 )
+_VCI_OHLC_URL = "https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart"
 
 
 _INDEX_ID_TO_VCI_SYMBOL = {
@@ -84,6 +85,38 @@ def _fetch_vci_index_valuation_series(
     return out
 
 
+def _fetch_vnindex_ohlc_series(*, count_back: int = 5000) -> list[dict[str, Any]]:
+    import time as _time
+    from datetime import datetime, timezone
+    payload = {
+        "timeFrame": "ONE_DAY",
+        "symbols": ["VNINDEX"],
+        "to": int(_time.time()),
+        "countBack": count_back,
+    }
+    response = http_requests.post(
+        _VCI_OHLC_URL,
+        timeout=20,
+        headers=VCI_HEADERS,
+        json=payload,
+    )
+    response.raise_for_status()
+    data = response.json()
+    if not isinstance(data, list) or not data:
+        return []
+    item = data[0]
+    timestamps = item.get("t") or []
+    closes = item.get("c") or []
+    out: list[dict[str, Any]] = []
+    for ts, close in zip(timestamps, closes):
+        try:
+            date_str = datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
+            out.append({"date": date_str, "value": float(close)})
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def fetch_vci_index_valuation_payload(
     *,
     metric: str = "both",
@@ -102,6 +135,13 @@ def fetch_vci_index_valuation_payload(
             metric="pb", com_group_code=com_group_code, time_frame=time_frame
         )
 
+    vnindex_series: list[dict[str, Any]] = []
+    if com_group_code.upper() == "VNINDEX":
+        try:
+            vnindex_series = _fetch_vnindex_ohlc_series()
+        except Exception as exc:
+            logger.warning("Failed to fetch VNINDEX OHLC: %s", exc)
+
     # Keep legacy-friendly keys while exposing normalized PE/PB TTM series.
     return {
         "success": True,
@@ -109,7 +149,7 @@ def fetch_vci_index_valuation_payload(
         "index": com_group_code,
         "timeFrame": time_frame,
         "metric": selected,
-        "series": {"pe": pe_series, "pb": pb_series},
+        "series": {"pe": pe_series, "pb": pb_series, "vnindex": vnindex_series},
         "pe": pe_series,
         "pb": pb_series,
         "Data": pe_series if selected == "pe" else (pb_series if selected == "pb" else pe_series),
