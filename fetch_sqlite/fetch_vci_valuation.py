@@ -99,11 +99,13 @@ def fetch_vnindex_ohlc(count_back: int = 6000) -> list[dict[str, Any]]:
     item = data[0]
     timestamps = item.get("t") or []
     closes = item.get("c") or []
+    volumes = item.get("v") or []
     out = []
-    for ts, close in zip(timestamps, closes):
+    for i, (ts, close) in enumerate(zip(timestamps, closes)):
         try:
             date_str = _dt.datetime.fromtimestamp(int(ts), tz=_dt.timezone.utc).strftime("%Y-%m-%d")
-            out.append({"date": date_str, "value": float(close)})
+            vol = float(volumes[i]) if i < len(volumes) else None
+            out.append({"date": date_str, "value": float(close), "volume": vol})
         except (TypeError, ValueError):
             continue
     return out
@@ -116,8 +118,12 @@ def init_db(conn: sqlite3.Connection) -> None:
             pe         REAL,
             pb         REAL,
             vnindex    REAL,
+            volume     REAL,
             updated_at TEXT
         );
+        -- add volume column if missing (safe on existing DBs)
+        CREATE TABLE IF NOT EXISTS _dummy_migration(x);
+        DROP TABLE _dummy_migration;
         CREATE TABLE IF NOT EXISTS valuation_stats (
             metric        TEXT PRIMARY KEY,
             average       REAL,
@@ -168,12 +174,13 @@ def upsert(conn: sqlite3.Connection, rows: list[dict]) -> None:
     now = _dt.datetime.now(_dt.timezone.utc).isoformat()
     conn.executemany(
         """
-        INSERT INTO valuation_history (date, pe, pb, vnindex, updated_at)
-        VALUES (:date, :pe, :pb, :vnindex, :now)
+        INSERT INTO valuation_history (date, pe, pb, vnindex, volume, updated_at)
+        VALUES (:date, :pe, :pb, :vnindex, :volume, :now)
         ON CONFLICT(date) DO UPDATE SET
             pe         = COALESCE(excluded.pe,      valuation_history.pe),
             pb         = COALESCE(excluded.pb,      valuation_history.pb),
             vnindex    = COALESCE(excluded.vnindex,  valuation_history.vnindex),
+            volume     = COALESCE(excluded.volume,   valuation_history.volume),
             updated_at = excluded.updated_at
         """,
         [
@@ -182,6 +189,7 @@ def upsert(conn: sqlite3.Connection, rows: list[dict]) -> None:
                 "pe": r.get("pe"),
                 "pb": r.get("pb"),
                 "vnindex": r.get("vnindex"),
+                "volume": r.get("volume"),
                 "now": now,
             }
             for r in rows
@@ -221,6 +229,8 @@ def main() -> None:
         by_date.setdefault(item["date"], {})["pb"] = item["value"]
     for item in vnindex_series:
         by_date.setdefault(item["date"], {})["vnindex"] = item["value"]
+        if item.get("volume") is not None:
+            by_date[item["date"]]["volume"] = item["volume"]
 
     rows = [{"date": d, **v} for d, v in sorted(by_date.items())]
     print(f"[{ts()}] Merged: {len(rows)} rows total")

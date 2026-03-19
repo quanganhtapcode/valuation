@@ -134,7 +134,7 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
         with sqlite3.connect(str(db)) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT date, pe, pb, vnindex FROM valuation_history ORDER BY date"
+                "SELECT date, pe, pb, vnindex, volume FROM valuation_history ORDER BY date"
             ).fetchall()
             if not rows:
                 return None
@@ -154,7 +154,7 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
             if r["pb"] is not None:
                 pb_series.append({"date": r["date"], "value": r["pb"]})
             if r["vnindex"] is not None:
-                vnindex_series.append({"date": r["date"], "value": r["vnindex"]})
+                vnindex_series.append({"date": r["date"], "value": r["vnindex"], "volume": r["volume"]})
 
         stats: dict[str, Any] = {}
         for sr in stat_rows:
