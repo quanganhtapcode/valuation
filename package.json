@@ -1,0 +1,24 @@
+{
+  "name": "vietnam-stock-valuation",
+  "version": "1.0.0",
+  "description": "Vietnamese Stock Valuation Tool",
+  "main": "index.html",
+  "scripts": {
+    "start-backend": "python -m backend.server",
+    "start-frontend": "cd frontend-next && npm run dev",
+    "dev": "echo \"Vui lòng mở 2 terminal: 1 cái chạy 'npm run start-backend', 1 cái chạy 'npm run start-frontend'\""
+  },
+  "keywords": [
+    "stock",
+    "valuation",
+    "vietnam",
+    "finance",
+    "investment"
+  ],
+  "author": "quanganhdeptrai",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0",
+    "python": ">=3.8.0"
+  }
+}

@@ -1,0 +1,15 @@
+[Unit]
+Description=Daily Stock Fetch Timer
+Requires=stock-fetch.service
+
+[Timer]
+# Chạy 4 lần/ngày để giảm độ trễ cập nhật BCTC và chỉ số tổng hợp
+# 00:00, 06:00, 12:00, 18:00 giờ máy chủ
+OnCalendar=*-*-* 00,06,12,18:00:00
+# Nếu miss schedule (VPS tắt), chạy ngay khi bật lại
+Persistent=true
+# Random delay 0-300s để tránh spike VCI API
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

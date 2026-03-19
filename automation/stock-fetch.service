@@ -1,0 +1,21 @@
+[Unit]
+Description=Stock Financial Data Fetch Service
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/valuation
+Environment="PATH=/var/www/valuation/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+# Keep vnstock calls below community rate-limit (60 req/min) and flush logs immediately.
+Environment="FETCH_DELAY_SECONDS=1.2"
+Environment="PYTHONUNBUFFERED=1"
+# Load secrets (VNSTOCK_API_KEY, R2_*, etc.) from project .env
+EnvironmentFile=/var/www/valuation/.env
+# Single entrypoint: fetch -> sync overview -> cleanup
+ExecStart=/var/www/valuation/.venv/bin/python3 /var/www/valuation/run_pipeline.py
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

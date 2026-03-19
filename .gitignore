@@ -1,0 +1,49 @@
+# Secrets
+.env
+.env.local
+.telegram_uptime.env
+
+# Databases (never commit — too large, contain live data)
+*.db
+*.sqlite
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+fetch_sqlite/cron*.log
+fetch_sqlite/backups/
+
+# Benchmarks / perf reports
+logs/perf/
+
+# Node
+node_modules/
+.next/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp / upload artifacts
+*.upload
+ticker_data.json

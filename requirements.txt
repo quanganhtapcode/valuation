@@ -1,0 +1,33 @@
+# ========================================
+# VALUATION APP DEPENDENCIES
+# ========================================
+
+# Core Framework
+flask>=2.3.0
+flask-cors>=4.0.0
+flask-compress>=1.13
+flask-sock>=0.7.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+
+# Stock Data API
+vnstock>=3.0.0
+
+# HTTP Requests
+requests>=2.31.0
+urllib3>=2.0.0
+python-socketio[client]>=5.11.0
+
+# AWS S3 / Cloudflare R2
+boto3>=1.28.0
+botocore>=1.31.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Production Server
+gunicorn>=21.0.0
+gevent>=23.0.0
