@@ -23,6 +23,9 @@ _VCI_FOREIGN_VOLUME_URL = (
     "https://trading.vietcap.com.vn/api/market-watch/v3/ForeignVolumeChart/getAll"
 )
 
+_NET_BODY = {"timeFrame": "ONE_DAY", "comGroupCode": "VNINDEX", "exchange": "HOSE"}
+_VOL_BODY = {"timeFrame": "ONE_DAY", "comGroupCode": "VNINDEX", "exchange": "HOSE"}
+
 _FOREIGN_SQLITE = (
     Path(__file__).resolve().parents[3] / "fetch_sqlite" / "vci_foreign.sqlite"
 )
@@ -150,7 +153,7 @@ def _split_buy_sell(raw: Any) -> tuple[list[dict], list[dict]]:
 
 
 def _fetch_net_live() -> dict[str, Any]:
-    r = http_requests.get(_VCI_FOREIGN_NET_URL, timeout=10, headers=VCI_HEADERS)
+    r = http_requests.post(_VCI_FOREIGN_NET_URL, json=_NET_BODY, timeout=10, headers=VCI_HEADERS)
     r.raise_for_status()
     return r.json()
 
@@ -239,7 +242,7 @@ def register(market_bp: Blueprint) -> None:
             if db_points:
                 return {"success": True, "data": db_points, "source": "sqlite"}
             # 2. Live fallback
-            r = http_requests.get(_VCI_FOREIGN_VOLUME_URL, timeout=10, headers=VCI_HEADERS)
+            r = http_requests.post(_VCI_FOREIGN_VOLUME_URL, json=_VOL_BODY, timeout=10, headers=VCI_HEADERS)
             r.raise_for_status()
             raw = r.json()
             points = (raw or {}).get("data") or (raw or {}).get("Data") or (raw if isinstance(raw, list) else [])
