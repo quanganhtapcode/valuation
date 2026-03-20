@@ -64,7 +64,6 @@ Xem thêm: [`frontend-next/.env.example`](frontend-next/.env.example), [`fronten
 | Mỗi 30 phút | crontab | `telegram_uptime_report.sh` | `telegram_uptime.log` |
 | **18:00 hàng ngày** | systemd | `run_pipeline.py` | `vietnam_stocks.db` |
 | Chủ nhật 18:00 | systemd | `run_pipeline.py` (thêm company info) | `vietnam_stocks.db` |
-| Chủ nhật 03:00 | crontab | `backup_vci_screening.py` | backups/ |
 
 **Cơ chế smart-skip**: nếu BCTC của 1 mã đã được cập nhật trong 30 ngày qua, pipeline tự bỏ qua để tiết kiệm API quota.
 

@@ -114,12 +114,39 @@ def _fetch_vnindex_ohlc_series(*, count_back: int = 5000) -> list[dict[str, Any]
         return []
     item = data[0]
     timestamps = item.get("t") or []
+    opens = item.get("o") or []
+    highs = item.get("h") or []
+    lows = item.get("l") or []
     closes = item.get("c") or []
+    volumes = item.get("v") or []
+    accumulated_volumes = item.get("accumulatedVolume") or []
+    accumulated_values = item.get("accumulatedValue") or []
     out: list[dict[str, Any]] = []
-    for ts, close in zip(timestamps, closes):
+    for i, ts in enumerate(timestamps):
         try:
             date_str = datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
-            out.append({"date": date_str, "value": float(close)})
+            close = float(closes[i]) if i < len(closes) and closes[i] is not None else None
+            out.append(
+                {
+                    "date": date_str,
+                    "value": close,
+                    "open": float(opens[i]) if i < len(opens) and opens[i] is not None else None,
+                    "high": float(highs[i]) if i < len(highs) and highs[i] is not None else None,
+                    "low": float(lows[i]) if i < len(lows) and lows[i] is not None else None,
+                    "close": close,
+                    "volume": float(volumes[i]) if i < len(volumes) and volumes[i] is not None else None,
+                    "accumulated_volume": (
+                        float(accumulated_volumes[i])
+                        if i < len(accumulated_volumes) and accumulated_volumes[i] is not None
+                        else None
+                    ),
+                    "accumulated_value": (
+                        float(accumulated_values[i])
+                        if i < len(accumulated_values) and accumulated_values[i] is not None
+                        else None
+                    ),
+                }
+            )
         except (TypeError, ValueError):
             continue
     return out
@@ -133,9 +160,17 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
     try:
         with sqlite3.connect(str(db)) as conn:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                "SELECT date, pe, pb, vnindex, volume FROM valuation_history ORDER BY date"
-            ).fetchall()
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(valuation_history)").fetchall()}
+            has_extended = {"open", "high", "low", "close", "accumulated_volume", "accumulated_value"}.issubset(columns)
+            if has_extended:
+                rows = conn.execute(
+                    "SELECT date, pe, pb, vnindex, open, high, low, close, volume, accumulated_volume, accumulated_value "
+                    "FROM valuation_history ORDER BY date"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT date, pe, pb, vnindex, volume FROM valuation_history ORDER BY date"
+                ).fetchall()
             if not rows:
                 return None
             # valuation_stats may not exist yet on older DBs
@@ -154,7 +189,15 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
             if r["pb"] is not None:
                 pb_series.append({"date": r["date"], "value": r["pb"]})
             if r["vnindex"] is not None:
-                vnindex_series.append({"date": r["date"], "value": r["vnindex"], "volume": r["volume"]})
+                item: dict[str, Any] = {"date": r["date"], "value": r["vnindex"], "volume": r["volume"]}
+                if "open" in r.keys():
+                    item["open"] = r["open"]
+                    item["high"] = r["high"]
+                    item["low"] = r["low"]
+                    item["close"] = r["close"]
+                    item["accumulated_volume"] = r["accumulated_volume"]
+                    item["accumulated_value"] = r["accumulated_value"]
+                vnindex_series.append(item)
 
         stats: dict[str, Any] = {}
         for sr in stat_rows:

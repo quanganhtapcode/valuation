@@ -13,6 +13,7 @@ import time
 import queue
 from datetime import datetime
 from flask import Flask, g, request
+from flask.json.provider import DefaultJSONProvider
 from flask_compress import Compress
 from flask_sock import Sock
 
@@ -27,7 +28,12 @@ from backend.data_sources.vci import VCIClient
 from backend.telemetry import record_request_latency
 
 # Initialize Flask App
+class _UnsortedJSONProvider(DefaultJSONProvider):
+    sort_keys = False
+
 app = Flask(__name__)
+app.json_provider_class = _UnsortedJSONProvider
+app.json = _UnsortedJSONProvider(app)
 sock = Sock(app)
 
 # Ensure JSON responses use UTF-8 encoding (display Vietnamese correctly)

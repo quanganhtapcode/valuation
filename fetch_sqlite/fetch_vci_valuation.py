@@ -2,8 +2,14 @@
 """Fetch VCI index valuation (PE TTM, PB TTM) and VNINDEX OHLC into SQLite.
 
 Run daily after market close (e.g. 18:30) to keep vci_valuation.sqlite fresh.
+Source endpoints:
+  - GET  https://trading.vietcap.com.vn/api/iq-insight-service/v1/market-watch/index-valuation
+  - POST https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart
+
 Schema:
-  valuation_history(date TEXT PK, pe REAL, pb REAL, vnindex REAL, updated_at TEXT)
+  valuation_history(date TEXT PK, pe REAL, pb REAL, vnindex REAL, open REAL, high REAL,
+                    low REAL, close REAL, volume REAL, accumulated_volume REAL,
+                    accumulated_value REAL, updated_at TEXT)
 """
 from __future__ import annotations
 
@@ -98,14 +104,38 @@ def fetch_vnindex_ohlc(count_back: int = 6000) -> list[dict[str, Any]]:
         return []
     item = data[0]
     timestamps = item.get("t") or []
+    opens = item.get("o") or []
+    highs = item.get("h") or []
+    lows = item.get("l") or []
     closes = item.get("c") or []
     volumes = item.get("v") or []
+    accumulated_volumes = item.get("accumulatedVolume") or []
+    accumulated_values = item.get("accumulatedValue") or []
     out = []
-    for i, (ts, close) in enumerate(zip(timestamps, closes)):
+    for i, ts in enumerate(timestamps):
         try:
             date_str = _dt.datetime.fromtimestamp(int(ts), tz=_dt.timezone.utc).strftime("%Y-%m-%d")
-            vol = float(volumes[i]) if i < len(volumes) else None
-            out.append({"date": date_str, "value": float(close), "volume": vol})
+            close = float(closes[i]) if i < len(closes) and closes[i] is not None else None
+            out.append({
+                "date": date_str,
+                "open": float(opens[i]) if i < len(opens) and opens[i] is not None else None,
+                "high": float(highs[i]) if i < len(highs) and highs[i] is not None else None,
+                "low": float(lows[i]) if i < len(lows) and lows[i] is not None else None,
+                "close": close,
+                # keep backward compatibility for existing merge logic
+                "value": close,
+                "volume": float(volumes[i]) if i < len(volumes) and volumes[i] is not None else None,
+                "accumulated_volume": (
+                    float(accumulated_volumes[i])
+                    if i < len(accumulated_volumes) and accumulated_volumes[i] is not None
+                    else None
+                ),
+                "accumulated_value": (
+                    float(accumulated_values[i])
+                    if i < len(accumulated_values) and accumulated_values[i] is not None
+                    else None
+                ),
+            })
         except (TypeError, ValueError):
             continue
     return out
@@ -118,7 +148,13 @@ def init_db(conn: sqlite3.Connection) -> None:
             pe         REAL,
             pb         REAL,
             vnindex    REAL,
+            open       REAL,
+            high       REAL,
+            low        REAL,
+            close      REAL,
             volume     REAL,
+            accumulated_volume REAL,
+            accumulated_value  REAL,
             updated_at TEXT
         );
         -- add volume column if missing (safe on existing DBs)
@@ -138,6 +174,20 @@ def init_db(conn: sqlite3.Connection) -> None:
             v TEXT
         );
     """)
+    # Migration-safe: add new columns when DB already exists.
+    existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(valuation_history)").fetchall()}
+    if "open" not in existing_columns:
+        conn.execute("ALTER TABLE valuation_history ADD COLUMN open REAL")
+    if "high" not in existing_columns:
+        conn.execute("ALTER TABLE valuation_history ADD COLUMN high REAL")
+    if "low" not in existing_columns:
+        conn.execute("ALTER TABLE valuation_history ADD COLUMN low REAL")
+    if "close" not in existing_columns:
+        conn.execute("ALTER TABLE valuation_history ADD COLUMN close REAL")
+    if "accumulated_volume" not in existing_columns:
+        conn.execute("ALTER TABLE valuation_history ADD COLUMN accumulated_volume REAL")
+    if "accumulated_value" not in existing_columns:
+        conn.execute("ALTER TABLE valuation_history ADD COLUMN accumulated_value REAL")
     conn.commit()
 
 
@@ -174,13 +224,23 @@ def upsert(conn: sqlite3.Connection, rows: list[dict]) -> None:
     now = _dt.datetime.now(_dt.timezone.utc).isoformat()
     conn.executemany(
         """
-        INSERT INTO valuation_history (date, pe, pb, vnindex, volume, updated_at)
-        VALUES (:date, :pe, :pb, :vnindex, :volume, :now)
+        INSERT INTO valuation_history (
+            date, pe, pb, vnindex, open, high, low, close, volume, accumulated_volume, accumulated_value, updated_at
+        )
+        VALUES (
+            :date, :pe, :pb, :vnindex, :open, :high, :low, :close, :volume, :accumulated_volume, :accumulated_value, :now
+        )
         ON CONFLICT(date) DO UPDATE SET
             pe         = COALESCE(excluded.pe,      valuation_history.pe),
             pb         = COALESCE(excluded.pb,      valuation_history.pb),
             vnindex    = COALESCE(excluded.vnindex,  valuation_history.vnindex),
+            open       = COALESCE(excluded.open,     valuation_history.open),
+            high       = COALESCE(excluded.high,     valuation_history.high),
+            low        = COALESCE(excluded.low,      valuation_history.low),
+            close      = COALESCE(excluded.close,    valuation_history.close),
             volume     = COALESCE(excluded.volume,   valuation_history.volume),
+            accumulated_volume = COALESCE(excluded.accumulated_volume, valuation_history.accumulated_volume),
+            accumulated_value  = COALESCE(excluded.accumulated_value,  valuation_history.accumulated_value),
             updated_at = excluded.updated_at
         """,
         [
@@ -189,7 +249,13 @@ def upsert(conn: sqlite3.Connection, rows: list[dict]) -> None:
                 "pe": r.get("pe"),
                 "pb": r.get("pb"),
                 "vnindex": r.get("vnindex"),
+                "open": r.get("open"),
+                "high": r.get("high"),
+                "low": r.get("low"),
+                "close": r.get("close"),
                 "volume": r.get("volume"),
+                "accumulated_volume": r.get("accumulated_volume"),
+                "accumulated_value": r.get("accumulated_value"),
                 "now": now,
             }
             for r in rows
@@ -228,9 +294,18 @@ def main() -> None:
     for item in pb_series:
         by_date.setdefault(item["date"], {})["pb"] = item["value"]
     for item in vnindex_series:
-        by_date.setdefault(item["date"], {})["vnindex"] = item["value"]
+        row = by_date.setdefault(item["date"], {})
+        row["vnindex"] = item["value"]
+        row["open"] = item.get("open")
+        row["high"] = item.get("high")
+        row["low"] = item.get("low")
+        row["close"] = item.get("close")
         if item.get("volume") is not None:
-            by_date[item["date"]]["volume"] = item["volume"]
+            row["volume"] = item["volume"]
+        if item.get("accumulated_volume") is not None:
+            row["accumulated_volume"] = item["accumulated_volume"]
+        if item.get("accumulated_value") is not None:
+            row["accumulated_value"] = item["accumulated_value"]
 
     rows = [{"date": d, **v} for d, v in sorted(by_date.items())]
     print(f"[{ts()}] Merged: {len(rows)} rows total")

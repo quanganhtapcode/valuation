@@ -1,0 +1,4 @@
+# Ignore development files
+node_modules/
+.next/
+.env*.local
