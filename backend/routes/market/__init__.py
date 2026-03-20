@@ -28,7 +28,8 @@ def init_market_routes(get_cached_func, cache_ttl, gold_service) -> None:
 def register_market_routes(bp: Blueprint) -> None:
     from .gold import register as register_gold
     from .prices import register as register_prices
-    from .cafef_proxies import register as register_cafef
+    from .valuation_chart import register as register_cafef
+    from .foreign import register as register_foreign
     from .news import register as register_news
     from .movers import register as register_movers
     from .vci_indices import register as register_vci_indices
@@ -41,6 +42,7 @@ def register_market_routes(bp: Blueprint) -> None:
     register_gold(bp)
     register_prices(bp)
     register_cafef(bp)
+    register_foreign(bp)
     register_news(bp)
     register_movers(bp)
     register_vci_indices(bp)

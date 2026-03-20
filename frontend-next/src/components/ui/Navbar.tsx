@@ -260,6 +260,12 @@ export function Navbar() {
                             </Link>
                             <Link
                                 className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
+                                href="/foreign"
+                            >
+                                Khối ngoại
+                            </Link>
+                            <Link
+                                className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
                                 href={siteConfig.baseLinks.about}
                             >
                                 About
@@ -406,6 +412,9 @@ export function Navbar() {
                         </li>
                         <li onClick={() => setOpen(false)}>
                             <Link href="/stock/VCB">Company</Link>
+                        </li>
+                        <li onClick={() => setOpen(false)}>
+                            <Link href="/foreign">Khối ngoại</Link>
                         </li>
                         <li onClick={() => setOpen(false)}>
                             <Link href={siteConfig.baseLinks.about}>About</Link>
