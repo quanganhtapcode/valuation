@@ -12,7 +12,7 @@ from backend.data_sources.vci import VCIClient
 from backend.services.news_service import NewsService
 from backend.services.vci_news_sqlite import default_news_db_path, query_market_news
 
-from .cafef_proxies import fetch_vci_index_valuation_payload
+from .valuation_chart import fetch_vci_index_valuation_payload
 from .deps import cache_func
 from .paths import screener_db_path
 

@@ -12,7 +12,7 @@ from flask import Blueprint, jsonify, request
 from backend.data_sources.vci import VCIClient
 
 from .deps import cache_func, cache_ttl
-from .http_headers import CAFEF_HEADERS, VCI_HEADERS
+from .http_headers import VCI_HEADERS
 
 
 logger = logging.getLogger(__name__)
@@ -292,42 +292,3 @@ def register(market_bp: Blueprint) -> None:
             logger.error(f"Index valuation proxy error: {e}")
             return jsonify({"error": str(e)}), 500
 
-    @market_bp.route("/foreign-flow")
-    def api_market_foreign_flow():
-        flow_type = request.args.get("type", "buy")
-        cache_key = f"foreign_flow_{flow_type}"
-
-        def fetch_foreign_flow():
-            url = f"https://cafef.vn/du-lieu/ajax/mobile/smart/ajaxkhoingoai.ashx?type={flow_type}"
-            response = http_requests.get(url, timeout=10, headers=CAFEF_HEADERS)
-            response.raise_for_status()
-            return response.json()
-
-        try:
-            data, is_cached = cache_func()(cache_key, cache_ttl().get("realtime", 45), fetch_foreign_flow)
-            resp = jsonify(data)
-            resp.headers["X-Cache"] = "HIT" if is_cached else "MISS"
-            return resp
-        except Exception as e:
-            logger.error(f"Foreign flow proxy error: {e}")
-            return jsonify({"Data": [], "Success": False})
-
-    @market_bp.route("/realtime-chart")
-    def api_market_realtime_chart():
-        return jsonify({"success": False, "error": "Deprecated"}), 410
-
-    @market_bp.route("/realtime-market")
-    def api_market_realtime_market():
-        return jsonify({"success": False, "error": "Deprecated"}), 410
-
-    @market_bp.route("/realtime")
-    def api_market_realtime_legacy():
-        return jsonify({"success": False, "error": "Deprecated: use /api/market/vci-indices"}), 410
-
-    @market_bp.route("/indices")
-    def api_market_indices_legacy():
-        return jsonify({"success": False, "error": "Deprecated: use /api/market/vci-indices"}), 410
-
-    @market_bp.route("/reports")
-    def api_market_reports_legacy():
-        return jsonify({"success": False, "error": "Deprecated"}), 410
