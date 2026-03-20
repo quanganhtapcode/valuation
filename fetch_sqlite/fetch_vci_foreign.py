@@ -26,9 +26,6 @@ _NET_URL   = "https://trading.vietcap.com.vn/api/market-watch/v3/ForeignNetValue
 _VOL_URL   = "https://trading.vietcap.com.vn/api/market-watch/v3/ForeignVolumeChart/getAll"
 _DEFAULT_DB = "fetch_sqlite/vci_foreign.sqlite"
 
-_NET_BODY  = {"timeFrame": "ONE_DAY", "comGroupCode": "VNINDEX", "exchange": "HOSE"}
-_VOL_BODY  = {"timeFrame": "ONE_DAY", "comGroupCode": "VNINDEX", "exchange": "HOSE"}
-
 
 # ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
@@ -61,6 +58,23 @@ def utc_now() -> str:
 
 def vn_today() -> str:
     return dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).strftime("%Y-%m-%d")
+
+
+def _vci_unix_window() -> tuple[int, int]:
+    """Midnight UTC of current VN calendar date → now (matches browser behaviour)."""
+    now_vn = dt.datetime.now(dt.timezone(dt.timedelta(hours=7)))
+    midnight_utc = dt.datetime(now_vn.year, now_vn.month, now_vn.day, tzinfo=dt.timezone.utc)
+    return int(midnight_utc.timestamp()), int(dt.datetime.now(tz=dt.timezone.utc).timestamp())
+
+
+def _net_body() -> dict[str, object]:
+    frm, to = _vci_unix_window()
+    return {"from": frm, "to": to, "group": "ALL", "timeFrame": "ONE_DAY"}
+
+
+def _volume_body() -> dict[str, object]:
+    frm, to = _vci_unix_window()
+    return {"from": frm, "to": to, "group": "ALL", "timeFrame": "ONE_MINUTE"}
 
 
 # ─── SQLite setup ─────────────────────────────────────────────────────────────
@@ -97,6 +111,12 @@ def init_db(path: str) -> sqlite3.Connection:
 def _split_buy_sell(raw: Any) -> tuple[list[dict], list[dict]]:
     if not isinstance(raw, dict):
         return [], []
+    # VCI v3 ForeignNetValue/top response: {"netBuy": [...], "netSell": [...]}
+    net_buy  = raw.get("netBuy")  or []
+    net_sell = raw.get("netSell") or []
+    if net_buy or net_sell:
+        return net_buy, net_sell
+    # Legacy / wrapped formats
     data = raw.get("data") or raw
     if isinstance(data, dict):
         buy  = data.get("BuyList")  or data.get("buyList")  or []
@@ -106,25 +126,31 @@ def _split_buy_sell(raw: Any) -> tuple[list[dict], list[dict]]:
     items = data if isinstance(data, list) else []
     buy, sell = [], []
     for item in items:
-        net = float(item.get("netBuyValue") or item.get("netValue") or item.get("netBuySellValue") or 0)
+        net = float(item.get("net") or item.get("netBuyValue") or item.get("netValue") or 0)
         (buy if net >= 0 else sell).append(item)
     return buy, sell
 
 
+_VN_TZ = dt.timezone(dt.timedelta(hours=7))
+
+
 def _parse_minute(raw_point: dict) -> str | None:
-    """Extract HH:MM from a VCI volume point (handles unix ts or string)."""
-    t = raw_point.get("time") or raw_point.get("t") or raw_point.get("timestamp") or raw_point.get("tradingTime") or ""
-    if isinstance(t, (int, float)):
-        ms = t if t > 1e10 else t * 1000
-        d = dt.datetime.fromtimestamp(ms / 1000, tz=dt.timezone.utc).astimezone(
-            dt.timezone(dt.timedelta(hours=7))
-        )
-        return f"{d.hour:02d}:{d.minute:02d}"
+    """Extract HH:MM VN from a VCI volume point.
+    VCI ForeignVolumeChart/getAll uses 'truncTime' (unix seconds as string).
+    """
+    t = (raw_point.get("truncTime") or raw_point.get("time")
+         or raw_point.get("t") or raw_point.get("timestamp") or "")
+    if t:
+        try:
+            ts = float(t)
+            # unix seconds → VN local time
+            d = dt.datetime.fromtimestamp(ts, tz=_VN_TZ)
+            return f"{d.hour:02d}:{d.minute:02d}"
+        except (ValueError, TypeError, OSError):
+            pass
     s = str(t)
     if ":" in s:
         return s[:5]
-    if len(s) >= 4:
-        return f"{s[:2]}:{s[2:4]}"
     return None
 
 
@@ -132,7 +158,7 @@ def _parse_minute(raw_point: dict) -> str | None:
 
 def fetch_net(conn: sqlite3.Connection, trading_date: str) -> bool:
     try:
-        raw = _post(_NET_URL, _NET_BODY)
+        raw = _post(_NET_URL, _net_body())
     except Exception as exc:
         print(f"[foreign_net] fetch error: {exc}", file=sys.stderr)
         return False
@@ -154,12 +180,16 @@ def fetch_net(conn: sqlite3.Connection, trading_date: str) -> bool:
 
 def fetch_volume(conn: sqlite3.Connection, trading_date: str) -> bool:
     try:
-        raw = _post(_VOL_URL, _VOL_BODY)
+        raw = _post(_VOL_URL, _volume_body())
     except Exception as exc:
         print(f"[foreign_vol] fetch error: {exc}", file=sys.stderr)
         return False
 
-    points = (raw or {}).get("data") or (raw or {}).get("Data") or (raw if isinstance(raw, list) else [])
+    # VCI ForeignVolumeChart/getAll returns a raw list (not wrapped)
+    if isinstance(raw, list):
+        points = raw
+    else:
+        points = (raw or {}).get("data") or (raw or {}).get("Data") or []
     if not isinstance(points, list) or not points:
         print("[foreign_vol] empty response", file=sys.stderr)
         return False

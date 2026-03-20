@@ -23,9 +23,6 @@ _VCI_FOREIGN_VOLUME_URL = (
     "https://trading.vietcap.com.vn/api/market-watch/v3/ForeignVolumeChart/getAll"
 )
 
-_NET_BODY = {"timeFrame": "ONE_DAY", "comGroupCode": "VNINDEX", "exchange": "HOSE"}
-_VOL_BODY = {"timeFrame": "ONE_DAY", "comGroupCode": "VNINDEX", "exchange": "HOSE"}
-
 _FOREIGN_SQLITE = (
     Path(__file__).resolve().parents[3] / "fetch_sqlite" / "vci_foreign.sqlite"
 )
@@ -67,9 +64,9 @@ def _read_net_from_sqlite() -> dict[str, Any] | None:
     if not conn:
         return None
     try:
+        # Prefer today's data; fall back to most recent trading day (e.g. weekend/holiday)
         row = conn.execute(
-            "SELECT raw_json, fetched_at FROM foreign_net_snapshot WHERE trading_date = ? ORDER BY fetched_at DESC LIMIT 1",
-            (_vn_today(),),
+            "SELECT raw_json, fetched_at FROM foreign_net_snapshot ORDER BY trading_date DESC, fetched_at DESC LIMIT 1",
         ).fetchone()
         if not row:
             return None
@@ -91,12 +88,18 @@ def _read_volume_from_sqlite() -> list[dict] | None:
     if not conn:
         return None
     try:
+        # Get most recent trading date's minute data
+        latest = conn.execute(
+            "SELECT trading_date FROM foreign_volume_minute ORDER BY trading_date DESC LIMIT 1"
+        ).fetchone()
+        if not latest:
+            return None
         rows = conn.execute(
             """SELECT minute, buy_volume, sell_volume, buy_value, sell_value
                FROM foreign_volume_minute
                WHERE trading_date = ?
                ORDER BY minute""",
-            (_vn_today(),),
+            (latest["trading_date"],),
         ).fetchall()
         if not rows:
             return None
@@ -120,17 +123,28 @@ def _read_volume_from_sqlite() -> list[dict] | None:
 # ─── Normalise helpers ────────────────────────────────────────────────────────
 
 def _normalize_to_mover(item: dict[str, Any], *, is_buy: bool) -> dict[str, Any]:
-    symbol = item.get("ticker") or item.get("symbol") or item.get("code") or ""
-    name   = item.get("companyName") or item.get("name") or item.get("stockName") or symbol
-    price  = float(item.get("price") or item.get("closePrice") or item.get("matchPrice") or 0)
+    symbol = item.get("symbol") or item.get("ticker") or item.get("code") or ""
+    name   = (item.get("organShortName") or item.get("enOrganShortName")
+              or item.get("organName") or item.get("enOrganName")
+              or item.get("companyName") or item.get("name") or symbol)
+    price  = float(item.get("matchPrice") or item.get("price") or item.get("closePrice") or 0)
     change = float(item.get("changePercent") or item.get("changePct") or item.get("percentChange") or 0)
-    net    = float(item.get("netBuyValue") or item.get("netValue") or item.get("netBuySellValue") or 0)
+    buy_val  = float(item.get("foreignBuyValue")  or item.get("buyValue")  or 0)
+    sell_val = float(item.get("foreignSellValue") or item.get("sellValue") or 0)
+    net = float(
+        item.get("net")
+        or item.get("netBuyValue")
+        or item.get("netValue")
+        or item.get("netBuySellValue")
+        or (buy_val - sell_val)
+        or 0
+    )
     return {
         "Symbol":             symbol.upper(),
         "CompanyName":        name,
         "CurrentPrice":       price,
         "ChangePricePercent": change,
-        "Exchange":           item.get("exchange") or item.get("floorCode") or "HOSE",
+        "Exchange":           item.get("exchange") or item.get("group") or item.get("floorCode") or "HOSE",
         "Value":              abs(net),
     }
 
@@ -144,6 +158,11 @@ def _split_buy_sell(raw: Any) -> tuple[list[dict], list[dict]]:
         sell = data.get("SellList") or data.get("sellList") or []
         if buy or sell:
             return buy, sell
+    if isinstance(raw, dict):
+        net_buy = raw.get("netBuy") or []
+        net_sell = raw.get("netSell") or []
+        if net_buy or net_sell:
+            return net_buy, net_sell
     items = data if isinstance(data, list) else []
     buy, sell = [], []
     for item in items:
@@ -152,8 +171,26 @@ def _split_buy_sell(raw: Any) -> tuple[list[dict], list[dict]]:
     return buy, sell
 
 
+def _vci_unix_window() -> tuple[int, int]:
+    """Return (from_ts, to_ts) matching browser behaviour: midnight UTC of current VN date → now."""
+    now_vn = dt.datetime.now(dt.timezone(dt.timedelta(hours=7)))
+    # midnight UTC on the same calendar date as VN today (matches content-length in HAR)
+    midnight_utc = dt.datetime(now_vn.year, now_vn.month, now_vn.day, tzinfo=dt.timezone.utc)
+    return int(midnight_utc.timestamp()), int(dt.datetime.now(tz=dt.timezone.utc).timestamp())
+
+
+def _net_body() -> dict[str, Any]:
+    frm, to = _vci_unix_window()
+    return {"from": frm, "to": to, "group": "ALL", "timeFrame": "ONE_DAY"}
+
+
+def _volume_body() -> dict[str, Any]:
+    frm, to = _vci_unix_window()
+    return {"from": frm, "to": to, "group": "ALL", "timeFrame": "ONE_MINUTE"}
+
+
 def _fetch_net_live() -> dict[str, Any]:
-    r = http_requests.post(_VCI_FOREIGN_NET_URL, json=_NET_BODY, timeout=10, headers=VCI_HEADERS)
+    r = http_requests.post(_VCI_FOREIGN_NET_URL, json=_net_body(), timeout=10, headers=VCI_HEADERS)
     r.raise_for_status()
     return r.json()
 
@@ -206,7 +243,7 @@ def register(market_bp: Blueprint) -> None:
     def api_market_foreign_net_value():
         def fetch():
             db = _read_net_from_sqlite()
-            if db and _is_fresh(db.get("fetched_at")):
+            if db and (db["buyList"] or db["sellList"]):
                 return {
                     "success":  True,
                     "buyList":  [_normalize_to_mover(i, is_buy=True)  for i in db["buyList"]],
@@ -242,10 +279,14 @@ def register(market_bp: Blueprint) -> None:
             if db_points:
                 return {"success": True, "data": db_points, "source": "sqlite"}
             # 2. Live fallback
-            r = http_requests.post(_VCI_FOREIGN_VOLUME_URL, json=_VOL_BODY, timeout=10, headers=VCI_HEADERS)
+            r = http_requests.post(_VCI_FOREIGN_VOLUME_URL, json=_volume_body(), timeout=10, headers=VCI_HEADERS)
             r.raise_for_status()
             raw = r.json()
-            points = (raw or {}).get("data") or (raw or {}).get("Data") or (raw if isinstance(raw, list) else [])
+            # VCI returns raw list for volume chart
+            if isinstance(raw, list):
+                points = raw
+            else:
+                points = (raw or {}).get("data") or (raw or {}).get("Data") or []
             return {"success": True, "data": points if isinstance(points, list) else [], "source": "live"}
 
         try:
