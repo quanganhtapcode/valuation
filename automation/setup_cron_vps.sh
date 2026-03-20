@@ -11,11 +11,12 @@ CRON_RATIO_DAILY="30 13 * * * cd /var/www/valuation && .venv/bin/python fetch_sq
 CRON_PRICE_HISTORY="30 11 * * * cd /var/www/valuation && .venv/bin/python -m backend.updater.update_price_history >> logs/price_history_update.log 2>&1"
 CRON_TELEGRAM="*/30 * * * * /var/www/valuation/scripts/telegram_uptime_report.sh /var/www/valuation/.telegram_uptime.env >> /var/www/valuation/telegram_uptime.log 2>&1"
 CRON_VALUATION="30 18 * * * cd /var/www/valuation && .venv/bin/python fetch_sqlite/fetch_vci_valuation.py --db fetch_sqlite/vci_valuation.sqlite >> fetch_sqlite/cron_valuation.log 2>&1"
+CRON_FOREIGN="*/1 9-15 * * 1-5 cd /var/www/valuation && .venv/bin/python fetch_sqlite/fetch_vci_foreign.py --db fetch_sqlite/vci_foreign.sqlite >> fetch_sqlite/cron_foreign.log 2>&1"
 
 (crontab -l 2>/dev/null \
-  | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history\.py|telegram_uptime_report\.sh|fetch_vci_valuation\.py" \
+  | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history\.py|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py" \
   | tr -d '\r'; \
-  printf '%s\n' "$CRON_SCREENER" "$CRON_STATS_FINANCIAL" "$CRON_SHAREHOLDERS" "$CRON_NEWS" "$CRON_STANDOUTS" "$CRON_RATIO_DAILY" "$CRON_PRICE_HISTORY" "$CRON_TELEGRAM" "$CRON_VALUATION" \
+  printf '%s\n' "$CRON_SCREENER" "$CRON_STATS_FINANCIAL" "$CRON_SHAREHOLDERS" "$CRON_NEWS" "$CRON_STANDOUTS" "$CRON_RATIO_DAILY" "$CRON_PRICE_HISTORY" "$CRON_TELEGRAM" "$CRON_VALUATION" "$CRON_FOREIGN" \
 ) | crontab -
 
 echo "Cron jobs installed successfully."
