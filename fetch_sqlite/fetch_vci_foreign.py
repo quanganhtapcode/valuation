@@ -26,6 +26,9 @@ _NET_URL   = "https://trading.vietcap.com.vn/api/market-watch/v3/ForeignNetValue
 _VOL_URL   = "https://trading.vietcap.com.vn/api/market-watch/v3/ForeignVolumeChart/getAll"
 _DEFAULT_DB = "fetch_sqlite/vci_foreign.sqlite"
 
+_NET_BODY  = {"timeFrame": "ONE_DAY", "comGroupCode": "VNINDEX", "exchange": "HOSE"}
+_VOL_BODY  = {"timeFrame": "ONE_DAY", "comGroupCode": "VNINDEX", "exchange": "HOSE"}
+
 
 # ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
@@ -34,6 +37,7 @@ def _headers() -> dict[str, str]:
     return {
         "accept": "application/json",
         "accept-language": "en-US,en;q=0.9,vi-VN;q=0.8,vi;q=0.7",
+        "content-type": "application/json",
         "user-agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -44,8 +48,9 @@ def _headers() -> dict[str, str]:
     }
 
 
-def _get(url: str) -> Any:
-    req = urllib.request.Request(url, headers=_headers())
+def _post(url: str, payload: dict) -> Any:
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=data, headers=_headers(), method="POST")
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
 
@@ -127,7 +132,7 @@ def _parse_minute(raw_point: dict) -> str | None:
 
 def fetch_net(conn: sqlite3.Connection, trading_date: str) -> bool:
     try:
-        raw = _get(_NET_URL)
+        raw = _post(_NET_URL, _NET_BODY)
     except Exception as exc:
         print(f"[foreign_net] fetch error: {exc}", file=sys.stderr)
         return False
@@ -149,7 +154,7 @@ def fetch_net(conn: sqlite3.Connection, trading_date: str) -> bool:
 
 def fetch_volume(conn: sqlite3.Connection, trading_date: str) -> bool:
     try:
-        raw = _get(_VOL_URL)
+        raw = _post(_VOL_URL, _VOL_BODY)
     except Exception as exc:
         print(f"[foreign_vol] fetch error: {exc}", file=sys.stderr)
         return False
