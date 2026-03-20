@@ -109,7 +109,6 @@ Covers real-time prices, financial statements, DCF valuation, sector heatmap, pe
 │   ├── fetch_vci_stats_financial.py→ vci_stats_financial.sqlite (every hour)
 │   ├── fetch_vci_ratio_daily.py    → vci_ratio_daily.sqlite    (daily 13:30)
 │   ├── fetch_vci_shareholders.py   → vci_shareholders.sqlite   (daily 13:00)
-│   ├── backup_vci_screening.py     → backups/                  (Sunday 03:00)
 │   └── backups/vci_screening/      Weekly SQLite snapshots
 │
 ├── scripts/
@@ -247,7 +246,6 @@ All jobs managed via `crontab` + one systemd service.
 | Daily 13:00 | `fetch_sqlite/fetch_vci_shareholders.py` | `vci_shareholders.sqlite` | `cron_shareholders.log` |
 | Daily 13:30 | `fetch_sqlite/fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` | `cron_ratio_daily.log` |
 | **Daily 18:00** (systemd) | `run_pipeline.py` | `stocks_optimized.db` | `logs/pipeline.log` |
-| Sunday 03:00 | `fetch_sqlite/backup_vci_screening.py` | `backups/` | `cron_backup_vci_screening.log` |
 
 Reinstall cron jobs:
 ```bash

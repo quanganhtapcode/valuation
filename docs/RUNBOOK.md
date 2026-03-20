@@ -31,7 +31,6 @@ Tài liệu vận hành chi tiết. Đọc khi: deploy mới, debug lỗi, onboa
 │  │  */15 min  fetch_vci.py           → index_history.sqlite           │     │
 │  │  */15 min  fetch_vci_standouts.py → vci_ai_standouts.sqlite        │     │
 │  │  */30 min  telegram_uptime_report.sh                               │     │
-│  │  Sun 03:00 backup_vci_screening.py                                 │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
 │                                                                              │
 │  ┌─ systemd stock-fetch.timer (18:00 daily) ──────────────────────────┐     │
@@ -126,7 +125,6 @@ Deploy tự động:
 | */30 phút | `telegram_uptime_report.sh` | log |
 | **18:00 daily** | `run_pipeline.py` (BCTC) | `vietnam_stocks.db` |
 | Chủ nhật 18:00 | `run_pipeline.py` + company info | `vietnam_stocks.db` |
-| Chủ nhật 03:00 | `backup_vci_screening.py` | `fetch_sqlite/backups/` |
 
 ### Chạy pipeline thủ công
 

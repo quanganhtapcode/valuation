@@ -21,6 +21,7 @@ from backend.cache_utils import cache_get_ns, cache_set_ns
 from backend.routes.stock.financial_dashboard import register as register_financial_dashboard_routes
 from backend.routes.stock.history import register as register_history_routes
 from backend.routes.stock.missing_routes import register as register_missing_routes
+from backend.routes.stock.stock_data import _clean_stock_response
 from vnstock import Vnstock, Quote, Company
 
 stock_bp = Blueprint('stock', __name__)
@@ -483,7 +484,7 @@ def api_stock(symbol):
             cache_get=_cache_get,
             cache_set=_cache_set,
         )
-        clean_data = convert_nan_to_none(prioritized_data)
+        clean_data = _clean_stock_response(convert_nan_to_none(prioritized_data))
         return jsonify(clean_data)
     except Exception as exc:
         logger.error(f"API /stock error {symbol}: {exc}")
@@ -527,9 +528,9 @@ def api_app(symbol):
                     return None
                 else:
                     return obj
-            return jsonify(convert_nan_to_none(data))
+            return jsonify(_clean_stock_response(convert_nan_to_none(data)))
         else:
-             return jsonify(data)   
+             return jsonify(data)
     except Exception as exc:
         logger.error(f"API /app-data error {symbol}: {exc}")
         return jsonify({"success": False, "error": str(exc)}), 500
@@ -668,19 +669,47 @@ def api_historical_chart_data(symbol):
             if nim is not None and abs(nim) < 1: nim *= 100
             nim_data.append(nim)
 
+        # Build array-of-objects, treating 0 as missing
+        def nz(v):
+            """Return None for zero/null, else round to 4dp."""
+            if v is None or v == 0: return None
+            return round(v, 4)
+
+        records = []
+        for i, label in enumerate(years):
+            records.append({
+                'period':    label,
+                'roe':       nz(roe_data[i]),
+                'roa':       nz(roa_data[i]),
+                'pe':        nz(pe_ratio_data[i]),
+                'pb':        nz(pb_ratio_data[i]),
+                'netMargin': nz(net_profit_margin_data[i]),
+                'currentRatio': current_ratio_data[i],
+                'quickRatio':   quick_ratio_data[i],
+                'nim':       nz(nim_data[i]) if i < len(nim_data) else None,
+            })
+
+        # Drop records where all key metrics are null (sparse early history)
+        key_metrics = ('roe', 'roa', 'pe', 'pb')
+        records = [r for r in records if any(r.get(k) is not None for k in key_metrics)]
+
+        # Keep only the latest 20 periods
+        records = records[-20:]
+
+        # Drop series columns where every value is None (e.g. currentRatio for banks)
+        series_keys = ['roe', 'roa', 'pe', 'pb', 'netMargin', 'currentRatio', 'quickRatio', 'nim']
+        empty_keys = {k for k in series_keys if all(r.get(k) is None for r in records)}
+        if empty_keys:
+            for r in records:
+                for k in empty_keys:
+                    r.pop(k, None)
+
         result = {
             'success': True,
-            'data': {
-                'years': years,
-                'roe_data': roe_data,
-                'roa_data': roa_data,
-                'net_profit_margin_data': net_profit_margin_data,
-                'pe_ratio_data': pe_ratio_data,
-                'pb_ratio_data': pb_ratio_data,
-                'current_ratio_data': current_ratio_data,
-                'quick_ratio_data': quick_ratio_data,
-                'cash_ratio_data': cash_ratio_data,
-            }
+            'symbol':  symbol,
+            'period':  period,
+            'count':   len(records),
+            'data':    records,
         }
         _cache_set(cache_key, result)
         return jsonify(result)

@@ -102,11 +102,27 @@ def _clean_stock_response(data: dict) -> dict:
     # 7. Flatten overview.description → top-level description (then drop overview)
     if isinstance(out.get("overview"), dict):
         desc = out["overview"].get("description")
-        if desc and not out.get("description"):
+        if desc and not out.get("description") and not out.get("company_profile"):
             out["description"] = desc
         out.pop("overview", None)
 
-    # 8. Build a history array-of-objects alongside the existing parallel arrays
+    # 7b. Drop redundant internal/date fields not useful to consumers
+    for key in ("ratio_daily_date", "updated_at"):
+        out.pop(key, None)
+
+    # 7c. Drop eps_ttm when it's identical to eps (same value, different label)
+    if out.get("eps") is not None and out.get("eps_ttm") == out.get("eps"):
+        out.pop("eps_ttm", None)
+
+    # 7d. Drop p_cash_flow alias when pcf_ratio exists (same metric)
+    if "pcf_ratio" in out:
+        out.pop("p_cash_flow", None)
+
+    # 7e. Drop sector when identical to industry (often duplicated for VN stocks)
+    if out.get("sector") and out.get("sector") == out.get("industry"):
+        out.pop("sector", None)
+
+    # 8. Build history array-of-objects from parallel arrays, then drop the arrays
     years = out.get("years") or []
     series_keys = [
         ("pe_ratio_data", "pe"),
@@ -130,10 +146,15 @@ def _clean_stock_response(data: dict) -> dict:
                     record[field] = None
             history.append(record)
         out["history"] = history
+        # Drop parallel arrays — data is now in history
+        for arr_key, _ in series_keys:
+            out.pop(arr_key, None)
+        out.pop("years", None)
 
-    # 9. Re-order keys: identity first, then price, then ratios, then history, rest last
+    # 9. Re-order keys: symbol first, then identity, price, ratios, history
     priority = [
-        "success", "symbol", "name", "exchange", "industry", "sector",
+        "symbol", "success",
+        "name", "exchange", "industry", "sector",
         "description", "company_profile",
         "current_price", "market_cap", "shares_outstanding", "bvps",
         "pe", "pb", "ps", "pcf_ratio", "eps", "eps_ttm", "dividend_yield",
@@ -142,8 +163,8 @@ def _clean_stock_response(data: dict) -> dict:
         "debt_to_equity", "financial_leverage", "current_ratio", "quick_ratio",
         "car", "casa", "npl", "ldr", "cir", "cof", "llr_coverage",
         "fee_income_ratio", "yield_on_assets", "deposit_growth", "loans_growth",
-        "p_cash_flow", "ev_to_ebitda",
-        "history", "years",
+        "ev_to_ebitda",
+        "history",
     ]
     ordered: dict = {}
     for k in priority:
