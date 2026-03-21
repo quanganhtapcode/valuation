@@ -10,6 +10,7 @@ from typing import Any
 import requests as http_requests
 from flask import Blueprint, jsonify, request
 
+from backend.db_path import resolve_vci_screening_db_path
 from backend.data_sources.vci import VCIClient
 
 from .deps import cache_func, cache_ttl
@@ -37,6 +38,39 @@ _INDEX_ID_TO_VCI_SYMBOL = {
     '11': 'VN30',
 }
 
+_SCREENER_SORT_COLUMNS = {
+    "ticker": "ticker",
+    "price": "marketPrice",
+    "market_cap": "marketCap",
+    "pe": "ttmPe",
+    "pb": "ttmPb",
+    "roe": "ttmRoe",
+    "net_margin": "netMargin",
+    "gross_margin": "grossMargin",
+    "net_profit_growth": "npatmiGrowthYoyQm1",
+    "revenue_growth": "revenueGrowthYoy",
+    "daily_change": "dailyPriceChangePercent",
+    "value": "accumulatedValue",
+    "volume": "accumulatedVolume",
+    "exchange": "exchange",
+    "sector": "viSector",
+}
+
+_SCREENER_NUMERIC_FILTER_COLUMNS = {
+    "price": "marketPrice",
+    "market_cap": "marketCap",
+    "pe": "ttmPe",
+    "pb": "ttmPb",
+    "roe": "ttmRoe",
+    "net_margin": "netMargin",
+    "gross_margin": "grossMargin",
+    "net_profit_growth": "npatmiGrowthYoyQm1",
+    "revenue_growth": "revenueGrowthYoy",
+    "daily_change": "dailyPriceChangePercent",
+    "value": "accumulatedValue",
+    "volume": "accumulatedVolume",
+}
+
 
 def _find_vci_index_item(vci_symbol: str) -> dict | None:
     try:
@@ -58,6 +92,15 @@ def _normalize_metric(metric: str | None) -> str:
     if value in {"pe", "pb", "both"}:
         return value
     return "both"
+
+
+def _parse_float_or_none(value: str | None):
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    return float(s)
 
 
 def _time_frame_to_cutoff(time_frame: str) -> date | None:
@@ -512,3 +555,124 @@ def register(market_bp: Blueprint) -> None:
         except Exception as exc:
             logger.error("EMA50 breadth error: %s", exc)
             return jsonify({"success": False, "data": []}), 500
+
+    @market_bp.route('/screener')
+    def api_market_screener():
+        db_path = resolve_vci_screening_db_path()
+        if not db_path or not os.path.exists(db_path):
+            return jsonify({"success": False, "error": "Screener DB not found"}), 500
+
+        try:
+            page = max(1, int(request.args.get("page", "1")))
+        except Exception:
+            page = 1
+        try:
+            page_size = int(request.args.get("page_size", "50"))
+        except Exception:
+            page_size = 50
+        page_size = max(10, min(page_size, 200))
+        offset = (page - 1) * page_size
+
+        sort_key = (request.args.get("sort_by", "market_cap") or "market_cap").strip().lower()
+        sort_col = _SCREENER_SORT_COLUMNS.get(sort_key, "marketCap")
+        sort_order = (request.args.get("sort_order", "desc") or "desc").strip().lower()
+        sort_order_sql = "ASC" if sort_order == "asc" else "DESC"
+
+        where_clauses = ["ticker IS NOT NULL", "ticker != ''"]
+        params: list = []
+
+        q = (request.args.get("q", "") or "").strip()
+        if q:
+            where_clauses.append("(UPPER(ticker) LIKE ? OR UPPER(viOrganShortName) LIKE ? OR UPPER(enOrganShortName) LIKE ?)")
+            q_like = f"%{q.upper()}%"
+            params.extend([q_like, q_like, q_like])
+
+        exchange = (request.args.get("exchange", "") or "").strip().upper()
+        if exchange:
+            exchanges = [x.strip().upper() for x in exchange.split(",") if x.strip()]
+            if exchanges:
+                placeholders = ",".join(["?"] * len(exchanges))
+                where_clauses.append(f"UPPER(exchange) IN ({placeholders})")
+                params.extend(exchanges)
+
+        sector = (request.args.get("sector", "") or "").strip()
+        if sector:
+            where_clauses.append("(UPPER(viSector) LIKE ? OR UPPER(enSector) LIKE ?)")
+            s_like = f"%{sector.upper()}%"
+            params.extend([s_like, s_like])
+
+        try:
+            for key, column in _SCREENER_NUMERIC_FILTER_COLUMNS.items():
+                min_val = _parse_float_or_none(request.args.get(f"{key}_min"))
+                max_val = _parse_float_or_none(request.args.get(f"{key}_max"))
+                if min_val is not None:
+                    where_clauses.append(f"{column} >= ?")
+                    params.append(min_val)
+                if max_val is not None:
+                    where_clauses.append(f"{column} <= ?")
+                    params.append(max_val)
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid numeric filter value"}), 400
+
+        where_sql = " AND ".join(where_clauses)
+
+        try:
+            with sqlite3.connect(db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                total = conn.execute(
+                    f"SELECT COUNT(1) AS c FROM screening_data WHERE {where_sql}",
+                    params,
+                ).fetchone()["c"]
+
+                rows = conn.execute(
+                    f"""
+                    SELECT
+                        ticker, exchange, marketPrice, marketCap, dailyPriceChangePercent,
+                        ttmPe, ttmPb, ttmRoe, netMargin, grossMargin,
+                        npatmiGrowthYoyQm1, revenueGrowthYoy, accumulatedValue, accumulatedVolume,
+                        viOrganShortName, enOrganShortName, viSector, enSector
+                    FROM screening_data
+                    WHERE {where_sql}
+                    ORDER BY {sort_col} {sort_order_sql}, ticker ASC
+                    LIMIT ? OFFSET ?
+                    """,
+                    [*params, page_size, offset],
+                ).fetchall()
+
+            items = []
+            for r in rows:
+                items.append(
+                    {
+                        "ticker": r["ticker"],
+                        "name": r["viOrganShortName"] or r["enOrganShortName"] or r["ticker"],
+                        "exchange": r["exchange"],
+                        "sector": r["viSector"] or r["enSector"],
+                        "marketPrice": r["marketPrice"],
+                        "marketCap": r["marketCap"],
+                        "dailyPriceChangePercent": r["dailyPriceChangePercent"],
+                        "ttmPe": r["ttmPe"],
+                        "ttmPb": r["ttmPb"],
+                        "ttmRoe": r["ttmRoe"],
+                        "netMargin": r["netMargin"],
+                        "grossMargin": r["grossMargin"],
+                        "npatmiGrowthYoyQm1": r["npatmiGrowthYoyQm1"],
+                        "revenueGrowthYoy": r["revenueGrowthYoy"],
+                        "accumulatedValue": r["accumulatedValue"],
+                        "accumulatedVolume": r["accumulatedVolume"],
+                    }
+                )
+
+            return jsonify(
+                {
+                    "success": True,
+                    "items": items,
+                    "total": total,
+                    "page": page,
+                    "pageSize": page_size,
+                    "sortBy": sort_key,
+                    "sortOrder": sort_order_sql.lower(),
+                }
+            )
+        except Exception as exc:
+            logger.error("Screener query error: %s", exc)
+            return jsonify({"success": False, "error": "Screener query failed"}), 500
