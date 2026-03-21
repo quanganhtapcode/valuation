@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     ComposedChart,
     Line,
@@ -13,7 +13,7 @@ import {
     ReferenceLine,
     ReferenceArea,
 } from 'recharts';
-import { fetchPEChart, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
+import { fetchPEChart, fetchPEChartByRange, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
 import { cx } from '@/lib/utils';
 import styles from './PEChart.module.css';
 
@@ -53,15 +53,6 @@ function formatDateLabel(date: Date, range: TimeRange): string {
     if (range === '1y' || range === '2y')
         return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     return String(date.getFullYear());
-}
-
-function sampleData<T>(arr: T[], max: number): T[] {
-    if (arr.length <= max) return arr;
-    const step = arr.length / max;
-    const out: T[] = [];
-    for (let i = 0; i < max - 1; i++) out.push(arr[Math.round(i * step)]);
-    out.push(arr[arr.length - 1]);
-    return out;
 }
 
 function fmtVol(v: number): string {
@@ -125,22 +116,73 @@ interface PEChartProps {
 
 export default function PEChart({ initialData = [], externalData = [], useExternalOnly = false }: PEChartProps) {
     const [result, setResult] = useState<PEChartResult>({ series: initialData, stats: {} });
-    const [timeRange, setTimeRange] = useState<TimeRange>('1y');
+    const [timeRange, setTimeRange] = useState<TimeRange>('6m');
     const [activeChart, setActiveChart] = useState<ActiveChart>('vnindex');
     const [isLoading, setIsLoading] = useState(initialData.length === 0);
+    const cacheRef = useRef<Partial<Record<TimeRange, PEChartResult>>>({});
+    const abortRef = useRef<AbortController | null>(null);
+
+    const rangeToApiTimeFrame = (range: TimeRange): '6M' | 'YTD' | '1Y' | '2Y' | '5Y' | 'ALL' => {
+        switch (range) {
+            case '6m': return '6M';
+            case 'ytd': return 'YTD';
+            case '1y': return '1Y';
+            case '2y': return '2Y';
+            case '5y': return '5Y';
+            case 'all': return 'ALL';
+        }
+    };
 
     useEffect(() => {
         if (externalData.length > 0) {
             setResult(r => ({ ...r, series: externalData }));
             setIsLoading(false);
+            cacheRef.current['6m'] = { series: externalData, stats: result.stats || {} };
             return;
         }
         if (initialData.length > 0 || useExternalOnly) return;
 
-        fetchPEChart('both')
-            .then(r => { setResult(r); setIsLoading(false); })
+        const controller = new AbortController();
+        abortRef.current = controller;
+        fetchPEChart('both', { signal: controller.signal })
+            .then(r => {
+                cacheRef.current['6m'] = r;
+                setResult(r);
+                setIsLoading(false);
+            })
             .catch(() => setIsLoading(false));
+        return () => controller.abort();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialData, externalData, useExternalOnly]);
+
+    useEffect(() => {
+        if (externalData.length > 0 && timeRange === '6m') return;
+        const cached = cacheRef.current[timeRange];
+        if (cached) {
+            setResult(cached);
+            setIsLoading(false);
+            return;
+        }
+
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        setIsLoading(true);
+
+        fetchPEChartByRange(rangeToApiTimeFrame(timeRange), 'both', { signal: controller.signal })
+            .then((r) => {
+                cacheRef.current[timeRange] = r;
+                setResult(r);
+                setIsLoading(false);
+            })
+            .catch((e: any) => {
+                if (e?.name === 'AbortError') return;
+                setIsLoading(false);
+            });
+
+        return () => controller.abort();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [timeRange]);
 
     const { series, stats } = result;
 
@@ -150,20 +192,18 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         return { pe: last.pe, pb: last.pb, vnindex: last.vnindex };
     }, [series]);
 
-    const maxPoints = (timeRange === 'all' || timeRange === '5y') ? 400 : 600;
-
     // VN-Index chart data
     const vnData = useMemo(() => {
         const cutoff = getCutoffDate(timeRange);
         let filtered = series.filter(d => d.vnindex != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
-        return sampleData(filtered, maxPoints).map(d => ({
+        return filtered.map(d => ({
             date: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             close: d.vnindex!,
             volume: d.volume,
         }));
-    }, [series, timeRange, maxPoints]);
+    }, [series, timeRange]);
 
     // PE/PB chart data
     const ratioData = useMemo(() => {
@@ -171,12 +211,12 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         const cutoff = getCutoffDate(timeRange);
         let filtered = series.filter(d => d[field] != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
-        return sampleData(filtered, maxPoints).map(d => ({
+        return filtered.map(d => ({
             date: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             value: d[field]!,
         }));
-    }, [series, timeRange, activeChart, maxPoints]);
+    }, [series, timeRange, activeChart]);
 
     const activeStats: ValuationStats | undefined =
         activeChart === 'pe' ? stats.pe : activeChart === 'pb' ? stats.pb : undefined;
@@ -274,6 +314,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fill: '#9ca3af', fontSize: 11 }}
+                                allowDuplicatedCategory={false}
                                 interval={tickInterval(vnData) - 1}
                                 height={24}
                             />
@@ -313,6 +354,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: '#9ca3af', fontSize: 11 }}
+                                    allowDuplicatedCategory={false}
                                     interval={tickInterval(ratioData) - 1}
                                     height={24}
                                 />

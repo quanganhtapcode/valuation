@@ -75,8 +75,8 @@ def _fetch_watchlist_prices(symbols: list[str]) -> dict[str, dict[str, float]]:
     return out
 
 
-def _fetch_pe_chart() -> dict[str, Any]:
-    return fetch_vci_index_valuation_payload(metric="both", com_group_code="VNINDEX", time_frame="ALL")
+def _fetch_pe_chart(time_frame: str = "6M") -> dict[str, Any]:
+    return fetch_vci_index_valuation_payload(metric="both", com_group_code="VNINDEX", time_frame=time_frame)
 
 
 def _fetch_news(news_size: int) -> list[dict[str, Any]]:
@@ -186,13 +186,14 @@ def register(market_bp: Blueprint) -> None:
         heatmap_limit = max(50, min(heatmap_limit, 300))
 
         exchange = (request.args.get("heatmap_exchange", "HSX") or "HSX").upper()
+        pe_time_frame = (request.args.get("pe_time_frame", "6M") or "6M").upper()
 
         prices = _fetch_watchlist_prices(symbols)
 
         pe_chart, _ = cache_func()(
-            "overview_refresh_pe_chart",
+            f"overview_refresh_pe_chart_{pe_time_frame}",
             _PE_CACHE_SECONDS,
-            _fetch_pe_chart,
+            lambda: _fetch_pe_chart(pe_time_frame),
         )
 
         news, _ = cache_func()(
