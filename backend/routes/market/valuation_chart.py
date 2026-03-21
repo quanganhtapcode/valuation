@@ -243,7 +243,7 @@ def _read_valuation_from_sqlite(cutoff_date: date | None = None) -> dict[str, An
             conn.row_factory = sqlite3.Row
             where = f"WHERE date >= '{cutoff_date.isoformat()}'" if cutoff_date else ""
             rows = conn.execute(
-                f"SELECT date, pe, pb, vnindex, ema50, volume "
+                f"SELECT date, pe, pb, vnindex, open, high, low, close, ema50, volume "
                 f"FROM valuation_history {where} ORDER BY date"
             ).fetchall()
             if not rows:
@@ -258,12 +258,16 @@ def _read_valuation_from_sqlite(cutoff_date: date | None = None) -> dict[str, An
 
         data = [
             {
-                "date": r["date"],
+                "date":    r["date"],
                 "vnindex": r["vnindex"],
-                "ema50": r["ema50"],
-                "pe": r["pe"],
-                "pb": r["pb"],
-                "volume": r["volume"],
+                "open":    r["open"],
+                "high":    r["high"],
+                "low":     r["low"],
+                "close":   r["close"],
+                "ema50":   r["ema50"],
+                "pe":      r["pe"],
+                "pb":      r["pb"],
+                "volume":  r["volume"],
             }
             for r in rows
             if r["vnindex"] is not None or r["pe"] is not None or r["pb"] is not None

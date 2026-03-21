@@ -202,6 +202,10 @@ export interface PEChartData {
     pe: number | null;
     pb: number | null;
     vnindex: number | null;
+    open: number | null;
+    high: number | null;
+    low: number | null;
+    close: number | null;
     ema50: number | null;
     volume: number | null;
 }
@@ -656,6 +660,10 @@ function parsePEChartPayload(response: any): PEChartData[] {
                 return {
                     date,
                     vnindex: item.vnindex != null ? Number(item.vnindex) : null,
+                    open:    item.open    != null ? Number(item.open)    : null,
+                    high:    item.high    != null ? Number(item.high)    : null,
+                    low:     item.low     != null ? Number(item.low)     : null,
+                    close:   item.close   != null ? Number(item.close)   : null,
                     ema50:   item.ema50   != null ? Number(item.ema50)   : null,
                     pe:      item.pe      != null ? Number(item.pe)      : null,
                     pb:      item.pb      != null ? Number(item.pb)      : null,
