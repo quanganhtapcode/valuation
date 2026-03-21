@@ -98,6 +98,7 @@ export default function OverviewClient({
     const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
     const [goldLoading, setGoldLoading] = useState(false);
     const [goldUpdatedAt, setGoldUpdatedAt] = useState<string>(initialGoldUpdated || new Date().toISOString());
+    const [goldSource, setGoldSource] = useState<string>('Phú Quý');
     const { watchlist } = useWatchlist();
 
     const mapMarketDataToIndices = useCallback((marketData: Record<string, MarketIndexData>) => {
@@ -150,6 +151,9 @@ export default function OverviewClient({
             setGoldPrices(result.data);
             if (result.updated_at) {
                 setGoldUpdatedAt(result.updated_at);
+            }
+            if (result.source) {
+                setGoldSource(result.source);
             }
         } catch (error) {
             console.error('Error loading gold prices:', error);
@@ -382,6 +386,7 @@ export default function OverviewClient({
                         prices={goldPrices}
                         isLoading={goldLoading}
                         updatedAt={goldUpdatedAt}
+                        source={goldSource}
                     />
 
                     {/* Polymarket Economic Events */}
