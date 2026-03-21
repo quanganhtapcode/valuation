@@ -55,13 +55,6 @@ export default function MarketPulse({
 }: MarketPulseProps) {
     return (
         <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-xl">
-            {/* Header */}
-            <div className="flex border-b border-gray-100 dark:border-gray-800">
-                <div className="flex-1 py-3 text-sm font-medium text-center text-tremor-brand border-b-2 border-tremor-brand">
-                    Top Movers
-                </div>
-            </div>
-
             {/* Content Area */}
             <div className="p-0">
                 <MarketList
