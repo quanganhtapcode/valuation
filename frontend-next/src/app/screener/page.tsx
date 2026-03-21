@@ -60,44 +60,56 @@ function RangeSlider({
 }) {
   const fmt = valueFormatter || ((n: number) => String(n));
   return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-      <div className="flex items-center justify-between text-sm mb-2">
-        <span className="font-medium">{label}</span>
-        <span className="text-slate-600 dark:text-slate-400">
-          {fmt(value.min)} - {fmt(value.max)}
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 bg-slate-50/60 dark:bg-slate-900/60">
+      <div className="flex items-center justify-between mb-3">
+        <span className="font-semibold text-sm">{label}</span>
+        <span className="text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-md px-2 py-1 border border-slate-200 dark:border-slate-700">
+          {fmt(value.min)} → {fmt(value.max)}
         </span>
       </div>
-      <div className="relative h-10">
-        <input
-          type="range"
-          min={range.min}
-          max={range.max}
-          step={range.step}
-          value={value.min}
-          onChange={(e) => {
-            const nextMin = Number(e.target.value);
-            onChange({
-              min: Math.min(nextMin, value.max),
-              max: value.max,
-            });
-          }}
-          className="range-slider"
-        />
-        <input
-          type="range"
-          min={range.min}
-          max={range.max}
-          step={range.step}
-          value={value.max}
-          onChange={(e) => {
-            const nextMax = Number(e.target.value);
-            onChange({
-              min: value.min,
-              max: Math.max(nextMax, value.min),
-            });
-          }}
-          className="range-slider"
-        />
+      <div className="space-y-3">
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Min</span>
+            <span className="text-xs text-slate-700 dark:text-slate-300">{fmt(value.min)}</span>
+          </div>
+          <input
+            type="range"
+            min={range.min}
+            max={range.max}
+            step={range.step}
+            value={value.min}
+            onChange={(e) => {
+              const nextMin = Number(e.target.value);
+              onChange({
+                min: Math.min(nextMin, value.max),
+                max: value.max,
+              });
+            }}
+            className="single-slider"
+          />
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Max</span>
+            <span className="text-xs text-slate-700 dark:text-slate-300">{fmt(value.max)}</span>
+          </div>
+          <input
+            type="range"
+            min={range.min}
+            max={range.max}
+            step={range.step}
+            value={value.max}
+            onChange={(e) => {
+              const nextMax = Number(e.target.value);
+              onChange({
+                min: value.min,
+                max: Math.max(nextMax, value.min),
+              });
+            }}
+            className="single-slider"
+          />
+        </div>
       </div>
     </div>
   );
@@ -347,42 +359,37 @@ export default function ScreenerPage() {
           font-size: 0.875rem;
           min-width: 0;
         }
-        .range-slider {
-          position: absolute;
-          left: 0;
-          top: 0.35rem;
+        .single-slider {
           width: 100%;
-          pointer-events: none;
           appearance: none;
           background: transparent;
         }
-        .range-slider::-webkit-slider-thumb {
+        .single-slider::-webkit-slider-thumb {
           appearance: none;
           height: 16px;
           width: 16px;
+          margin-top: -5px;
           border-radius: 9999px;
           background: rgb(37 99 235);
           border: 2px solid white;
           box-shadow: 0 0 0 1px rgb(148 163 184);
-          pointer-events: auto;
           cursor: pointer;
         }
-        .range-slider::-moz-range-thumb {
+        .single-slider::-moz-range-thumb {
           height: 16px;
           width: 16px;
           border-radius: 9999px;
           background: rgb(37 99 235);
           border: 2px solid white;
           box-shadow: 0 0 0 1px rgb(148 163 184);
-          pointer-events: auto;
           cursor: pointer;
         }
-        .range-slider::-webkit-slider-runnable-track {
+        .single-slider::-webkit-slider-runnable-track {
           height: 6px;
           border-radius: 9999px;
           background: rgb(226 232 240);
         }
-        .range-slider::-moz-range-track {
+        .single-slider::-moz-range-track {
           height: 6px;
           border-radius: 9999px;
           background: rgb(226 232 240);
@@ -393,10 +400,10 @@ export default function ScreenerPage() {
             background: rgb(15 23 42);
             color: rgb(241 245 249);
           }
-          .range-slider::-webkit-slider-runnable-track {
+          .single-slider::-webkit-slider-runnable-track {
             background: rgb(51 65 85);
           }
-          .range-slider::-moz-range-track {
+          .single-slider::-moz-range-track {
             background: rgb(51 65 85);
           }
         }
