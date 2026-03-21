@@ -201,6 +201,7 @@ export interface PEChartData {
     pe: number | null;
     pb: number | null;
     vnindex: number | null;
+    ema50: number | null;
     volume: number | null;
 }
 
@@ -626,10 +627,15 @@ function parsePEChartPayload(response: any): PEChartData[] {
                 if (!dateStr || rawValue == null) continue;
                 const value = Number(rawValue);
                 if (!Number.isFinite(value)) continue;
-                const prev = byDate.get(dateStr) || { pe: null, pb: null, vnindex: null, volume: null };
+                const prev = byDate.get(dateStr) || { pe: null, pb: null, vnindex: null, ema50: null, volume: null };
                 prev[key] = value;
-                if (key === 'vnindex' && item.volume != null) {
-                    (prev as any).volume = Number(item.volume) || null;
+                if (key === 'vnindex') {
+                    if (item.volume != null) {
+                        (prev as any).volume = Number(item.volume) || null;
+                    }
+                    if (item.ema50 != null) {
+                        (prev as any).ema50 = Number(item.ema50) || null;
+                    }
                 }
                 byDate.set(dateStr, prev);
             }
@@ -643,7 +649,14 @@ function parsePEChartPayload(response: any): PEChartData[] {
             .map(([dateStr, ratios]: [string, any]) => {
                 const date = parseDateInput(dateStr);
                 return date
-                    ? { date, pe: ratios.pe, pb: ratios.pb, vnindex: ratios.vnindex, volume: ratios.volume ?? null }
+                    ? {
+                        date,
+                        pe: ratios.pe,
+                        pb: ratios.pb,
+                        vnindex: ratios.vnindex,
+                        ema50: ratios.ema50 ?? null,
+                        volume: ratios.volume ?? null,
+                    }
                     : null;
             })
             .filter((row): row is PEChartData => row !== null)
@@ -659,6 +672,7 @@ function parsePEChartPayload(response: any): PEChartData[] {
         vnindex: p.Index,
         pe: p.Pe,
         pb: null,
+        ema50: null,
         volume: null,
     })).reverse();
 

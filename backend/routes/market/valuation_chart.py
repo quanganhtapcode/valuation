@@ -194,6 +194,49 @@ def _fetch_vnindex_ohlc_series(*, count_back: int = 5000) -> list[dict[str, Any]
     return out
 
 
+def _attach_ema50(series: list[dict[str, Any]], period: int = 50) -> list[dict[str, Any]]:
+    if not series:
+        return series
+
+    multiplier = 2 / (period + 1)
+    ema: float | None = None
+    warmup: list[float] = []
+
+    for item in series:
+        if item.get("ema50") is not None:
+            try:
+                ema = float(item["ema50"])
+            except (TypeError, ValueError):
+                ema = None
+            continue
+
+        raw_price = item.get("close")
+        if raw_price is None:
+            raw_price = item.get("value")
+        if raw_price is None:
+            item["ema50"] = None
+            continue
+
+        try:
+            price = float(raw_price)
+        except (TypeError, ValueError):
+            item["ema50"] = None
+            continue
+
+        if ema is None:
+            warmup.append(price)
+            if len(warmup) < period:
+                item["ema50"] = None
+                continue
+            ema = sum(warmup[-period:]) / period
+        else:
+            ema = (price - ema) * multiplier + ema
+
+        item["ema50"] = float(ema)
+
+    return series
+
+
 def _read_valuation_from_sqlite() -> dict[str, Any] | None:
     """Read all valuation history + stats from SQLite. Returns None if DB unavailable."""
     db = _VALUATION_SQLITE
@@ -204,10 +247,19 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
             conn.row_factory = sqlite3.Row
             columns = {row["name"] for row in conn.execute("PRAGMA table_info(valuation_history)").fetchall()}
             has_extended = {"open", "high", "low", "close", "accumulated_volume", "accumulated_value"}.issubset(columns)
+            has_ema50 = "ema50" in columns
             if has_extended:
+                select_cols = (
+                    "date, pe, pb, vnindex, open, high, low, close, volume, "
+                    "accumulated_volume, accumulated_value"
+                )
+                if has_ema50:
+                    select_cols = (
+                        "date, pe, pb, vnindex, open, high, low, close, ema50, volume, "
+                        "accumulated_volume, accumulated_value"
+                    )
                 rows = conn.execute(
-                    "SELECT date, pe, pb, vnindex, open, high, low, close, volume, accumulated_volume, accumulated_value "
-                    "FROM valuation_history ORDER BY date"
+                    f"SELECT {select_cols} FROM valuation_history ORDER BY date"
                 ).fetchall()
             else:
                 rows = conn.execute(
@@ -237,6 +289,8 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
                     item["high"] = r["high"]
                     item["low"] = r["low"]
                     item["close"] = r["close"]
+                    if "ema50" in r.keys():
+                        item["ema50"] = r["ema50"]
                     item["accumulated_volume"] = r["accumulated_volume"]
                     item["accumulated_value"] = r["accumulated_value"]
                 vnindex_series.append(item)
@@ -297,7 +351,7 @@ def fetch_vci_index_valuation_payload(
 
     pe_series = _apply_time_frame(pe_series, time_frame)
     pb_series = _apply_time_frame(pb_series, time_frame)
-    vnindex_series = _apply_time_frame(vnindex_series, time_frame)
+    vnindex_series = _apply_time_frame(_attach_ema50(vnindex_series), time_frame)
 
     return {
         "success": True,

@@ -8,7 +8,7 @@ Source endpoints:
 
 Schema:
   valuation_history(date TEXT PK, pe REAL, pb REAL, vnindex REAL, open REAL, high REAL,
-                    low REAL, close REAL, volume REAL, accumulated_volume REAL,
+                    low REAL, close REAL, ema50 REAL, volume REAL, accumulated_volume REAL,
                     accumulated_value REAL, updated_at TEXT)
 """
 from __future__ import annotations
@@ -141,6 +141,41 @@ def fetch_vnindex_ohlc(count_back: int = 6000) -> list[dict[str, Any]]:
     return out
 
 
+def attach_ema50(rows: list[dict[str, Any]], period: int = 50) -> None:
+    """Mutates rows in-place and adds ema50 based on close/vnindex series."""
+    if not rows:
+        return
+
+    multiplier = 2 / (period + 1)
+    ema: float | None = None
+    warmup: list[float] = []
+
+    for row in rows:
+        price_raw = row.get("close")
+        if price_raw is None:
+            price_raw = row.get("vnindex")
+        if price_raw is None:
+            row["ema50"] = None
+            continue
+
+        try:
+            price = float(price_raw)
+        except (TypeError, ValueError):
+            row["ema50"] = None
+            continue
+
+        if ema is None:
+            warmup.append(price)
+            if len(warmup) < period:
+                row["ema50"] = None
+                continue
+            ema = sum(warmup[-period:]) / period
+        else:
+            ema = (price - ema) * multiplier + ema
+
+        row["ema50"] = float(ema)
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS valuation_history (
@@ -152,6 +187,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             high       REAL,
             low        REAL,
             close      REAL,
+            ema50      REAL,
             volume     REAL,
             accumulated_volume REAL,
             accumulated_value  REAL,
@@ -184,6 +220,8 @@ def init_db(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE valuation_history ADD COLUMN low REAL")
     if "close" not in existing_columns:
         conn.execute("ALTER TABLE valuation_history ADD COLUMN close REAL")
+    if "ema50" not in existing_columns:
+        conn.execute("ALTER TABLE valuation_history ADD COLUMN ema50 REAL")
     if "accumulated_volume" not in existing_columns:
         conn.execute("ALTER TABLE valuation_history ADD COLUMN accumulated_volume REAL")
     if "accumulated_value" not in existing_columns:
@@ -225,10 +263,10 @@ def upsert(conn: sqlite3.Connection, rows: list[dict]) -> None:
     conn.executemany(
         """
         INSERT INTO valuation_history (
-            date, pe, pb, vnindex, open, high, low, close, volume, accumulated_volume, accumulated_value, updated_at
+            date, pe, pb, vnindex, open, high, low, close, ema50, volume, accumulated_volume, accumulated_value, updated_at
         )
         VALUES (
-            :date, :pe, :pb, :vnindex, :open, :high, :low, :close, :volume, :accumulated_volume, :accumulated_value, :now
+            :date, :pe, :pb, :vnindex, :open, :high, :low, :close, :ema50, :volume, :accumulated_volume, :accumulated_value, :now
         )
         ON CONFLICT(date) DO UPDATE SET
             pe         = COALESCE(excluded.pe,      valuation_history.pe),
@@ -238,6 +276,7 @@ def upsert(conn: sqlite3.Connection, rows: list[dict]) -> None:
             high       = COALESCE(excluded.high,     valuation_history.high),
             low        = COALESCE(excluded.low,      valuation_history.low),
             close      = COALESCE(excluded.close,    valuation_history.close),
+            ema50      = COALESCE(excluded.ema50,    valuation_history.ema50),
             volume     = COALESCE(excluded.volume,   valuation_history.volume),
             accumulated_volume = COALESCE(excluded.accumulated_volume, valuation_history.accumulated_volume),
             accumulated_value  = COALESCE(excluded.accumulated_value,  valuation_history.accumulated_value),
@@ -253,6 +292,7 @@ def upsert(conn: sqlite3.Connection, rows: list[dict]) -> None:
                 "high": r.get("high"),
                 "low": r.get("low"),
                 "close": r.get("close"),
+                "ema50": r.get("ema50"),
                 "volume": r.get("volume"),
                 "accumulated_volume": r.get("accumulated_volume"),
                 "accumulated_value": r.get("accumulated_value"),
@@ -308,6 +348,7 @@ def main() -> None:
             row["accumulated_value"] = item["accumulated_value"]
 
     rows = [{"date": d, **v} for d, v in sorted(by_date.items())]
+    attach_ema50(rows, period=50)
     print(f"[{ts()}] Merged: {len(rows)} rows total")
 
     conn = sqlite3.connect(args.db)
