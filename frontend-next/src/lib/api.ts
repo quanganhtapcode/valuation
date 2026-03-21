@@ -647,59 +647,28 @@ export async function fetchEma50Breadth(days = 260): Promise<EmaBreadthPoint[]> 
 }
 
 function parsePEChartPayload(response: any): PEChartData[] {
-    // VCI payload (new):
-    // { series: { pe:[{date,value}], pb:[{date,value}] } }
-    const vciSeries = response?.series;
-    if (vciSeries && (Array.isArray(vciSeries.pe) || Array.isArray(vciSeries.pb))) {
-        const byDate = new Map<string, { pe: number | null; pb: number | null; vnindex: number | null }>();
-
-        const appendSeries = (items: any[], key: 'pe' | 'pb' | 'vnindex') => {
-            for (const item of items || []) {
-                const dateStr = String(item?.date || '').trim();
-                const rawValue = item?.value;
-                if (!dateStr || rawValue == null) continue;
-                const value = Number(rawValue);
-                if (!Number.isFinite(value)) continue;
-                const prev = byDate.get(dateStr) || { pe: null, pb: null, vnindex: null, ema50: null, volume: null };
-                prev[key] = value;
-                if (key === 'vnindex') {
-                    if (item.volume != null) {
-                        (prev as any).volume = Number(item.volume) || null;
-                    }
-                    if (item.ema50 != null) {
-                        (prev as any).ema50 = Number(item.ema50) || null;
-                    }
-                }
-                byDate.set(dateStr, prev);
-            }
-        };
-
-        appendSeries(vciSeries.pe || [], 'pe');
-        appendSeries(vciSeries.pb || [], 'pb');
-        appendSeries(vciSeries.vnindex || [], 'vnindex');
-
-        return Array.from(byDate.entries())
-            .map(([dateStr, ratios]: [string, any]) => {
-                const date = parseDateInput(dateStr);
-                return date
-                    ? {
-                        date,
-                        pe: ratios.pe,
-                        pb: ratios.pb,
-                        vnindex: ratios.vnindex,
-                        ema50: ratios.ema50 ?? null,
-                        volume: ratios.volume ?? null,
-                    }
-                    : null;
+    // New unified format: { data: [{date, vnindex, ema50, pe, pb, volume}] }
+    if (Array.isArray(response?.data) && response.data.length > 0) {
+        return response.data
+            .map((item: any) => {
+                const date = parseDateInput(item?.date);
+                if (!date) return null;
+                return {
+                    date,
+                    vnindex: item.vnindex != null ? Number(item.vnindex) : null,
+                    ema50:   item.ema50   != null ? Number(item.ema50)   : null,
+                    pe:      item.pe      != null ? Number(item.pe)      : null,
+                    pb:      item.pb      != null ? Number(item.pb)      : null,
+                    volume:  item.volume  != null ? Number(item.volume)  : null,
+                } as PEChartData;
             })
-            .filter((row): row is PEChartData => row !== null)
-            .sort((a, b) => a.date.getTime() - b.date.getTime());
+            .filter((row: PEChartData | null): row is PEChartData => row !== null);
     }
 
+    // Legacy CafeF fallback
     if (!response?.Data?.DataChart || !Array.isArray(response.Data.DataChart)) {
         return [];
     }
-
     const data = response.Data.DataChart.map((p: { TimeStamp: number; Index: number; Pe: number }) => ({
         date: new Date(p.TimeStamp * 1000),
         vnindex: p.Index,
@@ -707,14 +676,11 @@ function parsePEChartPayload(response: any): PEChartData[] {
         pb: null,
         ema50: null,
         volume: null,
-    })).reverse();
-
-    if (data.length > 1 && data[0].date > data[1].date) {
-        data.reverse();
-    }
-
+    }));
+    if (data.length > 1 && data[0].date > data[1].date) data.reverse();
     return data;
 }
+
 
 export async function fetchOverviewRefresh(options?: {
     symbols?: string[];
