@@ -14,7 +14,6 @@ const navigation = {
         { name: "GitHub", href: "https://github.com/quanganhtapcode", external: true },
     ],
     company: [
-        { name: "About", href: "/about", external: false },
         { name: "Contact", href: "/contact", external: false },
     ],
     legal: [

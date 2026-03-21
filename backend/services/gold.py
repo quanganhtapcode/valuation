@@ -24,12 +24,14 @@ _QA_TYPE_MAP = {
     'vàng miếng sjc':          'Vàng SJC (Miếng)',
     'nhẫn tròn phú quý 999.9': 'Nhẫn Vàng 9999',
     'phú quý 1 lượng 999.9':   'Vàng PQ 9999 (Miếng)',
+    'bạc thỏi phú quý 999':    'Bạc Thỏi Phú Quý 999',
 }
 
 _QA_SORT = [
     'vàng miếng sjc',
     'nhẫn tròn phú quý 999.9',
     'phú quý 1 lượng 999.9',
+    'bạc thỏi phú quý 999',
 ]
 
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react'; // useCallback used by MarketList
 import {
     Card,
 } from '@tremor/react';
@@ -11,8 +11,6 @@ import { siteConfig } from '@/app/siteConfig';
 interface MarketPulseProps {
     gainers: TopMoverItem[];
     losers: TopMoverItem[];
-    foreignBuys: TopMoverItem[];
-    foreignSells: TopMoverItem[];
     isLoading?: boolean;
 }
 
@@ -53,61 +51,27 @@ function TrendIcon({ direction, alt }: { direction: Direction; alt: string }) {
 export default function MarketPulse({
     gainers,
     losers,
-    foreignBuys,
-    foreignSells,
     isLoading
 }: MarketPulseProps) {
-    const [categoryIndex, setCategoryIndex] = useState(0); // 0: Movers, 1: Foreign
-
-    const handleCategoryChange = useCallback((nextIndex: 0 | 1) => {
-        setCategoryIndex((prev) => (prev === nextIndex ? prev : nextIndex));
-    }, []);
-
     return (
         <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-xl">
-            {/* Header Tabs */}
+            {/* Header */}
             <div className="flex border-b border-gray-100 dark:border-gray-800">
-                <button
-                    onClick={() => handleCategoryChange(0)}
-                    className={`flex-1 py-3 text-sm font-medium transition-colors ${categoryIndex === 0
-                        ? 'text-tremor-brand border-b-2 border-tremor-brand'
-                        : 'text-tremor-content-emphasis hover:text-tremor-content-strong border-transparent hover:border-tremor-content-subtle'
-                        } border-b-2`}
-                >
+                <div className="flex-1 py-3 text-sm font-medium text-center text-tremor-brand border-b-2 border-tremor-brand">
                     Top Movers
-                </button>
-                <button
-                    onClick={() => handleCategoryChange(1)}
-                    className={`flex-1 py-3 text-sm font-medium transition-colors ${categoryIndex === 1
-                        ? 'text-tremor-brand border-b-2 border-tremor-brand'
-                        : 'text-tremor-content-emphasis hover:text-tremor-content-strong border-transparent hover:border-tremor-content-subtle'
-                        } border-b-2`}
-                >
-                    Foreign Flow
-                </button>
+                </div>
             </div>
 
             {/* Content Area */}
             <div className="p-0">
-                {categoryIndex === 0 ? (
-                    <MarketList
-                        items1={gainers}
-                        items2={losers}
-                        label1="Gainers"
-                        label2="Losers"
-                        type="movers"
-                        isLoading={isLoading}
-                    />
-                ) : (
-                    <MarketList
-                        items1={foreignBuys}
-                        items2={foreignSells}
-                        label1="Net Buy"
-                        label2="Net Sell"
-                        type="foreign"
-                        isLoading={isLoading}
-                    />
-                )}
+                <MarketList
+                    items1={gainers}
+                    items2={losers}
+                    label1="Gainers"
+                    label2="Losers"
+                    type="movers"
+                    isLoading={isLoading}
+                />
             </div>
         </Card>
     );

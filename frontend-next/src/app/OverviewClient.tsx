@@ -371,9 +371,7 @@ export default function OverviewClient({
                     <MarketPulse
                         gainers={gainers}
                         losers={losers}
-                        foreignBuys={foreignBuys}
-                        foreignSells={foreignSells}
-                        isLoading={moversLoading || foreignLoading}
+                        isLoading={moversLoading}
                     />
 
                     {/* Crypto Prices (OKX WebSocket) */}
