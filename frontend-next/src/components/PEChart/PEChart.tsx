@@ -18,7 +18,7 @@ import { cx } from '@/lib/utils';
 import styles from './PEChart.module.css';
 
 type TimeRange = '6m' | 'ytd' | '1y' | '2y' | '5y' | 'all';
-type ActiveChart = 'vnindex' | 'ema50breadth' | 'pe' | 'pb';
+type ActiveChart = 'vnindex' | 'candle' | 'ema50breadth' | 'pe' | 'pb';
 
 const TIME_RANGES: { key: TimeRange; label: string }[] = [
     { key: '6m',  label: '6M'  },
@@ -31,6 +31,7 @@ const TIME_RANGES: { key: TimeRange; label: string }[] = [
 
 const CHART_TABS: { key: ActiveChart; label: string }[] = [
     { key: 'vnindex', label: 'VN-Index' },
+    { key: 'candle',  label: 'Candlestick' },
     { key: 'ema50breadth',   label: 'EMA50 Breadth'    },
     { key: 'pe',      label: 'P/E TTM'  },
     { key: 'pb',      label: 'P/B TTM'  },
@@ -128,6 +129,40 @@ const RatioTooltip = ({ active, payload, stats, label: _label }: any) => {
                 </div>
             )}
             <p className="mt-1 text-tremor-content dark:text-dark-tremor-content">{zone}</p>
+        </div>
+    );
+};
+
+// ── Candlestick shapes ────────────────────────────────────────────────────────
+
+const CandleBody = (props: any) => {
+    const { x, y, width, height, payload } = props;
+    if (!height || height <= 0) return null;
+    const fill = payload?.isGreen ? '#22c55e' : '#ef4444';
+    const bw = Math.max(3, width - 2);
+    return <rect x={x + (width - bw) / 2} y={y} width={bw} height={height} fill={fill} />;
+};
+
+const CandleWick = (props: any) => {
+    const { x, y, width, height } = props;
+    if (!height || height <= 0) return null;
+    return <rect x={x + width / 2 - 0.75} y={y} width={1.5} height={height} fill="#94a3b8" />;
+};
+
+const CandleTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0]?.payload;
+    const isGreen = d?.isGreen;
+    const color = isGreen ? '#22c55e' : '#ef4444';
+    const fmt = (v: number) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
+    return (
+        <div className="z-50 rounded-tremor-default border border-tremor-border bg-tremor-background p-3 shadow-tremor-dropdown dark:border-dark-tremor-border dark:bg-dark-tremor-background text-xs">
+            <p className="mb-1.5 font-medium uppercase tracking-tight text-tremor-content dark:text-dark-tremor-content">{d?.fullDate}</p>
+            <div className="flex justify-between gap-6"><span style={{ color }} className="font-medium">Open</span><span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d?.openVal)}</span></div>
+            <div className="flex justify-between gap-6 mt-0.5"><span className="text-red-400 font-medium">High</span><span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d?.highVal)}</span></div>
+            <div className="flex justify-between gap-6 mt-0.5"><span className="text-blue-400 font-medium">Low</span><span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d?.lowVal)}</span></div>
+            <div className="flex justify-between gap-6 mt-0.5"><span style={{ color }} className="font-medium">Close</span><span className="font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d?.closeVal)}</span></div>
+            {d?.ema50Val != null && <div className="flex justify-between gap-6 mt-1"><span className="text-blue-500 font-medium">EMA50</span><span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d.ema50Val)}</span></div>}
         </div>
     );
 };
@@ -295,6 +330,35 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         }));
     }, [series, timeRange, activeChart, maxPoints]);
 
+    // Candlestick chart data — stacked segments: lowerWick / body / upperWick on top of invisible base
+    const candleData = useMemo(() => {
+        const cutoff = getCutoffDate(timeRange);
+        const maxCandles = (timeRange === 'all' || timeRange === '5y') ? 300 : 200;
+        let filtered = series.filter(d => d.open != null && d.high != null && d.low != null && d.vnindex != null);
+        if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
+        return sampleData(filtered, maxCandles).map(d => {
+            const o = d.open!;
+            const h = d.high!;
+            const l = d.low!;
+            const c = d.vnindex!;
+            const isGreen = c >= o;
+            const bodyBot = Math.min(o, c);
+            const bodyTop = Math.max(o, c);
+            return {
+                date: formatDateLabel(d.date, timeRange),
+                fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
+                invisible: l,
+                lowerWick: bodyBot - l,
+                body: Math.max(bodyTop - bodyBot, 0.5),
+                upperWick: h - bodyTop,
+                ema50Val: d.ema50 ?? null,
+                openVal: o, highVal: h, lowVal: l, closeVal: c,
+                isGreen,
+            };
+        });
+    }, [series, timeRange]);
+
+
     const breadthChartData = useMemo(() => {
         const cutoff = getCutoffDate(timeRange);
         const vnByDate = new Map<string, number>();
@@ -410,7 +474,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             ) : activeChart === 'vnindex' ? (
                 /* VN-Index: price line + volume bars */
                 vnData.length === 0 ? <div className={styles.noData}>No data</div> : (
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer width="100%" height={400}>
                         <ComposedChart data={vnData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} strokeOpacity={0.5} />
                             <XAxis
@@ -446,13 +510,46 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                         </ComposedChart>
                     </ResponsiveContainer>
                 )
+            ) : activeChart === 'candle' ? (
+                /* Candlestick chart */
+                candleData.length === 0 ? <div className={styles.noData}>No data</div> : (
+                    <ResponsiveContainer width="100%" height={400}>
+                        <ComposedChart data={candleData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} strokeOpacity={0.5} />
+                            <XAxis
+                                dataKey="date"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                                interval={tickInterval(candleData) - 1}
+                                height={24}
+                            />
+                            <YAxis
+                                yAxisId="price"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                                width={55}
+                                domain={['auto', 'auto']}
+                                tickFormatter={v => v.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            />
+                            <Tooltip content={<CandleTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }} />
+                            {/* Stacked: invisible base → lower wick → body → upper wick */}
+                            <Bar yAxisId="price" stackId="c" dataKey="invisible" fill="transparent" legendType="none" isAnimationActive={false} />
+                            <Bar yAxisId="price" stackId="c" dataKey="lowerWick" shape={<CandleWick />} legendType="none" isAnimationActive={false} />
+                            <Bar yAxisId="price" stackId="c" dataKey="body" shape={<CandleBody />} legendType="none" isAnimationActive={false} />
+                            <Bar yAxisId="price" stackId="c" dataKey="upperWick" shape={<CandleWick />} legendType="none" isAnimationActive={false} />
+                            <Line yAxisId="price" type="monotone" dataKey="ema50Val" stroke="#3b82f6" strokeWidth={1.5} dot={false} activeDot={false} name="EMA50" isAnimationActive={false} connectNulls />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                )
             ) : activeChart === 'ema50breadth' ? (
                 breadthLoading ? (
                     <div className={styles.loading}><div className={styles.loader} /><span>Loading EMA50 breadth...</span></div>
                 ) : breadthChartData.length === 0 ? (
                     <div className={styles.noData}>No data</div>
                 ) : (
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer width="100%" height={400}>
                         <ComposedChart data={breadthChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} strokeOpacity={0.5} />
                             <XAxis
@@ -515,7 +612,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                 /* PE / PB */
                 ratioData.length === 0 ? <div className={styles.noData}>No data</div> : (
                     <>
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer width="100%" height={400}>
                             <ComposedChart data={ratioData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} strokeOpacity={0.5} />
                                 <XAxis
