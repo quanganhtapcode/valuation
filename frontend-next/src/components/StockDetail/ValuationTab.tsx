@@ -50,6 +50,32 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         justified_ps: { id: 'justified_ps', name: 'P/S Comparables', desc: 'Price-to-Sales Valuation', enabled: true, weight: isBank ? 20 : 15, icon: RiShoppingCart2Line },
     });
 
+    const normalizeEnabledModelWeights = useCallback((prevModels: typeof models, valuations?: ValuationResult['valuations']) => {
+        const modelKeys = Object.keys(prevModels) as Array<keyof typeof prevModels>;
+        const nextModels = { ...prevModels };
+
+        modelKeys.forEach((key) => {
+            const current = prevModels[key];
+            const valuationValue = Number(valuations?.[key] ?? 0);
+            // Auto-disable models with non-positive valuation from weighted calculation.
+            if (valuationValue <= 0) {
+                nextModels[key] = { ...current, enabled: false, weight: 0 };
+            } else {
+                nextModels[key] = { ...current };
+            }
+        });
+
+        const enabledKeys = modelKeys.filter((key) => nextModels[key].enabled);
+        const equalWeight = enabledKeys.length > 0 ? 100 / enabledKeys.length : 0;
+
+        modelKeys.forEach((key) => {
+            const m = nextModels[key];
+            nextModels[key] = { ...m, weight: m.enabled ? equalWeight : 0 };
+        });
+
+        return nextModels;
+    }, []);
+
     // Sync to latest market price, unless user explicitly edited it
     useEffect(() => {
         if (currentPrice > 0 && !userEditedPrice) {
@@ -140,6 +166,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             const data = await calculateValuation(symbol, buildValuationPayload(false));
             if (data && data.success) {
                 setResult(data);
+                setModels(prev => normalizeEnabledModelWeights(prev, data.valuations));
             }
         } catch (error) {
             console.error('Valuation error:', error);
@@ -175,9 +202,11 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         Object.keys(models).forEach(key => {
             const m = models[key as keyof typeof models];
             if (m.enabled) {
-                const val = result.valuations[key] || 0;
-                totalVal += val * m.weight;
-                totalWeight += m.weight;
+                const val = Number(result.valuations[key] || 0);
+                if (val > 0) {
+                    totalVal += val * m.weight;
+                    totalWeight += m.weight;
+                }
             }
         });
 
@@ -199,9 +228,11 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         Object.keys(models).forEach(key => {
             const m = models[key as keyof typeof models];
             if (m.enabled) {
-                const val = sc.valuations[key] || 0;
-                totalVal += val * m.weight;
-                totalWeight += m.weight;
+                const val = Number(sc.valuations[key] || 0);
+                if (val > 0) {
+                    totalVal += val * m.weight;
+                    totalWeight += m.weight;
+                }
             }
         });
         return totalWeight > 0 ? totalVal / totalWeight : 0;
