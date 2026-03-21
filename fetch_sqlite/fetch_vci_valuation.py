@@ -10,6 +10,8 @@ Schema:
   valuation_history(date TEXT PK, pe REAL, pb REAL, vnindex REAL, open REAL, high REAL,
                     low REAL, close REAL, ema50 REAL, volume REAL, accumulated_volume REAL,
                     accumulated_value REAL, updated_at TEXT)
+  ema_breadth_history(trading_date TEXT PK, above_count INTEGER, total_count INTEGER,
+                     above_percent REAL, updated_at TEXT)
 """
 from __future__ import annotations
 
@@ -28,6 +30,7 @@ _VALUATION_URL = (
     "https://trading.vietcap.com.vn/api/iq-insight-service/v1/market-watch/index-valuation"
 )
 _OHLC_URL = "https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart"
+_BREADTH_URL = "https://iq.vietcap.com.vn/api/iq-insight-service/v1/market-watch/breadth"
 
 
 def _headers(content_type: str | None = None) -> dict[str, str]:
@@ -141,6 +144,40 @@ def fetch_vnindex_ohlc(count_back: int = 6000) -> list[dict[str, Any]]:
     return out
 
 
+def fetch_ema50_breadth() -> list[dict[str, Any]]:
+    result = _get_json(
+        _BREADTH_URL,
+        {
+            "condition": "EMA50",
+            "exchange": "HSX,HNX,UPCOM",
+            "enNumberOfDays": "Y1",
+        },
+    )
+    rows = (result or {}).get("data") or []
+    out: list[dict[str, Any]] = []
+    for item in rows:
+        date = str(item.get("tradingDate") or "").strip()
+        if not date:
+            continue
+        try:
+            above = int(float(item.get("count") or 0))
+            total = int(float(item.get("total") or 0))
+            percent = float(item.get("percent")) if item.get("percent") is not None else None
+        except (TypeError, ValueError):
+            continue
+        if total <= 0:
+            continue
+        out.append(
+            {
+                "trading_date": date,
+                "above_count": above,
+                "total_count": total,
+                "above_percent": percent,
+            }
+        )
+    return out
+
+
 def attach_ema50(rows: list[dict[str, Any]], period: int = 50) -> None:
     """Mutates rows in-place and adds ema50 based on close/vnindex series."""
     if not rows:
@@ -208,6 +245,13 @@ def init_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS meta (
             k TEXT PRIMARY KEY,
             v TEXT
+        );
+        CREATE TABLE IF NOT EXISTS ema_breadth_history (
+            trading_date TEXT PRIMARY KEY,
+            above_count  INTEGER,
+            total_count  INTEGER,
+            above_percent REAL,
+            updated_at   TEXT
         );
     """)
     # Migration-safe: add new columns when DB already exists.
@@ -304,6 +348,29 @@ def upsert(conn: sqlite3.Connection, rows: list[dict]) -> None:
     conn.commit()
 
 
+def upsert_ema_breadth(conn: sqlite3.Connection, rows: list[dict]) -> None:
+    if not rows:
+        return
+    now = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    conn.executemany(
+        """
+        INSERT INTO ema_breadth_history (
+            trading_date, above_count, total_count, above_percent, updated_at
+        )
+        VALUES (
+            :trading_date, :above_count, :total_count, :above_percent, :now
+        )
+        ON CONFLICT(trading_date) DO UPDATE SET
+            above_count  = excluded.above_count,
+            total_count  = excluded.total_count,
+            above_percent = excluded.above_percent,
+            updated_at   = excluded.updated_at
+        """,
+        [{**r, "now": now} for r in rows],
+    )
+    conn.commit()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch VCI valuation data into SQLite")
     parser.add_argument("--db", default="fetch_sqlite/vci_valuation.sqlite")
@@ -326,6 +393,12 @@ def main() -> None:
     print(f"[{ts()}] Fetching VNINDEX OHLC from VCI...")
     vnindex_series = fetch_vnindex_ohlc()
     print(f"         {len(vnindex_series)} rows")
+
+    time.sleep(1)
+
+    print(f"[{ts()}] Fetching EMA50 market breadth from VCI...")
+    breadth_series = fetch_ema50_breadth()
+    print(f"         {len(breadth_series)} rows")
 
     # Merge all series by date
     by_date: dict[str, dict] = {}
@@ -354,6 +427,7 @@ def main() -> None:
     conn = sqlite3.connect(args.db)
     init_db(conn)
     upsert(conn, rows)
+    upsert_ema_breadth(conn, breadth_series)
     upsert_stats(conn, "pe", pe_stats)
     upsert_stats(conn, "pb", pb_stats)
     conn.execute(

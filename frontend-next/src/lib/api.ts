@@ -20,6 +20,7 @@ export const IDLE_REFRESH_INTERVAL_MS = 60000;
 export const API = {
     // Market Data
     PE_CHART: `${API_BASE}/market/pe-chart`,
+    EMA50_BREADTH: `${API_BASE}/market/ema50-breadth`,
     VCI_INDICES: `${API_BASE}/market/vci-indices`,
     NEWS: `${API_BASE}/market/news`,
     TOP_MOVERS: `${API_BASE}/market/top-movers`,
@@ -208,6 +209,14 @@ export interface PEChartData {
 export interface PEChartResult {
     series: PEChartData[];
     stats: { pe?: ValuationStats; pb?: ValuationStats };
+}
+
+export interface EmaBreadthPoint {
+    date: Date;
+    aboveEma50: number;
+    belowEma50: number;
+    total: number;
+    abovePercent: number;
 }
 
 export interface WatchlistPriceSnapshot {
@@ -611,6 +620,30 @@ export async function fetchPEChartByRange(
     const series = parsePEChartPayload(response);
     const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
     return { series, stats };
+}
+
+export async function fetchEma50Breadth(days = 260): Promise<EmaBreadthPoint[]> {
+    const response = await fetchAPI<any>(`${API.EMA50_BREADTH}?days=${days}`);
+    const rows = Array.isArray(response?.data) ? response.data : [];
+    return rows
+        .map((row: any) => {
+            const d = parseDateInput(row?.date);
+            if (!d) return null;
+            const above = Number(row?.aboveEma50);
+            const below = Number(row?.belowEma50);
+            const total = Number(row?.total);
+            const pct = Number(row?.abovePercent);
+            if (![above, below, total, pct].every(Number.isFinite)) return null;
+            return {
+                date: d,
+                aboveEma50: above,
+                belowEma50: below,
+                total,
+                abovePercent: pct,
+            } as EmaBreadthPoint;
+        })
+        .filter((row: EmaBreadthPoint | null): row is EmaBreadthPoint => row !== null)
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 function parsePEChartPayload(response: any): PEChartData[] {
