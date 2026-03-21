@@ -44,7 +44,7 @@ function fmtMillionVi(val: number) {
 
 function StockDot({ symbol }: { symbol: string }) {
     return (
-        <div className="w-6 h-6 rounded bg-neutral-800 border border-neutral-700 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="w-6 h-6 rounded bg-white border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden shrink-0">
             <img
                 src={siteConfig.stockLogoUrl(symbol)}
                 alt={symbol}
