@@ -21,6 +21,7 @@ export const API = {
     // Market Data
     PE_CHART: `${API_BASE}/market/pe-chart`,
     EMA50_BREADTH: `${API_BASE}/market/ema50-breadth`,
+    SCREENER: `${API_BASE}/market/screener`,
     VCI_INDICES: `${API_BASE}/market/vci-indices`,
     NEWS: `${API_BASE}/market/news`,
     TOP_MOVERS: `${API_BASE}/market/top-movers`,
@@ -221,6 +222,82 @@ export interface EmaBreadthPoint {
     belowEma50: number;
     total: number;
     abovePercent: number;
+}
+
+export type ScreenerSortKey =
+    | 'ticker'
+    | 'price'
+    | 'market_cap'
+    | 'pe'
+    | 'pb'
+    | 'roe'
+    | 'net_margin'
+    | 'gross_margin'
+    | 'net_profit_growth'
+    | 'revenue_growth'
+    | 'daily_change'
+    | 'value'
+    | 'volume'
+    | 'exchange'
+    | 'sector';
+
+export interface ScreenerFilters {
+    q?: string;
+    exchange?: string;
+    sector?: string;
+    price_min?: number;
+    price_max?: number;
+    market_cap_min?: number;
+    market_cap_max?: number;
+    pe_min?: number;
+    pe_max?: number;
+    pb_min?: number;
+    pb_max?: number;
+    roe_min?: number;
+    roe_max?: number;
+    net_margin_min?: number;
+    net_margin_max?: number;
+    gross_margin_min?: number;
+    gross_margin_max?: number;
+    net_profit_growth_min?: number;
+    net_profit_growth_max?: number;
+    revenue_growth_min?: number;
+    revenue_growth_max?: number;
+    daily_change_min?: number;
+    daily_change_max?: number;
+    value_min?: number;
+    value_max?: number;
+    volume_min?: number;
+    volume_max?: number;
+}
+
+export interface ScreenerItem {
+    ticker: string;
+    name: string;
+    exchange: string | null;
+    sector: string | null;
+    marketPrice: number | null;
+    marketCap: number | null;
+    dailyPriceChangePercent: number | null;
+    ttmPe: number | null;
+    ttmPb: number | null;
+    ttmRoe: number | null;
+    netMargin: number | null;
+    grossMargin: number | null;
+    npatmiGrowthYoyQm1: number | null;
+    revenueGrowthYoy: number | null;
+    accumulatedValue: number | null;
+    accumulatedVolume: number | null;
+}
+
+export interface ScreenerResponse {
+    success: boolean;
+    items: ScreenerItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+    sortBy: ScreenerSortKey;
+    sortOrder: 'asc' | 'desc';
 }
 
 export interface WatchlistPriceSnapshot {
@@ -648,6 +725,28 @@ export async function fetchEma50Breadth(days = 260): Promise<EmaBreadthPoint[]> 
         })
         .filter((row: EmaBreadthPoint | null): row is EmaBreadthPoint => row !== null)
         .sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+export async function fetchScreener(params: {
+    page?: number;
+    pageSize?: number;
+    sortBy?: ScreenerSortKey;
+    sortOrder?: 'asc' | 'desc';
+    filters?: ScreenerFilters;
+}): Promise<ScreenerResponse> {
+    const query = new URLSearchParams();
+    query.set('page', String(params.page ?? 1));
+    query.set('page_size', String(params.pageSize ?? 50));
+    query.set('sort_by', String(params.sortBy ?? 'market_cap'));
+    query.set('sort_order', String(params.sortOrder ?? 'desc'));
+
+    const filters = params.filters || {};
+    for (const [k, v] of Object.entries(filters)) {
+        if (v === undefined || v === null || v === '') continue;
+        query.set(k, String(v));
+    }
+
+    return fetchAPI<ScreenerResponse>(`${API.SCREENER}?${query.toString()}`);
 }
 
 function parsePEChartPayload(response: any): PEChartData[] {
