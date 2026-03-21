@@ -22,6 +22,7 @@ _VCI_INDEX_VALUATION_URL = (
     "https://trading.vietcap.com.vn/api/iq-insight-service/v1/market-watch/index-valuation"
 )
 _VCI_OHLC_URL = "https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart"
+_VCI_BREADTH_URL = "https://iq.vietcap.com.vn/api/iq-insight-service/v1/market-watch/breadth"
 
 # SQLite written daily by fetch_sqlite/fetch_vci_valuation.py
 _VALUATION_SQLITE = (
@@ -311,6 +312,96 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
         return None
 
 
+def _read_ema_breadth_from_sqlite(limit: int = 260) -> list[dict[str, Any]]:
+    db = _VALUATION_SQLITE
+    if not db.exists():
+        return []
+
+    try:
+        with sqlite3.connect(str(db)) as conn:
+            conn.row_factory = sqlite3.Row
+            table_exists = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='ema_breadth_history'"
+            ).fetchone()
+            if not table_exists:
+                return []
+
+            rows = conn.execute(
+                "SELECT trading_date, above_count, total_count, above_percent "
+                "FROM ema_breadth_history ORDER BY trading_date DESC LIMIT ?",
+                (max(30, min(limit, 4000)),),
+            ).fetchall()
+
+        out: list[dict[str, Any]] = []
+        for row in reversed(rows):
+            above = int(row["above_count"] or 0)
+            total = int(row["total_count"] or 0)
+            below = max(0, total - above)
+            percent = float(row["above_percent"]) if row["above_percent"] is not None else (above / total if total > 0 else 0.0)
+            out.append(
+                {
+                    "date": row["trading_date"],
+                    "aboveEma50": above,
+                    "belowEma50": below,
+                    "total": total,
+                    "abovePercent": percent,
+                }
+            )
+        return out
+    except Exception as exc:
+        logger.warning("Failed to read EMA50 breadth SQLite: %s", exc)
+        return []
+
+
+def _read_ema_breadth_live(limit: int = 260) -> list[dict[str, Any]]:
+    try:
+        response = http_requests.get(
+            _VCI_BREADTH_URL,
+            timeout=20,
+            headers=VCI_HEADERS,
+            params={
+                "condition": "EMA50",
+                "exchange": "HSX,HNX,UPCOM",
+                "enNumberOfDays": "Y1",
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        rows = payload.get("data") if isinstance(payload, dict) else []
+        if not isinstance(rows, list):
+            return []
+
+        out: list[dict[str, Any]] = []
+        for item in rows:
+            try:
+                date_value = str(item.get("tradingDate") or "").strip()
+                if not date_value:
+                    continue
+                above = int(float(item.get("count") or 0))
+                total = int(float(item.get("total") or 0))
+                if total <= 0:
+                    continue
+                percent_raw = item.get("percent")
+                percent = float(percent_raw) if percent_raw is not None else (above / total)
+                out.append(
+                    {
+                        "date": date_value,
+                        "aboveEma50": above,
+                        "belowEma50": max(0, total - above),
+                        "total": total,
+                        "abovePercent": percent,
+                    }
+                )
+            except Exception:
+                continue
+
+        out.sort(key=lambda x: x.get("date") or "")
+        return out[-max(30, min(limit, 4000)):]
+    except Exception as exc:
+        logger.warning("Failed to read EMA50 breadth live: %s", exc)
+        return []
+
+
 def fetch_vci_index_valuation_payload(
     *,
     metric: str = "both",
@@ -391,3 +482,39 @@ def register(market_bp: Blueprint) -> None:
         except Exception as e:
             logger.error(f"Index valuation proxy error: {e}")
             return jsonify({"error": str(e)}), 500
+
+    @market_bp.route('/ema50-breadth')
+    def api_market_ema50_breadth():
+        try:
+            days = int(request.args.get("days", "260"))
+        except Exception:
+            days = 260
+        days = max(30, min(days, 4000))
+
+        cache_key = f"ema50_breadth_{days}"
+
+        def fetch_breadth():
+            series = _read_ema_breadth_from_sqlite(limit=days)
+            source = "SQLite"
+            if not series:
+                series = _read_ema_breadth_live(limit=days)
+                source = "VCI-live"
+            if not series:
+                return {"success": False, "data": []}
+            latest = series[-1]
+            return {
+                "success": True,
+                "source": source,
+                "condition": "EMA50",
+                "data": series,
+                "latest": latest,
+            }
+
+        try:
+            data, is_cached = cache_func()(cache_key, cache_ttl().get("pe_chart", 3600), fetch_breadth)
+            resp = jsonify(data)
+            resp.headers["X-Cache"] = "HIT" if is_cached else "MISS"
+            return resp
+        except Exception as exc:
+            logger.error("EMA50 breadth error: %s", exc)
+            return jsonify({"success": False, "data": []}), 500

@@ -145,10 +145,22 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const [timeRange, setTimeRange] = useState<TimeRange>('6m');
     const [activeChart, setActiveChart] = useState<ActiveChart>('vnindex');
     const [isLoading, setIsLoading] = useState(initialData.length === 0);
-    const [breadthData, setBreadthData] = useState<Array<{ date: string; fullDate: string; above: number; below: number; percent: number }>>([]);
+    const [breadthData, setBreadthData] = useState<Array<{ date: Date; above: number; below: number; percent: number }>>([]);
     const [breadthLoading, setBreadthLoading] = useState(false);
     const cacheRef = useRef<Partial<Record<TimeRange, PEChartResult>>>({});
+    const breadthCacheRef = useRef<Partial<Record<TimeRange, Array<{ date: Date; above: number; below: number; percent: number }>>>>({});
     const abortRef = useRef<AbortController | null>(null);
+
+    const rangeToBreadthDays = (range: TimeRange): number => {
+        switch (range) {
+            case '6m': return 190;
+            case 'ytd': return 380;
+            case '1y': return 380;
+            case '2y': return 760;
+            case '5y': return 1900;
+            case 'all': return 4000;
+        }
+    };
 
     const rangeToApiTimeFrame = (range: TimeRange): '6M' | 'YTD' | '1Y' | '2Y' | '5Y' | 'ALL' => {
         switch (range) {
@@ -214,22 +226,29 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
 
     useEffect(() => {
         if (activeChart !== 'ema50breadth') return;
-        if (breadthData.length > 0) return;
+
+        const cached = breadthCacheRef.current[timeRange];
+        if (cached) {
+            setBreadthData(cached);
+            setBreadthLoading(false);
+            return;
+        }
+
         setBreadthLoading(true);
-        fetchEma50Breadth(260)
+        fetchEma50Breadth(rangeToBreadthDays(timeRange))
             .then((rows) => {
                 const mapped = rows.map((r) => ({
-                    date: formatDateLabel(r.date, '1y'),
-                    fullDate: r.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    date: r.date,
                     above: r.aboveEma50,
                     below: r.belowEma50,
                     percent: r.abovePercent,
                 }));
+                breadthCacheRef.current[timeRange] = mapped;
                 setBreadthData(mapped);
                 setBreadthLoading(false);
             })
             .catch(() => setBreadthLoading(false));
-    }, [activeChart, breadthData.length]);
+    }, [activeChart, timeRange]);
 
     const { series, stats } = result;
 
@@ -240,6 +259,13 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     }, [series]);
 
     const maxPoints = (timeRange === 'all' || timeRange === '5y') ? 400 : 600;
+
+    const dateKey = (d: Date): string => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
 
     // VN-Index chart data
     const vnData = useMemo(() => {
@@ -269,10 +295,42 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         }));
     }, [series, timeRange, activeChart, maxPoints]);
 
+    const breadthChartData = useMemo(() => {
+        const cutoff = getCutoffDate(timeRange);
+        const vnByDate = new Map<string, number>();
+        for (const d of series) {
+            if (d.vnindex == null) continue;
+            vnByDate.set(dateKey(d.date), d.vnindex);
+        }
+
+        let filtered = breadthData;
+        if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
+
+        return sampleData(filtered, maxPoints)
+            .map((d) => {
+                const key = dateKey(d.date);
+                const vnindex = vnByDate.get(key) ?? null;
+                return {
+                    date: formatDateLabel(d.date, timeRange),
+                    fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    percent: d.percent,
+                    vnindex,
+                };
+            })
+            .filter(d => d.vnindex != null);
+    }, [breadthData, series, timeRange, maxPoints]);
+
     const activeStats: ValuationStats | undefined =
         activeChart === 'pe' ? stats.pe : activeChart === 'pb' ? stats.pb : undefined;
     const ratioColor = activeChart === 'pe' ? '#6366f1' : activeChart === 'pb' ? '#10b981' : '#3b82f6';
     const ratioName  = activeChart === 'pe' ? 'P/E TTM' : activeChart === 'pb' ? 'P/B TTM' : 'EMA50';
+    const stdColors = {
+        plusTwo: '#e11d48',
+        plusOne: '#f59e0b',
+        average: '#64748b',
+        minusOne: '#14b8a6',
+        minusTwo: '#0ea5e9',
+    };
 
     const ratioDomain = useMemo((): [number, number] | ['auto', 'auto'] => {
         if (!activeStats || ratioData.length === 0) return ['auto', 'auto'];
@@ -315,42 +373,36 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
 
     return (
         <section className={styles.section}>
-            {/* ── Single control row ── */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                {/* Left: chart type tabs */}
-                <div className="w-full sm:w-auto overflow-x-auto">
+            {/* ── Controls ── */}
+            <div className="mb-4 space-y-2">
+                {/* Top row: chart type tabs */}
+                <div className="w-full overflow-x-auto">
                     <div className="min-w-max flex gap-1 rounded-lg border border-tremor-border bg-tremor-background p-1 dark:border-dark-tremor-border dark:bg-gray-950">
                         {CHART_TABS.map(t => tabBtn(t.key, t.label))}
                     </div>
                 </div>
 
-                {/* Right: current values + time range */}
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Current values */}
-                    {currentStats.vnindex != null && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">VN-Index</span>
-                            <span className="text-sm font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.vnindex.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-                        </div>
-                    )}
-                    {currentStats.pe != null && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">P/E</span>
-                            <span className="text-sm font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.pe.toFixed(2)}</span>
-                        </div>
-                    )}
-                    {currentStats.pb != null && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">P/B</span>
-                            <span className="text-sm font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.pb.toFixed(2)}</span>
-                        </div>
-                    )}
-
-                    {/* Time range buttons */}
-                    <div className="w-full sm:w-auto overflow-x-auto">
-                        <div className="min-w-max flex rounded-tremor-small border border-tremor-border bg-tremor-background shadow-tremor-input dark:border-dark-tremor-border dark:bg-gray-950">
-                            {TIME_RANGES.map((item, idx) => rangeBtn(item.key, item.label, idx, TIME_RANGES.length))}
-                        </div>
+                {/* Bottom row: current values */}
+                <div className="flex flex-nowrap items-center gap-4 sm:gap-5 overflow-x-auto">
+                    <div className="flex flex-nowrap items-center gap-4 sm:gap-5 min-w-max">
+                        {currentStats.vnindex != null && (
+                            <div className="flex items-baseline gap-1.5 whitespace-nowrap leading-none">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">VN-Index</span>
+                                <span className="text-sm font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.vnindex.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                            </div>
+                        )}
+                        {currentStats.pe != null && (
+                            <div className="flex items-baseline gap-1.5 whitespace-nowrap leading-none">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">P/E</span>
+                                <span className="text-sm font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.pe.toFixed(2)}</span>
+                            </div>
+                        )}
+                        {currentStats.pb != null && (
+                            <div className="flex items-baseline gap-1.5 whitespace-nowrap leading-none">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">P/B</span>
+                                <span className="text-sm font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.pb.toFixed(2)}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -400,26 +452,27 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             ) : activeChart === 'ema50breadth' ? (
                 breadthLoading ? (
                     <div className={styles.loading}><div className={styles.loader} /><span>Loading EMA50 breadth...</span></div>
-                ) : breadthData.length === 0 ? (
+                ) : breadthChartData.length === 0 ? (
                     <div className={styles.noData}>No data</div>
                 ) : (
                     <ResponsiveContainer width="100%" height={300}>
-                        <ComposedChart data={breadthData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                        <ComposedChart data={breadthChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} strokeOpacity={0.5} />
                             <XAxis
                                 dataKey="date"
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fill: '#9ca3af', fontSize: 11 }}
-                                interval={tickInterval(breadthData) - 1}
+                                interval={tickInterval(breadthChartData) - 1}
                                 height={24}
                             />
                             <YAxis
-                                yAxisId="count"
+                                yAxisId="vn"
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fill: '#9ca3af', fontSize: 11 }}
-                                width={45}
+                                width={55}
+                                tickFormatter={(v) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                             />
                             <YAxis
                                 yAxisId="pct"
@@ -429,6 +482,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                 tick={{ fill: '#93c5fd', fontSize: 10 }}
                                 width={45}
                                 tickFormatter={(v) => `${Math.round(v * 100)}%`}
+                                domain={[0, 1]}
                             />
                             <Tooltip
                                 cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }}
@@ -439,23 +493,23 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                         <div className="z-50 rounded-tremor-default border border-tremor-border bg-tremor-background p-3 shadow-tremor-dropdown dark:border-dark-tremor-border dark:bg-dark-tremor-background text-xs">
                                             <p className="mb-1.5 font-medium uppercase tracking-tight text-tremor-content dark:text-dark-tremor-content">{d?.fullDate}</p>
                                             <div className="flex justify-between gap-6">
-                                                <span className="text-emerald-500 font-medium">Trên EMA50</span>
-                                                <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{d?.above}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-6 mt-1">
-                                                <span className="text-rose-500 font-medium">Dưới EMA50</span>
-                                                <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{d?.below}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-6 mt-1">
                                                 <span className="text-blue-500 font-medium">% Trên EMA50</span>
                                                 <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{(Number(d?.percent || 0) * 100).toFixed(1)}%</span>
+                                            </div>
+                                            <div className="flex justify-between gap-6 mt-1">
+                                                <span className="text-emerald-500 font-medium">VN-Index</span>
+                                                <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{Number(d?.vnindex).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
                                             </div>
                                         </div>
                                     );
                                 }}
                             />
-                            <Bar yAxisId="count" dataKey="above" stackId="a" fill="#10b981" isAnimationActive={false} name="Trên EMA50" />
-                            <Bar yAxisId="count" dataKey="below" stackId="a" fill="#f43f5e" isAnimationActive={false} name="Dưới EMA50" />
+
+                            <ReferenceLine yAxisId="pct" y={0.25} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity={0.6} />
+                            <ReferenceLine yAxisId="pct" y={0.5} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity={0.7} />
+                            <ReferenceLine yAxisId="pct" y={0.75} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity={0.6} />
+
+                            <Line yAxisId="vn" type="monotone" dataKey="vnindex" stroke="#22c55e" strokeWidth={1.8} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name="VN-Index" isAnimationActive={false} connectNulls />
                             <Line yAxisId="pct" type="monotone" dataKey="percent" stroke="#3b82f6" strokeWidth={1.8} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name="% Trên EMA50" isAnimationActive={false} />
                         </ComposedChart>
                     </ResponsiveContainer>
@@ -491,11 +545,11 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                 {activeStats && <ReferenceArea y1={activeStats.minusOneSD} y2={activeStats.plusOneSD} fill={ratioColor} fillOpacity={0.14} strokeOpacity={0} />}
 
                                 {/* Reference lines — each must be a direct child, no wrapping fragment */}
-                                {activeStats && <ReferenceLine y={activeStats.plusTwoSD}  stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `+2σ ${activeStats.plusTwoSD.toFixed(2)}`,  position: 'insideTopRight', fill: '#ef4444', fontSize: 10 }} />}
-                                {activeStats && <ReferenceLine y={activeStats.plusOneSD}  stroke="#f97316" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `+1σ ${activeStats.plusOneSD.toFixed(2)}`,  position: 'insideTopRight', fill: '#f97316', fontSize: 10 }} />}
-                                {activeStats && <ReferenceLine y={activeStats.average}    stroke="#9ca3af" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `avg ${activeStats.average.toFixed(2)}`,       position: 'insideTopRight', fill: '#9ca3af', fontSize: 10 }} />}
-                                {activeStats && <ReferenceLine y={activeStats.minusOneSD} stroke="#10b981" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−1σ ${activeStats.minusOneSD.toFixed(2)}`, position: 'insideTopRight', fill: '#10b981', fontSize: 10 }} />}
-                                {activeStats && <ReferenceLine y={activeStats.minusTwoSD} stroke="#3b82f6" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−2σ ${activeStats.minusTwoSD.toFixed(2)}`, position: 'insideTopRight', fill: '#3b82f6', fontSize: 10 }} />}
+                                {activeStats && <ReferenceLine y={activeStats.plusTwoSD}  stroke={stdColors.plusTwo} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `+2σ ${activeStats.plusTwoSD.toFixed(2)}`,  position: 'insideTopRight', fill: stdColors.plusTwo, fontSize: 10 }} />}
+                                {activeStats && <ReferenceLine y={activeStats.plusOneSD}  stroke={stdColors.plusOne} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `+1σ ${activeStats.plusOneSD.toFixed(2)}`,  position: 'insideTopRight', fill: stdColors.plusOne, fontSize: 10 }} />}
+                                {activeStats && <ReferenceLine y={activeStats.average}    stroke={stdColors.average} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `avg ${activeStats.average.toFixed(2)}`,       position: 'insideTopRight', fill: stdColors.average, fontSize: 10 }} />}
+                                {activeStats && <ReferenceLine y={activeStats.minusOneSD} stroke={stdColors.minusOne} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−1σ ${activeStats.minusOneSD.toFixed(2)}`, position: 'insideTopRight', fill: stdColors.minusOne, fontSize: 10 }} />}
+                                {activeStats && <ReferenceLine y={activeStats.minusTwoSD} stroke={stdColors.minusTwo} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−2σ ${activeStats.minusTwoSD.toFixed(2)}`, position: 'insideTopRight', fill: stdColors.minusTwo, fontSize: 10 }} />}
 
                                 <Line type="monotone" dataKey="value" stroke={ratioColor} strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name={ratioName} isAnimationActive={false} />
                             </ComposedChart>
@@ -504,16 +558,22 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                         {/* Legend row */}
                         {activeStats && (
                             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5 bg-red-500" style={{ opacity: 0.9 }} />+2σ {activeStats.plusTwoSD.toFixed(2)}</span>
-                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5 bg-orange-500" style={{ opacity: 0.9 }} />+1σ {activeStats.plusOneSD.toFixed(2)}</span>
-                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5 bg-gray-400" style={{ opacity: 0.9 }} />avg {activeStats.average.toFixed(2)}</span>
-                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5 bg-emerald-500" style={{ opacity: 0.9 }} />−1σ {activeStats.minusOneSD.toFixed(2)}</span>
-                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5 bg-blue-500" style={{ opacity: 0.9 }} />−2σ {activeStats.minusTwoSD.toFixed(2)}</span>
+                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.plusTwo, opacity: 0.9 }} />+2σ {activeStats.plusTwoSD.toFixed(2)}</span>
+                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.plusOne, opacity: 0.9 }} />+1σ {activeStats.plusOneSD.toFixed(2)}</span>
+                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.average, opacity: 0.9 }} />avg {activeStats.average.toFixed(2)}</span>
+                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.minusOne, opacity: 0.9 }} />−1σ {activeStats.minusOneSD.toFixed(2)}</span>
+                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.minusTwo, opacity: 0.9 }} />−2σ {activeStats.minusTwoSD.toFixed(2)}</span>
                             </div>
                         )}
                     </>
                 )
             )}
+
+            <div className="mt-3 w-full overflow-x-auto">
+                <div className="ml-auto min-w-max flex rounded-tremor-small border border-tremor-border bg-tremor-background shadow-tremor-input dark:border-dark-tremor-border dark:bg-gray-950">
+                    {TIME_RANGES.map((item, idx) => rangeBtn(item.key, item.label, idx, TIME_RANGES.length))}
+                </div>
+            </div>
         </section>
     );
 }

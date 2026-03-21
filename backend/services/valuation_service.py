@@ -269,6 +269,145 @@ def _load_eps_history_yearly(db_path: str, symbol: str, limit: int = 10) -> list
     return cleaned
 
 
+def _load_latest_net_income(db_path: str, symbol: str) -> tuple[float, str]:
+    symbol = symbol.upper()
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    query_specs = [
+        ('net_profit_parent_company', 'sqlite.income_statement.net_profit_parent_company'),
+        ('net_profit', 'sqlite.income_statement.net_profit'),
+        ('net_income', 'sqlite.income_statement.net_income'),
+        ('profit_after_tax', 'sqlite.income_statement.profit_after_tax'),
+    ]
+
+    for column_name, source in query_specs:
+        try:
+            row = cur.execute(
+                f"""
+                SELECT {column_name} AS net_income
+                FROM income_statement
+                WHERE symbol = ?
+                  AND {column_name} IS NOT NULL
+                ORDER BY year DESC,
+                         CASE WHEN quarter IS NULL THEN -1 ELSE quarter END DESC
+                LIMIT 1
+                """,
+                (symbol,),
+            ).fetchone()
+            val = _to_float(row['net_income']) if row and 'net_income' in row.keys() else 0.0
+            if val > 0:
+                conn.close()
+                return float(val), source
+        except Exception:
+            continue
+
+    conn.close()
+    return 0.0, 'missing'
+
+
+def _load_latest_financial_components(db_path: str, symbol: str) -> dict:
+    symbol = symbol.upper()
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    income_row = None
+    cashflow_row = None
+    try:
+        income_row = cur.execute(
+            """
+            SELECT year, quarter, net_profit_parent_company, net_profit, financial_expense
+            FROM income_statement
+            WHERE symbol = ?
+            ORDER BY year DESC,
+                     CASE WHEN quarter IS NULL THEN -1 ELSE quarter END DESC
+            LIMIT 1
+            """,
+            (symbol,),
+        ).fetchone()
+    except Exception:
+        income_row = None
+
+    try:
+        cashflow_row = cur.execute(
+            """
+            SELECT year, quarter,
+                   depreciation_fixed_assets,
+                   increase_decrease_receivables,
+                   increase_decrease_inventory,
+                   increase_decrease_payables,
+                   purchase_purchase_fixed_assets,
+                   proceeds_from_disposal_fixed_assets,
+                   proceeds_from_borrowings,
+                   repayments_of_borrowings
+            FROM cash_flow_statement
+            WHERE symbol = ?
+            ORDER BY year DESC,
+                     CASE WHEN quarter IS NULL THEN -1 ELSE quarter END DESC
+            LIMIT 1
+            """,
+            (symbol,),
+        ).fetchone()
+    except Exception:
+        cashflow_row = None
+
+    conn.close()
+
+    net_income = 0.0
+    financial_expense = 0.0
+    depreciation = 0.0
+    delta_receivables = 0.0
+    delta_inventory = 0.0
+    delta_payables = 0.0
+    purchase_fixed_assets_raw = 0.0
+    proceeds_disposal_fixed_assets = 0.0
+    proceeds_borrowings = 0.0
+    repayments_borrowings = 0.0
+
+    if income_row:
+        net_income_parent = _to_float(income_row['net_profit_parent_company'])
+        net_income_total = _to_float(income_row['net_profit'])
+        net_income = net_income_parent if net_income_parent != 0 else net_income_total
+        financial_expense = _to_float(income_row['financial_expense'])
+
+    if cashflow_row:
+        depreciation = _to_float(cashflow_row['depreciation_fixed_assets'])
+        delta_receivables = _to_float(cashflow_row['increase_decrease_receivables'])
+        delta_inventory = _to_float(cashflow_row['increase_decrease_inventory'])
+        delta_payables = _to_float(cashflow_row['increase_decrease_payables'])
+        purchase_fixed_assets_raw = _to_float(cashflow_row['purchase_purchase_fixed_assets'])
+        proceeds_disposal_fixed_assets = _to_float(cashflow_row['proceeds_from_disposal_fixed_assets'])
+        proceeds_borrowings = _to_float(cashflow_row['proceeds_from_borrowings'])
+        repayments_borrowings = _to_float(cashflow_row['repayments_of_borrowings'])
+
+    delta_working_capital = delta_receivables + delta_inventory - delta_payables
+    capex_purchase_outflow = abs(purchase_fixed_assets_raw)
+    capex_net = max(0.0, capex_purchase_outflow - max(0.0, proceeds_disposal_fixed_assets))
+    net_borrowing = proceeds_borrowings + repayments_borrowings
+
+    return {
+        'net_income': float(net_income),
+        'period_year': int(income_row['year']) if income_row and income_row['year'] is not None else None,
+        'period_quarter': int(income_row['quarter']) if income_row and income_row['quarter'] is not None else None,
+        'financial_expense': float(financial_expense),
+        'depreciation': float(depreciation),
+        'delta_receivables': float(delta_receivables),
+        'delta_inventory': float(delta_inventory),
+        'delta_payables': float(delta_payables),
+        'delta_working_capital': float(delta_working_capital),
+        'purchase_fixed_assets_raw': float(purchase_fixed_assets_raw),
+        'proceeds_disposal_fixed_assets': float(proceeds_disposal_fixed_assets),
+        'capex_purchase_outflow': float(capex_purchase_outflow),
+        'capex_net': float(capex_net),
+        'proceeds_borrowings': float(proceeds_borrowings),
+        'repayments_borrowings': float(repayments_borrowings),
+        'net_borrowing': float(net_borrowing),
+        'source': 'sqlite.income_statement + sqlite.cash_flow_statement (latest period)',
+    }
+
+
 def _load_screening_peer_details(screening_db_path: str, icb_code_lv2: str, symbol: str) -> list[dict]:
     symbol = symbol.upper()
     icb_code_lv2 = str(icb_code_lv2)
@@ -495,8 +634,8 @@ def _dcf_per_share(
         'notes': [],
     }
 
-    if base_cashflow_per_share <= 0:
-        details['notes'].append('base_cashflow_per_share<=0 (cannot run DCF)')
+    if base_cashflow_per_share == 0:
+        details['notes'].append('base_cashflow_per_share==0 (cannot run DCF)')
         return 0.0, details
     if discount_rate <= 0:
         details['notes'].append('discount_rate<=0 (invalid)')
@@ -599,6 +738,8 @@ def _build_quality_score(inputs: dict, pe_count: int, pb_count: int, ps_count: i
 
 def _calc_scenario(
     name: str,
+    fcfe_base_per_share: float,
+    fcff_base_per_share: float,
     eps: float,
     bvps: float,
     rev_per_share: float,
@@ -616,14 +757,14 @@ def _calc_scenario(
     current_price: float,
 ) -> dict:
     fcfe_value, _ = _dcf_per_share(
-        base_cashflow_per_share=float(eps),
+        base_cashflow_per_share=float(fcfe_base_per_share),
         annual_growth=float(growth),
         discount_rate=float(required_return),
         terminal_growth_rate=float(terminal_growth),
         years=int(projection_years),
     )
     fcff_value, _ = _dcf_per_share(
-        base_cashflow_per_share=float(eps),
+        base_cashflow_per_share=float(fcff_base_per_share),
         annual_growth=float(growth),
         discount_rate=float(wacc),
         terminal_growth_rate=float(terminal_growth),
@@ -660,6 +801,8 @@ def _calc_scenario(
 
 
 def _build_default_scenarios(
+    fcfe_base_per_share: float,
+    fcff_base_per_share: float,
     eps: float,
     bvps: float,
     rev_per_share: float,
@@ -677,6 +820,8 @@ def _build_default_scenarios(
 ) -> dict:
     base = _calc_scenario(
         name='base',
+        fcfe_base_per_share=fcfe_base_per_share,
+        fcff_base_per_share=fcff_base_per_share,
         eps=eps,
         bvps=bvps,
         rev_per_share=rev_per_share,
@@ -696,6 +841,8 @@ def _build_default_scenarios(
 
     bull = _calc_scenario(
         name='bull',
+        fcfe_base_per_share=fcfe_base_per_share,
+        fcff_base_per_share=fcff_base_per_share,
         eps=eps,
         bvps=bvps,
         rev_per_share=rev_per_share,
@@ -715,6 +862,8 @@ def _build_default_scenarios(
 
     bear = _calc_scenario(
         name='bear',
+        fcfe_base_per_share=fcfe_base_per_share,
+        fcff_base_per_share=fcff_base_per_share,
         eps=eps,
         bvps=bvps,
         rev_per_share=rev_per_share,
@@ -881,6 +1030,11 @@ def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: f
     ps_company = _to_float(ratio_wide_row['ps']) if ratio_wide_row and ratio_wide_row['ps'] else 0.0
     market_cap_raw = _to_float(ratio_wide_row['market_cap']) if ratio_wide_row and ratio_wide_row['market_cap'] else 0.0
     outstanding_share = _to_float(ratio_wide_row['outstanding_share']) if ratio_wide_row and ratio_wide_row['outstanding_share'] else 0.0
+    net_income_ttm, net_income_source = _load_latest_net_income(db_path, symbol)
+    financial_components = _load_latest_financial_components(db_path, symbol)
+    if net_income_ttm <= 0 and eps > 0 and outstanding_share > 0:
+        net_income_ttm = float(eps * outstanding_share)
+        net_income_source = 'derived: eps_ttm * shares_outstanding'
     # Implied price per share from ratio_wide market_cap and shares
     implied_price_rw = (market_cap_raw / outstanding_share) if outstanding_share > 0 else 0.0
     eps_history_yearly = _load_eps_history_yearly(db_path, symbol, limit=10)
@@ -900,6 +1054,9 @@ def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: f
         'ps_company': float(ps_company),
         'implied_price_rw': float(implied_price_rw),
         'shares_outstanding': float(outstanding_share),
+        'net_income_ttm': float(net_income_ttm),
+        'net_income_source': net_income_source,
+        'cashflow_components': financial_components,
         'eps_history_yearly': eps_history_yearly,
         # VCI screening metrics (most current, updated every 5-15 min)
         'screening_pe': float(screening_pe),
@@ -930,6 +1087,9 @@ def calculate_valuation(db_path: str, symbol: str, request_data: dict) -> dict:
     current_price = float(inputs['current_price'])
     eps = float(inputs['eps_ttm'])
     bvps = float(inputs['bvps'])
+    shares_outstanding = float(inputs.get('shares_outstanding') or 0.0)
+    net_income_ttm = float(inputs.get('net_income_ttm') or 0.0)
+    fcfe_base_per_share = (net_income_ttm / shares_outstanding) if shares_outstanding > 0 else 0.0
 
     # Assumptions
     projection_years = int(_to_float(request_data.get('projectionYears'), 5))
@@ -938,6 +1098,7 @@ def calculate_valuation(db_path: str, symbol: str, request_data: dict) -> dict:
     terminal_growth = _to_float(request_data.get('terminalGrowth'), 3.0) / 100.0
     required_return = _to_float(request_data.get('requiredReturn'), 12.0) / 100.0
     wacc = _to_float(request_data.get('wacc'), 10.5) / 100.0
+    tax_rate = _to_float(request_data.get('taxRate'), 20.0) / 100.0
 
     # Industry comparables: VCI screening industry peers (cached) → valuation_datamart fallback.
     screening_db_path = resolve_vci_screening_db_path()
@@ -1104,15 +1265,33 @@ def calculate_valuation(db_path: str, symbol: str, request_data: dict) -> dict:
             if _to_float(p.get('ps')) > 0 and _to_float(p.get('ps')) <= 200
         ]
 
+    cashflow_components = inputs.get('cashflow_components') or {}
+    net_income_base = _to_float(cashflow_components.get('net_income'))
+    if net_income_base == 0:
+        net_income_base = net_income_ttm
+
+    depreciation_base = _to_float(cashflow_components.get('depreciation'))
+    delta_wc_base = _to_float(cashflow_components.get('delta_working_capital'))
+    capex_net_base = _to_float(cashflow_components.get('capex_net'))
+    net_borrowing_base = _to_float(cashflow_components.get('net_borrowing'))
+    interest_expense_base = abs(_to_float(cashflow_components.get('financial_expense')))
+    interest_after_tax_base = interest_expense_base * (1.0 - tax_rate)
+
+    fcfe_base_total = net_income_base + depreciation_base + net_borrowing_base - delta_wc_base - capex_net_base
+    fcff_base_total = net_income_base + depreciation_base + interest_after_tax_base - delta_wc_base - capex_net_base
+
+    fcfe_base_per_share = (fcfe_base_total / shares_outstanding) if shares_outstanding > 0 else 0.0
+    fcff_base_per_share = (fcff_base_total / shares_outstanding) if shares_outstanding > 0 else 0.0
+
     fcfe_value, fcfe_details = _dcf_per_share(
-        base_cashflow_per_share=float(eps),
+        base_cashflow_per_share=float(fcfe_base_per_share),
         annual_growth=float(growth),
         discount_rate=float(required_return),
         terminal_growth_rate=float(terminal_growth),
         years=int(projection_years),
     )
     fcff_value, fcff_details = _dcf_per_share(
-        base_cashflow_per_share=float(eps),
+        base_cashflow_per_share=float(fcff_base_per_share),
         annual_growth=float(growth),
         discount_rate=float(wacc),
         terminal_growth_rate=float(terminal_growth),
@@ -1144,6 +1323,8 @@ def calculate_valuation(db_path: str, symbol: str, request_data: dict) -> dict:
     valuations['weighted_average'] = float(weighted_avg)
 
     scenarios = _build_default_scenarios(
+        fcfe_base_per_share=float(fcfe_base_per_share),
+        fcff_base_per_share=float(fcff_base_per_share),
         eps=float(eps),
         bvps=float(bvps),
         rev_per_share=float(rev_per_share),
@@ -1235,9 +1416,16 @@ def calculate_valuation(db_path: str, symbol: str, request_data: dict) -> dict:
         },
         'calculation': {
             'dcf_fcfe': {
-                'cashflow_proxy': 'eps_ttm (per-share proxy)',
-                'eps_ttm': float(eps),
-                'eps_source': inputs['eps_source'],
+                'cashflow_proxy': 'FCFE = net_income + depreciation + net_borrowing - delta_working_capital - capex_net',
+                'net_income': float(net_income_base),
+                'net_income_source': inputs.get('net_income_source', 'missing'),
+                'shares_outstanding': float(shares_outstanding),
+                'depreciation': float(depreciation_base),
+                'net_borrowing': float(net_borrowing_base),
+                'delta_working_capital': float(delta_wc_base),
+                'capex_net': float(capex_net_base),
+                'base_cashflow_total': float(fcfe_base_total),
+                'base_cashflow_per_share': float(fcfe_base_per_share),
                 'inputs': {
                     'projection_years': int(projection_years),
                     'growth': float(growth),
@@ -1248,9 +1436,17 @@ def calculate_valuation(db_path: str, symbol: str, request_data: dict) -> dict:
                 'result': float(fcfe_value),
             },
             'dcf_fcff': {
-                'cashflow_proxy': 'eps_ttm (per-share proxy)',
-                'eps_ttm': float(eps),
-                'eps_source': inputs['eps_source'],
+                'cashflow_proxy': 'FCFF = net_income + depreciation + interest_after_tax - delta_working_capital - capex_net',
+                'net_income': float(net_income_base),
+                'net_income_source': inputs.get('net_income_source', 'missing'),
+                'depreciation': float(depreciation_base),
+                'interest_expense': float(interest_expense_base),
+                'interest_after_tax': float(interest_after_tax_base),
+                'tax_rate': float(tax_rate),
+                'delta_working_capital': float(delta_wc_base),
+                'capex_net': float(capex_net_base),
+                'base_cashflow_total': float(fcff_base_total),
+                'base_cashflow_per_share': float(fcff_base_per_share),
                 'inputs': {
                     'projection_years': int(projection_years),
                     'growth': float(growth),
@@ -1292,13 +1488,37 @@ def calculate_valuation(db_path: str, symbol: str, request_data: dict) -> dict:
             'bvps': inputs['bvps_source'],
             'current_price': inputs['current_price_source'],
             'shares_outstanding': 'sqlite.ratio_wide.outstanding_share',
+            'net_income_ttm': inputs.get('net_income_source', 'missing'),
+            'cashflow_components': (cashflow_components.get('source') or 'missing'),
         },
     }
+
+    fcfe_inputs_legacy = {
+        'netIncome': float(net_income_base),
+        'depreciation': float(depreciation_base),
+        'workingCapitalInvestment': float(delta_wc_base),
+        'fixedCapitalInvestment': float(capex_net_base),
+        'netBorrowing': float(net_borrowing_base),
+        'sharesOutstanding': float(shares_outstanding),
+    }
+    fcff_inputs_legacy = {
+        'netIncome': float(net_income_base),
+        'depreciation': float(depreciation_base),
+        'interestExpense': float(interest_expense_base),
+        'interestAfterTax': float(interest_after_tax_base),
+        'workingCapitalInvestment': float(delta_wc_base),
+        'fixedCapitalInvestment': float(capex_net_base),
+        'sharesOutstanding': float(shares_outstanding),
+    }
+    fcfe_details['inputs'] = fcfe_inputs_legacy
+    fcff_details['inputs'] = fcff_inputs_legacy
 
     return {
         'success': True,
         'symbol': inputs['symbol'],
         'valuations': valuations,
+        'fcfe_details': fcfe_details,
+        'fcff_details': fcff_details,
         'scenarios': scenarios,
         'quality': quality,
         'inputs': {
@@ -1314,7 +1534,11 @@ def calculate_valuation(db_path: str, symbol: str, request_data: dict) -> dict:
             'rev_per_share': float(rev_per_share),
             'industry_median_ps_used': float(ps_used),
             'industry_ps_sample_size': int(ps_sample_size),
-            'shares_outstanding': float(inputs.get('shares_outstanding', 0.0)),
+            'shares_outstanding': float(shares_outstanding),
+            'net_income_ttm': float(net_income_ttm),
+            'fcfe_base_per_share': float(fcfe_base_per_share),
+            'fcff_base_per_share': float(fcff_base_per_share),
+            'cashflow_components': cashflow_components,
             'eps_ttm_current': float(eps),
             'eps_history_yearly': inputs.get('eps_history_yearly', []),
         },
