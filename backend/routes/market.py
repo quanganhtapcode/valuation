@@ -12,6 +12,8 @@ import logging
 import time
 import sqlite3
 import os
+from datetime import date, datetime
+from pathlib import Path
 from backend.data_sources.vci import VCIClient
 from backend.db_path import resolve_vci_screening_db_path
 from backend.services.news_service import NewsService
@@ -99,6 +101,175 @@ _VCI_HEADERS = {
     'referer': 'https://trading.vietcap.com.vn/'
 }
 
+_VALUATION_SQLITE = Path(__file__).resolve().parents[2] / "fetch_sqlite" / "vci_valuation.sqlite"
+
+
+def _normalize_metric(metric: str | None) -> str:
+    value = str(metric or "both").strip().lower()
+    if value in {"pe", "pb", "both"}:
+        return value
+    return "both"
+
+
+def _apply_time_frame(
+    series: list[dict],
+    time_frame: str,
+) -> list[dict]:
+    frame = str(time_frame or "ALL").strip().upper()
+    if frame in {"", "ALL"}:
+        return series
+
+    today = date.today()
+    if frame == "YTD":
+        cutoff = date(today.year, 1, 1)
+    elif frame == "6M":
+        month = today.month - 6
+        year = today.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        cutoff = date(year, month, today.day if today.day <= 28 else 28)
+    elif frame == "1Y":
+        cutoff = date(today.year - 1, today.month, today.day if today.day <= 28 else 28)
+    elif frame == "2Y":
+        cutoff = date(today.year - 2, today.month, today.day if today.day <= 28 else 28)
+    elif frame == "5Y":
+        cutoff = date(today.year - 5, today.month, today.day if today.day <= 28 else 28)
+    else:
+        return series
+
+    out: list[dict] = []
+    for item in series:
+        date_str = str(item.get("date") or "").strip()
+        if not date_str:
+            continue
+        try:
+            d = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+        if d >= cutoff:
+            out.append(item)
+    return out
+
+
+def _attach_ema50(vnindex_series: list[dict], period: int = 50) -> list[dict]:
+    if not vnindex_series:
+        return vnindex_series
+
+    multiplier = 2 / (period + 1)
+    ema: float | None = None
+    warmup: list[float] = []
+
+    for item in vnindex_series:
+        if item.get("ema50") is not None:
+            try:
+                ema = float(item["ema50"])
+            except (TypeError, ValueError):
+                ema = None
+            continue
+
+        raw_price = item.get("close")
+        if raw_price is None:
+            raw_price = item.get("value")
+        if raw_price is None:
+            item["ema50"] = None
+            continue
+
+        try:
+            price = float(raw_price)
+        except (TypeError, ValueError):
+            item["ema50"] = None
+            continue
+
+        if ema is None:
+            warmup.append(price)
+            if len(warmup) < period:
+                item["ema50"] = None
+                continue
+            ema = sum(warmup[-period:]) / period
+        else:
+            ema = (price - ema) * multiplier + ema
+
+        item["ema50"] = float(ema)
+
+    return vnindex_series
+
+
+def _read_vci_valuation_sqlite() -> dict | None:
+    if not _VALUATION_SQLITE.exists():
+        return None
+    try:
+        with sqlite3.connect(str(_VALUATION_SQLITE)) as conn:
+            conn.row_factory = sqlite3.Row
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(valuation_history)").fetchall()}
+            has_extended = {"open", "high", "low", "close", "accumulated_volume", "accumulated_value"}.issubset(columns)
+            has_ema50 = "ema50" in columns
+            if has_extended:
+                select_cols = (
+                    "date, pe, pb, vnindex, open, high, low, close, volume, "
+                    "accumulated_volume, accumulated_value"
+                )
+                if has_ema50:
+                    select_cols = (
+                        "date, pe, pb, vnindex, open, high, low, close, ema50, volume, "
+                        "accumulated_volume, accumulated_value"
+                    )
+                rows = conn.execute(f"SELECT {select_cols} FROM valuation_history ORDER BY date").fetchall()
+            else:
+                rows = conn.execute("SELECT date, pe, pb, vnindex, volume FROM valuation_history ORDER BY date").fetchall()
+
+            if not rows:
+                return None
+
+            try:
+                stat_rows = conn.execute(
+                    "SELECT metric, average, plus_one_sd, plus_two_sd, minus_one_sd, minus_two_sd FROM valuation_stats"
+                ).fetchall()
+            except Exception:
+                stat_rows = []
+
+        pe_series: list[dict] = []
+        pb_series: list[dict] = []
+        vnindex_series: list[dict] = []
+
+        for r in rows:
+            if r["pe"] is not None:
+                pe_series.append({"date": r["date"], "value": r["pe"]})
+            if r["pb"] is not None:
+                pb_series.append({"date": r["date"], "value": r["pb"]})
+            if r["vnindex"] is not None:
+                item = {"date": r["date"], "value": r["vnindex"], "volume": r["volume"]}
+                if "open" in r.keys():
+                    item["open"] = r["open"]
+                    item["high"] = r["high"]
+                    item["low"] = r["low"]
+                    item["close"] = r["close"]
+                    if "ema50" in r.keys():
+                        item["ema50"] = r["ema50"]
+                    item["accumulated_volume"] = r["accumulated_volume"]
+                    item["accumulated_value"] = r["accumulated_value"]
+                vnindex_series.append(item)
+
+        stats = {}
+        for sr in stat_rows:
+            stats[sr["metric"]] = {
+                "average": sr["average"],
+                "plusOneSD": sr["plus_one_sd"],
+                "plusTwoSD": sr["plus_two_sd"],
+                "minusOneSD": sr["minus_one_sd"],
+                "minusTwoSD": sr["minus_two_sd"],
+            }
+
+        return {
+            "pe": pe_series,
+            "pb": pb_series,
+            "vnindex": _attach_ema50(vnindex_series),
+            "stats": stats,
+        }
+    except Exception as exc:
+        logger.warning(f"Failed to read valuation sqlite: {exc}")
+        return None
+
 
 @market_bp.route('/prices')
 def api_market_prices():
@@ -138,15 +309,43 @@ def api_market_realtime():
 
 @market_bp.route('/pe-chart')
 def api_market_pe_chart():
-    """Proxy for CafeF P/E historical chart data - CACHED 1 hour"""
+    """Index valuation chart from SQLite (PE/PB/VNINDEX + EMA50), fallback CafeF."""
+    metric = _normalize_metric(request.args.get("metric", "both"))
+    index = (request.args.get("index") or "VNINDEX").strip().upper()
+    time_frame = (request.args.get("timeFrame") or request.args.get("time_frame") or "ALL").strip().upper()
+    cache_key = f"pe_chart_{index}_{time_frame}_{metric}"
+
     def fetch_pe_chart():
+        if index == "VNINDEX":
+            sqlite_data = _read_vci_valuation_sqlite()
+            if sqlite_data:
+                pe_series = _apply_time_frame(sqlite_data.get("pe") or [], time_frame)
+                pb_series = _apply_time_frame(sqlite_data.get("pb") or [], time_frame)
+                vnindex_series = _apply_time_frame(sqlite_data.get("vnindex") or [], time_frame)
+                selected_data = pe_series if metric == "pe" else (pb_series if metric == "pb" else pe_series)
+                return {
+                    "success": True,
+                    "source": "SQLite",
+                    "index": index,
+                    "timeFrame": time_frame,
+                    "metric": metric,
+                    "series": {"pe": pe_series, "pb": pb_series, "vnindex": vnindex_series},
+                    "stats": sqlite_data.get("stats") or {},
+                    "pe": pe_series,
+                    "pb": pb_series,
+                    "Data": selected_data,
+                    "DataPE": pe_series,
+                    "DataPB": pb_series,
+                }
+
+        # Legacy fallback
         url = "https://cafef.vn/du-lieu/Ajax/PageNew/FinanceData/GetDataChartPE.ashx"
         response = http_requests.get(url, timeout=15, headers=_CAFEF_HEADERS)
         response.raise_for_status()
         return response.json()
 
     try:
-        data, is_cached = _cache_func('pe_chart', _cache_ttl.get('pe_chart', 3600), fetch_pe_chart)
+        data, is_cached = _cache_func(cache_key, _cache_ttl.get('pe_chart', 3600), fetch_pe_chart)
         response = jsonify(data)
         response.headers['X-Cache'] = 'HIT' if is_cached else 'MISS'
         return response

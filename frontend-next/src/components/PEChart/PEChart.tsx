@@ -82,6 +82,14 @@ const VNTooltip = ({ active, payload }: any) => {
                 <span className="text-orange-500 font-medium">VN-Index</span>
                 <span className="font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{Number(d?.close).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
             </div>
+            {d?.ema50 != null && (
+                <div className="flex justify-between gap-6 mt-1">
+                    <span className="text-blue-500 font-medium">EMA50</span>
+                    <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                        {Number(d.ema50).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    </span>
+                </div>
+            )}
             {d?.volume != null && (
                 <div className="flex justify-between gap-6 mt-1">
                     <span className="text-tremor-content dark:text-dark-tremor-content">Volume</span>
@@ -212,6 +220,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             date: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             close: d.vnindex!,
+            ema50: d.ema50 ?? null,
             volume: d.volume,
         }));
     }, [series, timeRange, maxPoints]);
@@ -349,6 +358,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                             <Tooltip content={<VNTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }} />
                             <Bar yAxisId="vol" dataKey="volume" fill="#f97316" fillOpacity={0.25} isAnimationActive={false} name="Volume" />
                             <Line yAxisId="price" type="monotone" dataKey="close" stroke="#f97316" strokeWidth={1.5} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name="VN-Index" isAnimationActive={false} />
+                            <Line yAxisId="price" type="monotone" dataKey="ema50" stroke="#3b82f6" strokeWidth={1.5} dot={false} activeDot={false} name="EMA50" isAnimationActive={false} connectNulls />
                         </ComposedChart>
                     </ResponsiveContainer>
                 )
