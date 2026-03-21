@@ -316,8 +316,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                     percent: d.percent,
                     vnindex,
                 };
-            })
-            .filter(d => d.vnindex != null);
+            });
     }, [breadthData, series, timeRange, maxPoints]);
 
     const activeStats: ValuationStats | undefined =
@@ -348,7 +347,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const tabBtn = (key: ActiveChart, label: string) => (
         <button key={key} type="button" onClick={() => setActiveChart(key)}
             className={cx(
-                'rounded px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap',
+                'flex-1 rounded px-3 py-1.5 text-xs font-semibold transition-colors text-center whitespace-nowrap',
                 activeChart === key
                     ? 'bg-tremor-brand text-white dark:bg-dark-tremor-brand'
                     : 'text-tremor-content-strong hover:bg-tremor-background-muted dark:text-dark-tremor-content-strong hover:dark:bg-gray-800'
@@ -376,10 +375,8 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             {/* ── Controls ── */}
             <div className="mb-4 space-y-2">
                 {/* Top row: chart type tabs */}
-                <div className="w-full overflow-x-auto">
-                    <div className="min-w-max flex gap-1 rounded-lg border border-tremor-border bg-tremor-background p-1 dark:border-dark-tremor-border dark:bg-gray-950">
-                        {CHART_TABS.map(t => tabBtn(t.key, t.label))}
-                    </div>
+                <div className="flex w-full gap-1 rounded-lg border border-tremor-border bg-tremor-background p-1 dark:border-dark-tremor-border dark:bg-gray-950">
+                    {CHART_TABS.map(t => tabBtn(t.key, t.label))}
                 </div>
 
                 {/* Bottom row: current values */}
