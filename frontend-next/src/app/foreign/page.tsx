@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
+    BarList,
     Card,
     LineChart,
     Tab,
@@ -122,7 +123,7 @@ function CumulativeNetChart({
                     {negative ? '-' : '+'}{unit === 'volume' ? fmtMillionVi(Math.abs(value)) : fmtBillionVi(Math.abs(value))}
                 </p>
                 <p className="mt-0.5 text-tremor-default text-tremor-content dark:text-dark-tremor-content">
-                    09:00 – 15:05
+                    09:00 – 15:00
                 </p>
             </div>
 
@@ -183,6 +184,70 @@ function CumulativeNetChart({
     );
 }
 
+function TopBarChart({
+    title,
+    subtitle,
+    items,
+    color,
+    isLoading,
+}: {
+    title: string;
+    subtitle: string;
+    items: ForeignNetItem[];
+    color: 'emerald' | 'rose';
+    isLoading: boolean;
+}) {
+    const data = items.slice(0, 10).map((item) => ({
+        name: item.Symbol,
+        value: Math.round(item.Value / 1e9 * 10) / 10,
+        href: `/stock/${item.Symbol}`,
+        icon: () => (
+            <div className="w-5 h-5 rounded bg-white border border-slate-200 dark:border-slate-600 flex items-center justify-center overflow-hidden shrink-0 mr-2">
+                <img
+                    src={siteConfig.stockLogoUrl(item.Symbol)}
+                    alt={item.Symbol}
+                    className="w-full h-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+            </div>
+        ),
+    }));
+
+    const isEmerald = color === 'emerald';
+
+    return (
+        <Card>
+            <div className="flex items-center gap-2 mb-1">
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isEmerald ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                    {title}
+                </p>
+            </div>
+            <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content mb-5">
+                {subtitle}
+            </p>
+
+            {isLoading ? (
+                <div className="space-y-2.5">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="h-8 rounded animate-pulse bg-slate-100 dark:bg-slate-800" />
+                    ))}
+                </div>
+            ) : data.length === 0 ? (
+                <p className="py-10 text-center text-sm text-tremor-content dark:text-dark-tremor-content">
+                    Không có dữ liệu
+                </p>
+            ) : (
+                <BarList
+                    data={data}
+                    color={color}
+                    valueFormatter={(v: number) => `${v} tỷ`}
+                />
+            )}
+        </Card>
+    );
+}
+
 function TopStocksPanel({
     buyList,
     sellList,
@@ -192,89 +257,22 @@ function TopStocksPanel({
     sellList: ForeignNetItem[];
     isLoading: boolean;
 }) {
-    const topBuy = buyList.slice(0, 10);
-    const topSell = sellList.slice(0, 10);
-    const maxBuy = Math.max(...topBuy.map((x) => x.Value), 1);
-    const maxSell = Math.max(...topSell.map((x) => x.Value), 1);
-
     return (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-5">
-                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Top cổ phiếu giao dịch (tỷ VND)</h3>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Theo giá trị ròng</span>
-            </div>
-
-            {isLoading ? (
-                <div className="space-y-3">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                        <div key={i} className="grid grid-cols-2 gap-5 animate-pulse">
-                            <div className="h-8 rounded bg-slate-200 dark:bg-slate-800" />
-                            <div className="h-8 rounded bg-slate-200 dark:bg-slate-800" />
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div>
-                    <div className="grid grid-cols-2 gap-5 text-sm font-semibold mb-3">
-                        <p className="text-center text-emerald-600 dark:text-emerald-400">Mua ròng</p>
-                        <p className="text-center text-rose-600 dark:text-rose-400">Bán ròng</p>
-                    </div>
-
-                    <div className="space-y-2">
-                        {Array.from({ length: 10 }).map((_, idx) => {
-                            const buy = topBuy[idx];
-                            const sell = topSell[idx];
-                            return (
-                                <div key={idx} className="grid grid-cols-2 gap-5 items-center">
-                                    <div>
-                                        {buy ? (
-                                            <Link href={`/stock/${buy.Symbol}`} className="grid grid-cols-[88px_1fr_auto] items-center gap-2 group">
-                                                <span className="text-right text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums text-sm">
-                                                    {(buy.Value / 1e9).toFixed(1)}
-                                                </span>
-                                                <div className="h-6 rounded bg-emerald-100 dark:bg-emerald-900/30 overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-emerald-500/90 rounded"
-                                                        style={{ width: `${Math.max(8, (buy.Value / maxBuy) * 100)}%` }}
-                                                    />
-                                                </div>
-                                                <div className="flex items-center gap-2 min-w-[74px]">
-                                                    <StockDot symbol={buy.Symbol} />
-                                                    <span className="text-slate-900 dark:text-slate-100 font-semibold group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">{buy.Symbol}</span>
-                                                </div>
-                                            </Link>
-                                        ) : (
-                                            <div className="h-6" />
-                                        )}
-                                    </div>
-
-                                    <div>
-                                        {sell ? (
-                                            <Link href={`/stock/${sell.Symbol}`} className="grid grid-cols-[auto_1fr_88px] items-center gap-2 group">
-                                                <div className="flex items-center justify-end gap-2 min-w-[74px]">
-                                                    <span className="text-slate-900 dark:text-slate-100 font-semibold group-hover:text-rose-600 dark:group-hover:text-rose-300 transition-colors">{sell.Symbol}</span>
-                                                    <StockDot symbol={sell.Symbol} />
-                                                </div>
-                                                <div className="h-6 rounded bg-rose-100 dark:bg-rose-900/30 overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-rose-500/90 rounded"
-                                                        style={{ width: `${Math.max(8, (sell.Value / maxSell) * 100)}%` }}
-                                                    />
-                                                </div>
-                                                <span className="text-rose-600 dark:text-rose-400 font-semibold tabular-nums text-sm">
-                                                    -{(sell.Value / 1e9).toFixed(1)}
-                                                </span>
-                                            </Link>
-                                        ) : (
-                                            <div className="h-6" />
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <TopBarChart
+                title="Top Mua ròng"
+                subtitle="Khối ngoại mua ròng nhiều nhất hôm nay (tỷ VNĐ)"
+                items={buyList}
+                color="emerald"
+                isLoading={isLoading}
+            />
+            <TopBarChart
+                title="Top Bán ròng"
+                subtitle="Khối ngoại bán ròng nhiều nhất hôm nay (tỷ VNĐ)"
+                items={sellList}
+                color="rose"
+                isLoading={isLoading}
+            />
         </div>
     );
 }
@@ -285,8 +283,6 @@ export default function ForeignPage() {
     const [points, setPoints] = useState<ForeignVolumePoint[]>([]);
     const [netLoading, setNetLoading] = useState(true);
     const [chartLoading, setChartLoading] = useState(true);
-    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
     const loadAll = useCallback(async () => {
         const [netResult, chartResult] = await Promise.allSettled([
             fetchForeignNetValue(),
@@ -303,7 +299,6 @@ export default function ForeignPage() {
             setPoints(chartResult.value || []);
         }
         setChartLoading(false);
-        setLastUpdated(new Date());
     }, []);
 
     useEffect(() => {
@@ -339,11 +334,6 @@ export default function ForeignPage() {
                             Khối lượng, Giá trị và Mua/Bán ròng.
                         </p>
                     </div>
-                    {lastUpdated && (
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900">
-                            Cập nhật: {lastUpdated.toLocaleTimeString('vi-VN')}
-                        </div>
-                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
