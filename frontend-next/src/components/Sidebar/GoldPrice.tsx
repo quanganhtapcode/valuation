@@ -3,9 +3,7 @@
 import {
     Card,
 } from '@tremor/react';
-import { RiCopperCoinLine, RiWaterFlashLine, RiTimeLine } from '@remixicon/react';
 import { GoldPriceItem, formatRelativeTime } from '@/lib/api';
-import { useEffect, useState } from 'react';
 
 interface GoldPriceProps {
     prices: GoldPriceItem[];
@@ -15,12 +13,6 @@ interface GoldPriceProps {
 }
 
 export default function GoldPrice({ prices, isLoading, updatedAt, source }: GoldPriceProps) {
-    const [isMounted, setIsMounted] = useState(false);
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
-
     // Selection criteria: show exactly 3 gold classes from current provider
     const displayPrices = prices?.filter(p =>
         ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)'].includes(p.TypeName)
@@ -57,10 +49,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                                 <div key={item.Id} className="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-800/50 last:border-0 group">
                                     {/* Left: Badge + Name */}
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${isSilver
-                                            ? 'bg-slate-100 text-slate-500 dark:bg-slate-800'
-                                            : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
-                                            }`}>
+                                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm bg-amber-100 text-amber-600 dark:bg-amber-900/30">
                                             {badgeText}
                                         </div>
                                         <div className="flex flex-col min-w-0">
