@@ -18,7 +18,7 @@ import { cx } from '@/lib/utils';
 import styles from './PEChart.module.css';
 
 type TimeRange = '6m' | 'ytd' | '1y' | '2y' | '5y' | 'all';
-type ActiveChart = 'vnindex' | 'candle' | 'ema50breadth' | 'pe' | 'pb';
+type ActiveChart = 'vnindex' | 'ema50breadth' | 'pe' | 'pb';
 
 const TIME_RANGES: { key: TimeRange; label: string }[] = [
     { key: '6m',  label: '6M'  },
@@ -30,11 +30,10 @@ const TIME_RANGES: { key: TimeRange; label: string }[] = [
 ];
 
 const CHART_TABS: { key: ActiveChart; label: string }[] = [
-    { key: 'vnindex', label: 'VN-Index' },
-    { key: 'candle',  label: 'Candlestick' },
-    { key: 'ema50breadth',   label: 'EMA50 Breadth'    },
-    { key: 'pe',      label: 'P/E TTM'  },
-    { key: 'pb',      label: 'P/B TTM'  },
+    { key: 'vnindex',     label: 'VN-Index'     },
+    { key: 'ema50breadth', label: 'EMA50 Breadth' },
+    { key: 'pe',          label: 'P/E TTM'       },
+    { key: 'pb',          label: 'P/B TTM'       },
 ];
 
 function getCutoffDate(range: TimeRange): Date | null {
@@ -57,15 +56,6 @@ function formatDateLabel(date: Date, range: TimeRange): string {
     return String(date.getFullYear());
 }
 
-function sampleData<T>(arr: T[], max: number): T[] {
-    if (arr.length <= max) return arr;
-    const step = arr.length / max;
-    const out: T[] = [];
-    for (let i = 0; i < max - 1; i++) out.push(arr[Math.round(i * step)]);
-    out.push(arr[arr.length - 1]);
-    return out;
-}
-
 function fmtVol(v: number): string {
     if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
     if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
@@ -84,14 +74,6 @@ const VNTooltip = ({ active, payload }: any) => {
                 <span className="text-orange-500 font-medium">VN-Index</span>
                 <span className="font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{Number(d?.close).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
             </div>
-            {d?.ema50 != null && (
-                <div className="flex justify-between gap-6 mt-1">
-                    <span className="text-blue-500 font-medium">EMA50</span>
-                    <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                        {Number(d.ema50).toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                    </span>
-                </div>
-            )}
             {d?.volume != null && (
                 <div className="flex justify-between gap-6 mt-1">
                     <span className="text-tremor-content dark:text-dark-tremor-content">Volume</span>
@@ -120,49 +102,7 @@ const RatioTooltip = ({ active, payload, stats, label: _label }: any) => {
                 <span className="text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis font-medium">{payload[0]?.name}</span>
                 <span className="font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{val?.toFixed(2)}</span>
             </div>
-            {d?.vnindex != null && payload[0]?.name === 'EMA50' && (
-                <div className="flex justify-between gap-6 mt-1">
-                    <span className="text-orange-500 font-medium">VN-Index</span>
-                    <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                        {Number(d.vnindex).toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                    </span>
-                </div>
-            )}
             <p className="mt-1 text-tremor-content dark:text-dark-tremor-content">{zone}</p>
-        </div>
-    );
-};
-
-// ── Candlestick shapes ────────────────────────────────────────────────────────
-
-const CandleBody = (props: any) => {
-    const { x, y, width, height, payload } = props;
-    if (!height || height <= 0) return null;
-    const fill = payload?.isGreen ? '#22c55e' : '#ef4444';
-    const bw = Math.max(3, width - 2);
-    return <rect x={x + (width - bw) / 2} y={y} width={bw} height={height} fill={fill} />;
-};
-
-const CandleWick = (props: any) => {
-    const { x, y, width, height } = props;
-    if (!height || height <= 0) return null;
-    return <rect x={x + width / 2 - 0.75} y={y} width={1.5} height={height} fill="#94a3b8" />;
-};
-
-const CandleTooltip = ({ active, payload }: any) => {
-    if (!active || !payload?.length) return null;
-    const d = payload[0]?.payload;
-    const isGreen = d?.isGreen;
-    const color = isGreen ? '#22c55e' : '#ef4444';
-    const fmt = (v: number) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
-    return (
-        <div className="z-50 rounded-tremor-default border border-tremor-border bg-tremor-background p-3 shadow-tremor-dropdown dark:border-dark-tremor-border dark:bg-dark-tremor-background text-xs">
-            <p className="mb-1.5 font-medium uppercase tracking-tight text-tremor-content dark:text-dark-tremor-content">{d?.fullDate}</p>
-            <div className="flex justify-between gap-6"><span style={{ color }} className="font-medium">Open</span><span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d?.openVal)}</span></div>
-            <div className="flex justify-between gap-6 mt-0.5"><span className="text-red-400 font-medium">High</span><span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d?.highVal)}</span></div>
-            <div className="flex justify-between gap-6 mt-0.5"><span className="text-blue-400 font-medium">Low</span><span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d?.lowVal)}</span></div>
-            <div className="flex justify-between gap-6 mt-0.5"><span style={{ color }} className="font-medium">Close</span><span className="font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d?.closeVal)}</span></div>
-            {d?.ema50Val != null && <div className="flex justify-between gap-6 mt-1"><span className="text-blue-500 font-medium">EMA50</span><span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{fmt(d.ema50Val)}</span></div>}
         </div>
     );
 };
@@ -288,12 +228,10 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const { series, stats } = result;
 
     const currentStats = useMemo(() => {
-        if (!series.length) return { pe: null, pb: null, vnindex: null, ema50: null };
+        if (!series.length) return { pe: null, pb: null, vnindex: null };
         const last = [...series].sort((a, b) => a.date.getTime() - b.date.getTime()).at(-1)!;
-        return { pe: last.pe, pb: last.pb, vnindex: last.vnindex, ema50: last.ema50 ?? null };
+        return { pe: last.pe, pb: last.pb, vnindex: last.vnindex };
     }, [series]);
-
-    const maxPoints = (timeRange === 'all' || timeRange === '5y') ? 400 : 600;
 
     const dateKey = (d: Date): string => {
         const y = d.getFullYear();
@@ -302,62 +240,31 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         return `${y}-${m}-${day}`;
     };
 
-    // VN-Index chart data
+    // VN-Index chart data — every point, no sampling
     const vnData = useMemo(() => {
         const cutoff = getCutoffDate(timeRange);
         let filtered = series.filter(d => d.vnindex != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
-        return sampleData(filtered, maxPoints).map(d => ({
+        return filtered.map(d => ({
             date: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             close: d.vnindex!,
-            ema50: d.ema50 ?? null,
             volume: d.volume,
         }));
-    }, [series, timeRange, maxPoints]);
+    }, [series, timeRange]);
 
-    // PE/PB chart data
+    // PE/PB chart data — every point, no sampling
     const ratioData = useMemo(() => {
         const field = activeChart as 'pe' | 'pb';
         const cutoff = getCutoffDate(timeRange);
-        let filtered = series.filter(d => d[field] != null && d.vnindex != null);
+        let filtered = series.filter(d => d[field] != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
-        return sampleData(filtered, maxPoints).map(d => ({
+        return filtered.map(d => ({
             date: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             value: d[field]!,
-            vnindex: d.vnindex!,
         }));
-    }, [series, timeRange, activeChart, maxPoints]);
-
-    // Candlestick chart data — stacked segments: lowerWick / body / upperWick on top of invisible base
-    const candleData = useMemo(() => {
-        const cutoff = getCutoffDate(timeRange);
-        const maxCandles = (timeRange === 'all' || timeRange === '5y') ? 300 : 200;
-        let filtered = series.filter(d => d.open != null && d.high != null && d.low != null && d.vnindex != null);
-        if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
-        return sampleData(filtered, maxCandles).map(d => {
-            const o = d.open!;
-            const h = d.high!;
-            const l = d.low!;
-            const c = d.vnindex!;
-            const isGreen = c >= o;
-            const bodyBot = Math.min(o, c);
-            const bodyTop = Math.max(o, c);
-            return {
-                date: formatDateLabel(d.date, timeRange),
-                fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
-                invisible: l,
-                lowerWick: bodyBot - l,
-                body: Math.max(bodyTop - bodyBot, 0.5),
-                upperWick: h - bodyTop,
-                ema50Val: d.ema50 ?? null,
-                openVal: o, highVal: h, lowVal: l, closeVal: c,
-                isGreen,
-            };
-        });
-    }, [series, timeRange]);
-
+    }, [series, timeRange, activeChart]);
 
     const breadthChartData = useMemo(() => {
         const cutoff = getCutoffDate(timeRange);
@@ -370,27 +277,26 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         let filtered = breadthData;
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
 
-        return sampleData(filtered, maxPoints)
-            .map((d) => {
-                const key = dateKey(d.date);
-                const vnindex = vnByDate.get(key) ?? null;
-                return {
-                    date: formatDateLabel(d.date, timeRange),
-                    fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
-                    percent: d.percent,
-                    vnindex,
-                };
-            });
-    }, [breadthData, series, timeRange, maxPoints]);
+        return filtered.map((d) => {
+            const key = dateKey(d.date);
+            const vnindex = vnByDate.get(key) ?? null;
+            return {
+                date: formatDateLabel(d.date, timeRange),
+                fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
+                percent: d.percent,
+                vnindex,
+            };
+        });
+    }, [breadthData, series, timeRange]);
 
     const activeStats: ValuationStats | undefined =
         activeChart === 'pe' ? stats.pe : activeChart === 'pb' ? stats.pb : undefined;
-    const ratioColor = activeChart === 'pe' ? '#6366f1' : activeChart === 'pb' ? '#10b981' : '#3b82f6';
-    const ratioName  = activeChart === 'pe' ? 'P/E TTM' : activeChart === 'pb' ? 'P/B TTM' : 'EMA50';
+    const ratioColor = activeChart === 'pe' ? '#6366f1' : '#10b981';
+    const ratioName  = activeChart === 'pe' ? 'P/E TTM' : 'P/B TTM';
     const stdColors = {
-        plusTwo: '#ef4444',
-        plusOne: '#f97316',
-        average: '#94a3b8',
+        plusTwo:  '#ef4444',
+        plusOne:  '#f97316',
+        average:  '#94a3b8',
         minusOne: '#22c55e',
         minusTwo: '#3b82f6',
     };
@@ -405,7 +311,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         return [+(lo - pad).toFixed(2), +(hi + pad).toFixed(2)];
     }, [ratioData, activeStats]);
 
-    // Shared x-axis tick interval
+    // X-axis ticks: show ~6 labels regardless of point count
     const tickInterval = (data: any[]) => Math.max(1, Math.ceil(data.length / 6));
 
     const tabBtn = (key: ActiveChart, label: string) => (
@@ -443,7 +349,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                     {CHART_TABS.map(t => tabBtn(t.key, t.label))}
                 </div>
 
-                {/* Bottom row: current values */}
+                {/* Current values row */}
                 <div className="flex flex-nowrap items-center gap-4 sm:gap-5 overflow-x-auto">
                     <div className="flex flex-nowrap items-center gap-4 sm:gap-5 min-w-max">
                         {currentStats.vnindex != null && (
@@ -506,40 +412,6 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                             <Tooltip content={<VNTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }} />
                             <Bar yAxisId="vol" dataKey="volume" fill="#f97316" fillOpacity={0.25} isAnimationActive={false} name="Volume" />
                             <Line yAxisId="price" type="monotone" dataKey="close" stroke="#f97316" strokeWidth={1.5} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name="VN-Index" isAnimationActive={false} />
-                            <Line yAxisId="price" type="monotone" dataKey="ema50" stroke="#3b82f6" strokeWidth={1.5} dot={false} activeDot={false} name="EMA50" isAnimationActive={false} connectNulls />
-                        </ComposedChart>
-                    </ResponsiveContainer>
-                )
-            ) : activeChart === 'candle' ? (
-                /* Candlestick chart */
-                candleData.length === 0 ? <div className={styles.noData}>No data</div> : (
-                    <ResponsiveContainer width="100%" height={400}>
-                        <ComposedChart data={candleData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} strokeOpacity={0.5} />
-                            <XAxis
-                                dataKey="date"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                                interval={tickInterval(candleData) - 1}
-                                height={24}
-                            />
-                            <YAxis
-                                yAxisId="price"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                                width={55}
-                                domain={['auto', 'auto']}
-                                tickFormatter={v => v.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                            />
-                            <Tooltip content={<CandleTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }} />
-                            {/* Stacked: invisible base → lower wick → body → upper wick */}
-                            <Bar yAxisId="price" stackId="c" dataKey="invisible" fill="transparent" legendType="none" isAnimationActive={false} />
-                            <Bar yAxisId="price" stackId="c" dataKey="lowerWick" shape={<CandleWick />} legendType="none" isAnimationActive={false} />
-                            <Bar yAxisId="price" stackId="c" dataKey="body" shape={<CandleBody />} legendType="none" isAnimationActive={false} />
-                            <Bar yAxisId="price" stackId="c" dataKey="upperWick" shape={<CandleWick />} legendType="none" isAnimationActive={false} />
-                            <Line yAxisId="price" type="monotone" dataKey="ema50Val" stroke="#3b82f6" strokeWidth={1.5} dot={false} activeDot={false} name="EMA50" isAnimationActive={false} connectNulls />
                         </ComposedChart>
                     </ResponsiveContainer>
                 )
@@ -590,20 +462,20 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                                 <span className="text-blue-500 font-medium">% Trên EMA50</span>
                                                 <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{(Number(d?.percent || 0) * 100).toFixed(1)}%</span>
                                             </div>
-                                            <div className="flex justify-between gap-6 mt-1">
-                                                <span className="text-emerald-500 font-medium">VN-Index</span>
-                                                <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{Number(d?.vnindex).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-                                            </div>
+                                            {d?.vnindex != null && (
+                                                <div className="flex justify-between gap-6 mt-1">
+                                                    <span className="text-emerald-500 font-medium">VN-Index</span>
+                                                    <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{Number(d.vnindex).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 }}
                             />
-
                             <ReferenceLine yAxisId="pct" y={0.25} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity={0.6} />
-                            <ReferenceLine yAxisId="pct" y={0.5} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity={0.7} />
+                            <ReferenceLine yAxisId="pct" y={0.5}  stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity={0.7} />
                             <ReferenceLine yAxisId="pct" y={0.75} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity={0.6} />
-
-                            <Line yAxisId="vn" type="monotone" dataKey="vnindex" stroke="#22c55e" strokeWidth={1.8} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name="VN-Index" isAnimationActive={false} connectNulls />
+                            <Line yAxisId="vn"  type="monotone" dataKey="vnindex" stroke="#22c55e" strokeWidth={1.8} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name="VN-Index"   isAnimationActive={false} connectNulls />
                             <Line yAxisId="pct" type="monotone" dataKey="percent" stroke="#3b82f6" strokeWidth={1.8} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name="% Trên EMA50" isAnimationActive={false} />
                         </ComposedChart>
                     </ResponsiveContainer>
@@ -632,29 +504,21 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                     tickFormatter={v => v.toFixed(1)}
                                 />
                                 <Tooltip content={<RatioTooltip stats={activeStats} />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }} />
-
-                                {/* ±2σ outer band — must be direct children (no fragment) */}
                                 {activeStats && <ReferenceArea y1={activeStats.minusTwoSD} y2={activeStats.plusTwoSD} fill={ratioColor} fillOpacity={0.08} strokeOpacity={0} />}
-                                {/* ±1σ inner band */}
                                 {activeStats && <ReferenceArea y1={activeStats.minusOneSD} y2={activeStats.plusOneSD} fill={ratioColor} fillOpacity={0.14} strokeOpacity={0} />}
-
-                                {/* Reference lines — each must be a direct child, no wrapping fragment */}
-                                {activeStats && <ReferenceLine y={activeStats.plusTwoSD}  stroke={stdColors.plusTwo} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `+2σ ${activeStats.plusTwoSD.toFixed(2)}`,  position: 'insideTopRight', fill: stdColors.plusTwo, fontSize: 10 }} />}
-                                {activeStats && <ReferenceLine y={activeStats.plusOneSD}  stroke={stdColors.plusOne} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `+1σ ${activeStats.plusOneSD.toFixed(2)}`,  position: 'insideTopRight', fill: stdColors.plusOne, fontSize: 10 }} />}
-                                {activeStats && <ReferenceLine y={activeStats.average}    stroke={stdColors.average} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `avg ${activeStats.average.toFixed(2)}`,       position: 'insideTopRight', fill: stdColors.average, fontSize: 10 }} />}
+                                {activeStats && <ReferenceLine y={activeStats.plusTwoSD}  stroke={stdColors.plusTwo}  strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `+2σ ${activeStats.plusTwoSD.toFixed(2)}`,  position: 'insideTopRight', fill: stdColors.plusTwo,  fontSize: 10 }} />}
+                                {activeStats && <ReferenceLine y={activeStats.plusOneSD}  stroke={stdColors.plusOne}  strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `+1σ ${activeStats.plusOneSD.toFixed(2)}`,  position: 'insideTopRight', fill: stdColors.plusOne,  fontSize: 10 }} />}
+                                {activeStats && <ReferenceLine y={activeStats.average}    stroke={stdColors.average}  strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `avg ${activeStats.average.toFixed(2)}`,       position: 'insideTopRight', fill: stdColors.average,  fontSize: 10 }} />}
                                 {activeStats && <ReferenceLine y={activeStats.minusOneSD} stroke={stdColors.minusOne} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−1σ ${activeStats.minusOneSD.toFixed(2)}`, position: 'insideTopRight', fill: stdColors.minusOne, fontSize: 10 }} />}
                                 {activeStats && <ReferenceLine y={activeStats.minusTwoSD} stroke={stdColors.minusTwo} strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−2σ ${activeStats.minusTwoSD.toFixed(2)}`, position: 'insideTopRight', fill: stdColors.minusTwo, fontSize: 10 }} />}
-
                                 <Line type="monotone" dataKey="value" stroke={ratioColor} strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name={ratioName} isAnimationActive={false} />
                             </ComposedChart>
                         </ResponsiveContainer>
-
-                        {/* Legend row */}
                         {activeStats && (
                             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.plusTwo, opacity: 0.9 }} />+2σ {activeStats.plusTwoSD.toFixed(2)}</span>
-                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.plusOne, opacity: 0.9 }} />+1σ {activeStats.plusOneSD.toFixed(2)}</span>
-                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.average, opacity: 0.9 }} />avg {activeStats.average.toFixed(2)}</span>
+                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.plusTwo,  opacity: 0.9 }} />+2σ {activeStats.plusTwoSD.toFixed(2)}</span>
+                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.plusOne,  opacity: 0.9 }} />+1σ {activeStats.plusOneSD.toFixed(2)}</span>
+                                <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.average,  opacity: 0.9 }} />avg {activeStats.average.toFixed(2)}</span>
                                 <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.minusOne, opacity: 0.9 }} />−1σ {activeStats.minusOneSD.toFixed(2)}</span>
                                 <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-5" style={{ backgroundColor: stdColors.minusTwo, opacity: 0.9 }} />−2σ {activeStats.minusTwoSD.toFixed(2)}</span>
                             </div>
