@@ -55,6 +55,15 @@ function formatDateLabel(date: Date, range: TimeRange): string {
     return String(date.getFullYear());
 }
 
+function sampleData<T>(arr: T[], max: number): T[] {
+    if (arr.length <= max) return arr;
+    const step = arr.length / max;
+    const out: T[] = [];
+    for (let i = 0; i < max - 1; i++) out.push(arr[Math.round(i * step)]);
+    out.push(arr[arr.length - 1]);
+    return out;
+}
+
 function fmtVol(v: number): string {
     if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
     if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
@@ -192,18 +201,20 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         return { pe: last.pe, pb: last.pb, vnindex: last.vnindex };
     }, [series]);
 
+    const maxPoints = (timeRange === 'all' || timeRange === '5y') ? 400 : 600;
+
     // VN-Index chart data
     const vnData = useMemo(() => {
         const cutoff = getCutoffDate(timeRange);
         let filtered = series.filter(d => d.vnindex != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
-        return filtered.map(d => ({
+        return sampleData(filtered, maxPoints).map(d => ({
             date: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             close: d.vnindex!,
             volume: d.volume,
         }));
-    }, [series, timeRange]);
+    }, [series, timeRange, maxPoints]);
 
     // PE/PB chart data
     const ratioData = useMemo(() => {
@@ -211,12 +222,12 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         const cutoff = getCutoffDate(timeRange);
         let filtered = series.filter(d => d[field] != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
-        return filtered.map(d => ({
+        return sampleData(filtered, maxPoints).map(d => ({
             date: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             value: d[field]!,
         }));
-    }, [series, timeRange, activeChart]);
+    }, [series, timeRange, activeChart, maxPoints]);
 
     const activeStats: ValuationStats | undefined =
         activeChart === 'pe' ? stats.pe : activeChart === 'pb' ? stats.pb : undefined;
@@ -314,7 +325,6 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fill: '#9ca3af', fontSize: 11 }}
-                                allowDuplicatedCategory={false}
                                 interval={tickInterval(vnData) - 1}
                                 height={24}
                             />
@@ -354,7 +364,6 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: '#9ca3af', fontSize: 11 }}
-                                    allowDuplicatedCategory={false}
                                     interval={tickInterval(ratioData) - 1}
                                     height={24}
                                 />
