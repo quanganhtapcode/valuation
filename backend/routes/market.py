@@ -271,6 +271,45 @@ def _read_vci_valuation_sqlite() -> dict | None:
         return None
 
 
+def _read_ema_breadth_sqlite(limit: int = 260) -> list[dict]:
+    if not _VALUATION_SQLITE.exists():
+        return []
+    try:
+        with sqlite3.connect(str(_VALUATION_SQLITE)) as conn:
+            conn.row_factory = sqlite3.Row
+            table_exists = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='ema_breadth_history'"
+            ).fetchone()
+            if not table_exists:
+                return []
+
+            rows = conn.execute(
+                "SELECT trading_date, above_count, total_count, above_percent "
+                "FROM ema_breadth_history ORDER BY trading_date DESC LIMIT ?",
+                (max(30, min(limit, 4000)),),
+            ).fetchall()
+
+        out = []
+        for r in reversed(rows):
+            above = int(r["above_count"] or 0)
+            total = int(r["total_count"] or 0)
+            below = max(0, total - above)
+            percent = float(r["above_percent"]) if r["above_percent"] is not None else (above / total if total > 0 else 0.0)
+            out.append(
+                {
+                    "date": r["trading_date"],
+                    "aboveEma50": above,
+                    "belowEma50": below,
+                    "total": total,
+                    "abovePercent": percent,
+                }
+            )
+        return out
+    except Exception as exc:
+        logger.warning(f"Failed to read ema breadth sqlite: {exc}")
+        return []
+
+
 @market_bp.route('/prices')
 def api_market_prices():
     """
@@ -352,6 +391,40 @@ def api_market_pe_chart():
     except Exception as e:
         logger.error(f"PE chart proxy error: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@market_bp.route('/ema50-breadth')
+def api_market_ema50_breadth():
+    """Market breadth: number of stocks above/below EMA50 from SQLite snapshot."""
+    try:
+        days = int(request.args.get("days", "260"))
+    except Exception:
+        days = 260
+    days = max(30, min(days, 4000))
+
+    cache_key = f"ema50_breadth_{days}"
+
+    def fetch_breadth():
+        series = _read_ema_breadth_sqlite(limit=days)
+        if not series:
+            return {"success": False, "data": []}
+        latest = series[-1]
+        return {
+            "success": True,
+            "source": "SQLite",
+            "condition": "EMA50",
+            "data": series,
+            "latest": latest,
+        }
+
+    try:
+        data, is_cached = _cache_func(cache_key, _cache_ttl.get('pe_chart', 3600), fetch_breadth)
+        response = jsonify(data)
+        response.headers['X-Cache'] = 'HIT' if is_cached else 'MISS'
+        return response
+    except Exception as e:
+        logger.error(f"EMA50 breadth error: {e}")
+        return jsonify({"success": False, "data": []}), 500
 
 
 @market_bp.route('/news')

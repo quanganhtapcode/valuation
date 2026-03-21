@@ -13,12 +13,12 @@ import {
     ReferenceLine,
     ReferenceArea,
 } from 'recharts';
-import { fetchPEChart, fetchPEChartByRange, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
+import { fetchEma50Breadth, fetchPEChart, fetchPEChartByRange, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
 import { cx } from '@/lib/utils';
 import styles from './PEChart.module.css';
 
 type TimeRange = '6m' | 'ytd' | '1y' | '2y' | '5y' | 'all';
-type ActiveChart = 'vnindex' | 'ema50' | 'pe' | 'pb';
+type ActiveChart = 'vnindex' | 'ema50breadth' | 'pe' | 'pb';
 
 const TIME_RANGES: { key: TimeRange; label: string }[] = [
     { key: '6m',  label: '6M'  },
@@ -31,7 +31,7 @@ const TIME_RANGES: { key: TimeRange; label: string }[] = [
 
 const CHART_TABS: { key: ActiveChart; label: string }[] = [
     { key: 'vnindex', label: 'VN-Index' },
-    { key: 'ema50',   label: 'EMA50'    },
+    { key: 'ema50breadth',   label: 'EMA50 Breadth'    },
     { key: 'pe',      label: 'P/E TTM'  },
     { key: 'pb',      label: 'P/B TTM'  },
 ];
@@ -145,6 +145,8 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const [timeRange, setTimeRange] = useState<TimeRange>('6m');
     const [activeChart, setActiveChart] = useState<ActiveChart>('vnindex');
     const [isLoading, setIsLoading] = useState(initialData.length === 0);
+    const [breadthData, setBreadthData] = useState<Array<{ date: string; fullDate: string; above: number; below: number; percent: number }>>([]);
+    const [breadthLoading, setBreadthLoading] = useState(false);
     const cacheRef = useRef<Partial<Record<TimeRange, PEChartResult>>>({});
     const abortRef = useRef<AbortController | null>(null);
 
@@ -210,6 +212,25 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [timeRange]);
 
+    useEffect(() => {
+        if (activeChart !== 'ema50breadth') return;
+        if (breadthData.length > 0) return;
+        setBreadthLoading(true);
+        fetchEma50Breadth(260)
+            .then((rows) => {
+                const mapped = rows.map((r) => ({
+                    date: formatDateLabel(r.date, '1y'),
+                    fullDate: r.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    above: r.aboveEma50,
+                    below: r.belowEma50,
+                    percent: r.abovePercent,
+                }));
+                setBreadthData(mapped);
+                setBreadthLoading(false);
+            })
+            .catch(() => setBreadthLoading(false));
+    }, [activeChart, breadthData.length]);
+
     const { series, stats } = result;
 
     const currentStats = useMemo(() => {
@@ -234,9 +255,9 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         }));
     }, [series, timeRange, maxPoints]);
 
-    // PE/PB/EMA chart data
+    // PE/PB chart data
     const ratioData = useMemo(() => {
-        const field = activeChart as 'pe' | 'pb' | 'ema50';
+        const field = activeChart as 'pe' | 'pb';
         const cutoff = getCutoffDate(timeRange);
         let filtered = series.filter(d => d[field] != null && d.vnindex != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
@@ -254,7 +275,6 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const ratioName  = activeChart === 'pe' ? 'P/E TTM' : activeChart === 'pb' ? 'P/B TTM' : 'EMA50';
 
     const ratioDomain = useMemo((): [number, number] | ['auto', 'auto'] => {
-        if (activeChart === 'ema50') return ['auto', 'auto'];
         if (!activeStats || ratioData.length === 0) return ['auto', 'auto'];
         const vals = ratioData.map(d => d.value);
         const allVals = [...vals, activeStats.minusTwoSD, activeStats.plusTwoSD];
@@ -262,7 +282,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         const hi = Math.max(...allVals);
         const pad = (hi - lo) * 0.06;
         return [+(lo - pad).toFixed(2), +(hi + pad).toFixed(2)];
-    }, [ratioData, activeStats, activeChart]);
+    }, [ratioData, activeStats]);
 
     // Shared x-axis tick interval
     const tickInterval = (data: any[]) => Math.max(1, Math.ceil(data.length / 6));
@@ -311,12 +331,6 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                         <div className="flex items-center gap-1">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">VN-Index</span>
                             <span className="text-sm font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.vnindex.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-                        </div>
-                    )}
-                    {currentStats.ema50 != null && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500">EMA50</span>
-                            <span className="text-sm font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.ema50.toFixed(2)}</span>
                         </div>
                     )}
                     {currentStats.pe != null && (
@@ -383,8 +397,71 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                         </ComposedChart>
                     </ResponsiveContainer>
                 )
+            ) : activeChart === 'ema50breadth' ? (
+                breadthLoading ? (
+                    <div className={styles.loading}><div className={styles.loader} /><span>Loading EMA50 breadth...</span></div>
+                ) : breadthData.length === 0 ? (
+                    <div className={styles.noData}>No data</div>
+                ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                        <ComposedChart data={breadthData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} strokeOpacity={0.5} />
+                            <XAxis
+                                dataKey="date"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                                interval={tickInterval(breadthData) - 1}
+                                height={24}
+                            />
+                            <YAxis
+                                yAxisId="count"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                                width={45}
+                            />
+                            <YAxis
+                                yAxisId="pct"
+                                orientation="right"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#93c5fd', fontSize: 10 }}
+                                width={45}
+                                tickFormatter={(v) => `${Math.round(v * 100)}%`}
+                            />
+                            <Tooltip
+                                cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+                                content={({ active, payload }) => {
+                                    if (!active || !payload?.length) return null;
+                                    const d = payload[0]?.payload;
+                                    return (
+                                        <div className="z-50 rounded-tremor-default border border-tremor-border bg-tremor-background p-3 shadow-tremor-dropdown dark:border-dark-tremor-border dark:bg-dark-tremor-background text-xs">
+                                            <p className="mb-1.5 font-medium uppercase tracking-tight text-tremor-content dark:text-dark-tremor-content">{d?.fullDate}</p>
+                                            <div className="flex justify-between gap-6">
+                                                <span className="text-emerald-500 font-medium">Trên EMA50</span>
+                                                <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{d?.above}</span>
+                                            </div>
+                                            <div className="flex justify-between gap-6 mt-1">
+                                                <span className="text-rose-500 font-medium">Dưới EMA50</span>
+                                                <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{d?.below}</span>
+                                            </div>
+                                            <div className="flex justify-between gap-6 mt-1">
+                                                <span className="text-blue-500 font-medium">% Trên EMA50</span>
+                                                <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{(Number(d?.percent || 0) * 100).toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                    );
+                                }}
+                            />
+                            <Bar yAxisId="count" dataKey="above" stackId="a" fill="#10b981" isAnimationActive={false} name="Trên EMA50" />
+                            <Bar yAxisId="count" dataKey="below" stackId="a" fill="#f43f5e" isAnimationActive={false} name="Dưới EMA50" />
+                            <Line yAxisId="pct" type="monotone" dataKey="percent" stroke="#3b82f6" strokeWidth={1.8} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name="% Trên EMA50" isAnimationActive={false} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                )
             ) : (
-                /* EMA50 / PE / PB */
+                /* PE / PB */
                 ratioData.length === 0 ? <div className={styles.noData}>No data</div> : (
                     <>
                         <ResponsiveContainer width="100%" height={300}>
@@ -420,9 +497,6 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                 {activeStats && <ReferenceLine y={activeStats.minusOneSD} stroke="#10b981" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−1σ ${activeStats.minusOneSD.toFixed(2)}`, position: 'insideTopRight', fill: '#10b981', fontSize: 10 }} />}
                                 {activeStats && <ReferenceLine y={activeStats.minusTwoSD} stroke="#3b82f6" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−2σ ${activeStats.minusTwoSD.toFixed(2)}`, position: 'insideTopRight', fill: '#3b82f6', fontSize: 10 }} />}
 
-                                {activeChart === 'ema50' && (
-                                    <Line type="monotone" dataKey="vnindex" stroke="#f97316" strokeWidth={1.2} dot={false} activeDot={false} name="VN-Index" isAnimationActive={false} opacity={0.55} />
-                                )}
                                 <Line type="monotone" dataKey="value" stroke={ratioColor} strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name={ratioName} isAnimationActive={false} />
                             </ComposedChart>
                         </ResponsiveContainer>
