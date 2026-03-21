@@ -23,7 +23,15 @@ const SORT_OPTIONS: Array<{ label: string; value: ScreenerSortKey }> = [
 ];
 
 const EXCHANGES = ['HOSE', 'HNX', 'UPCOM'];
-const PE_RANGE = { min: 0, max: 60 };
+const PE_RANGE = { min: 0, max: 60, step: 1 };
+const PB_RANGE = { min: 0, max: 10, step: 0.1 };
+const ROE_RANGE = { min: -20, max: 40, step: 1 };
+const PRICE_RANGE = { min: 0, max: 200000, step: 1000 };
+const MARKET_CAP_BN_RANGE = { min: 0, max: 1200000, step: 5000 }; // billion VND
+const NET_MARGIN_RANGE = { min: -30, max: 50, step: 1 };
+const GROSS_MARGIN_RANGE = { min: -10, max: 80, step: 1 };
+const REVENUE_GROWTH_RANGE = { min: -100, max: 300, step: 5 };
+const NET_PROFIT_GROWTH_RANGE = { min: -100, max: 300, step: 5 };
 
 function fmtNum(v: number | null | undefined, digits = 2) {
   if (v === null || v === undefined || !Number.isFinite(v)) return '-';
@@ -35,10 +43,64 @@ function fmtPct(v: number | null | undefined) {
   return `${Number(v).toFixed(2)}%`;
 }
 
-function toNumberOrUndef(v: string): number | undefined {
-  if (!v.trim()) return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
+type SliderRange = { min: number; max: number };
+
+function RangeSlider({
+  label,
+  range,
+  value,
+  onChange,
+  valueFormatter,
+}: {
+  label: string;
+  range: { min: number; max: number; step: number };
+  value: SliderRange;
+  onChange: (v: SliderRange) => void;
+  valueFormatter?: (n: number) => string;
+}) {
+  const fmt = valueFormatter || ((n: number) => String(n));
+  return (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+      <div className="flex items-center justify-between text-sm mb-2">
+        <span className="font-medium">{label}</span>
+        <span className="text-slate-600 dark:text-slate-400">
+          {fmt(value.min)} - {fmt(value.max)}
+        </span>
+      </div>
+      <div className="relative h-10">
+        <input
+          type="range"
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          value={value.min}
+          onChange={(e) => {
+            const nextMin = Number(e.target.value);
+            onChange({
+              min: Math.min(nextMin, value.max),
+              max: value.max,
+            });
+          }}
+          className="range-slider"
+        />
+        <input
+          type="range"
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          value={value.max}
+          onChange={(e) => {
+            const nextMax = Number(e.target.value);
+            onChange({
+              min: value.min,
+              max: Math.max(nextMax, value.min),
+            });
+          }}
+          className="range-slider"
+        />
+      </div>
+    </div>
+  );
 }
 
 export default function ScreenerPage() {
@@ -49,27 +111,77 @@ export default function ScreenerPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<ScreenerSortKey>('market_cap');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [peRange, setPeRange] = useState<{ min: number; max: number }>({
+  const [peRange, setPeRange] = useState<SliderRange>({
     min: PE_RANGE.min,
     max: PE_RANGE.max,
   });
-  const [form, setForm] = useState({
-    q: '',
-    exchange: '',
-    sector: '',
-    pbMax: '',
-    roeMin: '',
-    priceMin: '',
-    priceMax: '',
-    marketCapMin: '',
-    netMarginMin: '',
-    grossMarginMin: '',
-    revenueGrowthMin: '',
-    netProfitGrowthMin: '',
+  const [pbRange, setPbRange] = useState<SliderRange>({
+    min: PB_RANGE.min,
+    max: PB_RANGE.max,
   });
-  const [appliedFilters, setAppliedFilters] = useState<ScreenerFilters>({});
+  const [roeRange, setRoeRange] = useState<SliderRange>({
+    min: ROE_RANGE.min,
+    max: ROE_RANGE.max,
+  });
+  const [priceRange, setPriceRange] = useState<SliderRange>({
+    min: PRICE_RANGE.min,
+    max: PRICE_RANGE.max,
+  });
+  const [marketCapBnRange, setMarketCapBnRange] = useState<SliderRange>({
+    min: MARKET_CAP_BN_RANGE.min,
+    max: MARKET_CAP_BN_RANGE.max,
+  });
+  const [netMarginRange, setNetMarginRange] = useState<SliderRange>({
+    min: NET_MARGIN_RANGE.min,
+    max: NET_MARGIN_RANGE.max,
+  });
+  const [grossMarginRange, setGrossMarginRange] = useState<SliderRange>({
+    min: GROSS_MARGIN_RANGE.min,
+    max: GROSS_MARGIN_RANGE.max,
+  });
+  const [revenueGrowthRange, setRevenueGrowthRange] = useState<SliderRange>({
+    min: REVENUE_GROWTH_RANGE.min,
+    max: REVENUE_GROWTH_RANGE.max,
+  });
+  const [netProfitGrowthRange, setNetProfitGrowthRange] = useState<SliderRange>({
+    min: NET_PROFIT_GROWTH_RANGE.min,
+    max: NET_PROFIT_GROWTH_RANGE.max,
+  });
+  const [debouncedFilters, setDebouncedFilters] = useState<ScreenerFilters>({});
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const liveFilters = useMemo<ScreenerFilters>(() => ({
+    pe_min: peRange.min > PE_RANGE.min ? peRange.min : undefined,
+    pe_max: peRange.max < PE_RANGE.max ? peRange.max : undefined,
+    pb_min: pbRange.min > PB_RANGE.min ? pbRange.min : undefined,
+    pb_max: pbRange.max < PB_RANGE.max ? pbRange.max : undefined,
+    roe_min: roeRange.min > ROE_RANGE.min ? roeRange.min : undefined,
+    roe_max: roeRange.max < ROE_RANGE.max ? roeRange.max : undefined,
+    price_min: priceRange.min > PRICE_RANGE.min ? priceRange.min : undefined,
+    price_max: priceRange.max < PRICE_RANGE.max ? priceRange.max : undefined,
+    market_cap_min: marketCapBnRange.min > MARKET_CAP_BN_RANGE.min ? marketCapBnRange.min * 1_000_000_000 : undefined,
+    market_cap_max: marketCapBnRange.max < MARKET_CAP_BN_RANGE.max ? marketCapBnRange.max * 1_000_000_000 : undefined,
+    net_margin_min: netMarginRange.min > NET_MARGIN_RANGE.min ? netMarginRange.min : undefined,
+    net_margin_max: netMarginRange.max < NET_MARGIN_RANGE.max ? netMarginRange.max : undefined,
+    gross_margin_min: grossMarginRange.min > GROSS_MARGIN_RANGE.min ? grossMarginRange.min : undefined,
+    gross_margin_max: grossMarginRange.max < GROSS_MARGIN_RANGE.max ? grossMarginRange.max : undefined,
+    revenue_growth_min: revenueGrowthRange.min > REVENUE_GROWTH_RANGE.min ? revenueGrowthRange.min : undefined,
+    revenue_growth_max: revenueGrowthRange.max < REVENUE_GROWTH_RANGE.max ? revenueGrowthRange.max : undefined,
+    net_profit_growth_min: netProfitGrowthRange.min > NET_PROFIT_GROWTH_RANGE.min ? netProfitGrowthRange.min : undefined,
+    net_profit_growth_max: netProfitGrowthRange.max < NET_PROFIT_GROWTH_RANGE.max ? netProfitGrowthRange.max : undefined,
+  }), [
+    peRange, pbRange, roeRange, priceRange, marketCapBnRange,
+    netMarginRange, grossMarginRange, revenueGrowthRange, netProfitGrowthRange,
+  ]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      setDebouncedFilters(liveFilters);
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [liveFilters]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -80,7 +192,7 @@ export default function ScreenerPage() {
         pageSize: PAGE_SIZE,
         sortBy,
         sortOrder,
-        filters: appliedFilters,
+        filters: debouncedFilters,
       });
       setItems(resp.items || []);
       setTotal(resp.total || 0);
@@ -89,51 +201,24 @@ export default function ScreenerPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedFilters, page, sortBy, sortOrder]);
+  }, [debouncedFilters, page, sortBy, sortOrder]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const applyFilters = () => {
-    const next: ScreenerFilters = {
-      q: form.q || undefined,
-      exchange: form.exchange || undefined,
-      sector: form.sector || undefined,
-      pe_min: peRange.min > PE_RANGE.min ? peRange.min : undefined,
-      pe_max: peRange.max < PE_RANGE.max ? peRange.max : undefined,
-      pb_max: toNumberOrUndef(form.pbMax),
-      roe_min: toNumberOrUndef(form.roeMin),
-      price_min: toNumberOrUndef(form.priceMin),
-      price_max: toNumberOrUndef(form.priceMax),
-      market_cap_min: toNumberOrUndef(form.marketCapMin),
-      net_margin_min: toNumberOrUndef(form.netMarginMin),
-      gross_margin_min: toNumberOrUndef(form.grossMarginMin),
-      revenue_growth_min: toNumberOrUndef(form.revenueGrowthMin),
-      net_profit_growth_min: toNumberOrUndef(form.netProfitGrowthMin),
-    };
-    setPage(1);
-    setAppliedFilters(next);
-  };
-
   const resetFilters = () => {
-    setForm({
-      q: '',
-      exchange: '',
-      sector: '',
-      pbMax: '',
-      roeMin: '',
-      priceMin: '',
-      priceMax: '',
-      marketCapMin: '',
-      netMarginMin: '',
-      grossMarginMin: '',
-      revenueGrowthMin: '',
-      netProfitGrowthMin: '',
-    });
     setPeRange({ min: PE_RANGE.min, max: PE_RANGE.max });
+    setPbRange({ min: PB_RANGE.min, max: PB_RANGE.max });
+    setRoeRange({ min: ROE_RANGE.min, max: ROE_RANGE.max });
+    setPriceRange({ min: PRICE_RANGE.min, max: PRICE_RANGE.max });
+    setMarketCapBnRange({ min: MARKET_CAP_BN_RANGE.min, max: MARKET_CAP_BN_RANGE.max });
+    setNetMarginRange({ min: NET_MARGIN_RANGE.min, max: NET_MARGIN_RANGE.max });
+    setGrossMarginRange({ min: GROSS_MARGIN_RANGE.min, max: GROSS_MARGIN_RANGE.max });
+    setRevenueGrowthRange({ min: REVENUE_GROWTH_RANGE.min, max: REVENUE_GROWTH_RANGE.max });
+    setNetProfitGrowthRange({ min: NET_PROFIT_GROWTH_RANGE.min, max: NET_PROFIT_GROWTH_RANGE.max });
     setPage(1);
-    setAppliedFilters({});
+    setDebouncedFilters({});
   };
 
   const summary = useMemo(() => {
@@ -153,65 +238,24 @@ export default function ScreenerPage() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:p-5">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-            <input className="input" placeholder="Ticker / Name" value={form.q} onChange={(e) => setForm((p) => ({ ...p, q: e.target.value }))} />
-            <select className="input" value={form.exchange} onChange={(e) => setForm((p) => ({ ...p, exchange: e.target.value }))}>
-              <option value="">All Exchange</option>
-              {EXCHANGES.map((ex) => <option key={ex} value={ex}>{ex}</option>)}
-            </select>
-            <input className="input" placeholder="Sector" value={form.sector} onChange={(e) => setForm((p) => ({ ...p, sector: e.target.value }))} />
-            <input className="input" placeholder="PB max" value={form.pbMax} onChange={(e) => setForm((p) => ({ ...p, pbMax: e.target.value }))} />
-            <input className="input" placeholder="ROE min (%)" value={form.roeMin} onChange={(e) => setForm((p) => ({ ...p, roeMin: e.target.value }))} />
-            <input className="input" placeholder="Price min" value={form.priceMin} onChange={(e) => setForm((p) => ({ ...p, priceMin: e.target.value }))} />
-            <input className="input" placeholder="Price max" value={form.priceMax} onChange={(e) => setForm((p) => ({ ...p, priceMax: e.target.value }))} />
-            <input className="input" placeholder="Market cap min" value={form.marketCapMin} onChange={(e) => setForm((p) => ({ ...p, marketCapMin: e.target.value }))} />
-            <input className="input" placeholder="Net margin min (%)" value={form.netMarginMin} onChange={(e) => setForm((p) => ({ ...p, netMarginMin: e.target.value }))} />
-            <input className="input" placeholder="Gross margin min (%)" value={form.grossMarginMin} onChange={(e) => setForm((p) => ({ ...p, grossMarginMin: e.target.value }))} />
-            <input className="input" placeholder="Revenue growth min (%)" value={form.revenueGrowthMin} onChange={(e) => setForm((p) => ({ ...p, revenueGrowthMin: e.target.value }))} />
-            <input className="input" placeholder="Net profit growth min (%)" value={form.netProfitGrowthMin} onChange={(e) => setForm((p) => ({ ...p, netProfitGrowthMin: e.target.value }))} />
-          </div>
-          <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="font-medium">P/E Range</span>
-              <span className="text-slate-600 dark:text-slate-400">
-                {peRange.min} - {peRange.max}
-              </span>
-            </div>
-            <div className="relative h-10">
-              <input
-                type="range"
-                min={PE_RANGE.min}
-                max={PE_RANGE.max}
-                step={1}
-                value={peRange.min}
-                onChange={(e) => {
-                  const nextMin = Number(e.target.value);
-                  setPeRange((prev) => ({
-                    min: Math.min(nextMin, prev.max),
-                    max: prev.max,
-                  }));
-                }}
-                className="range-slider"
-              />
-              <input
-                type="range"
-                min={PE_RANGE.min}
-                max={PE_RANGE.max}
-                step={1}
-                value={peRange.max}
-                onChange={(e) => {
-                  const nextMax = Number(e.target.value);
-                  setPeRange((prev) => ({
-                    min: prev.min,
-                    max: Math.max(nextMax, prev.min),
-                  }));
-                }}
-                className="range-slider"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <RangeSlider label="P/E" range={PE_RANGE} value={peRange} onChange={setPeRange} />
+            <RangeSlider label="P/B" range={PB_RANGE} value={pbRange} onChange={setPbRange} valueFormatter={(n) => n.toFixed(1)} />
+            <RangeSlider label="ROE (%)" range={ROE_RANGE} value={roeRange} onChange={setRoeRange} />
+            <RangeSlider label="Price (VND)" range={PRICE_RANGE} value={priceRange} onChange={setPriceRange} valueFormatter={(n) => n.toLocaleString('en-US')} />
+            <RangeSlider
+              label="Market Cap (Billion VND)"
+              range={MARKET_CAP_BN_RANGE}
+              value={marketCapBnRange}
+              onChange={setMarketCapBnRange}
+              valueFormatter={(n) => n.toLocaleString('en-US')}
+            />
+            <RangeSlider label="Net Margin (%)" range={NET_MARGIN_RANGE} value={netMarginRange} onChange={setNetMarginRange} />
+            <RangeSlider label="Gross Margin (%)" range={GROSS_MARGIN_RANGE} value={grossMarginRange} onChange={setGrossMarginRange} />
+            <RangeSlider label="Revenue Growth (%)" range={REVENUE_GROWTH_RANGE} value={revenueGrowthRange} onChange={setRevenueGrowthRange} />
+            <RangeSlider label="Net Profit Growth (%)" range={NET_PROFIT_GROWTH_RANGE} value={netProfitGrowthRange} onChange={setNetProfitGrowthRange} />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium" onClick={applyFilters}>Apply</button>
             <button className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm" onClick={resetFilters}>Reset</button>
           </div>
         </div>
