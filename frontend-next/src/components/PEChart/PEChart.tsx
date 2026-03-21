@@ -324,11 +324,11 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const ratioColor = activeChart === 'pe' ? '#6366f1' : activeChart === 'pb' ? '#10b981' : '#3b82f6';
     const ratioName  = activeChart === 'pe' ? 'P/E TTM' : activeChart === 'pb' ? 'P/B TTM' : 'EMA50';
     const stdColors = {
-        plusTwo: '#e11d48',
-        plusOne: '#f59e0b',
-        average: '#64748b',
-        minusOne: '#14b8a6',
-        minusTwo: '#0ea5e9',
+        plusTwo: '#ef4444',
+        plusOne: '#f97316',
+        average: '#94a3b8',
+        minusOne: '#22c55e',
+        minusTwo: '#3b82f6',
     };
 
     const ratioDomain = useMemo((): [number, number] | ['auto', 'auto'] => {
@@ -566,8 +566,8 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                 )
             )}
 
-            <div className="mt-3 w-full overflow-x-auto">
-                <div className="ml-auto min-w-max flex rounded-tremor-small border border-tremor-border bg-tremor-background shadow-tremor-input dark:border-dark-tremor-border dark:bg-gray-950">
+            <div className="mt-3">
+                <div className="inline-flex rounded-tremor-small border border-tremor-border bg-tremor-background shadow-tremor-input dark:border-dark-tremor-border dark:bg-gray-950">
                     {TIME_RANGES.map((item, idx) => rangeBtn(item.key, item.label, idx, TIME_RANGES.length))}
                 </div>
             </div>
