@@ -238,8 +238,8 @@ export function Navbar() {
             <div className="w-full md:my-auto">
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex-shrink-0">
-                        <Link href={siteConfig.baseLinks.home}>
-                            <span className="sr-only">Home</span>
+                        <Link href={siteConfig.baseLinks.overview}>
+                            <span className="sr-only">Overview</span>
                             <DatabaseLogo className="w-24 md:w-32" />
                         </Link>
                     </div>
@@ -248,9 +248,9 @@ export function Navbar() {
                         <div className="flex items-center gap-6 lg:gap-8 font-medium">
                             <Link
                                 className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
-                                href={siteConfig.baseLinks.overview}
+                                href={siteConfig.baseLinks.home}
                             >
-                                Overview
+                                Market
                             </Link>
                             <Link
                                 className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
@@ -262,13 +262,13 @@ export function Navbar() {
                                 className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
                                 href="/foreign"
                             >
-                                Khối ngoại
+                                Foreign
                             </Link>
                             <Link
                                 className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
-                                href={siteConfig.baseLinks.about}
+                                href="/screener"
                             >
-                                About
+                                Screener
                             </Link>
                         </div>
                     </nav>
@@ -408,16 +408,16 @@ export function Navbar() {
                 >
                     <ul className="space-y-4 font-medium">
                         <li onClick={() => setOpen(false)}>
-                            <Link href={siteConfig.baseLinks.overview}>Overview</Link>
+                            <Link href={siteConfig.baseLinks.home}>Market</Link>
                         </li>
                         <li onClick={() => setOpen(false)}>
                             <Link href="/stock/VCB">Company</Link>
                         </li>
                         <li onClick={() => setOpen(false)}>
-                            <Link href="/foreign">Khối ngoại</Link>
+                            <Link href="/foreign">Foreign</Link>
                         </li>
                         <li onClick={() => setOpen(false)}>
-                            <Link href={siteConfig.baseLinks.about}>About</Link>
+                            <Link href="/screener">Screener</Link>
                         </li>
                     </ul>
                 </nav>

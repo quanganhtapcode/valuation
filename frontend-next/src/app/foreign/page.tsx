@@ -3,15 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-    Area,
-    AreaChart,
-    CartesianGrid,
-    ReferenceLine,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
+    Card,
+    LineChart,
+    Tab,
+    TabGroup,
+    TabList,
+    TabPanel,
+    TabPanels,
+} from '@tremor/react';
 import {
     fetchForeignNetValue,
     fetchForeignVolumeChart,
@@ -85,6 +84,12 @@ function toCumulative(points: ForeignVolumePoint[]) {
     });
 }
 
+const TIME_TABS: { name: string; filter: (t: string) => boolean }[] = [
+    { name: 'Sáng', filter: (t) => t >= '09:00' && t <= '11:35' },
+    { name: 'Chiều', filter: (t) => t >= '13:00' },
+    { name: 'Cả ngày', filter: () => true },
+];
+
 function CumulativeNetChart({
     title,
     value,
@@ -99,86 +104,82 @@ function CumulativeNetChart({
     isLoading: boolean;
 }) {
     const negative = value < 0;
-    const stroke = negative ? '#ef4444' : '#10b981';
-    const fillId = unit === 'volume' ? 'netVolFill' : 'netValFill';
+    const color = negative ? 'rose' : 'emerald';
     const yFormatter = unit === 'volume' ? fmtVolume : fmtBillion;
+    const chartKey = unit === 'volume' ? 'KLGD ròng (CP)' : 'GTGD ròng (VND)';
+    const chartData = data.map((d) => ({ time: d.time, [chartKey]: d.value }));
 
     return (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-4 mb-4">
-                <div>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Lũy kế trong phiên</p>
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                        {title}
-                    </h3>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">09:00 - 15:05</p>
-                </div>
-                <div className={`text-right text-2xl font-semibold tabular-nums ${negative ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {negative ? '-' : '+'}
-                    {unit === 'volume' ? fmtMillionVi(Math.abs(value)) : fmtBillionVi(Math.abs(value))}
-                </div>
+        <Card className="p-0">
+            <div className="p-6">
+                <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content">
+                    Lũy kế trong phiên
+                </p>
+                <p className="mt-1 text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                    {title}
+                </p>
+                <p className={`mt-1 text-tremor-metric font-semibold tabular-nums ${negative ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {negative ? '-' : '+'}{unit === 'volume' ? fmtMillionVi(Math.abs(value)) : fmtBillionVi(Math.abs(value))}
+                </p>
+                <p className="mt-0.5 text-tremor-default text-tremor-content dark:text-dark-tremor-content">
+                    09:00 – 15:05
+                </p>
             </div>
 
             {isLoading ? (
-                <div className="h-[220px] flex items-center justify-center">
+                <div className="h-72 flex items-center justify-center">
                     <div className="w-6 h-6 border-2 border-slate-300 dark:border-slate-700 border-t-slate-700 dark:border-t-slate-200 rounded-full animate-spin" />
                 </div>
             ) : data.length === 0 ? (
-                <div className="h-[220px] flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm">
+                <div className="h-72 flex items-center justify-center text-tremor-content dark:text-dark-tremor-content text-sm">
                     Không có dữ liệu phiên
                 </div>
             ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                    <AreaChart data={data} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
-                        <defs>
-                            <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={stroke} stopOpacity={0.22} />
-                                <stop offset="95%" stopColor={stroke} stopOpacity={0.03} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.28)" />
-                        <XAxis
-                            dataKey="time"
-                            tick={{ fill: '#64748b', fontSize: 11 }}
-                            tickLine={false}
-                            axisLine={false}
-                            interval="preserveStartEnd"
-                        />
-                        <YAxis
-                            tickFormatter={yFormatter}
-                            tick={{ fill: '#64748b', fontSize: 11 }}
-                            tickLine={false}
-                            axisLine={false}
-                            width={65}
-                        />
-                        <ReferenceLine y={0} stroke="rgba(100,116,139,0.48)" strokeWidth={1} />
-                        <Tooltip
-                            formatter={(v: number | string | undefined) => {
-                                const num = Number(v) || 0;
-                                return [unit === 'volume' ? `${fmtVolume(num)} CP` : `${fmtBillion(num)} VND`, 'Ròng tích lũy'];
-                            }}
-                            contentStyle={{
-                                backgroundColor: '#ffffff',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: 8,
-                                color: '#0f172a',
-                                fontSize: 12,
-                                boxShadow: '0 8px 24px rgba(15,23,42,0.08)',
-                            }}
-                        />
-                        <Area
-                            type="monotone"
-                            dataKey="value"
-                            stroke={stroke}
-                            strokeWidth={2}
-                            fill={`url(#${fillId})`}
-                            dot={false}
-                            activeDot={{ r: 3, stroke: '#fff', strokeWidth: 1 }}
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
+                <TabGroup defaultIndex={2}>
+                    <TabList className="px-6">
+                        {TIME_TABS.map((tab) => (
+                            <Tab
+                                key={tab.name}
+                                className="font-medium hover:border-tremor-content-subtle dark:hover:border-dark-tremor-content-subtle dark:hover:text-dark-tremor-content"
+                            >
+                                {tab.name}
+                            </Tab>
+                        ))}
+                    </TabList>
+                    <TabPanels>
+                        {TIME_TABS.map((tab) => {
+                            const sliced = chartData.filter((d) => tab.filter(d.time));
+                            return (
+                                <TabPanel key={tab.name} className="p-6">
+                                    <LineChart
+                                        data={sliced}
+                                        index="time"
+                                        categories={[chartKey]}
+                                        colors={[color]}
+                                        valueFormatter={yFormatter}
+                                        yAxisWidth={65}
+                                        tickGap={10}
+                                        showLegend={false}
+                                        className="hidden h-56 sm:block"
+                                    />
+                                    <LineChart
+                                        data={sliced}
+                                        index="time"
+                                        categories={[chartKey]}
+                                        colors={[color]}
+                                        valueFormatter={yFormatter}
+                                        showYAxis={false}
+                                        showLegend={false}
+                                        startEndOnly={true}
+                                        className="h-56 sm:hidden"
+                                    />
+                                </TabPanel>
+                            );
+                        })}
+                    </TabPanels>
+                </TabGroup>
             )}
-        </div>
+        </Card>
     );
 }
 
