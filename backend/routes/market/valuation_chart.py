@@ -60,45 +60,40 @@ def _normalize_metric(metric: str | None) -> str:
     return "both"
 
 
-def _apply_time_frame(
-    series: list[dict[str, Any]],
-    time_frame: str,
-) -> list[dict[str, Any]]:
+def _time_frame_to_cutoff(time_frame: str) -> date | None:
+    """Return the inclusive start date for the given time frame, or None for ALL."""
     frame = str(time_frame or "ALL").strip().upper()
     if frame in {"", "ALL"}:
-        return series
-
+        return None
     today = date.today()
     if frame == "YTD":
-        cutoff = date(today.year, 1, 1)
-    elif frame == "6M":
+        return date(today.year, 1, 1)
+    if frame == "6M":
         month = today.month - 6
         year = today.year
         while month <= 0:
             month += 12
             year -= 1
-        cutoff = date(year, month, today.day if today.day <= 28 else 28)
-    elif frame == "1Y":
-        cutoff = date(today.year - 1, today.month, today.day if today.day <= 28 else 28)
-    elif frame == "2Y":
-        cutoff = date(today.year - 2, today.month, today.day if today.day <= 28 else 28)
-    elif frame == "5Y":
-        cutoff = date(today.year - 5, today.month, today.day if today.day <= 28 else 28)
-    else:
-        return series
+        return date(year, month, min(today.day, 28))
+    if frame == "1Y":
+        return date(today.year - 1, today.month, min(today.day, 28))
+    if frame == "2Y":
+        return date(today.year - 2, today.month, min(today.day, 28))
+    if frame == "5Y":
+        return date(today.year - 5, today.month, min(today.day, 28))
+    return None
 
-    out: list[dict[str, Any]] = []
-    for item in series:
-        date_str = str(item.get("date") or "").strip()
-        if not date_str:
-            continue
-        try:
-            d = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except Exception:
-            continue
-        if d >= cutoff:
-            out.append(item)
-    return out
+
+def _apply_time_frame(
+    series: list[dict[str, Any]],
+    time_frame: str,
+) -> list[dict[str, Any]]:
+    """Filter a [{date, ...}] list by time frame (used for live VCI fallback only)."""
+    cutoff = _time_frame_to_cutoff(time_frame)
+    if cutoff is None:
+        return series
+    cutoff_str = cutoff.isoformat()
+    return [item for item in series if str(item.get("date") or "") >= cutoff_str]
 
 
 def _fetch_vci_index_valuation_series(
@@ -238,37 +233,21 @@ def _attach_ema50(series: list[dict[str, Any]], period: int = 50) -> list[dict[s
     return series
 
 
-def _read_valuation_from_sqlite() -> dict[str, Any] | None:
-    """Read all valuation history + stats from SQLite. Returns None if DB unavailable."""
+def _read_valuation_from_sqlite(cutoff_date: date | None = None) -> dict[str, Any] | None:
+    """Read valuation history from SQLite filtered by cutoff_date, returning flat data rows."""
     db = _VALUATION_SQLITE
     if not db.exists():
         return None
     try:
         with sqlite3.connect(str(db)) as conn:
             conn.row_factory = sqlite3.Row
-            columns = {row["name"] for row in conn.execute("PRAGMA table_info(valuation_history)").fetchall()}
-            has_extended = {"open", "high", "low", "close", "accumulated_volume", "accumulated_value"}.issubset(columns)
-            has_ema50 = "ema50" in columns
-            if has_extended:
-                select_cols = (
-                    "date, pe, pb, vnindex, open, high, low, close, volume, "
-                    "accumulated_volume, accumulated_value"
-                )
-                if has_ema50:
-                    select_cols = (
-                        "date, pe, pb, vnindex, open, high, low, close, ema50, volume, "
-                        "accumulated_volume, accumulated_value"
-                    )
-                rows = conn.execute(
-                    f"SELECT {select_cols} FROM valuation_history ORDER BY date"
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT date, pe, pb, vnindex, volume FROM valuation_history ORDER BY date"
-                ).fetchall()
+            where = f"WHERE date >= '{cutoff_date.isoformat()}'" if cutoff_date else ""
+            rows = conn.execute(
+                f"SELECT date, pe, pb, vnindex, ema50, volume "
+                f"FROM valuation_history {where} ORDER BY date"
+            ).fetchall()
             if not rows:
                 return None
-            # valuation_stats may not exist yet on older DBs
             try:
                 stat_rows = conn.execute(
                     "SELECT metric, average, plus_one_sd, plus_two_sd, minus_one_sd, minus_two_sd "
@@ -277,24 +256,18 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
             except Exception:
                 stat_rows = []
 
-        pe_series, pb_series, vnindex_series = [], [], []
-        for r in rows:
-            if r["pe"] is not None:
-                pe_series.append({"date": r["date"], "value": r["pe"]})
-            if r["pb"] is not None:
-                pb_series.append({"date": r["date"], "value": r["pb"]})
-            if r["vnindex"] is not None:
-                item: dict[str, Any] = {"date": r["date"], "value": r["vnindex"], "volume": r["volume"]}
-                if "open" in r.keys():
-                    item["open"] = r["open"]
-                    item["high"] = r["high"]
-                    item["low"] = r["low"]
-                    item["close"] = r["close"]
-                    if "ema50" in r.keys():
-                        item["ema50"] = r["ema50"]
-                    item["accumulated_volume"] = r["accumulated_volume"]
-                    item["accumulated_value"] = r["accumulated_value"]
-                vnindex_series.append(item)
+        data = [
+            {
+                "date": r["date"],
+                "vnindex": r["vnindex"],
+                "ema50": r["ema50"],
+                "pe": r["pe"],
+                "pb": r["pb"],
+                "volume": r["volume"],
+            }
+            for r in rows
+            if r["vnindex"] is not None or r["pe"] is not None or r["pb"] is not None
+        ]
 
         stats: dict[str, Any] = {}
         for sr in stat_rows:
@@ -306,7 +279,7 @@ def _read_valuation_from_sqlite() -> dict[str, Any] | None:
                 "minusTwoSD": sr["minus_two_sd"],
             }
 
-        return {"pe": pe_series, "pb": pb_series, "vnindex": vnindex_series, "stats": stats}
+        return {"data": data, "stats": stats}
     except Exception as exc:
         logger.warning("Failed to read valuation SQLite: %s", exc)
         return None
@@ -408,55 +381,72 @@ def fetch_vci_index_valuation_payload(
     com_group_code: str = "VNINDEX",
     time_frame: str = "ALL",
 ) -> dict[str, Any]:
+    cutoff = _time_frame_to_cutoff(time_frame)
+
+    # SQLite path (VNINDEX only) — filter in SQL, return flat unified rows
+    if com_group_code.upper() == "VNINDEX":
+        sqlite_data = _read_valuation_from_sqlite(cutoff_date=cutoff)
+        if sqlite_data:
+            return {
+                "success": True,
+                "source": "SQLite",
+                "index": com_group_code,
+                "timeFrame": time_frame,
+                "stats": sqlite_data["stats"],
+                "data": sqlite_data["data"],
+            }
+
+    # Live VCI fallback — merge pe/pb/vnindex series by date
     selected = _normalize_metric(metric)
+    pe_series_raw: list[dict[str, Any]] = []
+    pb_series_raw: list[dict[str, Any]] = []
+    if selected in {"pe", "both"}:
+        pe_series_raw = _fetch_vci_index_valuation_series(
+            metric="pe", com_group_code=com_group_code, time_frame=time_frame
+        )
+    if selected in {"pb", "both"}:
+        pb_series_raw = _fetch_vci_index_valuation_series(
+            metric="pb", com_group_code=com_group_code, time_frame=time_frame
+        )
+    vnindex_raw: list[dict[str, Any]] = []
+    if com_group_code.upper() == "VNINDEX":
+        try:
+            vnindex_raw = _fetch_vnindex_ohlc_series()
+        except Exception as exc:
+            logger.warning("Failed to fetch VNINDEX OHLC: %s", exc)
 
-    # Try SQLite first (populated daily by fetch_vci_valuation.py)
-    sqlite_data = _read_valuation_from_sqlite() if com_group_code.upper() == "VNINDEX" else None
+    by_date: dict[str, dict[str, Any]] = {}
+    for item in pe_series_raw:
+        by_date.setdefault(item["date"], {})["pe"] = item["value"]
+    for item in pb_series_raw:
+        by_date.setdefault(item["date"], {})["pb"] = item["value"]
+    for item in _attach_ema50(vnindex_raw):
+        row = by_date.setdefault(item["date"], {})
+        row["vnindex"] = item.get("value")
+        row["ema50"] = item.get("ema50")
+        row["volume"] = item.get("volume")
 
-    if sqlite_data:
-        source = "SQLite"
-        pe_series = sqlite_data["pe"]
-        pb_series = sqlite_data["pb"]
-        vnindex_series = sqlite_data["vnindex"]
-        stats = sqlite_data.get("stats", {})
-    else:
-        # Fall back to live VCI API
-        source = "VCI"
-        pe_series: list[dict[str, Any]] = []
-        pb_series: list[dict[str, Any]] = []
-        if selected in {"pe", "both"}:
-            pe_series = _fetch_vci_index_valuation_series(
-                metric="pe", com_group_code=com_group_code, time_frame=time_frame
-            )
-        if selected in {"pb", "both"}:
-            pb_series = _fetch_vci_index_valuation_series(
-                metric="pb", com_group_code=com_group_code, time_frame=time_frame
-            )
-        vnindex_series: list[dict[str, Any]] = []
-        if com_group_code.upper() == "VNINDEX":
-            try:
-                vnindex_series = _fetch_vnindex_ohlc_series()
-            except Exception as exc:
-                logger.warning("Failed to fetch VNINDEX OHLC: %s", exc)
-        stats: dict[str, Any] = {}
-
-    pe_series = _apply_time_frame(pe_series, time_frame)
-    pb_series = _apply_time_frame(pb_series, time_frame)
-    vnindex_series = _apply_time_frame(_attach_ema50(vnindex_series), time_frame)
+    cutoff_str = cutoff.isoformat() if cutoff else None
+    data = [
+        {
+            "date": d,
+            "vnindex": v.get("vnindex"),
+            "ema50": v.get("ema50"),
+            "pe": v.get("pe"),
+            "pb": v.get("pb"),
+            "volume": v.get("volume"),
+        }
+        for d, v in sorted(by_date.items())
+        if cutoff_str is None or d >= cutoff_str
+    ]
 
     return {
         "success": True,
-        "source": source,
+        "source": "VCI",
         "index": com_group_code,
         "timeFrame": time_frame,
-        "metric": selected,
-        "series": {"pe": pe_series, "pb": pb_series, "vnindex": vnindex_series},
-        "stats": stats,
-        "pe": pe_series,
-        "pb": pb_series,
-        "Data": pe_series if selected == "pe" else (pb_series if selected == "pb" else pe_series),
-        "DataPE": pe_series,
-        "DataPB": pb_series,
+        "stats": {},
+        "data": data,
     }
 
 
