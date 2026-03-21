@@ -362,7 +362,7 @@ def _read_ema_breadth_live(limit: int = 260) -> list[dict[str, Any]]:
             params={
                 "condition": "EMA50",
                 "exchange": "HSX,HNX,UPCOM",
-                "enNumberOfDays": "Y1",
+                "enNumberOfDays": "ALL",
             },
         )
         response.raise_for_status()

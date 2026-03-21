@@ -150,7 +150,7 @@ def fetch_ema50_breadth() -> list[dict[str, Any]]:
         {
             "condition": "EMA50",
             "exchange": "HSX,HNX,UPCOM",
-            "enNumberOfDays": "Y1",
+            "enNumberOfDays": "ALL",
         },
     )
     rows = (result or {}).get("data") or []
