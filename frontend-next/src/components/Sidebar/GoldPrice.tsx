@@ -22,11 +22,11 @@ export default function GoldPrice({ prices, isLoading, updatedAt }: GoldPricePro
 
     // Selection criteria
     const displayPrices = prices?.filter(p =>
-        ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng VRTL (Miếng)', 'Bạc 1kg'].includes(p.TypeName)
+        ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Bạc Thỏi Phú Quý 999', 'Bạc 1kg'].includes(p.TypeName)
     ) || [];
 
-    // Order: SJC, VRTL, 9999 Ring, Silver
-    const order = ['Vàng SJC (Miếng)', 'Vàng VRTL (Miếng)', 'Nhẫn Vàng 9999', 'Bạc 1kg'];
+    // Order: SJC, 9999 Ring, Silver
+    const order = ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Bạc Thỏi Phú Quý 999', 'Bạc 1kg'];
     displayPrices.sort((a, b) => order.indexOf(a.TypeName) - order.indexOf(b.TypeName));
 
     return (
@@ -48,7 +48,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt }: GoldPricePro
                 ) : (
                     <div className="flex flex-col">
                         {displayPrices.map((item) => {
-                            const isSilver = item.TypeName === 'Bạc 1kg';
+                            const isSilver = item.TypeName.startsWith('Bạc');
                             const badgeText = isSilver ? 'Ag' : 'Au';
 
                             return (
