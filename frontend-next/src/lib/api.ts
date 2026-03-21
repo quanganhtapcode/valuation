@@ -591,8 +591,22 @@ export async function fetchGoldPrices(): Promise<{ data: GoldPriceItem[]; update
  */
 export type ValuationMetric = 'pe' | 'pb' | 'both';
 
-export async function fetchPEChart(metric: ValuationMetric = 'both'): Promise<PEChartResult> {
-    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}`);
+export async function fetchPEChart(
+    metric: ValuationMetric = 'both',
+    options?: RequestInit,
+): Promise<PEChartResult> {
+    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}`, options);
+    const series = parsePEChartPayload(response);
+    const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
+    return { series, stats };
+}
+
+export async function fetchPEChartByRange(
+    timeFrame: '6M' | 'YTD' | '1Y' | '2Y' | '5Y' | 'ALL',
+    metric: ValuationMetric = 'both',
+    options?: RequestInit,
+): Promise<PEChartResult> {
+    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}&timeFrame=${timeFrame}`, options);
     const series = parsePEChartPayload(response);
     const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
     return { series, stats };
@@ -660,6 +674,7 @@ export async function fetchOverviewRefresh(options?: {
     newsSize?: number;
     heatmapLimit?: number;
     heatmapExchange?: string;
+    peTimeFrame?: '6M' | 'YTD' | '1Y' | '2Y' | '5Y' | 'ALL';
 }): Promise<{
     watchlistPrices: Record<string, WatchlistPriceSnapshot>;
     peData: PEChartData[];
@@ -678,6 +693,9 @@ export async function fetchOverviewRefresh(options?: {
     }
     if (options?.heatmapExchange) {
         params.set('heatmap_exchange', String(options.heatmapExchange));
+    }
+    if (options?.peTimeFrame) {
+        params.set('pe_time_frame', String(options.peTimeFrame));
     }
 
     const query = params.toString();

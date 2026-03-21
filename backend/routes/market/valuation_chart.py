@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +57,47 @@ def _normalize_metric(metric: str | None) -> str:
     if value in {"pe", "pb", "both"}:
         return value
     return "both"
+
+
+def _apply_time_frame(
+    series: list[dict[str, Any]],
+    time_frame: str,
+) -> list[dict[str, Any]]:
+    frame = str(time_frame or "ALL").strip().upper()
+    if frame in {"", "ALL"}:
+        return series
+
+    today = date.today()
+    if frame == "YTD":
+        cutoff = date(today.year, 1, 1)
+    elif frame == "6M":
+        month = today.month - 6
+        year = today.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        cutoff = date(year, month, today.day if today.day <= 28 else 28)
+    elif frame == "1Y":
+        cutoff = date(today.year - 1, today.month, today.day if today.day <= 28 else 28)
+    elif frame == "2Y":
+        cutoff = date(today.year - 2, today.month, today.day if today.day <= 28 else 28)
+    elif frame == "5Y":
+        cutoff = date(today.year - 5, today.month, today.day if today.day <= 28 else 28)
+    else:
+        return series
+
+    out: list[dict[str, Any]] = []
+    for item in series:
+        date_str = str(item.get("date") or "").strip()
+        if not date_str:
+            continue
+        try:
+            d = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+        if d >= cutoff:
+            out.append(item)
+    return out
 
 
 def _fetch_vci_index_valuation_series(
@@ -253,6 +295,10 @@ def fetch_vci_index_valuation_payload(
                 logger.warning("Failed to fetch VNINDEX OHLC: %s", exc)
         stats: dict[str, Any] = {}
 
+    pe_series = _apply_time_frame(pe_series, time_frame)
+    pb_series = _apply_time_frame(pb_series, time_frame)
+    vnindex_series = _apply_time_frame(vnindex_series, time_frame)
+
     return {
         "success": True,
         "source": source,
@@ -291,4 +337,3 @@ def register(market_bp: Blueprint) -> None:
         except Exception as e:
             logger.error(f"Index valuation proxy error: {e}")
             return jsonify({"error": str(e)}), 500
-
