@@ -23,6 +23,7 @@ const SORT_OPTIONS: Array<{ label: string; value: ScreenerSortKey }> = [
 ];
 
 const EXCHANGES = ['HOSE', 'HNX', 'UPCOM'];
+const PE_RANGE = { min: 0, max: 60 };
 
 function fmtNum(v: number | null | undefined, digits = 2) {
   if (v === null || v === undefined || !Number.isFinite(v)) return '-';
@@ -48,12 +49,14 @@ export default function ScreenerPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<ScreenerSortKey>('market_cap');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [peRange, setPeRange] = useState<{ min: number; max: number }>({
+    min: PE_RANGE.min,
+    max: PE_RANGE.max,
+  });
   const [form, setForm] = useState({
     q: '',
     exchange: '',
     sector: '',
-    peMin: '',
-    peMax: '',
     pbMax: '',
     roeMin: '',
     priceMin: '',
@@ -97,8 +100,8 @@ export default function ScreenerPage() {
       q: form.q || undefined,
       exchange: form.exchange || undefined,
       sector: form.sector || undefined,
-      pe_min: toNumberOrUndef(form.peMin),
-      pe_max: toNumberOrUndef(form.peMax),
+      pe_min: peRange.min > PE_RANGE.min ? peRange.min : undefined,
+      pe_max: peRange.max < PE_RANGE.max ? peRange.max : undefined,
       pb_max: toNumberOrUndef(form.pbMax),
       roe_min: toNumberOrUndef(form.roeMin),
       price_min: toNumberOrUndef(form.priceMin),
@@ -118,8 +121,6 @@ export default function ScreenerPage() {
       q: '',
       exchange: '',
       sector: '',
-      peMin: '',
-      peMax: '',
       pbMax: '',
       roeMin: '',
       priceMin: '',
@@ -130,6 +131,7 @@ export default function ScreenerPage() {
       revenueGrowthMin: '',
       netProfitGrowthMin: '',
     });
+    setPeRange({ min: PE_RANGE.min, max: PE_RANGE.max });
     setPage(1);
     setAppliedFilters({});
   };
@@ -158,8 +160,6 @@ export default function ScreenerPage() {
               {EXCHANGES.map((ex) => <option key={ex} value={ex}>{ex}</option>)}
             </select>
             <input className="input" placeholder="Sector" value={form.sector} onChange={(e) => setForm((p) => ({ ...p, sector: e.target.value }))} />
-            <input className="input" placeholder="PE min" value={form.peMin} onChange={(e) => setForm((p) => ({ ...p, peMin: e.target.value }))} />
-            <input className="input" placeholder="PE max" value={form.peMax} onChange={(e) => setForm((p) => ({ ...p, peMax: e.target.value }))} />
             <input className="input" placeholder="PB max" value={form.pbMax} onChange={(e) => setForm((p) => ({ ...p, pbMax: e.target.value }))} />
             <input className="input" placeholder="ROE min (%)" value={form.roeMin} onChange={(e) => setForm((p) => ({ ...p, roeMin: e.target.value }))} />
             <input className="input" placeholder="Price min" value={form.priceMin} onChange={(e) => setForm((p) => ({ ...p, priceMin: e.target.value }))} />
@@ -169,6 +169,46 @@ export default function ScreenerPage() {
             <input className="input" placeholder="Gross margin min (%)" value={form.grossMarginMin} onChange={(e) => setForm((p) => ({ ...p, grossMarginMin: e.target.value }))} />
             <input className="input" placeholder="Revenue growth min (%)" value={form.revenueGrowthMin} onChange={(e) => setForm((p) => ({ ...p, revenueGrowthMin: e.target.value }))} />
             <input className="input" placeholder="Net profit growth min (%)" value={form.netProfitGrowthMin} onChange={(e) => setForm((p) => ({ ...p, netProfitGrowthMin: e.target.value }))} />
+          </div>
+          <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="font-medium">P/E Range</span>
+              <span className="text-slate-600 dark:text-slate-400">
+                {peRange.min} - {peRange.max}
+              </span>
+            </div>
+            <div className="relative h-10">
+              <input
+                type="range"
+                min={PE_RANGE.min}
+                max={PE_RANGE.max}
+                step={1}
+                value={peRange.min}
+                onChange={(e) => {
+                  const nextMin = Number(e.target.value);
+                  setPeRange((prev) => ({
+                    min: Math.min(nextMin, prev.max),
+                    max: prev.max,
+                  }));
+                }}
+                className="range-slider"
+              />
+              <input
+                type="range"
+                min={PE_RANGE.min}
+                max={PE_RANGE.max}
+                step={1}
+                value={peRange.max}
+                onChange={(e) => {
+                  const nextMax = Number(e.target.value);
+                  setPeRange((prev) => ({
+                    min: prev.min,
+                    max: Math.max(nextMax, prev.min),
+                  }));
+                }}
+                className="range-slider"
+              />
+            </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <button className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium" onClick={applyFilters}>Apply</button>
@@ -263,11 +303,57 @@ export default function ScreenerPage() {
           font-size: 0.875rem;
           min-width: 0;
         }
+        .range-slider {
+          position: absolute;
+          left: 0;
+          top: 0.35rem;
+          width: 100%;
+          pointer-events: none;
+          appearance: none;
+          background: transparent;
+        }
+        .range-slider::-webkit-slider-thumb {
+          appearance: none;
+          height: 16px;
+          width: 16px;
+          border-radius: 9999px;
+          background: rgb(37 99 235);
+          border: 2px solid white;
+          box-shadow: 0 0 0 1px rgb(148 163 184);
+          pointer-events: auto;
+          cursor: pointer;
+        }
+        .range-slider::-moz-range-thumb {
+          height: 16px;
+          width: 16px;
+          border-radius: 9999px;
+          background: rgb(37 99 235);
+          border: 2px solid white;
+          box-shadow: 0 0 0 1px rgb(148 163 184);
+          pointer-events: auto;
+          cursor: pointer;
+        }
+        .range-slider::-webkit-slider-runnable-track {
+          height: 6px;
+          border-radius: 9999px;
+          background: rgb(226 232 240);
+        }
+        .range-slider::-moz-range-track {
+          height: 6px;
+          border-radius: 9999px;
+          background: rgb(226 232 240);
+        }
         @media (prefers-color-scheme: dark) {
           .input {
             border-color: rgb(51 65 85);
             background: rgb(15 23 42);
             color: rgb(241 245 249);
+          }
+          .range-slider::-webkit-slider-runnable-track {
+            background: rgb(51 65 85);
+          }
+          .range-slider::-moz-range-track {
+            background: rgb(51 65 85);
           }
         }
       `}</style>
