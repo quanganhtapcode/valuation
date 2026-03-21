@@ -18,7 +18,7 @@ import { cx } from '@/lib/utils';
 import styles from './PEChart.module.css';
 
 type TimeRange = '6m' | 'ytd' | '1y' | '2y' | '5y' | 'all';
-type ActiveChart = 'vnindex' | 'pe' | 'pb';
+type ActiveChart = 'vnindex' | 'ema50' | 'pe' | 'pb';
 
 const TIME_RANGES: { key: TimeRange; label: string }[] = [
     { key: '6m',  label: '6M'  },
@@ -31,6 +31,7 @@ const TIME_RANGES: { key: TimeRange; label: string }[] = [
 
 const CHART_TABS: { key: ActiveChart; label: string }[] = [
     { key: 'vnindex', label: 'VN-Index' },
+    { key: 'ema50',   label: 'EMA50'    },
     { key: 'pe',      label: 'P/E TTM'  },
     { key: 'pb',      label: 'P/B TTM'  },
 ];
@@ -118,6 +119,14 @@ const RatioTooltip = ({ active, payload, stats, label: _label }: any) => {
                 <span className="text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis font-medium">{payload[0]?.name}</span>
                 <span className="font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{val?.toFixed(2)}</span>
             </div>
+            {d?.vnindex != null && payload[0]?.name === 'EMA50' && (
+                <div className="flex justify-between gap-6 mt-1">
+                    <span className="text-orange-500 font-medium">VN-Index</span>
+                    <span className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                        {Number(d.vnindex).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    </span>
+                </div>
+            )}
             <p className="mt-1 text-tremor-content dark:text-dark-tremor-content">{zone}</p>
         </div>
     );
@@ -204,9 +213,9 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const { series, stats } = result;
 
     const currentStats = useMemo(() => {
-        if (!series.length) return { pe: null, pb: null, vnindex: null };
+        if (!series.length) return { pe: null, pb: null, vnindex: null, ema50: null };
         const last = [...series].sort((a, b) => a.date.getTime() - b.date.getTime()).at(-1)!;
-        return { pe: last.pe, pb: last.pb, vnindex: last.vnindex };
+        return { pe: last.pe, pb: last.pb, vnindex: last.vnindex, ema50: last.ema50 ?? null };
     }, [series]);
 
     const maxPoints = (timeRange === 'all' || timeRange === '5y') ? 400 : 600;
@@ -225,25 +234,27 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         }));
     }, [series, timeRange, maxPoints]);
 
-    // PE/PB chart data
+    // PE/PB/EMA chart data
     const ratioData = useMemo(() => {
-        const field = activeChart as 'pe' | 'pb';
+        const field = activeChart as 'pe' | 'pb' | 'ema50';
         const cutoff = getCutoffDate(timeRange);
-        let filtered = series.filter(d => d[field] != null);
+        let filtered = series.filter(d => d[field] != null && d.vnindex != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
         return sampleData(filtered, maxPoints).map(d => ({
             date: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             value: d[field]!,
+            vnindex: d.vnindex!,
         }));
     }, [series, timeRange, activeChart, maxPoints]);
 
     const activeStats: ValuationStats | undefined =
         activeChart === 'pe' ? stats.pe : activeChart === 'pb' ? stats.pb : undefined;
-    const ratioColor = activeChart === 'pe' ? '#6366f1' : '#10b981';
-    const ratioName  = activeChart === 'pe' ? 'P/E TTM'  : 'P/B TTM';
+    const ratioColor = activeChart === 'pe' ? '#6366f1' : activeChart === 'pb' ? '#10b981' : '#3b82f6';
+    const ratioName  = activeChart === 'pe' ? 'P/E TTM' : activeChart === 'pb' ? 'P/B TTM' : 'EMA50';
 
     const ratioDomain = useMemo((): [number, number] | ['auto', 'auto'] => {
+        if (activeChart === 'ema50') return ['auto', 'auto'];
         if (!activeStats || ratioData.length === 0) return ['auto', 'auto'];
         const vals = ratioData.map(d => d.value);
         const allVals = [...vals, activeStats.minusTwoSD, activeStats.plusTwoSD];
@@ -251,7 +262,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         const hi = Math.max(...allVals);
         const pad = (hi - lo) * 0.06;
         return [+(lo - pad).toFixed(2), +(hi + pad).toFixed(2)];
-    }, [ratioData, activeStats]);
+    }, [ratioData, activeStats, activeChart]);
 
     // Shared x-axis tick interval
     const tickInterval = (data: any[]) => Math.max(1, Math.ceil(data.length / 6));
@@ -287,8 +298,10 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             {/* ── Single control row ── */}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 {/* Left: chart type tabs */}
-                <div className="flex gap-1 rounded-lg border border-tremor-border bg-tremor-background p-1 dark:border-dark-tremor-border dark:bg-gray-950">
-                    {CHART_TABS.map(t => tabBtn(t.key, t.label))}
+                <div className="w-full sm:w-auto overflow-x-auto">
+                    <div className="min-w-max flex gap-1 rounded-lg border border-tremor-border bg-tremor-background p-1 dark:border-dark-tremor-border dark:bg-gray-950">
+                        {CHART_TABS.map(t => tabBtn(t.key, t.label))}
+                    </div>
                 </div>
 
                 {/* Right: current values + time range */}
@@ -298,6 +311,12 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                         <div className="flex items-center gap-1">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">VN-Index</span>
                             <span className="text-sm font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.vnindex.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                        </div>
+                    )}
+                    {currentStats.ema50 != null && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500">EMA50</span>
+                            <span className="text-sm font-bold text-tremor-content-strong dark:text-dark-tremor-content-strong">{currentStats.ema50.toFixed(2)}</span>
                         </div>
                     )}
                     {currentStats.pe != null && (
@@ -314,8 +333,10 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                     )}
 
                     {/* Time range buttons */}
-                    <div className="flex rounded-tremor-small border border-tremor-border bg-tremor-background shadow-tremor-input dark:border-dark-tremor-border dark:bg-gray-950">
-                        {TIME_RANGES.map((item, idx) => rangeBtn(item.key, item.label, idx, TIME_RANGES.length))}
+                    <div className="w-full sm:w-auto overflow-x-auto">
+                        <div className="min-w-max flex rounded-tremor-small border border-tremor-border bg-tremor-background shadow-tremor-input dark:border-dark-tremor-border dark:bg-gray-950">
+                            {TIME_RANGES.map((item, idx) => rangeBtn(item.key, item.label, idx, TIME_RANGES.length))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -363,7 +384,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                     </ResponsiveContainer>
                 )
             ) : (
-                /* PE / PB: line + std dev bands */
+                /* EMA50 / PE / PB */
                 ratioData.length === 0 ? <div className={styles.noData}>No data</div> : (
                     <>
                         <ResponsiveContainer width="100%" height={300}>
@@ -399,6 +420,9 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                 {activeStats && <ReferenceLine y={activeStats.minusOneSD} stroke="#10b981" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−1σ ${activeStats.minusOneSD.toFixed(2)}`, position: 'insideTopRight', fill: '#10b981', fontSize: 10 }} />}
                                 {activeStats && <ReferenceLine y={activeStats.minusTwoSD} stroke="#3b82f6" strokeDasharray="5 3" strokeWidth={1.5} label={{ value: `−2σ ${activeStats.minusTwoSD.toFixed(2)}`, position: 'insideTopRight', fill: '#3b82f6', fontSize: 10 }} />}
 
+                                {activeChart === 'ema50' && (
+                                    <Line type="monotone" dataKey="vnindex" stroke="#f97316" strokeWidth={1.2} dot={false} activeDot={false} name="VN-Index" isAnimationActive={false} opacity={0.55} />
+                                )}
                                 <Line type="monotone" dataKey="value" stroke={ratioColor} strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} name={ratioName} isAnimationActive={false} />
                             </ComposedChart>
                         </ResponsiveContainer>
