@@ -408,6 +408,8 @@ export interface ValuationResult {
     success: boolean;
     symbol?: string;
     valuations?: ValuationModelResult;
+    fcfe_details?: { inputs?: Record<string, unknown>; [key: string]: unknown };
+    fcff_details?: { inputs?: Record<string, unknown>; [key: string]: unknown };
     upside_pct?: number;
     recommendation?: string;
     scenarios?: {
@@ -422,7 +424,13 @@ export interface ValuationResult {
         [key: string]: unknown;
     };
     export?: {
-        market?: { current_price?: number };
+        market?: { current_price?: number; current_price_source?: string };
+        comparables?: Record<string, unknown>;
+        calculation?: Record<string, unknown>;
+        inputs_sources?: Record<string, unknown>;
+        scenarios?: Record<string, unknown>;
+        quality?: Record<string, unknown> | null;
+        [key: string]: unknown;
     };
 }
 
