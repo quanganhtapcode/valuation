@@ -5,7 +5,7 @@
     {
       "symbol": "DPP",
       "name": "CTCP Dược Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -29,7 +29,7 @@
     {
       "symbol": "DND",
       "name": "CTCP Đầu tư Xây dựng và Vật liệu Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -41,7 +41,7 @@
     {
       "symbol": "NOS",
       "name": "CTCP Vận tải biển và Thương mại Phương Đông",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -53,7 +53,7 @@
     {
       "symbol": "DPH",
       "name": "CTCP Dược phẩm Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -71,7 +71,7 @@
     {
       "symbol": "CFM",
       "name": "CTCP Đầu tư CFM",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -89,13 +89,13 @@
     {
       "symbol": "DCV",
       "name": "CTCP Quản lý Quỹ Đầu tư Dragon Capital Việt Nam",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MBN",
       "name": "CTCP Môi trường và Công trình đô thị Bắc Ninh",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -125,7 +125,7 @@
     {
       "symbol": "SKV",
       "name": "CTCP Nước giải khát Yến sào Khánh Hòa",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -137,7 +137,7 @@
     {
       "symbol": "SSG",
       "name": "CTCP Vận tải biển Hải Âu",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -149,7 +149,7 @@
     {
       "symbol": "VRG",
       "name": "CTCP Phát triển Đô thị và Khu công nghiệp Cao su Việt Nam",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -161,37 +161,37 @@
     {
       "symbol": "VNI",
       "name": "CTCP Đầu tư Bất động sản Việt Nam",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "L12",
       "name": "CTCP Licogi 12",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NDC",
       "name": "CTCP Nam Dược",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "GND",
       "name": "CTCP Gạch ngói Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "UDJ",
       "name": "CTCP Phát triển Đô thị",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HMS",
       "name": "CTCP Xây dựng Bảo tàng Hồ Chí Minh",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -215,19 +215,19 @@
     {
       "symbol": "BTG",
       "name": "CTCP Bao bì Tiền Giang",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PIV",
       "name": "CTCP PIV",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "RGG",
       "name": "CTCP Regal Group",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -245,25 +245,25 @@
     {
       "symbol": "CBI",
       "name": "CTCP Gang thép Cao Bằng",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "STL",
       "name": "CTCP Sông Đà Thăng Long",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VKP",
       "name": "CTCP Nhựa Tân Hóa",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "XMD",
       "name": "CTCP Xuân Mai - Đạo Tú",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -275,7 +275,7 @@
     {
       "symbol": "VTK",
       "name": "CTCP Tư Vấn Và Dịch Vụ Viettel",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -287,19 +287,19 @@
     {
       "symbol": "HUG",
       "name": "Tổng Công ty May Hưng Yên - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BHC",
       "name": "CTCP Bê tông Biên Hòa",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HBH",
       "name": "CTCP Habeco - Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -311,13 +311,13 @@
     {
       "symbol": "SDP",
       "name": "CTCP SDP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SBR",
       "name": "CTCP Cao su Sông Bé",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -347,7 +347,7 @@
     {
       "symbol": "CMI",
       "name": "CTCP CMISTONE Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -365,13 +365,13 @@
     {
       "symbol": "LCC",
       "name": "CTCP Xi măng Hồng Phong",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HJC",
       "name": "CTCP Hòa Việt",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -383,7 +383,7 @@
     {
       "symbol": "TTD",
       "name": "CTCP Bệnh viện tim Tâm Đức",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -395,25 +395,25 @@
     {
       "symbol": "BLT",
       "name": "CTCP Lương thực Bình Định",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SNC",
       "name": "CTCP Xuất nhập khẩu Thủy sản Năm Căn",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "KPF",
       "name": "CTCP Đầu tư tài sản Koji",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VLC",
       "name": "Tổng Công ty Chăn Nuôi Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -425,7 +425,7 @@
     {
       "symbol": "CTW",
       "name": "CTCP Cấp thoát nước Cần Thơ",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -437,31 +437,31 @@
     {
       "symbol": "TNP",
       "name": "CTCP Cảng Thị Nại",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PHS",
       "name": "CTCP Chứng khoán Phú Hưng",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DC1",
       "name": "CTCP Đầu tư Phát triển Xây dựng Số 1",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SAS",
       "name": "CTCP Dịch vụ Hàng không Sân bay Tân Sơn Nhất",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HEJ",
       "name": "Tổng Công ty Tư vấn Xây dựng Thủy lợi Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -473,7 +473,7 @@
     {
       "symbol": "CCV",
       "name": "CTCP Tư vấn Xây dựng Công nghiệp và Đô thị Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -485,7 +485,7 @@
     {
       "symbol": "NSG",
       "name": "CTCP Nhựa Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -497,13 +497,13 @@
     {
       "symbol": "DVG",
       "name": "CTCP Đại Việt Group DVG",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HPH",
       "name": "CTCP Hóa Chất Hưng Phát Hà Bắc",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -515,7 +515,7 @@
     {
       "symbol": "BSQ",
       "name": "CTCP Bia Sài Gòn - Quảng Ngãi",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -527,7 +527,7 @@
     {
       "symbol": "PVO",
       "name": "CTCP Dầu nhờn PV Oil",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -539,7 +539,7 @@
     {
       "symbol": "LQN",
       "name": "CTCP Licogi Quảng Ngãi",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -551,13 +551,13 @@
     {
       "symbol": "APL",
       "name": "CTCP Cơ khí và Thiết bị áp lực - VVMI",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HEC",
       "name": "CTCP Tư vấn Xây dựng Thủy Lợi II",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -569,13 +569,13 @@
     {
       "symbol": "IHK",
       "name": "CTCP In Hàng Không",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BTH",
       "name": "CTCP Chế tạo Biến thế và Vật liệu Điện Hà Nội",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -593,19 +593,19 @@
     {
       "symbol": "PDC",
       "name": "CTCP Du lịch Dầu khí Phương Đông",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TNS",
       "name": "CTCP Thép tấm lá Thống Nhất",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VSE",
       "name": "CTCP Dịch vụ Đường cao tốc Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -629,7 +629,7 @@
     {
       "symbol": "VIH",
       "name": "CTCP Viglacera Hà Nội",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -665,7 +665,7 @@
     {
       "symbol": "STH",
       "name": "CTCP Phát hành Sách Thái Nguyên",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
@@ -677,7 +677,7 @@
     {
       "symbol": "QNS",
       "name": "CTCP Đường Quảng Ngãi",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -695,7 +695,7 @@
     {
       "symbol": "SGS",
       "name": "CTCP Vận tải biển Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -707,7 +707,7 @@
     {
       "symbol": "UCT",
       "name": "CTCP Đô thị Cần Thơ",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -719,7 +719,7 @@
     {
       "symbol": "CI5",
       "name": "CTCP Đầu Tư Xây dựng Số 5",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -731,13 +731,13 @@
     {
       "symbol": "H11",
       "name": "CTCP Xây dựng HUD101",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VIE",
       "name": "CTCP Công nghệ Viễn thông VITECO",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
@@ -749,49 +749,49 @@
     {
       "symbol": "VST",
       "name": "CTCP Vận tải và Thuê tàu biển Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DTE",
       "name": "CTCP Đầu tư Năng lượng Đại Trường Thành Holdings",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ATA",
       "name": "CTCP Ntaco",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SB1",
       "name": "CTCP Bia Sài Gòn - Nghệ Tĩnh",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "THU",
       "name": "CTCP Môi trường và Công trình Đô thị Thanh Hóa",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VPA",
       "name": "CTCP Vận tải Hoá Dầu VP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HDP",
       "name": "CTCP Dược Hà Tĩnh",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PAP",
       "name": "CTCP Dầu khí Đầu tư Khai thác Cảng Phước An",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -815,31 +815,31 @@
     {
       "symbol": "TB8",
       "name": "CTCP Sản xuất và Kinh doanh Vật tư Thiết bị - VVMI",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VC5",
       "name": "CTCP Xây dựng Số 5",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BSH",
       "name": "CTCP Bia Sài Gòn - Hà Nội",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PCC",
       "name": "CTCP Tập đoàn Xây lắp 1 - Petrolimex",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VNX",
       "name": "CTCP Quảng cáo và Hội chợ Thương mại",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
@@ -851,13 +851,13 @@
     {
       "symbol": "SCL",
       "name": "CTCP Sông Đà Cao Cường",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VFR",
       "name": "CTCP Vận tải và Thuê tàu",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -869,13 +869,13 @@
     {
       "symbol": "AGF",
       "name": "CTCP Xuất nhập khẩu Thủy sản An Giang",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HIO",
       "name": "CTCP Helio Energy",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -893,43 +893,43 @@
     {
       "symbol": "BQB",
       "name": "CTCP Bia Hà Nội - Quảng Bình",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NWT",
       "name": "CTCP Vận tải Newway",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TVH",
       "name": "CTCP Tư vấn Xây dựng công trình Hàng hải",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BTB",
       "name": "CTCP Bia Hà Nội - Thái Bình",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VNP",
       "name": "CTCP Nhựa Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CNT",
       "name": "CTCP Tập đoàn CNT",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VTS",
       "name": "CTCP Gạch ngói Từ Sơn",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -947,13 +947,13 @@
     {
       "symbol": "HFX",
       "name": "CTCP Sản xuất - Xuất nhập khẩu Thanh Hà",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HSP",
       "name": "CTCP Sơn Tổng hợp Hà Nội",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -965,13 +965,13 @@
     {
       "symbol": "PLO",
       "name": "CTCP Kho Vận Petec",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DAC",
       "name": "CTCP 382 Đông Anh",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -983,7 +983,7 @@
     {
       "symbol": "LSG",
       "name": "CTCP Bất động sản Sài Gòn Vina",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -995,7 +995,7 @@
     {
       "symbol": "VMK",
       "name": "CTCP Vimarko",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1007,7 +1007,7 @@
     {
       "symbol": "BHH",
       "name": "CTCP Bia Hà Nội - Hưng Yên 89",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -1019,31 +1019,31 @@
     {
       "symbol": "VLG",
       "name": "CTCP VIMC Logistics",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HTE",
       "name": "CTCP Đầu tư Kinh doanh Điện lực Thành phố Hồ Chí Minh",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MZG",
       "name": "CTCP Miza",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TAR",
       "name": "CTCP Nông nghiệp Công nghệ cao Trung An",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SLD",
       "name": "CTCP Địa ốc Sacom",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -1055,7 +1055,7 @@
     {
       "symbol": "DP1",
       "name": "CTCP Dược phẩm Trung ương CPC1",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -1067,7 +1067,7 @@
     {
       "symbol": "SPI",
       "name": "CTCP Spiral Galaxy",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -1079,7 +1079,7 @@
     {
       "symbol": "BDW",
       "name": "CTCP Cấp thoát nước Bình Định",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -1109,7 +1109,7 @@
     {
       "symbol": "BGW",
       "name": "CTCP Nước sạch Bắc Giang",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -1127,13 +1127,13 @@
     {
       "symbol": "TIS",
       "name": "CTCP Gang thép Thái Nguyên",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "EIC",
       "name": "CTCP EVN Quốc tế",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1151,7 +1151,7 @@
     {
       "symbol": "C21",
       "name": "CTCP Thế Kỷ 21 ",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -1163,7 +1163,7 @@
     {
       "symbol": "HNI",
       "name": "CTCP May Hữu Nghị",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -1175,13 +1175,13 @@
     {
       "symbol": "CGV",
       "name": "CTCP Vinaceglass",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CSI",
       "name": "CTCP Chứng khoán Kiến thiết Việt Nam",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
@@ -1193,7 +1193,7 @@
     {
       "symbol": "SD3",
       "name": "CTCP Sông Đà 3",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1205,7 +1205,7 @@
     {
       "symbol": "MGR",
       "name": "CTCP Tập đoàn MGROUP",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -1217,7 +1217,7 @@
     {
       "symbol": "TOP",
       "name": "CTCP Phân phối Top One",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
@@ -1229,7 +1229,7 @@
     {
       "symbol": "TNW",
       "name": "CTCP Nước sạch Thái Nguyên",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -1241,7 +1241,7 @@
     {
       "symbol": "TSD",
       "name": "CTCP Du lịch Trường Sơn COECCO",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -1253,7 +1253,7 @@
     {
       "symbol": "MES",
       "name": "CTCP Cơ điện Công trình",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1277,37 +1277,37 @@
     {
       "symbol": "ILA",
       "name": "CTCP ILA",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DDV",
       "name": "CTCP DAP - VINACHEM",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TSG",
       "name": "CTCP Thông tin Tín hiệu Đường sắt Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "IST",
       "name": "CTCP ICD Tân Cảng Sóng Thần",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VXP",
       "name": "CTCP Thuốc Thú y Trung ương VETVACO",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VHF",
       "name": "CTCP Xây dựng và Chế biến Lương thực Vĩnh Hà",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -1325,25 +1325,25 @@
     {
       "symbol": "GPC",
       "name": "CTCP Tập đoàn Green+",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TMW",
       "name": "CTCP Tổng hợp Gỗ Tân Mai",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CKA",
       "name": "CTCP Cơ Khí An Giang",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TA6",
       "name": "CTCP Đầu tư và Xây lắp Thành An 665",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1367,7 +1367,7 @@
     {
       "symbol": "TGG",
       "name": "CTCP The Golden Group",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1379,7 +1379,7 @@
     {
       "symbol": "CPI",
       "name": "CTCP Đầu tư Cảng Cái Lân",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -1403,7 +1403,7 @@
     {
       "symbol": "USD",
       "name": "CTCP Công trình Đô thị Sóc Trăng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -1421,31 +1421,31 @@
     {
       "symbol": "HBC",
       "name": "CTCP Tập đoàn Xây dựng Hòa Bình",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VGV",
       "name": "Tổng Công ty Tư vấn Xây dựng Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BGE",
       "name": "CTCP BCG Energy",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SHC",
       "name": "CTCP Hàng hải Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VTM",
       "name": "CTCP Vận tải và Đưa đón thợ mỏ - VINACOMIN",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -1457,7 +1457,7 @@
     {
       "symbol": "DSH",
       "name": "CTCP Đầu tư Hạ tầng Đông Sơn",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1475,13 +1475,13 @@
     {
       "symbol": "SBB",
       "name": "CTCP Tập đoàn Bia Sài Gòn - Bình Tây",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ICI",
       "name": "CTCP Đầu tư và Xây dựng Công nghiệp",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1499,19 +1499,19 @@
     {
       "symbol": "TUG",
       "name": "CTCP Lai Dắt và Vận tải Cảng Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NAC",
       "name": "CTCP Tư vấn Xây dựng Tổng hợp",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FRC",
       "name": "CTCP Lâm đặc sản Xuất khẩu Quảng Nam",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -1565,25 +1565,25 @@
     {
       "symbol": "WSB",
       "name": "CTCP Bia Sài Gòn - Miền Tây",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TBW",
       "name": "CTCP Nước sạch Thái Bình",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LTC",
       "name": "CTCP Điện nhẹ Viễn Thông",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MGG",
       "name": "Tổng Công ty Đức Giang - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -1595,13 +1595,13 @@
     {
       "symbol": "YTC",
       "name": "CTCP Xuất nhập khẩu Y tế Thành phố Hồ Chí Minh",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SWC",
       "name": "Tổng Công ty cổ phần Đường sông Miền Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -1613,13 +1613,13 @@
     {
       "symbol": "VGL",
       "name": "CTCP Mạ Kẽm Công Nghiệp Vingal - Vnsteel",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TQN",
       "name": "CTCP Thông Quảng Ninh",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -1631,13 +1631,13 @@
     {
       "symbol": "HAF",
       "name": "CTCP Thực phẩm Hà Nội",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MRF",
       "name": "CTCP Merufa",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -1649,19 +1649,19 @@
     {
       "symbol": "HLA",
       "name": "CTCP Hữu Liên Á Châu",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MTP",
       "name": "CTCP Dược Medipharco",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SRB",
       "name": "CTCP Tập đoàn Sara",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
@@ -1679,13 +1679,13 @@
     {
       "symbol": "BMD",
       "name": "CTCP Môi trường và Dịch vụ Đô thị Bình Thuận",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PAT",
       "name": "CTCP Phốt Pho Apatit Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -1697,19 +1697,19 @@
     {
       "symbol": "DDM",
       "name": "CTCP Hàng Hải Đông Đô",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HES",
       "name": "CTCP Dịch vụ Giải trí Hà Nội",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BRR",
       "name": "CTCP Cao su Bà Rịa",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -1733,7 +1733,7 @@
     {
       "symbol": "SJG",
       "name": "Tổng Công ty Sông Đà - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1745,7 +1745,7 @@
     {
       "symbol": "TPS",
       "name": "CTCP Bến Bãi Vận tải Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -1757,19 +1757,19 @@
     {
       "symbol": "BSP",
       "name": "CTCP Bia Sài Gòn - Phú Thọ",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "IBD",
       "name": "CTCP In Tổng hợp Bình Dương",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TSJ",
       "name": "CTCP Du lịch Dịch vụ Hà Nội",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -1781,19 +1781,19 @@
     {
       "symbol": "ND2",
       "name": "CTCP Đầu tư và Phát triển Điện Miền Bắc 2",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BMV",
       "name": "CTCP Bột mỳ Vinafood 1",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VWS",
       "name": "CTCP Nước và Môi Trường Việt Nam",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -1805,7 +1805,7 @@
     {
       "symbol": "PID",
       "name": "CTCP Trang Trí Nội Thất Dầu khí",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1817,13 +1817,13 @@
     {
       "symbol": "EFI",
       "name": "CTCP Đầu tư Tài chính Giáo dục",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HAN",
       "name": "Tổng Công ty Xây dựng Hà Nội - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -1859,13 +1859,13 @@
     {
       "symbol": "VCP",
       "name": "CTCP Xây Dựng Và Năng Lượng VCP",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DHN",
       "name": "CTCP Dược phẩm Hà Nội",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -1877,19 +1877,19 @@
     {
       "symbol": "DOP",
       "name": "CTCP Vận tải Xăng dầu Đồng Tháp",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ISH",
       "name": "CTCP Thủy điện Srok Phu Miêng IDICO",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FSO",
       "name": "CTCP Cơ khí đóng tàu Thủy sản Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -1907,43 +1907,43 @@
     {
       "symbol": "VNB",
       "name": "CTCP Sách Việt Nam",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CVN",
       "name": "CTCP Vinam",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VBB",
       "name": "Ngân hàng TMCP Việt Nam Thương Tín",
-      "sector": "Unknown",
+      "sector": "Ngân hàng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CMK",
       "name": "CTCP Cơ khí Mạo Khê - Vinacomin",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "GTS",
       "name": "CTCP Công trình Giao thông Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NLS",
       "name": "CTCP Cấp thoát nước Lạng Sơn",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PGB",
       "name": "Ngân hàng TMCP Thịnh vượng và Phát triển",
-      "sector": "Unknown",
+      "sector": "Ngân hàng",
       "exchange": "UPCOM"
     },
     {
@@ -1985,7 +1985,7 @@
     {
       "symbol": "SBM",
       "name": "CTCP Đầu tư Phát triển Bắc Minh",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -2009,19 +2009,19 @@
     {
       "symbol": "VSF",
       "name": "Tổng Công ty Lương thực Miền Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VTQ",
       "name": "CTCP Việt Trung Quảng Bình",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LAW",
       "name": "CTCP Cấp thoát nước Long An",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -2051,19 +2051,19 @@
     {
       "symbol": "MPY",
       "name": "CTCP Môi trường Đô thị Phú Yên",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SPV",
       "name": "CTCP Thủy Đặc sản",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BQP",
       "name": "CTCP Nhựa Chất lượng cao Bình Thuận",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -2075,13 +2075,13 @@
     {
       "symbol": "DAG",
       "name": "CTCP Tập đoàn Nhựa Đông Á",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BSL",
       "name": "CTCP Bia Sài Gòn - Sông Lam",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2093,7 +2093,7 @@
     {
       "symbol": "VPW",
       "name": "CTCP Cấp thoát nước Số 1 Vĩnh Phúc",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -2105,7 +2105,7 @@
     {
       "symbol": "DMN",
       "name": "CTCP Domenal",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2129,7 +2129,7 @@
     {
       "symbol": "PQN",
       "name": "CTCP Dịch vụ Dầu khí Quảng Ngãi PTSC",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -2141,13 +2141,13 @@
     {
       "symbol": "LDW",
       "name": "CTCP Cấp thoát nước Lâm Đồng",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HAV",
       "name": "CTCP Rượu Hapro",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2189,7 +2189,7 @@
     {
       "symbol": "BTN",
       "name": "CTCP Đầu tư Bitco Bình Định",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -2207,13 +2207,13 @@
     {
       "symbol": "VE2",
       "name": "CTCP Xây dựng Điện VNECO 2",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VXT",
       "name": "CTCP Kho vận và Dịch vụ Thương mại",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -2225,7 +2225,7 @@
     {
       "symbol": "SVH",
       "name": "CTCP Thủy điện Sông Vàng",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -2237,19 +2237,19 @@
     {
       "symbol": "PXL",
       "name": "CTCP Đầu tư Khu Công nghiệp Dầu khí Long Sơn",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DVC",
       "name": "CTCP Thương mại Dịch vụ Tổng hợp Cảng Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "X77",
       "name": "CTCP Thành An 77",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -2273,7 +2273,7 @@
     {
       "symbol": "DNM",
       "name": "Tổng Công ty cổ phần Y tế DANAMECO",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -2303,7 +2303,7 @@
     {
       "symbol": "VIR",
       "name": "CTCP Du lịch Quốc tế Vũng Tàu",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -2315,7 +2315,7 @@
     {
       "symbol": "BIO",
       "name": "CTCP Vắc xin và Sinh phẩm Nha Trang",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -2327,19 +2327,19 @@
     {
       "symbol": "DKG",
       "name": "CTCP Tập đoàn Damik",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "GCB",
       "name": "CTCP Petec Bình Định",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DPC",
       "name": "CTCP Nhựa Đà Nẵng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -2351,7 +2351,7 @@
     {
       "symbol": "HU4",
       "name": "CTCP Đầu tư và Xây dựng HUD4",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -2363,7 +2363,7 @@
     {
       "symbol": "NUE",
       "name": "CTCP Môi trường Đô thị Nha Trang",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -2387,37 +2387,37 @@
     {
       "symbol": "APT",
       "name": "CTCP Kinh doanh Thủy Hải Sản Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "L63",
       "name": "CTCP Lilama 69-3",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HNF",
       "name": "CTCP Thực phẩm Hữu Nghị",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PMW",
       "name": "CTCP Cấp nước Phú Mỹ",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MPC",
       "name": "CTCP Tập đoàn Thủy sản Minh Phú",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HLO",
       "name": "CTCP Công nghệ Ha Lô",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -2429,19 +2429,19 @@
     {
       "symbol": "TNB",
       "name": "CTCP Thép Nhà Bè - VNSTEEL",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DBM",
       "name": "CTCP Dược - Vật tư Y Tế Đăk Lăk",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "AGM",
       "name": "CTCP Xuất Nhập khẩu An Giang",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2453,7 +2453,7 @@
     {
       "symbol": "KHW",
       "name": "CTCP Cấp thoát nước Khánh Hòa",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -2477,7 +2477,7 @@
     {
       "symbol": "PVH",
       "name": "CTCP Xây lắp Dầu khí Thanh Hóa",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -2489,7 +2489,7 @@
     {
       "symbol": "PJS",
       "name": "CTCP Cấp nước Phú Hòa Tân",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -2501,7 +2501,7 @@
     {
       "symbol": "ART",
       "name": "CTCP Chứng khoán ARTEX",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
@@ -2513,25 +2513,25 @@
     {
       "symbol": "UXC",
       "name": "CTCP Chế biến Thủy sản Út Xi",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HSI",
       "name": "CTCP Vật tư Tổng hợp và Phân bón Hóa Sinh",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "QCC",
       "name": "CTCP Đầu tư Xây dựng và Phát triển Hạ tầng Viễn thông",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "RTB",
       "name": "CTCP Cao su Tân Biên",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -2543,37 +2543,37 @@
     {
       "symbol": "GDA",
       "name": "CTCP Tôn Đông Á",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FHN",
       "name": "CTCP Xuất nhập khẩu Lương thực Thực phẩm Hà Nội",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VTG",
       "name": "CTCP Du lịch Tỉnh Bà Rịa - Vũng Tàu",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TCW",
       "name": "CTCP Kho Vận Tân Cảng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PRO",
       "name": "CTCP Procimex Việt Nam",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "G36",
       "name": "Tổng Công ty 36 - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -2591,19 +2591,19 @@
     {
       "symbol": "LNC",
       "name": "CTCP Lệ Ninh",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TIN",
       "name": "Công Ty Tài chính tổng hợp cổ phần Tín Việt",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HVA",
       "name": "CTCP Đầu tư HVA",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
@@ -2615,7 +2615,7 @@
     {
       "symbol": "TBD",
       "name": "Tổng Công ty Thiết bị Điện Đông Anh - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -2639,13 +2639,13 @@
     {
       "symbol": "DSG",
       "name": "CTCP Kính Đáp Cầu",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ICF",
       "name": "CTCP Đầu tư Thương mại Thủy sản",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2675,7 +2675,7 @@
     {
       "symbol": "SZG",
       "name": "CTCP Sonadezi Giang Điền",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -2693,31 +2693,31 @@
     {
       "symbol": "PBC",
       "name": "CTCP Dược phẩm Trung ương I - Pharbaco",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HU6",
       "name": "CTCP Đầu tư Phát triển Nhà và Đô thị HUD6",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TTS",
       "name": "CTCP Cán Thép Thái Trung",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LEC",
       "name": "CTCP Bất động sản Điện lực Miền Trung",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CNA",
       "name": "CTCP Tổng Công ty Chè Nghệ An",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2729,7 +2729,7 @@
     {
       "symbol": "PVA",
       "name": "CTCP Tổng Công ty Xây lắp Dầu khí Nghệ An",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -2747,7 +2747,7 @@
     {
       "symbol": "ODE",
       "name": "CTCP Tập đoàn Truyền thông và Giải trí ODE",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
@@ -2765,13 +2765,13 @@
     {
       "symbol": "E29",
       "name": "CTCP Đầu tư Xây dựng và Kỹ thuật 29",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HPB",
       "name": "CTCP Bao bì PP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -2789,7 +2789,7 @@
     {
       "symbol": "NHP",
       "name": "CTCP Sản xuất Xuất nhập khẩu NHP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -2801,19 +2801,19 @@
     {
       "symbol": "DOC",
       "name": "CTCP Vật tư Nông Nghiệp Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HPM",
       "name": "CTCP Xây dựng Thương mại và Khoáng Sản Hoàng Phúc",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PFL",
       "name": "CTCP Dầu khí Đông Đô",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -2849,25 +2849,25 @@
     {
       "symbol": "HGT",
       "name": "CTCP Du lịch Hương Giang",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CIP",
       "name": "CTCP Xây lắp và Sản xuất Công nghiệp",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PMT",
       "name": "CTCP Viễn thông TELVINA Việt Nam",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
       "symbol": "KTC",
       "name": "CTCP Thương mại Kiên Giang",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2879,31 +2879,31 @@
     {
       "symbol": "ITS",
       "name": "CTCP Đầu tư Thương mại và Dịch vụ - Vinacomin",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CDR",
       "name": "CTCP Xây dựng Cao su Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PSP",
       "name": "CTCP Cảng Dịch vụ Dầu khí Đình Vũ",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MTH",
       "name": "CTCP Môi trường Đô thị Hà Đông",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FGL",
       "name": "CTCP Cà phê Gia Lai",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2921,7 +2921,7 @@
     {
       "symbol": "AVC",
       "name": "CTCP Thủy điện A Vương",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -2933,7 +2933,7 @@
     {
       "symbol": "PTH",
       "name": "CTCP Vận tải và Dịch vụ Petrolimex Hà Tây",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -2951,19 +2951,19 @@
     {
       "symbol": "VET",
       "name": "CTCP Thuốc thú y Trung ương Navetco",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MTV",
       "name": "CTCP Dịch vụ Môi trường và Công trình Đô thị Vũng Tàu",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "IRC",
       "name": "CTCP Cao su Công nghiệp",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -2981,7 +2981,7 @@
     {
       "symbol": "TT6",
       "name": "CTCP Tập đoàn Tiến Thịnh",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -2993,7 +2993,7 @@
     {
       "symbol": "BTV",
       "name": "CTCP Dịch vụ Du lịch Bến Thành",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -3005,7 +3005,7 @@
     {
       "symbol": "VEA",
       "name": "Tổng Công ty Máy động lực và Máy nông nghiệp Việt Nam – CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -3023,7 +3023,7 @@
     {
       "symbol": "M10",
       "name": "Tổng Công ty May 10 - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -3047,7 +3047,7 @@
     {
       "symbol": "ABI",
       "name": "CTCP Bảo hiểm Ngân hàng Nông nghiệp Việt Nam",
-      "sector": "Unknown",
+      "sector": "Bảo hiểm",
       "exchange": "UPCOM"
     },
     {
@@ -3065,19 +3065,19 @@
     {
       "symbol": "SDY",
       "name": "CTCP Xi măng Sông Đà Yaly",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SNZ",
       "name": "Tổng Công ty cổ phần Phát triển Khu Công nghiệp",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NXT",
       "name": "CTCP Sản xuất và Cung ứng Vật liệu Xây dựng Kon Tum",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3101,19 +3101,19 @@
     {
       "symbol": "VMG",
       "name": "CTCP Thương mại và Dịch vụ Dầu khí Vũng Tàu",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HD6",
       "name": "CTCP Đầu tư và Phát triển Nhà Số 6 Hà Nội",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HKB",
       "name": "CTCP Nông nghiệp và Thực phẩm Hà Nội - Kinh Bắc",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -3137,7 +3137,7 @@
     {
       "symbol": "TKC",
       "name": "CTCP Xây dựng và Kinh doanh Địa ốc Tân Kỷ",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3149,25 +3149,25 @@
     {
       "symbol": "CDO",
       "name": "CTCP Tư vấn Thiết kế và Phát triển Đô thị",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NDW",
       "name": "CTCP Cấp nước Nam Định",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MDF",
       "name": "CTCP Gỗ MDF VRG - Quảng Trị",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CLX",
       "name": "CTCP Xuất nhập khẩu và Đầu tư Chợ Lớn (CHOLIMEX)",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -3191,7 +3191,7 @@
     {
       "symbol": "GLW",
       "name": "CTCP Cấp thoát nước Gia Lai",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -3203,13 +3203,13 @@
     {
       "symbol": "MTS",
       "name": "CTCP Vật tư - TKV",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "IFS",
       "name": "CTCP Thực phẩm Quốc tế",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -3245,7 +3245,7 @@
     {
       "symbol": "BMJ",
       "name": "CTCP Khoáng sản Miền Đông AHP",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -3263,13 +3263,13 @@
     {
       "symbol": "BCP",
       "name": "CTCP Dược ENLIE",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PIS",
       "name": "Tổng Công ty Pisico Bình Định - CTCP",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -3287,19 +3287,19 @@
     {
       "symbol": "STT",
       "name": "CTCP Vận chuyển Sài Gòn Tourist",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PNT",
       "name": "CTCP Kỹ thuật Xây dựng Phú Nhuận",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VCT",
       "name": "CTCP Tư vấn Xây dựng Vinaconex",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -3311,7 +3311,7 @@
     {
       "symbol": "ALC",
       "name": "CTCP Âu Lạc",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -3329,7 +3329,7 @@
     {
       "symbol": "LKW",
       "name": "CTCP Cấp nước Long Khánh",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -3341,13 +3341,13 @@
     {
       "symbol": "APC",
       "name": "CTCP Chiếu xạ An Phú",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HD2",
       "name": "CTCP Đầu tư Phát triển Nhà HUD2",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -3383,7 +3383,7 @@
     {
       "symbol": "DHD",
       "name": "CTCP Dược Vật tư Y tế Hải Dương",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -3401,7 +3401,7 @@
     {
       "symbol": "SSN",
       "name": "CTCP Xuất nhập khẩu Thủy sản Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -3413,13 +3413,13 @@
     {
       "symbol": "TRV",
       "name": "CTCP Vận tải Đường sắt",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HDM",
       "name": "CTCP Dệt may Huế",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -3431,7 +3431,7 @@
     {
       "symbol": "VES",
       "name": "CTCP Đầu tư và Xây dựng Điện Mê Ca Vneco",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -3449,25 +3449,25 @@
     {
       "symbol": "VTI",
       "name": "CTCP Sản xuất - Xuất nhập khẩu Dệt may",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "L61",
       "name": "CTCP Lilama 69-1",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NED",
       "name": "CTCP Đầu tư và Phát triển Điện Tây Bắc",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "OIL",
       "name": "Tổng Công ty Dầu Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Dầu khí",
       "exchange": "UPCOM"
     },
     {
@@ -3479,7 +3479,7 @@
     {
       "symbol": "GVT",
       "name": "CTCP Giấy Việt Trì",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -3503,19 +3503,19 @@
     {
       "symbol": "NSS",
       "name": "CTCP Nông Súc Sản Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MFS",
       "name": "CTCP Dịch vụ Kỹ thuật Mobifone",
-      "sector": "Unknown",
+      "sector": "Viễn thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DIC",
       "name": "CTCP Đầu tư và Thương mại DIC",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3545,19 +3545,19 @@
     {
       "symbol": "SEA",
       "name": "Tổng Công ty Thủy sản Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MTB",
       "name": "CTCP Môi trường và Công trình Đô thị Tỉnh Thái Bình",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SGP",
       "name": "CTCP Cảng Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -3569,25 +3569,25 @@
     {
       "symbol": "HPP",
       "name": "CTCP Sơn Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BTU",
       "name": "CTCP Công trình Đô thị Bến Tre",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BIG",
       "name": "CTCP Đầu tư Big Group Holdings",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "POS",
       "name": "CTCP Vận hành và Xây lắp PTSC",
-      "sector": "Unknown",
+      "sector": "Dầu khí",
       "exchange": "UPCOM"
     },
     {
@@ -3605,13 +3605,13 @@
     {
       "symbol": "MLC",
       "name": "CTCP Môi trường Đô thị Tỉnh Lào Cai",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "GER",
       "name": "CTCP Thể thao Ngôi sao Geru",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -3623,7 +3623,7 @@
     {
       "symbol": "THM",
       "name": "CTCP Tứ Hải Hà Nam",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -3635,7 +3635,7 @@
     {
       "symbol": "BNW",
       "name": "CTCP Nước sạch Bắc Ninh",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -3647,7 +3647,7 @@
     {
       "symbol": "PTE",
       "name": "CTCP Xi măng Phú Thọ",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3659,7 +3659,7 @@
     {
       "symbol": "SPH",
       "name": "CTCP Xuất nhập khẩu Thủy sản Hà Nội",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -3671,13 +3671,13 @@
     {
       "symbol": "NGC",
       "name": "CTCP Chế biến Thủy sản xuất khẩu Ngô Quyền",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PWA",
       "name": "CTCP Bất động sản Dầu khí",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -3707,7 +3707,7 @@
     {
       "symbol": "UPH",
       "name": "CTCP Dược phẩm TW 25",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -3719,7 +3719,7 @@
     {
       "symbol": "RCD",
       "name": "CTCP  Xây dựng - Địa ốc Cao su",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3737,7 +3737,7 @@
     {
       "symbol": "SDV",
       "name": "CTCP Dịch vụ Sonadezi",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -3749,7 +3749,7 @@
     {
       "symbol": "TNM",
       "name": "CTCP Xuất nhập khẩu và Xây dựng Công trình",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3761,7 +3761,7 @@
     {
       "symbol": "DZM",
       "name": "CTCP Cơ điện Dzĩ An",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -3773,13 +3773,13 @@
     {
       "symbol": "DSP",
       "name": "CTCP Dịch vụ Du lịch Phú Thọ",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NVP",
       "name": "CTCP Nước sạch Vĩnh Phúc",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -3797,7 +3797,7 @@
     {
       "symbol": "STW",
       "name": "CTCP Cấp nước Sóc Trăng",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -3815,7 +3815,7 @@
     {
       "symbol": "SBD",
       "name": "CTCP Công nghệ Sao Bắc Đẩu",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
@@ -3845,7 +3845,7 @@
     {
       "symbol": "MIE",
       "name": "Tổng Công ty Máy và Thiết bị Công nghiệp - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -3857,7 +3857,7 @@
     {
       "symbol": "SGB",
       "name": "Ngân hàng TMCP Sài Gòn Công Thương",
-      "sector": "Unknown",
+      "sector": "Ngân hàng",
       "exchange": "UPCOM"
     },
     {
@@ -3869,7 +3869,7 @@
     {
       "symbol": "SD6",
       "name": "CTCP Sông Đà 6",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3881,7 +3881,7 @@
     {
       "symbol": "PXS",
       "name": "CTCP Kết cấu Kim loại và Lắp máy Dầu khí",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3899,7 +3899,7 @@
     {
       "symbol": "CCM",
       "name": "CTCP khoáng sản và Xi măng Cần Thơ",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -3917,7 +3917,7 @@
     {
       "symbol": "THN",
       "name": "CTCP Cấp nước Thanh Hóa",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -3947,13 +3947,13 @@
     {
       "symbol": "CPA",
       "name": "CTCP Cà phê Phước An",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PTM",
       "name": "CTCP Sản xuất Thương mại và Dịch vụ Ô tô PTM",
-      "sector": "Unknown",
+      "sector": "Ô tô và phụ tùng",
       "exchange": "UPCOM"
     },
     {
@@ -3971,19 +3971,19 @@
     {
       "symbol": "PSH",
       "name": "CTCP Thương mại Đầu tư Dầu khí Nam Sông Hậu",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NTW",
       "name": "CTCP Cấp nước Nhơn Trạch",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TVM",
       "name": "CTCP Tư vấn Đầu tư mỏ và Công Nghiệp - Vinacomin",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -4013,7 +4013,7 @@
     {
       "symbol": "BOT",
       "name": "CTCP BOT Cầu Thái Hà",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -4025,13 +4025,13 @@
     {
       "symbol": "BHI",
       "name": "Tổng Công ty cổ phần Bảo hiểm Sài Gòn - Hà Nội",
-      "sector": "Unknown",
+      "sector": "Bảo hiểm",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SJF",
       "name": "CTCP Đầu tư Sao Thái Dương",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -4043,7 +4043,7 @@
     {
       "symbol": "PEQ",
       "name": "CTCP Thiết bị Xăng dầu Petrolimex",
-      "sector": "Unknown",
+      "sector": "Dầu khí",
       "exchange": "UPCOM"
     },
     {
@@ -4061,7 +4061,7 @@
     {
       "symbol": "CNN",
       "name": "CTCP Tư vấn Công nghệ, Thiết bị và Kiểm Định Xây dựng - Coninco",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -4079,7 +4079,7 @@
     {
       "symbol": "DWS",
       "name": "CTCP Cấp nước và Môi trường đô thị Đồng Tháp",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -4097,37 +4097,37 @@
     {
       "symbol": "CNC",
       "name": "CTCP Công nghệ Cao Traphaco",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PAI",
       "name": "CTCP Công nghệ thông tin Viễn thông và Tự động hóa Dầu Khí",
-      "sector": "Unknown",
+      "sector": "Viễn thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "X26",
       "name": "CTCP 26",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SCJ",
       "name": "CTCP Xi măng Sài Sơn",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TVA",
       "name": "CTCP Sứ Viglacera Thanh Trì",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PAS",
       "name": "CTCP Quốc tế Phương Anh",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -4139,19 +4139,19 @@
     {
       "symbol": "SZE",
       "name": "CTCP Môi trường Sonadezi",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "C4G",
       "name": "CTCP Tập đoàn CIENCO4",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "XHC",
       "name": "CTCP Xuân Hòa Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -4175,13 +4175,13 @@
     {
       "symbol": "SKN",
       "name": "CTCP Nước giải khát Sanna Khánh Hòa",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BRS",
       "name": "CTCP Dịch vụ Đô thị Bà Rịa",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -4193,19 +4193,19 @@
     {
       "symbol": "HND",
       "name": "CTCP Nhiệt điện Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DTH",
       "name": "CTCP Dược - Vật tư Y Tế Thanh Hóa",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ACM",
       "name": "CTCP Tập đoàn Khoáng sản Á Cường",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -4217,7 +4217,7 @@
     {
       "symbol": "BMS",
       "name": "CTCP Chứng khoán Bảo Minh",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
@@ -4247,7 +4247,7 @@
     {
       "symbol": "LAI",
       "name": "CTCP Đầu Tư Xây dựng Long An IDICO",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -4265,19 +4265,19 @@
     {
       "symbol": "PVY",
       "name": "CTCP Chế tạo Giàn khoan Dầu khí",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TR1",
       "name": "CTCP Vận Tải 1 Traco",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "L45",
       "name": "CTCP Lilama 45.1",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -4301,13 +4301,13 @@
     {
       "symbol": "GLC",
       "name": "CTCP Vàng Lào Cai",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HSV",
       "name": "CTCP Tập đoàn HSV Việt Nam",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -4319,7 +4319,7 @@
     {
       "symbol": "HD8",
       "name": "CTCP Đầu tư Phát triển Nhà và Đô thị HUD8",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -4343,7 +4343,7 @@
     {
       "symbol": "LO5",
       "name": "CTCP Lilama 5",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -4355,25 +4355,25 @@
     {
       "symbol": "FCC",
       "name": "CTCP Liên hợp Thực phẩm",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PRT",
       "name": "Tổng Công ty Sản xuất - Xuất nhập khẩu Bình Dương - CTCP",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VAV",
       "name": "CTCP VIWACO",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BBM",
       "name": "CTCP Bia Hà Nội - Nam Định",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -4403,19 +4403,19 @@
     {
       "symbol": "VNZ",
       "name": "CTCP Tập đoàn VNG ",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NAS",
       "name": "CTCP Dịch vụ Hàng không Sân bay Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NCS",
       "name": "CTCP Suất ăn Hàng không Nội Bài",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -4445,19 +4445,19 @@
     {
       "symbol": "HPD",
       "name": "CTCP Thủy điện ĐăK Đoa",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HHG",
       "name": "CTCP Hoàng Hà",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "QNW",
       "name": "CTCP Cấp thoát nước và Xây dựng Quảng Ngãi",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -4469,7 +4469,7 @@
     {
       "symbol": "PVX",
       "name": "Tổng Công ty cổ phần Xây lắp Dầu khí Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -4481,7 +4481,7 @@
     {
       "symbol": "KHX",
       "name": "CTCP Phát hành sách Khánh Hòa",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
@@ -4505,37 +4505,37 @@
     {
       "symbol": "HLB",
       "name": "CTCP Bia và Nước giải khát Hạ Long",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "KTL",
       "name": "CTCP Kim Khí Thăng Long",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TL4",
       "name": "Tổng Công ty cổ phần Xây dựng Thủy Lợi 4 - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SBH",
       "name": "CTCP Thủy điện Sông Ba Hạ",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FOC",
       "name": "CTCP Dịch vụ Trực tuyến FPT",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SCO",
       "name": "CTCP Công nghiệp Thủy sản",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -4547,13 +4547,13 @@
     {
       "symbol": "LM3",
       "name": "CTCP Lilama 3",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BBT",
       "name": "CTCP Bông Bạch Tuyết",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -4565,61 +4565,61 @@
     {
       "symbol": "HEP",
       "name": "CTCP Môi trường và Công trình Đô thị Huế",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VKC",
       "name": "CTCP VKC Holdings ",
-      "sector": "Unknown",
+      "sector": "Ô tô và phụ tùng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CKD",
       "name": "CTCP Cơ khí Đông Anh LICOGI",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "S72",
       "name": "CTCP Sông Đà 7.02",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "AIG",
       "name": "CTCP Nguyên liệu Á Châu AIG",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "THW",
       "name": "CTCP Cấp nước Tân Hòa",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VSG",
       "name": "CTCP Container Phía Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PBT",
       "name": "CTCP Bao bì và Thương mại dầu khí Bình Sơn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DLT",
       "name": "CTCP Du lịch và Thương mại - Vinacomin",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HNR",
       "name": "CTCP Rượu và Nước giải khát Hà Nội",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -4637,7 +4637,7 @@
     {
       "symbol": "TTG",
       "name": "CTCP May Thanh Trì",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -4667,13 +4667,13 @@
     {
       "symbol": "PPI",
       "name": "CTCP Đầu tư và Phát triển Dự án Hạ tầng Thái Bình Dương",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "AMS",
       "name": "CTCP Cơ khí Xây dựng AMECC",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -4685,13 +4685,13 @@
     {
       "symbol": "GGG",
       "name": "CTCP Ô tô Giải Phóng",
-      "sector": "Unknown",
+      "sector": "Ô tô và phụ tùng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DP2",
       "name": "CTCP Dược phẩm Trung ương 2",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -4703,7 +4703,7 @@
     {
       "symbol": "TCK",
       "name": "Tổng Công ty Cơ khí Xây dựng - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -4727,19 +4727,19 @@
     {
       "symbol": "PXM",
       "name": "CTCP Xây lắp Dầu khí Miền Trung",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BVB",
       "name": "Ngân hàng TMCP Bản Việt",
-      "sector": "Unknown",
+      "sector": "Ngân hàng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SSF",
       "name": "CTCP Giáo dục G Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -4751,31 +4751,31 @@
     {
       "symbol": "BMF",
       "name": "CTCP Vật liệu Xây dựng và Chất đốt Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PPH",
       "name": "Tổng Công ty cổ phần Phong Phú",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CT6",
       "name": "CTCP Công trình 6",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CMD",
       "name": "CTCP Vật liệu Xây dựng và Trang trí nội thất Thành phố Hồ Chí Minh",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HNM",
       "name": "CTCP Sữa Hà Nội",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -4787,19 +4787,19 @@
     {
       "symbol": "DTC",
       "name": "CTCP Viglacera Đông Triều",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FCS",
       "name": "CTCP Lương thực Thành phố Hồ Chí Minh",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "GH3",
       "name": "CTCP Công trình Giao thông Hà Nội",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -4811,25 +4811,25 @@
     {
       "symbol": "RDP",
       "name": "CTCP Rạng Đông Holding",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TNA",
       "name": "CTCP Thương mại Xuất nhập khẩu Thiên Nam",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VW3",
       "name": "CTCP Viwaseen3",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HLS",
       "name": "CTCP Sứ Kỹ thuật Hoàng Liên Sơn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -4841,19 +4841,19 @@
     {
       "symbol": "NSL",
       "name": "CTCP Cấp nước Sơn La",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MNB",
       "name": "Tổng Công ty May Nhà Bè - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "KHD",
       "name": "CTCP Khai thác Chế biến Khoáng sản Hải Dương",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -4871,7 +4871,7 @@
     {
       "symbol": "POV",
       "name": "CTCP Xăng dầu Dầu khí Vũng Áng",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -4883,7 +4883,7 @@
     {
       "symbol": "VLS",
       "name": "CTCP Sản xuất Thép Việt Long",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -4895,25 +4895,25 @@
     {
       "symbol": "SD2",
       "name": "CTCP Sông Đà 2",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SVG",
       "name": "CTCP Hơi Kỹ nghệ Que hàn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NBE",
       "name": "CTCP Sách và Thiết bị Giáo dục Miền Bắc",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VPR",
       "name": "CTCP VinaPrint",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
@@ -4925,31 +4925,31 @@
     {
       "symbol": "ICC",
       "name": "CTCP Xây dựng Công nghiệp (ICC)",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CCA",
       "name": "CTCP Xuất nhập khẩu Thuỷ sản Cần Thơ",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SGI",
       "name": "CTCP Đầu tư SGI Holdings",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PVR",
       "name": "CTCP Đầu tư PVR Hà Nội",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MSR",
       "name": "CTCP Masan High-Tech Materials",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -4973,7 +4973,7 @@
     {
       "symbol": "AAS",
       "name": "CTCP Chứng khoán SmartInvest ",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
@@ -4991,7 +4991,7 @@
     {
       "symbol": "BTD",
       "name": "CTCP Bê tông Ly tâm Thủ Đức",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -5003,7 +5003,7 @@
     {
       "symbol": "TKA",
       "name": "CTCP Bao bì Tân Khánh An",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -5015,19 +5015,19 @@
     {
       "symbol": "HFB",
       "name": "CTCP Công trình Cầu phà Thành phố Hồ Chí Minh",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BEL",
       "name": "CTCP Điện tử Biên Hòa",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PSG",
       "name": "CTCP Đầu Tư và Xây lắp Dầu khí Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -5045,19 +5045,19 @@
     {
       "symbol": "CMM",
       "name": "CTCP Camimex",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VGI",
       "name": "Tổng Công ty cổ phần Đầu tư Quốc tế Viettel",
-      "sector": "Unknown",
+      "sector": "Viễn thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VGT",
       "name": "Tập đoàn Dệt May Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -5069,7 +5069,7 @@
     {
       "symbol": "VE9",
       "name": "CTCP Đầu tư và Xây dựng VNECO 9",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -5087,7 +5087,7 @@
     {
       "symbol": "CQN",
       "name": "CTCP Cảng Quảng Ninh",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -5099,19 +5099,19 @@
     {
       "symbol": "PND",
       "name": "CTCP Xăng dầu Dầu khí Nam Định",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "L35",
       "name": "CTCP Cơ khí Lắp máy Lilama",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PVL",
       "name": "CTCP Địa ốc Dầu khí",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -5135,19 +5135,19 @@
     {
       "symbol": "TCJ",
       "name": "CTCP Tô Châu",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DRI",
       "name": "CTCP Đầu tư Cao su Đắk Lắk",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TOW",
       "name": "CTCP Cấp nước Trà Nóc - Ô Môn",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -5159,19 +5159,19 @@
     {
       "symbol": "CH5",
       "name": "CTCP Xây dựng Số 5 Hà Nội",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "WTC",
       "name": "CTCP Vận tải Thủy - Vinacomin",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SDK",
       "name": "CTCP Cơ khí Luyện kim",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -5183,19 +5183,19 @@
     {
       "symbol": "BVG",
       "name": "CTCP Group Bắc Việt",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ILC",
       "name": "CTCP Hợp tác Lao động với nước ngoài",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "QTP",
       "name": "CTCP Nhiệt điện Quảng Ninh",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -5225,25 +5225,25 @@
     {
       "symbol": "CC1",
       "name": "Tổng Công ty Xây dựng Số 1 - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HMD",
       "name": "CTCP Hóa chất Minh Đức",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "IN4",
       "name": "CTCP In Số 4",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DNE",
       "name": "CTCP Môi trường Đô thị Đà Nẵng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -5261,25 +5261,25 @@
     {
       "symbol": "KSQ",
       "name": "CTCP CNC Capital Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "EME",
       "name": "CTCP Điện cơ",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "AVF",
       "name": "CTCP Việt An",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PTO",
       "name": "CTCP Dịch vụ - Xây dựng Công trình Bưu Điện",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -5291,7 +5291,7 @@
     {
       "symbol": "ATG",
       "name": "CTCP ATG Planet",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -5345,7 +5345,7 @@
     {
       "symbol": "POM",
       "name": "CTCP Thép Pomina",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -5381,13 +5381,13 @@
     {
       "symbol": "NHV",
       "name": "CTCP Sức Khỏe Hồi Sinh Việt Nam",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "QPH",
       "name": "CTCP Thủy điện Quế Phong",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -5399,7 +5399,7 @@
     {
       "symbol": "UDL",
       "name": "CTCP Đô thị và Môi trường Đắk Lắk",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -5423,7 +5423,7 @@
     {
       "symbol": "HRB",
       "name": "CTCP Harec Đầu tư và Thương mại",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -5441,19 +5441,19 @@
     {
       "symbol": "TW3",
       "name": "CTCP Dược Trung ương 3",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "STS",
       "name": "CTCP Dịch vụ Vận tải Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "AGP",
       "name": "CTCP Dược phẩm Agimexpharm",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -5465,13 +5465,13 @@
     {
       "symbol": "VXB",
       "name": "CTCP Vật liệu Xây dựng Bến Tre",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HSA",
       "name": "CTCP Hestia",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -5495,13 +5495,13 @@
     {
       "symbol": "HPI",
       "name": "CTCP Khu công nghiệp Hiệp Phước",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VEF",
       "name": "CTCP Trung tâm Hội chợ Triển lãm Việt Nam",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -5513,7 +5513,7 @@
     {
       "symbol": "DID",
       "name": "CTCP DIC - Đồng Tiến",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -5537,7 +5537,7 @@
     {
       "symbol": "TS3",
       "name": "CTCP Trường Sơn 532",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -5549,19 +5549,19 @@
     {
       "symbol": "BAL",
       "name": "CTCP Bao bì Bia - Rượu - Nước giải khát",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FTM",
       "name": "CTCP Đầu tư và Phát triển Đức Quân",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DDN",
       "name": "CTCP Dược và Thiết bị Y tế Đà Nẵng",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -5573,7 +5573,7 @@
     {
       "symbol": "UPC",
       "name": "CTCP Phát triển Công viên Cây xanh và Đô thị Vũng Tàu",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -5585,7 +5585,7 @@
     {
       "symbol": "GTD",
       "name": "CTCP Giầy Thượng Đình",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -5597,7 +5597,7 @@
     {
       "symbol": "BCV",
       "name": "CTCP Du lịch và Thương mại Bằng Giang Cao Bằng - Vimico",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -5609,7 +5609,7 @@
     {
       "symbol": "SEP",
       "name": "CTCP Tổng Công ty Thương mại Quảng Trị",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -5669,19 +5669,19 @@
     {
       "symbol": "ACE",
       "name": "CTCP Bê tông Ly tâm An Giang",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ISG",
       "name": "CTCP Vận tải biển và Hợp tác Lao động Quốc tế",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PWS",
       "name": "CTCP Cấp thoát nước Phú Yên",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -5705,19 +5705,19 @@
     {
       "symbol": "LMI",
       "name": "CTCP Đầu tư Xây dựng Lắp máy IDICO",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DHB",
       "name": "CTCP Phân đạm và Hóa chất Hà Bắc",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MTA",
       "name": "Tổng Công ty Khoáng sản và Thương mại Hà Tĩnh - CTCP",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -5729,55 +5729,55 @@
     {
       "symbol": "PVM",
       "name": "CTCP Máy - Thiết bị Dầu khí",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MGC",
       "name": "CTCP Địa chất mỏ - TKV",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DWC",
       "name": "CTCP Cấp nước Đắk Lắk",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FHS",
       "name": "CTCP Phát hành Sách Thành phố Hồ Chí Minh",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DTI",
       "name": "CTCP Đầu tư Đức Trung",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "AGX",
       "name": "CTCP Thực phẩm Nông Sản xuất khẩu Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "QSP",
       "name": "CTCP Tân Cảng Quy Nhơn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HTT",
       "name": "CTCP Thương mại Hà Tây",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TBR",
       "name": "CTCP Địa ốc Tân Bình",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -5795,7 +5795,7 @@
     {
       "symbol": "DKC",
       "name": "CTCP Chợ Lạng Sơn",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
@@ -5813,7 +5813,7 @@
     {
       "symbol": "TRT",
       "name": "CTCP RedstarCera",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -5831,13 +5831,13 @@
     {
       "symbol": "BT1",
       "name": "CTCP Bảo vệ Thực vật 1 Trung Ương",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TED",
       "name": "Tổng công ty Tư vấn thiết kế Giao thông vận tải - CТСР",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -5861,7 +5861,7 @@
     {
       "symbol": "BWA",
       "name": "CTCP Cấp thoát nước và Xây dựng Bảo Lộc",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -5879,19 +5879,19 @@
     {
       "symbol": "VQC",
       "name": "CTCP Giám định - Vinacomin",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TVG",
       "name": "CTCP Tư vấn Đầu tư và Xây dựng Giao thông Vận tải",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BWS",
       "name": "CTCP Cấp nước Bà Rịa - Vũng Tàu",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -5909,7 +5909,7 @@
     {
       "symbol": "MPT",
       "name": "CTCP Tập đoàn MPT",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -5933,13 +5933,13 @@
     {
       "symbol": "HAC",
       "name": "CTCP Chứng khoán Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ABW",
       "name": "CTCP Chứng khoán An Bình",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
@@ -5951,13 +5951,13 @@
     {
       "symbol": "HNB",
       "name": "CTCP Bến xe Hà Nội",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VMT",
       "name": "CTCP Giao nhận Vận tải miền Trung",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -5969,13 +5969,13 @@
     {
       "symbol": "SAL",
       "name": "CTCP Trục vớt Cứu hộ Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VIM",
       "name": "CTCP Khoáng sản Viglacera",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -5999,7 +5999,7 @@
     {
       "symbol": "CK8",
       "name": "CTCP Cơ khí 120",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -6017,7 +6017,7 @@
     {
       "symbol": "BCB",
       "name": "CTCP 397",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -6035,13 +6035,13 @@
     {
       "symbol": "VNY",
       "name": "CTCP Thuốc thú y Trung ương I",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CQT",
       "name": "CTCP Xi măng Quán Triều VVMI",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6059,7 +6059,7 @@
     {
       "symbol": "NCG",
       "name": "CTCP Tập đoàn Nova Consumer",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -6071,25 +6071,25 @@
     {
       "symbol": "VLW",
       "name": "CTCP Cấp nước Vĩnh Long",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CYC",
       "name": "CTCP Gạch men Chang Yih",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DUS",
       "name": "CTCP Dịch vụ Đô thị Đà Lạt",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DSD",
       "name": "CTCP DHC Suối Đôi",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -6101,7 +6101,7 @@
     {
       "symbol": "TID",
       "name": "CTCP Tổng Công ty Tín Nghĩa",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -6119,7 +6119,7 @@
     {
       "symbol": "SDD",
       "name": "CTCP Đầu tư và Xây lắp Sông Đà",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6137,7 +6137,7 @@
     {
       "symbol": "TMG",
       "name": "CTCP Kim loại màu Thái Nguyên - Vimico",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -6161,7 +6161,7 @@
     {
       "symbol": "UDC",
       "name": "CTCP Đầu tư Xây dựng UDCons",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6173,7 +6173,7 @@
     {
       "symbol": "LPT",
       "name": "CTCP Thương mại và Sản xuất Lập Phương Thành",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -6197,19 +6197,19 @@
     {
       "symbol": "DFC",
       "name": "CTCP Xích líp Đông Anh",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VDG",
       "name": "CTCP Vạn Đạt Group",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CMT",
       "name": "CTCP Công nghệ Mạng và Truyền thông",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
@@ -6221,7 +6221,7 @@
     {
       "symbol": "VHD",
       "name": "CTCP Đầu tư Phát triển Nhà và Đô Thị VINAHUD",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -6233,25 +6233,25 @@
     {
       "symbol": "QHW",
       "name": "CTCP Nước khoáng Quảng Ninh",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CEN",
       "name": "CTCP CENCON Việt Nam",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CMF",
       "name": "CTCP Thực phẩm Cholimex",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "UMC",
       "name": "CTCP Công trình Đô thị Nam Định",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6263,13 +6263,13 @@
     {
       "symbol": "DLD",
       "name": "CTCP Du lịch Đắk Lắk",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NDP",
       "name": "CTCP Dược phẩm 2/9",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -6293,19 +6293,19 @@
     {
       "symbol": "VDN",
       "name": "CTCP Vinatex Đà Nẵng",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "AMP",
       "name": "CTCP Armephaco",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HBD",
       "name": "CTCP Bao Bì PP Bình Dương",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -6323,25 +6323,25 @@
     {
       "symbol": "NTB",
       "name": "CTCP Đầu tư Xây dựng và Khai thác Công trình Giao thông 584",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "S74",
       "name": "CTCP Sông Đà 7.04",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VCX",
       "name": "CTCP Xi măng Yên Bình",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "GMC",
       "name": "CTCP Garmex Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -6359,19 +6359,19 @@
     {
       "symbol": "BHG",
       "name": "CTCP Chè Biển Hồ",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LUT",
       "name": "CTCP Đầu tư Xây dựng Lương Tài",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DCT",
       "name": "CTCP Tấm lợp Vật liệu Xây dựng Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6395,19 +6395,19 @@
     {
       "symbol": "SPB",
       "name": "CTCP Sợi Phú Bài",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VDT",
       "name": "CTCP Lưới thép Bình Tây",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PMJ",
       "name": "CTCP Vật tư Bưu Điện",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
@@ -6419,7 +6419,7 @@
     {
       "symbol": "DVT",
       "name": "Trung tâm đào tạo nghiệp vụ Giao thông vận tải Bình Định",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -6437,13 +6437,13 @@
     {
       "symbol": "XPH",
       "name": "CTCP Xà phòng Hà Nội",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "L62",
       "name": "CTCP Lilama 69-2",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -6461,7 +6461,7 @@
     {
       "symbol": "HNP",
       "name": "CTCP Hanel Xốp nhựa",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -6473,13 +6473,13 @@
     {
       "symbol": "CTA",
       "name": "CTCP Vinavico",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DNW",
       "name": "CTCP Cấp nước Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -6491,31 +6491,31 @@
     {
       "symbol": "BDT",
       "name": "CTCP Xây lắp và Vật liệu Xây dựng Đồng Tháp",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VCE",
       "name": "CTCP Xây lắp Môi trường",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CAT",
       "name": "CTCP Thủy sản Cà Mau",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LTG",
       "name": "CTCP Tập đoàn Lộc Trời",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LMC",
       "name": "CTCP Long Beach LMC",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -6527,13 +6527,13 @@
     {
       "symbol": "QBS",
       "name": "CTCP Xuất nhập khẩu Quảng Bình",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DCF",
       "name": "CTCP Xây dựng và Thiết kế Số 1",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6551,7 +6551,7 @@
     {
       "symbol": "PTV",
       "name": "CTCP Thương mại Dầu khí",
-      "sector": "Unknown",
+      "sector": "Dầu khí",
       "exchange": "UPCOM"
     },
     {
@@ -6599,25 +6599,25 @@
     {
       "symbol": "VE8",
       "name": "CTCP Xây dựng Điện VNECO 8",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SBL",
       "name": "CTCP Bia Sài Gòn - Bạc Liêu",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HTM",
       "name": "Tổng Công ty Thương mại Hà Nội - CTCP",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MEC",
       "name": "CTCP Cơ khí - Lắp máy Sông Đà",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6629,25 +6629,25 @@
     {
       "symbol": "HMG",
       "name": "CTCP Kim khí Hà Nội - VNSTEEL",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FRM",
       "name": "CTCP Lâm Nghiệp Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MND",
       "name": "CTCP Môi trường Nam Định",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MCG",
       "name": "CTCP Năng lượng và Bất động sản MCG",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6671,7 +6671,7 @@
     {
       "symbol": "VNH",
       "name": "CTCP Đầu tư Việt Việt Nhật",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -6695,13 +6695,13 @@
     {
       "symbol": "APF",
       "name": "CTCP Nông sản Thực phẩm Quảng Ngãi",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "IME",
       "name": "CTCP Cơ khí và Xây lắp Công nghiệp",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -6713,13 +6713,13 @@
     {
       "symbol": "DFF",
       "name": "CTCP Tập đoàn Đua Fat",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CDG",
       "name": "CTCP Cầu Đuống",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -6737,7 +6737,7 @@
     {
       "symbol": "VCR",
       "name": "CTCP Đầu tư và Phát triển Du lịch Vinaconex",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -6749,19 +6749,19 @@
     {
       "symbol": "QNC",
       "name": "CTCP Xi măng và Xây dựng Quảng Ninh",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PCF",
       "name": "CTCP Cà phê PETEC",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PTP",
       "name": "CTCP PTP",
-      "sector": "Unknown",
+      "sector": "Viễn thông",
       "exchange": "UPCOM"
     },
     {
@@ -6773,7 +6773,7 @@
     {
       "symbol": "VEC",
       "name": "Tổng Công ty cổ phần Điện tử và Tin học Việt Nam",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
@@ -6797,67 +6797,67 @@
     {
       "symbol": "SIG",
       "name": "CTCP Đầu tư và Thương mại Sông Đà",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "EIN",
       "name": "CTCP Đầu tư - Thương mại - Dịch vụ Điện Lực",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TIE",
       "name": "CTCP TIE",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NBT",
       "name": "CTCP Cấp thoát nước Bến Tre",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BHA",
       "name": "CTCP Thủy điện Bắc Hà",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "RAT",
       "name": "CTCP Vận tải và Thương mại Đường sắt",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CID",
       "name": "CTCP Xây dựng và Phát triển Cơ sở Hạ tầng",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BSA",
       "name": "CTCP Thủy điện Buôn Đôn",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BHK",
       "name": "CTCP Bia Hà Nội - Kim Bài",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PSB",
       "name": "CTCP Đầu tư Dầu khí Sao Mai - Bến Đình",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TLP",
       "name": "Tổng Công ty Thương mại Xuất nhập khẩu Thanh Lễ - CTCP",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -6881,19 +6881,19 @@
     {
       "symbol": "SAC",
       "name": "CTCP Xếp dỡ và Dịch vụ Cảng Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "XDH",
       "name": "CTCP Đầu tư Xây dựng Dân dụng Hà Nội",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "IDP",
       "name": "CTCP Sữa Quốc tế Lof",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -6911,31 +6911,31 @@
     {
       "symbol": "BSD",
       "name": "CTCP Bia, Rượu Sài Gòn - Đồng Xuân",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VLP",
       "name": "CTCP Công trình Công cộng Vĩnh Long",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BVN",
       "name": "CTCP Bông Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PVE",
       "name": "Tổng Công ty Tư vấn thiết kế Dầu khí - CTCP",
-      "sector": "Unknown",
+      "sector": "Dầu khí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MKP",
       "name": "CTCP Hoá - Dược phẩm Mekophar",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -6947,7 +6947,7 @@
     {
       "symbol": "PSN",
       "name": "CTCP Dịch Vụ Kỹ Thuật PTSC Thanh Hóa",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -6959,19 +6959,19 @@
     {
       "symbol": "HPT",
       "name": "CTCP Dịch vụ Công nghệ Tin học HPT",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HHB",
       "name": "CTCP Bia Hà Nội - Hồng Hà",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VDB",
       "name": "CTCP Vận tải và Chế biến Than Đông Bắc",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -6983,19 +6983,19 @@
     {
       "symbol": "MH3",
       "name": "CTCP Khu Công nghiệp Cao su Bình Long",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DNN",
       "name": "CTCP Cấp nước Đà Nẵng",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DVN",
       "name": "Tổng Công ty Dược Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -7007,7 +7007,7 @@
     {
       "symbol": "DM7",
       "name": "CTCP Dệt May 7",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -7019,13 +7019,13 @@
     {
       "symbol": "DAS",
       "name": "CTCP Máy - Thiết bị Dầu khí Đà Nẵng",
-      "sector": "Unknown",
+      "sector": "Ô tô và phụ tùng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PXA",
       "name": "CTCP Đầu tư và Thương mại Dầu khí Nghệ An",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -7037,7 +7037,7 @@
     {
       "symbol": "BDG",
       "name": "CTCP May mặc Bình Dương",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -7061,7 +7061,7 @@
     {
       "symbol": "RIC",
       "name": "CTCP Quốc tế Hoàng Gia",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -7073,13 +7073,13 @@
     {
       "symbol": "MLS",
       "name": "CTCP Chăn nuôi - Mitraco",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HU3",
       "name": "CTCP Đầu tư và Xây dựng HUD3",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7097,7 +7097,7 @@
     {
       "symbol": "PXT",
       "name": "CTCP Xây lắp Đường ống Bể chứa Dầu khí",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7109,19 +7109,19 @@
     {
       "symbol": "KVC",
       "name": "CTCP Sản xuất Xuất nhập khẩu Inox Kim Vĩ",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MTG",
       "name": "CTCP MT Gas",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PTG",
       "name": "CTCP May Xuất khẩu Phan Thiết",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -7139,13 +7139,13 @@
     {
       "symbol": "DDH",
       "name": "CTCP Đảm bảo Giao thông Đường thủy Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VPC",
       "name": "CTCP Đầu tư và Phát triển Năng lượng Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7163,7 +7163,7 @@
     {
       "symbol": "TTZ",
       "name": "CTCP Đầu tư Xây dựng và Công nghệ Tiến Trung",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7181,7 +7181,7 @@
     {
       "symbol": "MML",
       "name": "CTCP Masan MeatLife",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -7193,43 +7193,43 @@
     {
       "symbol": "PLE",
       "name": "CTCP Tư vấn Xây dựng Petrolimex",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NJC",
       "name": "CTCP May Nam Định",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MBT",
       "name": "CTCP Bất động sản cho thuê Minh Bảo Tín",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "GTT",
       "name": "CTCP Thuận Thảo",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FT1",
       "name": "CTCP Phụ tùng Máy số 1",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FIC",
       "name": "Tổng Công ty Vật liệu Xây dựng số 1 - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ONW",
       "name": "CTCP Dịch vụ Một Thế Giới",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -7241,7 +7241,7 @@
     {
       "symbol": "PCG",
       "name": "CTCP Đầu tư Phát triển Gas Đô thị",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -7259,25 +7259,25 @@
     {
       "symbol": "EMG",
       "name": "CTCP Thiết bị Phụ Tùng Cơ Điện",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NQN",
       "name": "CTCP Nước sạch Quảng Ninh",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SP2",
       "name": "CTCP Thủy điện Sử Pán 2",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ACV",
       "name": "Tổng Công ty Cảng Hàng không Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -7295,19 +7295,19 @@
     {
       "symbol": "PXI",
       "name": "CTCP Xây dựng Công nghiệp và Dân dụng Dầu khí",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "KGM",
       "name": "CTCP Xuất nhập khẩu Kiên Giang",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HCI",
       "name": "CTCP Đầu tư Xây dựng Hà Nội ",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7319,7 +7319,7 @@
     {
       "symbol": "VFC",
       "name": "CTCP Vinafco",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -7331,19 +7331,19 @@
     {
       "symbol": "VTE",
       "name": "CTCP VINACAP Kim Long",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SID",
       "name": "CTCP Đầu tư Phát triển Sài Gòn Co.op",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VMA",
       "name": "CTCP Công nghiệp Ô tô - Vinacomin",
-      "sector": "Unknown",
+      "sector": "Ô tô và phụ tùng",
       "exchange": "UPCOM"
     },
     {
@@ -7355,7 +7355,7 @@
     {
       "symbol": "QNU",
       "name": "CTCP Môi trường Đô thị Quảng Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -7367,25 +7367,25 @@
     {
       "symbol": "PSL",
       "name": "CTCP Chăn nuôi Phú Sơn",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SD7",
       "name": "CTCP Sông Đà 7",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VTX",
       "name": "CTCP Vận tải Đa Phương Thức Vietranstimex",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VIW",
       "name": "Tổng Công ty Đầu tư Nước và Môi trường Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7397,13 +7397,13 @@
     {
       "symbol": "TAW",
       "name": "CTCP Cấp nước Trung An",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LMH",
       "name": "CTCP Quốc Tế Holding",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -7415,7 +7415,7 @@
     {
       "symbol": "TV6",
       "name": "CTCP Tập đoàn EMA Land",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -7433,13 +7433,13 @@
     {
       "symbol": "EGL",
       "name": "CTCP Môi trường Đô thị Gia Lâm",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DGT",
       "name": "CTCP Công trình Giao thông Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7457,55 +7457,55 @@
     {
       "symbol": "XLV",
       "name": "CTCP Xây Lắp và Dịch vụ Sông Đà",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LCM",
       "name": "CTCP Khai thác và Chế biến khoáng sản Lào Cai",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NDF",
       "name": "CTCP Chế biến Thực phẩm Nông sản xuất khẩu Nam Định",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TVN",
       "name": "Tổng Công ty Thép Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ABB",
       "name": "Ngân hàng TMCP An Bình",
-      "sector": "Unknown",
+      "sector": "Ngân hàng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DRG",
       "name": "CTCP Cao su Đắk Lắk",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "UTT",
       "name": "CTCP Môi trường Đô thị Thanh Trì",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HC1",
       "name": "CTCP Xây dựng Số 1 Hà Nội",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HHN",
       "name": "CTCP Vận tải và Dịch vụ Hàng hóa Hà Nội",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -7517,13 +7517,13 @@
     {
       "symbol": "NAU",
       "name": "CTCP Môi trường và Công trình Đô thị Nghệ An",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CMN",
       "name": "CTCP Lương thực Thực phẩm Colusa - Miliket",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -7541,25 +7541,25 @@
     {
       "symbol": "MEF",
       "name": "CTCP MEINFA",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SBS",
       "name": "CTCP Chứng khoán SBS",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LIC",
       "name": "Tổng Công ty LICOGI - CTCP",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HSM",
       "name": "Tổng Công ty cổ phần Dệt may Hà Nội",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -7571,7 +7571,7 @@
     {
       "symbol": "TH1",
       "name": "CTCP Xuất nhập khẩu Tổng hợp I Việt Nam",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
@@ -7583,7 +7583,7 @@
     {
       "symbol": "CT3",
       "name": "CTCP Đầu tư và Xây dựng Công trình 3",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7595,73 +7595,73 @@
     {
       "symbol": "FOX",
       "name": "CTCP Viễn thông FPT",
-      "sector": "Unknown",
+      "sector": "Viễn thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "C22",
       "name": "CTCP 22",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TRS",
       "name": "CTCP Vận tải và Dịch vụ Hàng hải",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VGG",
       "name": "Tổng Công ty cổ phần May Việt Tiến",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BLF",
       "name": "CTCP Thủy sản Bạc Liêu",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DCS",
       "name": "CTCP Tập đoàn EDX",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DDB",
       "name": "CTCP Thương mại và Xây dựng Đông Dương",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PNP",
       "name": "CTCP Tân Cảng - Phú Hữu",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SCD",
       "name": "CTCP Nước giải khát Chương Dương",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HLT",
       "name": "CTCP Dệt may Hoàng Thị Loan",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MHL",
       "name": "CTCP Minh Hữu Liên",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VLB",
       "name": "CTCP Xây dựng và Sản xuất Vật liệu xây dựng Biên Hòa",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7673,13 +7673,13 @@
     {
       "symbol": "TV1",
       "name": "CTCP Tư vấn Xây dựng Điện 1",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PCM",
       "name": "CTCP Vật liệu Xây dựng Bưu điện",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7709,19 +7709,19 @@
     {
       "symbol": "VHH",
       "name": "CTCP Đầu tư Kinh doanh Nhà Thành Đạt",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CCP",
       "name": "CTCP Cảng Cửa Cấm Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "JOS",
       "name": "CTCP Chế biến Thủy sản xuất khẩu Minh Hải",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -7739,31 +7739,31 @@
     {
       "symbol": "BBH",
       "name": "CTCP Bao bì Hoàng Thạch",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DLR",
       "name": "CTCP Địa ốc Đà Lạt",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "E12",
       "name": "CTCP Xây dựng Điện VNECO12",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BLN",
       "name": "CTCP Vận tải và Dịch vụ Liên Ninh",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BVL",
       "name": "CTCP BV Land",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -7775,7 +7775,7 @@
     {
       "symbol": "TDS",
       "name": "CTCP Thép Thủ Đức - VNSTEEL",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -7787,7 +7787,7 @@
     {
       "symbol": "TDF",
       "name": "CTCP Trung Đô",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7805,7 +7805,7 @@
     {
       "symbol": "USC",
       "name": "CTCP Khảo sát và Xây dựng -USCO",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7817,7 +7817,7 @@
     {
       "symbol": "DMS",
       "name": "CTCP Hóa phẩm Dầu khí DMC - Miền Nam",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -7835,7 +7835,7 @@
     {
       "symbol": "VTD",
       "name": "CTCP Vietourist Holdings",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -7847,7 +7847,7 @@
     {
       "symbol": "PNG",
       "name": "CTCP Thương mại Phú Nhuận",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -7871,13 +7871,13 @@
     {
       "symbol": "BT6",
       "name": "CTCP Beton 6",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MA1",
       "name": "CTCP Thiết bị",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -7889,19 +7889,19 @@
     {
       "symbol": "KCB",
       "name": "CTCP khoáng Sản và Luyện Kim Cao Bằng",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PLA",
       "name": "CTCP Đầu tư và Dịch vụ Hạ tầng Xăng dầu",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SD8",
       "name": "CTCP Sông Đà 8",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7925,7 +7925,7 @@
     {
       "symbol": "BMG",
       "name": "CTCP May Bình Minh",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -7937,7 +7937,7 @@
     {
       "symbol": "SDT",
       "name": "CTCP Sông Đà 10",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7949,7 +7949,7 @@
     {
       "symbol": "SD4",
       "name": "CTCP Sông Đà 4",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -7967,19 +7967,19 @@
     {
       "symbol": "KTT",
       "name": "CTCP Tập đoàn Đầu tư KTT",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VSN",
       "name": "CTCP Việt Nam Kỹ nghệ Súc sản",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BCA",
       "name": "CTCP B.C.H",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -7991,25 +7991,25 @@
     {
       "symbol": "TST",
       "name": "CTCP Dịch vụ Kỹ Thuật Viễn thông",
-      "sector": "Unknown",
+      "sector": "Công nghệ Thông tin",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HLY",
       "name": "CTCP Gốm Xây Dựng Yên Hưng",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ALV",
       "name": "CTCP Tập đoàn MCST",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HAM",
       "name": "CTCP Vật tư Hậu Giang",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8045,13 +8045,13 @@
     {
       "symbol": "ECO",
       "name": "CTCP Nhựa sinh thái Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VIN",
       "name": "CTCP Giao nhận Kho vận Ngoại Thương Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8069,13 +8069,13 @@
     {
       "symbol": "ILS",
       "name": "CTCP Đầu tư Thương mại và Dịch vụ Quốc tế",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TDB",
       "name": "CTCP Thủy điện Định Bình",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -8087,13 +8087,13 @@
     {
       "symbol": "AAH",
       "name": "CTCP Hợp Nhất",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LG9",
       "name": "CTCP Cơ giới và Xây lắp Số 9",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8105,7 +8105,7 @@
     {
       "symbol": "BMK",
       "name": "CTCP Kỹ thuật nhiệt Mèo Đen",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8135,19 +8135,19 @@
     {
       "symbol": "UEM",
       "name": "CTCP Cơ điện Uông Bí - Vinacomin",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PVV",
       "name": "CTCP Vinaconex 39",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HOT",
       "name": "CTCP Du lịch - Dịch vụ Hội An",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -8159,13 +8159,13 @@
     {
       "symbol": "BLI",
       "name": "Tổng Công ty cổ phần Bảo hiểm Bảo Long",
-      "sector": "Unknown",
+      "sector": "Bảo hiểm",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TGP",
       "name": "CTCP Trường Phú",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8177,13 +8177,13 @@
     {
       "symbol": "TTN",
       "name": "CTCP Công nghệ & Truyền thông Việt Nam",
-      "sector": "Unknown",
+      "sector": "Viễn thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FBC",
       "name": "CTCP Cơ khí Phổ Yên",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8195,7 +8195,7 @@
     {
       "symbol": "HNG",
       "name": "CTCP Nông nghiệp Quốc tế Hoàng Anh Gia Lai",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -8207,7 +8207,7 @@
     {
       "symbol": "F88",
       "name": "CTCP Đầu tư F88",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
@@ -8225,7 +8225,7 @@
     {
       "symbol": "DTP",
       "name": "CTCP Dược phẩm CPC1 Hà Nội",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -8237,13 +8237,13 @@
     {
       "symbol": "ACS",
       "name": "CTCP Xây lắp Thương mại 2",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TLT",
       "name": "CTCP Viglacera Thăng Long",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8255,7 +8255,7 @@
     {
       "symbol": "VBH",
       "name": "CTCP Điện tử Bình Hòa",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8273,7 +8273,7 @@
     {
       "symbol": "TAN",
       "name": "CTCP Cà phê Thuận An",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -8285,7 +8285,7 @@
     {
       "symbol": "NNT",
       "name": "CTCP Cấp nước Ninh Thuận",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -8297,7 +8297,7 @@
     {
       "symbol": "BSG",
       "name": "CTCP Xe khách Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -8315,7 +8315,7 @@
     {
       "symbol": "VTA",
       "name": "CTCP Vitaly",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8333,31 +8333,31 @@
     {
       "symbol": "SCC",
       "name": "CTCP Thương mại Đầu tư SHB",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "XMC",
       "name": "CTCP Đầu tư  và Xây dựng Xuân Mai",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "A32",
       "name": "CTCP 32",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VHG",
       "name": "CTCP Đầu tư Phát triển Việt Trung Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VBG",
       "name": "CTCP Địa chất Việt Bắc - TKV",
-      "sector": "Unknown",
+      "sector": "Tài nguyên Cơ bản",
       "exchange": "UPCOM"
     },
     {
@@ -8375,13 +8375,13 @@
     {
       "symbol": "TAB",
       "name": "CTCP Freco Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "AIC",
       "name": "Tổng Công ty Cổ phần Bảo hiểm DBV",
-      "sector": "Unknown",
+      "sector": "Bảo hiểm",
       "exchange": "UPCOM"
     },
     {
@@ -8411,7 +8411,7 @@
     {
       "symbol": "CTX",
       "name": "Tổng Công ty cổ phần Đầu tư Xây dựng và Thương mại Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8435,13 +8435,13 @@
     {
       "symbol": "VTR",
       "name": "CTCP Du lịch Vietravel",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PX1",
       "name": "CTCP Xi măng Sông Lam 2",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8453,7 +8453,7 @@
     {
       "symbol": "BHP",
       "name": "CTCP Bia Hà Nội - Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -8465,7 +8465,7 @@
     {
       "symbol": "TQW",
       "name": "CTCP Cấp thoát nước Tuyên Quang",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -8483,19 +8483,19 @@
     {
       "symbol": "VUA",
       "name": "CTCP Chứng khoán Stanley Brothers",
-      "sector": "Unknown",
+      "sector": "Dịch vụ tài chính",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SJM",
       "name": "CTCP Sông Đà 19",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HFC",
       "name": "CTCP Xăng dầu HFC",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -8513,25 +8513,25 @@
     {
       "symbol": "DCR",
       "name": "CTCP Gạch men Cosevco",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HWS",
       "name": "CTCP Cấp nước Huế",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HPO",
       "name": "CTCP Công nghiệp Hapulico",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HDW",
       "name": "CTCP Kinh doanh Nước sạch Hải Dương",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -8543,19 +8543,19 @@
     {
       "symbol": "GCF",
       "name": "CTCP Thực phẩm G.C",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "APP",
       "name": "CTCP Phát triển Phụ gia và Sản phẩm Dầu Mỏ",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "STD",
       "name": "CTCP Bia - Nước giải khát Sài Gòn - Tây Đô",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -8573,7 +8573,7 @@
     {
       "symbol": "MDA",
       "name": "CTCP Môi trường Đô thị Đông Anh",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8585,19 +8585,19 @@
     {
       "symbol": "MVN",
       "name": "Tổng Công ty Hàng hải Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MQB",
       "name": "CTCP Môi trường và Phát triển Đô thị Quảng Bình",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CBS",
       "name": "CTCP Mía Đường Cao Bằng",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -8609,25 +8609,25 @@
     {
       "symbol": "THP",
       "name": "CTCP Thủy sản và Thương mại Thuận Phước",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CCT",
       "name": "CTCP Cảng Cần Thơ",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DVW",
       "name": "CTCP Dịch vụ và Xây dựng Cấp nước Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "YBC",
       "name": "CTCP Xi măng và Khoáng sản Yên Bái",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8651,13 +8651,13 @@
     {
       "symbol": "TNV",
       "name": "CTCP Thống Nhất Hà Nội",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ITA",
       "name": "CTCP Đầu tư và Công nghiệp Tân Tạo",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -8699,13 +8699,13 @@
     {
       "symbol": "CMW",
       "name": "CTCP Cấp nước Cà Mau",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DCG",
       "name": "CTCP Tổng Công ty May Đáp Cầu",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -8717,13 +8717,13 @@
     {
       "symbol": "KIP",
       "name": "CTCP K.I.P Việt Nam",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "C92",
       "name": "CTCP Xây dựng và Đầu tư 492",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8741,7 +8741,7 @@
     {
       "symbol": "VGR",
       "name": "CTCP Cảng Xanh Vip",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8753,7 +8753,7 @@
     {
       "symbol": "DNA",
       "name": "CTCP Điện Nước An Giang",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -8765,25 +8765,25 @@
     {
       "symbol": "NAW",
       "name": "CTCP Cấp nước Nghệ An",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MQN",
       "name": "CTCP Môi trường đô thị Quảng Ngãi",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "BCR",
       "name": "CTCP BCG Land",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PHP",
       "name": "CTCP Cảng Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8795,13 +8795,13 @@
     {
       "symbol": "NTF",
       "name": "CTCP Dược - Vật tư Y tế Nghệ An",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
       "symbol": "FTI",
       "name": "CTCP Công nghiệp - Thương mại Hữu Nghị",
-      "sector": "Unknown",
+      "sector": "Ô tô và phụ tùng",
       "exchange": "UPCOM"
     },
     {
@@ -8813,7 +8813,7 @@
     {
       "symbol": "CDP",
       "name": "CTCP Dược phẩm Trung ương Codupha",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -8831,7 +8831,7 @@
     {
       "symbol": "PTT",
       "name": "CTCP Vận tải Dầu khí Đông Dương",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8843,7 +8843,7 @@
     {
       "symbol": "S12",
       "name": "CTCP Sông Đà 12",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -8855,7 +8855,7 @@
     {
       "symbol": "CCS",
       "name": "CTCP Chíp Sáng",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -8885,25 +8885,25 @@
     {
       "symbol": "MTL",
       "name": "CTCP Dịch vụ Môi trường Đô thị Từ Liêm",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ICN",
       "name": "CTCP Đầu tư Xây dựng Dầu khí IDICO",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CAD",
       "name": "CTCP Chế biến và Xuất nhập khẩu Thủy sản Cadovimex",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DXL",
       "name": "CTCP Du Lịch và Xuất nhập khẩu Lạng Sơn",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -8921,25 +8921,25 @@
     {
       "symbol": "SPD",
       "name": "CTCP Xuất nhập khẩu Thủy sản Miền Trung",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TTB",
       "name": "CTCP TTBGroup",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "ABC",
       "name": "CTCP Truyền thông VMG",
-      "sector": "Unknown",
+      "sector": "Viễn thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LLM",
       "name": "Tổng Công ty Lắp máy Việt Nam - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
@@ -8957,13 +8957,13 @@
     {
       "symbol": "AG1",
       "name": "CTCP 28.1",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DAN",
       "name": "CTCP Dược Danapha",
-      "sector": "Unknown",
+      "sector": "Y tế",
       "exchange": "UPCOM"
     },
     {
@@ -8975,19 +8975,19 @@
     {
       "symbol": "G20",
       "name": "CTCP Đầu tư Dệt may Vĩnh Phúc",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "LM7",
       "name": "CTCP Lilama 7",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "MVC",
       "name": "CTCP Vật liệu và Xây dựng Bình Dương",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -9005,7 +9005,7 @@
     {
       "symbol": "SKH",
       "name": "CTCP Nước giải khát Sanest Khánh Hòa",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
@@ -9017,13 +9017,13 @@
     {
       "symbol": "HPW",
       "name": "CTCP Cấp nước Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "QNT",
       "name": "CTCP Tư vấn Phát triển Quảng Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -9035,25 +9035,25 @@
     {
       "symbol": "CMP",
       "name": "CTCP Cảng Chân Mây",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "RBC",
       "name": "CTCP Công nghiệp và Xuất nhập khẩu Cao su",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CHC",
       "name": "CTCP Cẩm Hà",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NTT",
       "name": "CTCP Dệt - May Nha Trang",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
@@ -9077,13 +9077,13 @@
     {
       "symbol": "EMS",
       "name": "Tổng Công ty Chuyển phát nhanh Bưu Điện - CTCP",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SIV",
       "name": "CTCP SIVICO",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -9095,13 +9095,13 @@
     {
       "symbol": "DNL",
       "name": "CTCP Logistics Cảng Đà Nẵng",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DNT",
       "name": "CTCP Du lịch Đồng Nai",
-      "sector": "Unknown",
+      "sector": "Du lịch và Giải trí",
       "exchange": "UPCOM"
     },
     {
@@ -9113,7 +9113,7 @@
     {
       "symbol": "AVG",
       "name": "CTCP Phân bón Quốc tế Âu Việt",
-      "sector": "Unknown",
+      "sector": "Hóa chất",
       "exchange": "UPCOM"
     },
     {
@@ -9125,19 +9125,19 @@
     {
       "symbol": "DNH",
       "name": "CTCP Thủy điện Đa Nhim - Hàm Thuận - Đa Mi",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "NDT",
       "name": "Tổng Công ty cổ phần Dệt May Nam Định",
-      "sector": "Unknown",
+      "sector": "Hàng cá nhân & Gia dụng",
       "exchange": "UPCOM"
     },
     {
       "symbol": "HC3",
       "name": "CTCP Xây dựng Số 3 Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -9155,19 +9155,19 @@
     {
       "symbol": "RCC",
       "name": "CTCP Tổng Công ty Công trình Đường sắt Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CHS",
       "name": "CTCP Chiếu sáng Công cộng Thành phố Hồ Chí Minh",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "GSM",
       "name": "CTCP Thủy điện Hương Sơn",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -9179,37 +9179,37 @@
     {
       "symbol": "CFV",
       "name": "CTCP Cà phê Thắng Lợi",
-      "sector": "Unknown",
+      "sector": "Thực phẩm và đồ uống",
       "exchange": "UPCOM"
     },
     {
       "symbol": "VNA",
       "name": "CTCP Vận tải Biển Vinaship",
-      "sector": "Unknown",
+      "sector": "Hàng & Dịch vụ Công nghiệp",
       "exchange": "UPCOM"
     },
     {
       "symbol": "SII",
       "name": "CTCP Hạ tầng Nước Sài Gòn",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "XMP",
       "name": "CTCP Thủy điện Xuân Minh",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "CPH",
       "name": "CTCP Phục vụ Mai táng Hải Phòng",
-      "sector": "Unknown",
+      "sector": "Bán lẻ",
       "exchange": "UPCOM"
     },
     {
       "symbol": "TOS",
       "name": "CTCP Dịch vụ biển Tân Cảng",
-      "sector": "Unknown",
+      "sector": "Dầu khí",
       "exchange": "UPCOM"
     },
     {
@@ -9227,7 +9227,7 @@
     {
       "symbol": "NQB",
       "name": "CTCP Cấp nước Quảng Bình",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
@@ -9239,13 +9239,13 @@
     {
       "symbol": "HTP",
       "name": "CTCP In Sách Giáo khoa Hòa Phát",
-      "sector": "Unknown",
+      "sector": "Truyền thông",
       "exchange": "UPCOM"
     },
     {
       "symbol": "PHH",
       "name": "CTCP Hồng Hà Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -9257,7 +9257,7 @@
     {
       "symbol": "VVN",
       "name": "Tổng Công ty cổ phần Xây dựng Công nghiệp Việt Nam",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -9275,13 +9275,13 @@
     {
       "symbol": "SHG",
       "name": "Tổng Công ty cổ phần Sông Hồng",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
       "symbol": "L43",
       "name": "CTCP Lilama 45.3",
-      "sector": "Unknown",
+      "sector": "Xây dựng và Vật liệu",
       "exchange": "UPCOM"
     },
     {
@@ -9299,7 +9299,7 @@
     {
       "symbol": "SSH",
       "name": "CTCP Phát triển Sunshine Homes",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     },
     {
@@ -9323,19 +9323,19 @@
     {
       "symbol": "PEG",
       "name": "Tổng Công ty Thương mại Kỹ thuật và Đầu tư - CTCP",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "POB",
       "name": "CTCP Xăng dầu Dầu khí Hưng Yên",
-      "sector": "Unknown",
+      "sector": "Điện, nước & xăng dầu khí đốt",
       "exchange": "UPCOM"
     },
     {
       "symbol": "DCH",
       "name": "CTCP Địa chính Hà Nội",
-      "sector": "Unknown",
+      "sector": "Bất động sản",
       "exchange": "UPCOM"
     }
   ]
