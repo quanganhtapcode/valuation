@@ -569,18 +569,20 @@ export async function fetchForeignVolumeChart(): Promise<ForeignVolumePoint[]> {
 }
 
 /**
- * Fetch gold prices from BTMC
+ * Fetch gold prices (primary source: Phú Quý via backend service, fallback BTMC).
  */
-export async function fetchGoldPrices(): Promise<{ data: GoldPriceItem[]; updated_at?: string }> {
+export async function fetchGoldPrices(): Promise<{ data: GoldPriceItem[]; updated_at?: string; source?: string }> {
     interface GoldResponse {
         success: boolean;
         data: GoldPriceItem[];
         updated_at?: string;
+        source?: string;
     }
     const response = await fetchAPI<GoldResponse>(API.GOLD);
     return {
         data: response.data || [],
-        updated_at: response.updated_at
+        updated_at: response.updated_at,
+        source: response.source,
     };
 }
 

@@ -11,23 +11,26 @@ interface GoldPriceProps {
     prices: GoldPriceItem[];
     isLoading?: boolean;
     updatedAt?: string;
+    source?: string;
 }
 
-export default function GoldPrice({ prices, isLoading, updatedAt }: GoldPriceProps) {
+export default function GoldPrice({ prices, isLoading, updatedAt, source }: GoldPriceProps) {
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
     }, []);
 
-    // Selection criteria
+    // Selection criteria: show exactly 3 gold classes from current provider
     const displayPrices = prices?.filter(p =>
-        ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Bạc Thỏi Phú Quý 999', 'Bạc 1kg'].includes(p.TypeName)
+        ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)'].includes(p.TypeName)
     ) || [];
 
-    // Order: SJC, 9999 Ring, Silver
-    const order = ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Bạc Thỏi Phú Quý 999', 'Bạc 1kg'];
+    // Order: SJC, ring 9999, PQ bar 9999
+    const order = ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)'];
     displayPrices.sort((a, b) => order.indexOf(a.TypeName) - order.indexOf(b.TypeName));
+
+    const sourceLabel = source === 'BTMC' ? 'BTMC' : 'Phú Quý';
 
     return (
         <Card className="mt-4 p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm rounded-2xl">
@@ -48,8 +51,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt }: GoldPricePro
                 ) : (
                     <div className="flex flex-col">
                         {displayPrices.map((item) => {
-                            const isSilver = item.TypeName.startsWith('Bạc');
-                            const badgeText = isSilver ? 'Ag' : 'Au';
+                            const badgeText = 'Au';
 
                             return (
                                 <div key={item.Id} className="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-800/50 last:border-0 group">
@@ -66,7 +68,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt }: GoldPricePro
                                                 {item.TypeName}
                                             </span>
                                             <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">
-                                                BTMC
+                                                {item.BranchName || sourceLabel}
                                             </span>
                                         </div>
                                     </div>
@@ -117,7 +119,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt }: GoldPricePro
                         } catch (e) {
                             return updatedAt;
                         }
-                    })()} (BTMC)
+                    })()} ({sourceLabel})
                 </span>
             </div>
         </Card>
