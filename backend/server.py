@@ -9,6 +9,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 
 import logging
 import json
+from json import JSONDecodeError
 import time
 import queue
 from datetime import datetime
@@ -143,6 +144,24 @@ def after_request(response):
     header['Access-Control-Allow-Origin'] = '*'
     header['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     header['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+
+    # Keep API responses compact for browsers, but pretty-print for curl and
+    # explicit `?pretty=1` requests so terminal output is easier to read.
+    if response.mimetype == 'application/json':
+        ua = (request.headers.get('User-Agent') or '').lower()
+        pretty_flag = (request.args.get('pretty') or '').strip().lower()
+        wants_pretty = 'curl/' in ua or pretty_flag in {'1', 'true', 'yes'}
+        if wants_pretty:
+            raw = response.get_data(as_text=True)
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                    response.set_data(
+                        json.dumps(parsed, ensure_ascii=False, indent=2, sort_keys=False) + '\n'
+                    )
+                except JSONDecodeError:
+                    pass
+
     return response
 
 

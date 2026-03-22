@@ -310,6 +310,8 @@ def _read_ema_breadth_sqlite(limit: int = 260) -> list[dict]:
         return []
 
 
+
+
 @market_bp.route('/prices')
 def api_market_prices():
     """

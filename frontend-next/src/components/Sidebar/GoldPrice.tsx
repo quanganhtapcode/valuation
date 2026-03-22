@@ -13,13 +13,13 @@ interface GoldPriceProps {
 }
 
 export default function GoldPrice({ prices, isLoading, updatedAt, source }: GoldPriceProps) {
-    // Selection criteria: show exactly 3 gold classes from current provider
+    // Show 3 gold classes + silver bar if available
     const displayPrices = prices?.filter(p =>
-        ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)'].includes(p.TypeName)
+        ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)', 'Bạc Thỏi Phú Quý 999'].includes(p.TypeName)
     ) || [];
 
-    // Order: SJC, ring 9999, PQ bar 9999
-    const order = ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)'];
+    // Order: SJC, ring 9999, PQ bar 9999, silver bar
+    const order = ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)', 'Bạc Thỏi Phú Quý 999'];
     displayPrices.sort((a, b) => order.indexOf(a.TypeName) - order.indexOf(b.TypeName));
 
     const sourceLabel = source === 'BTMC' ? 'BTMC' : 'Phú Quý';
@@ -43,13 +43,18 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                 ) : (
                     <div className="flex flex-col">
                         {displayPrices.map((item) => {
-                            const badgeText = 'Au';
+                            const isSilver = item.TypeName.toLowerCase().includes('bạc');
+                            const badgeText = isSilver ? 'Ag' : 'Au';
 
                             return (
                                 <div key={item.Id} className="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-800/50 last:border-0 group">
                                     {/* Left: Badge + Name */}
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm bg-amber-100 text-amber-600 dark:bg-amber-900/30">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${
+                                            isSilver
+                                                ? 'bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300'
+                                                : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
+                                        }`}>
                                             {badgeText}
                                         </div>
                                         <div className="flex flex-col min-w-0">
