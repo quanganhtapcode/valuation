@@ -926,60 +926,58 @@ def api_tickers():
 
 @stock_bp.route("/news/<symbol>")
 def api_news(symbol):
-    """Get news for a symbol"""
+    """Get news for a symbol — SQLite cache first, live VCI API fallback."""
     try:
-        # Check cache
-        cache_key = f'news_{symbol}'
-        cached = _cache_get(cache_key)
-        if cached: return jsonify(cached)
+        is_valid, clean_symbol = validate_stock_symbol(symbol)
+        if not is_valid:
+            return jsonify({"success": False, "error": clean_symbol}), 400
 
-        stock = Vnstock().stock(symbol=symbol, source='VCI')
-        news_df = stock.company.news()
-        
-        result = {"success": True, "data": []}
-        if news_df is not None and not news_df.empty:
-            news_data = []
-            for _, row in news_df.head(15).iterrows():
-                # Extract date logic omitted for brevity, simplified
-                pub_date = row.get('public_date') or row.get('created_at')
-                news_data.append({
-                    "title": row.get('news_title', row.get('title', '')),
-                    "url": row.get('news_source_link', row.get('url', '#')),
-                    "source": "HSX" if "hsx.vn" in str(row.get('news_source_link', '')) else "VCI",
-                    "publish_date": str(pub_date)
-                })
-            result = {"success": True, "data": news_data}
-        
+        cache_key = f"news_{clean_symbol}"
+        cached = _cache_get(cache_key)
+        if cached:
+            return jsonify(cached)
+
+        items = _feed_from_sqlite(clean_symbol, "news") or _feed_from_live(clean_symbol, "news")
+        # Normalise to legacy shape expected by old frontend callers
+        data = [
+            {
+                "Title":       it.get("newsTitle") or it.get("title") or "",
+                "NewsUrl":     "",
+                "PublishDate": (it.get("publicDate") or "")[:10],
+            }
+            for it in (items or [])
+        ]
+        result = {"success": True, "data": data}
         _cache_set(cache_key, result)
         return jsonify(result)
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
 @stock_bp.route("/events/<symbol>")
-@stock_bp.route("/events/<symbol>")
 def api_events(symbol):
-    """Get events for a symbol"""
+    """Get events for a symbol — SQLite cache first, live VCI API fallback."""
     try:
-        # Check cache
-        cache_key = f'events_{symbol}'
-        cached = _cache_get(cache_key)
-        if cached: return jsonify(cached)
+        is_valid, clean_symbol = validate_stock_symbol(symbol)
+        if not is_valid:
+            return jsonify({"success": False, "error": clean_symbol}), 400
 
-        stock = Vnstock().stock(symbol=symbol, source='VCI')
-        events_df = stock.company.events()
-        
-        result = {"success": True, "data": []}
-        if events_df is not None and not events_df.empty:
-            events_data = []
-            for _, row in events_df.head(10).iterrows():
-                events_data.append({
-                    "event_name": row.get('event_title', ''),
-                    "event_code": row.get('event_list_name', 'Event'),
-                    "notify_date": str(row.get('public_date', '')).split(' ')[0],
-                    "url": row.get('source_url', '#')
-                })
-            result = {"success": True, "data": events_data}
-            
+        cache_key = f"events_{clean_symbol}"
+        cached = _cache_get(cache_key)
+        if cached:
+            return jsonify(cached)
+
+        # Merge dividend + agm + other into one events list
+        all_items: list = []
+        for tab in ("dividend", "agm", "other"):
+            tab_items = _feed_from_sqlite(clean_symbol, tab) or []
+            all_items.extend(tab_items)
+
+        if not all_items:
+            # Live fallback — fetch dividend tab only
+            all_items = _feed_from_live(clean_symbol, "dividend")
+
+        all_items.sort(key=lambda x: x.get("displayDate1") or x.get("publicDate") or "", reverse=True)
+        result = {"success": True, "data": all_items[:20]}
         _cache_set(cache_key, result)
         return jsonify(result)
     except Exception as exc:
@@ -994,9 +992,57 @@ _VCI_FEED_TABS = {
     "other":    {"path": "events", "extra": {"eventCode": "AIS,MA,MOVE,NLIS,OTHE,RETU,SUSP"}},
 }
 
+def _news_events_db_path() -> str | None:
+    candidates = [
+        os.environ.get("VCI_NEWS_EVENTS_DB_PATH"),
+        "/var/www/valuation/fetch_sqlite/vci_news_events.sqlite",
+        os.path.join(os.path.dirname(__file__), "../../fetch_sqlite/vci_news_events.sqlite"),
+    ]
+    for p in candidates:
+        if p and os.path.exists(p):
+            return p
+    return None
+
+def _feed_from_sqlite(symbol: str, tab: str, limit: int = 50) -> list | None:
+    """Return items from SQLite cache, or None if DB not available / no rows."""
+    db = _news_events_db_path()
+    if not db:
+        return None
+    try:
+        with sqlite3.connect(db) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT raw_json FROM items WHERE symbol=? AND tab=? ORDER BY public_date DESC LIMIT ?",
+                (symbol, tab, limit),
+            ).fetchall()
+        if not rows:
+            return None
+        return [json.loads(r["raw_json"]) for r in rows]
+    except Exception as exc:
+        logger.warning("feed sqlite error: %s", exc)
+        return None
+
+def _feed_from_live(symbol: str, tab: str) -> list:
+    cfg = _VCI_FEED_TABS[tab]
+    today = date.today()
+    params = {
+        "ticker": symbol,
+        "fromDate": "20100101",
+        "toDate": f"{today.year + 1}{today.month:02d}{today.day:02d}",
+        "page": "0",
+        "size": "50",
+        **cfg["extra"],
+    }
+    resp = requests.get(
+        f"{_VCI_IQ_BASE}/{cfg['path']}",
+        params=params, headers=VCI_HEADERS, timeout=10,
+    )
+    resp.raise_for_status()
+    return (resp.json().get("data") or {}).get("content") or []
+
 @stock_bp.route("/stock/vci-feed/<symbol>")
 def api_vci_feed(symbol):
-    """Proxy VCI IQ news/events feed for the given tab type."""
+    """Serve VCI IQ news/events — SQLite cache first, live API fallback."""
     try:
         is_valid, clean_symbol = validate_stock_symbol(symbol)
         if not is_valid:
@@ -1011,27 +1057,15 @@ def api_vci_feed(symbol):
         if cached:
             return jsonify(cached)
 
-        cfg = _VCI_FEED_TABS[tab]
-        today = date.today()
-        params = {
-            "ticker": clean_symbol,
-            "fromDate": "20100101",
-            "toDate": f"{today.year + 1}{today.month:02d}{today.day:02d}",
-            "page": "0",
-            "size": "50",
-            **cfg["extra"],
-        }
+        # SQLite first
+        items = _feed_from_sqlite(clean_symbol, tab)
+        source = "sqlite"
+        if items is None:
+            items = _feed_from_live(clean_symbol, tab)
+            source = "live"
 
-        resp = requests.get(
-            f"{_VCI_IQ_BASE}/{cfg['path']}",
-            params=params,
-            headers=VCI_HEADERS,
-            timeout=10,
-        )
-        resp.raise_for_status()
-        items = (resp.json().get("data") or {}).get("content") or []
-        result = {"success": True, "tab": tab, "data": items}
-        _cache_set(cache_key, result, ttl=300)
+        result = {"success": True, "tab": tab, "source": source, "data": items}
+        _cache_set(cache_key, result, ttl=600)
         return jsonify(result)
     except Exception as exc:
         logger.error("vci_feed %s %s: %s", symbol, tab, exc)
