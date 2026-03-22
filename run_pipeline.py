@@ -292,6 +292,15 @@ def main() -> int:
     # Step 4 — batch valuations (daily; non-blocking)
     step_batch_valuations()
 
+    # Step 4b — batch news/events (incremental daily)
+    try:
+        from backend.updater.batch_news import run as run_batch_news
+        logger.info(">>> Starting: Batch news/events (incremental)")
+        run_batch_news(incremental=True)
+        logger.info("✓ Batch news/events done")
+    except Exception as exc:
+        logger.warning("⚠ Batch news/events failed (non-fatal): %s", exc)
+
     # Step 5 — price history (daily)
     logger.info(">>> Starting: Price history update")
     if not step_update_price_history(symbols):
