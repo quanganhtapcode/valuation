@@ -272,6 +272,7 @@ export interface ScreenerFilters {
     volume_max?: number;
     upside_pct_min?: number;
     upside_pct_max?: number;
+    tickers?: string;
 }
 
 export interface ScreenerItem {
