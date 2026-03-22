@@ -36,8 +36,6 @@ export default async function OverviewPage() {
   const initialNews: NewsItem[] = [];
   const initialGainers: TopMoverItem[] = [];
   const initialLosers: TopMoverItem[] = [];
-  const initialForeignBuys: TopMoverItem[] = [];
-  const initialForeignSells: TopMoverItem[] = [];
   const initialGoldPrices: GoldPriceItem[] = [];
   const initialGoldUpdated: undefined = undefined;
   const initialPEData: PEChartData[] = [];
@@ -49,8 +47,6 @@ export default async function OverviewPage() {
         initialNews={initialNews}
         initialGainers={initialGainers}
         initialLosers={initialLosers}
-        initialForeignBuys={initialForeignBuys}
-        initialForeignSells={initialForeignSells}
         initialGoldPrices={initialGoldPrices}
         initialGoldUpdated={initialGoldUpdated}
         initialPEData={initialPEData}

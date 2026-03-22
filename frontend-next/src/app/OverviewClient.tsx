@@ -16,7 +16,6 @@ import {
     PRICE_SYNC_INTERVAL_MS,
     IDLE_REFRESH_INTERVAL_MS,
     fetchTopMovers,
-    fetchForeignFlow,
     fetchGoldPrices,
     INDEX_MAP,
     MarketIndexData,
@@ -54,8 +53,6 @@ interface OverviewClientProps {
     initialNews: NewsItem[];
     initialGainers: TopMoverItem[];
     initialLosers: TopMoverItem[];
-    initialForeignBuys: TopMoverItem[];
-    initialForeignSells: TopMoverItem[];
     initialGoldPrices: GoldPriceItem[];
     initialGoldUpdated?: string;
     initialPEData: PEChartData[];
@@ -66,8 +63,6 @@ export default function OverviewClient({
     initialNews,
     initialGainers,
     initialLosers,
-    initialForeignBuys,
-    initialForeignSells,
     initialGoldPrices,
     initialGoldUpdated,
     initialPEData
@@ -88,11 +83,6 @@ export default function OverviewClient({
     const [gainers, setGainers] = useState<TopMoverItem[]>(initialGainers);
     const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
     const [moversLoading, setMoversLoading] = useState(false);
-
-    // State for foreign flow
-    const [foreignBuys, setForeignBuys] = useState<TopMoverItem[]>(initialForeignBuys);
-    const [foreignSells, setForeignSells] = useState<TopMoverItem[]>(initialForeignSells);
-    const [foreignLoading, setForeignLoading] = useState(false);
 
     // State for gold prices
     const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
@@ -207,22 +197,6 @@ export default function OverviewClient({
         }
     }, []);
 
-    const loadForeign = useCallback(async () => {
-        try {
-            setForeignLoading(true);
-            const [buy, sell] = await Promise.all([
-                fetchForeignFlow('buy'),
-                fetchForeignFlow('sell'),
-            ]);
-            setForeignBuys(buy);
-            setForeignSells(sell);
-        } catch (error) {
-            console.error('Error loading foreign flow:', error);
-        } finally {
-            setForeignLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
         if (!initialGoldPrices || initialGoldPrices.length === 0) {
             loadGold();
@@ -256,21 +230,14 @@ export default function OverviewClient({
         }
     }, [initialGainers, initialLosers, loadMovers]);
 
-    useEffect(() => {
-        if (!initialForeignBuys || !initialForeignSells || initialForeignBuys.length === 0 || initialForeignSells.length === 0) {
-            loadForeign();
-        }
-    }, [initialForeignBuys, initialForeignSells, loadForeign]);
-
     // Periodic refresh for movers (every 60 s during trading hours)
     useEffect(() => {
         if (!isTradingHours()) return;
         const interval = setInterval(() => {
             loadMovers();
-            loadForeign();
         }, 60000);
         return () => clearInterval(interval);
-    }, [loadMovers, loadForeign]);
+    }, [loadMovers]);
 
     // Realtime indices via internal websocket; fallback polling only when WS is down
     useEffect(() => {
