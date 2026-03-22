@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { formatNumber, formatDate } from '@/lib/api';
 import styles from '../../app/stock/[symbol]/page.module.css';
+import VciNewsFeed from './VciNewsFeed';
 import { BarChart, Card, LineChart } from '@tremor/react';
 
 function classNames(...classes: Array<string | false | undefined | null>) {
@@ -329,33 +330,11 @@ export default function OverviewTab({
                 </section>
 
 
-                {/* Related News */}
-                {news.length > 0 && (
-                    <section className={`${styles.section} ${styles.sectionNews}`}>
-                        <h2 className={styles.sectionTitle}>📰 Related News</h2>
-                        <div className={styles.newsList}>
-                            {news.map((item, index) => {
-                                const url = (item.Link || item.NewsUrl || '#').startsWith('http')
-                                    ? item.Link || item.NewsUrl
-                                    : `https://cafef.vn${item.Link || item.NewsUrl}`;
-                                return (
-                                    <a
-                                        key={index}
-                                        href={url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={styles.newsItem}
-                                    >
-                                        <span className={styles.newsTitle}>{item.Title}</span>
-                                        <span className={styles.newsTime}>
-                                            {formatDate(item.PostDate || item.PublishDate)}
-                                        </span>
-                                    </a>
-                                );
-                            })}
-                        </div>
-                    </section>
-                )}
+                {/* News & Events Feed */}
+                <section className={styles.section}>
+                    <h2 className={styles.sectionTitle}>📰 News & Events</h2>
+                    <VciNewsFeed symbol={symbol} />
+                </section>
             </div>
 
             {/* Right Column */}

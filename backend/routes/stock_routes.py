@@ -3,12 +3,13 @@ import logging
 import pandas as pd
 import numpy as np
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import json
 import os
 import re
 import time as _time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import requests
 from backend.extensions import get_provider, get_valuation_service
 from backend.utils import validate_stock_symbol
 from backend.db_path import resolve_stocks_db_path, resolve_vci_shareholders_db_path, resolve_vci_stats_financial_db_path
@@ -21,6 +22,7 @@ from backend.cache_utils import cache_get_ns, cache_set_ns
 from backend.routes.stock.financial_dashboard import register as register_financial_dashboard_routes
 from backend.routes.stock.history import register as register_history_routes
 from backend.routes.stock.missing_routes import register as register_missing_routes
+from backend.routes.market.http_headers import VCI_HEADERS
 from backend.routes.stock.stock_data import _clean_stock_response
 from vnstock import Vnstock, Quote, Company
 
@@ -981,6 +983,58 @@ def api_events(symbol):
         _cache_set(cache_key, result)
         return jsonify(result)
     except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+_VCI_IQ_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1"
+_VCI_FEED_TABS = {
+    "news":     {"path": "news",   "extra": {"languageId": "1"}},
+    "dividend": {"path": "events", "extra": {"eventCode": "DIV,ISS"}},
+    "insider":  {"path": "events", "extra": {"eventCode": "DDIND,DDINS,DDRP"}},
+    "agm":      {"path": "events", "extra": {"eventCode": "AGME,AGMR,EGME"}},
+    "other":    {"path": "events", "extra": {"eventCode": "AIS,MA,MOVE,NLIS,OTHE,RETU,SUSP"}},
+}
+
+@stock_bp.route("/stock/vci-feed/<symbol>")
+def api_vci_feed(symbol):
+    """Proxy VCI IQ news/events feed for the given tab type."""
+    try:
+        is_valid, clean_symbol = validate_stock_symbol(symbol)
+        if not is_valid:
+            return jsonify({"success": False, "error": clean_symbol}), 400
+
+        tab = (request.args.get("tab") or "news").strip().lower()
+        if tab not in _VCI_FEED_TABS:
+            return jsonify({"success": False, "error": f"Unknown tab: {tab}"}), 400
+
+        cache_key = f"vci_feed_{clean_symbol}_{tab}"
+        cached = _cache_get(cache_key)
+        if cached:
+            return jsonify(cached)
+
+        cfg = _VCI_FEED_TABS[tab]
+        today = date.today()
+        params = {
+            "ticker": clean_symbol,
+            "fromDate": "20100101",
+            "toDate": f"{today.year + 1}{today.month:02d}{today.day:02d}",
+            "page": "0",
+            "size": "50",
+            **cfg["extra"],
+        }
+
+        resp = requests.get(
+            f"{_VCI_IQ_BASE}/{cfg['path']}",
+            params=params,
+            headers=VCI_HEADERS,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        items = (resp.json().get("data") or {}).get("content") or []
+        result = {"success": True, "tab": tab, "data": items}
+        _cache_set(cache_key, result, ttl=300)
+        return jsonify(result)
+    except Exception as exc:
+        logger.error("vci_feed %s %s: %s", symbol, tab, exc)
         return jsonify({"success": False, "error": str(exc)}), 500
 
 @stock_bp.route("/stock/<symbol>/revenue-profit")
