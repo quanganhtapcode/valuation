@@ -109,7 +109,7 @@ export default function ScreenerPage() {
   const [hasValuationData, setHasValuationData] = useState(false);
   const [activeTab, setActiveTab]             = useState<FilterTab>('valuation');
   const [filtersOpen, setFiltersOpen]         = useState(false);
-  const [exchanges, setExchanges]             = useState<Set<string>>(new Set(['HOSE', 'HNX', 'UPCOM']));
+  const [exchanges, setExchanges]             = useState<Set<string>>(new Set(['HSX', 'HNX', 'UPCOM']));
   const [sortBy, setSortBy]                   = useState<ScreenerSortKey>('market_cap');
   const [sortOrder, setSortOrder]             = useState<'asc' | 'desc'>('desc');
   const [selectedSector, setSelectedSector]   = useState('');
@@ -232,7 +232,7 @@ export default function ScreenerPage() {
   };
 
   const resetAll = () => {
-    setExchanges(new Set(['HOSE', 'HNX', 'UPCOM']));
+    setExchanges(new Set(['HSX', 'HNX', 'UPCOM']));
     setSelectedSector('');
     setPeRange({ min: PE_RANGE.min, max: PE_RANGE.max });
     setPbRange({ min: PB_RANGE.min, max: PB_RANGE.max });
@@ -276,19 +276,19 @@ export default function ScreenerPage() {
           <div className="flex items-center gap-2 ml-auto">
             {/* Exchange pills — always visible */}
             <div className="flex gap-1">
-              {(['HOSE', 'HNX', 'UPCOM'] as const).map((ex) => {
-                const on = exchanges.has(ex);
+              {([['HSX', 'HOSE'], ['HNX', 'HNX'], ['UPCOM', 'UPCOM']] as const).map(([value, label]) => {
+                const on = exchanges.has(value);
                 return (
                   <button
-                    key={ex}
-                    onClick={() => toggleExchange(ex)}
+                    key={value}
+                    onClick={() => toggleExchange(value)}
                     className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold border transition-colors ${
                       on
                         ? 'bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500'
                         : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
                     }`}
                   >
-                    {ex}
+                    {label}
                   </button>
                 );
               })}
