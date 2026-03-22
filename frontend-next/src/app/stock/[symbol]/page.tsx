@@ -335,14 +335,12 @@ export default function StockDetailPage() {
                     const json = await res.json();
                     const rawData = json.data || json.Data || json || [];
                     if (Array.isArray(rawData)) {
-                        const normalize = (val: number) => (val > 0 && val < 500) ? val * 1000 : val;
-
                         const mapped = rawData.map((d: any) => ({
                             time: d.time || d.date,
-                            open: normalize(d.open),
-                            high: normalize(d.high),
-                            low: normalize(d.low),
-                            close: normalize(d.close),
+                            open: d.open,
+                            high: d.high,
+                            low: d.low,
+                            close: d.close,
                             volume: d.volume,
                         }));
                         // Sort by date ascending to ensure proper charting
