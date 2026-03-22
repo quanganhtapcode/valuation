@@ -239,7 +239,8 @@ export type ScreenerSortKey =
     | 'value'
     | 'volume'
     | 'exchange'
-    | 'sector';
+    | 'sector'
+    | 'upside_pct';
 
 export interface ScreenerFilters {
     q?: string;
@@ -269,6 +270,8 @@ export interface ScreenerFilters {
     value_max?: number;
     volume_min?: number;
     volume_max?: number;
+    upside_pct_min?: number;
+    upside_pct_max?: number;
 }
 
 export interface ScreenerItem {
@@ -288,6 +291,9 @@ export interface ScreenerItem {
     revenueGrowthYoy: number | null;
     accumulatedValue: number | null;
     accumulatedVolume: number | null;
+    intrinsicValue: number | null;
+    upsidePct: number | null;
+    qualityGrade: string | null;
 }
 
 export interface ScreenerResponse {
@@ -298,6 +304,7 @@ export interface ScreenerResponse {
     pageSize: number;
     sortBy: ScreenerSortKey;
     sortOrder: 'asc' | 'desc';
+    hasValuationData?: boolean;
 }
 
 export interface WatchlistPriceSnapshot {

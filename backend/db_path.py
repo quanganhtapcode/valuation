@@ -226,6 +226,33 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
     return str((root / "price_history.sqlite").resolve())
 
 
+def resolve_valuation_cache_db_path(explicit_path: Optional[str] = None) -> str:
+    """Return an absolute path to the batch-valuation cache SQLite DB."""
+    candidates: list[Path] = []
+
+    if explicit_path:
+        candidates.append(Path(explicit_path).expanduser())
+
+    env_path = os.getenv("VALUATION_CACHE_DB_PATH")
+    if env_path:
+        candidates.append(Path(env_path).expanduser())
+
+    root = _project_root()
+    candidates.append(root / "fetch_sqlite" / "valuation_cache.sqlite")
+    candidates.append(Path("/var/www/valuation/fetch_sqlite/valuation_cache.sqlite"))
+    candidates.append(Path("/var/www/store/fetch_sqlite/valuation_cache.sqlite"))
+
+    for path in candidates:
+        try:
+            path = path.resolve()
+        except Exception:
+            pass
+        if path.exists():
+            return str(path)
+
+    return str((root / "fetch_sqlite" / "valuation_cache.sqlite").resolve())
+
+
 def resolve_vci_ratio_daily_db_path(explicit_path: Optional[str] = None) -> str:
     """Return an absolute path to the VCI daily PE/PB TTM SQLite DB."""
     candidates: list[Path] = []

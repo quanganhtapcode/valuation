@@ -198,7 +198,28 @@ def step_create_compat_views() -> bool:
         return False
 
 
-# ── Step 4: Price History ─────────────────────────────────────────────────────
+# ── Step 4: Batch Valuations ──────────────────────────────────────────────────
+
+def step_batch_valuations() -> bool:
+    """Daily: compute intrinsic value for all stocks and cache to valuation_cache.sqlite."""
+    _add_updater_to_path()
+    try:
+        from backend.updater.batch_valuations import run_batch_valuations
+
+        logger.info(">>> Starting: Batch valuation computation")
+        result = run_batch_valuations()
+        logger.info(
+            f"✅ Finished: Batch valuations "
+            f"(computed={result['computed']}, skipped={result['skipped']}, "
+            f"errors={result['errors']}, total={result['total']})"
+        )
+        return True
+    except Exception as e:
+        logger.error(f"❌ Failed: Batch valuations — {e}")
+        return False
+
+
+# ── Step 5: Price History ─────────────────────────────────────────────────────
 
 def step_update_price_history(symbols: list[str]) -> bool:
     """Daily: fetch historical OHLCV data from VCI API and update stock_price_history table."""
@@ -208,27 +229,26 @@ def step_update_price_history(symbols: list[str]) -> bool:
         
         logger.info(f">>> Starting: Price history update ({len(symbols)} symbols)")
         
-        # Initialize updater with default settings
+        # 5 workers + 1.0 s delay keeps VCI API happy; class default is 3/1.2 s
         updater = PriceHistoryUpdater(
-            db_path=DB_PATH,
-            max_workers=10,
-            delay=0.5,
-            pages_per_symbol=10
+            max_workers=5,
+            delay=1.0,
+            pages_per_symbol=10,
         )
-        
+
         # Run the update
         updater.run(symbols=symbols, test_mode=False)
-        
+
         # Log summary
         stats = updater.stats
         logger.info(
             f"✅ Finished: Price history update "
             f"(success={stats['success']}, failed={stats['failed']}, "
-            f"inserted={stats['records_inserted']}, updated={stats['records_updated']})"
+            f"inserted={stats['records_inserted']})"
         )
-        
-        # Invalidate cache if records were updated
-        if stats['records_inserted'] > 0 or stats['records_updated'] > 0:
+
+        # Invalidate cache if new records were written
+        if stats['records_inserted'] > 0:
             _invalidate_cache_namespaces(
                 namespaces=['stock_routes', 'decorator'],
                 reason='price history update',
@@ -269,7 +289,10 @@ def main() -> int:
     # Step 3 — compat views (always)
     step_create_compat_views()
 
-    # Step 4 — price history (daily)
+    # Step 4 — batch valuations (daily; non-blocking)
+    step_batch_valuations()
+
+    # Step 5 — price history (daily)
     logger.info(">>> Starting: Price history update")
     if not step_update_price_history(symbols):
         logger.warning("⚠ Price history update failed (continuing pipeline)")
