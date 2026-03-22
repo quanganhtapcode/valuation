@@ -112,6 +112,9 @@ export default function ScreenerPage() {
   const [exchanges, setExchanges]             = useState<Set<string>>(new Set(['HOSE', 'HNX', 'UPCOM']));
   const [sortBy, setSortBy]                   = useState<ScreenerSortKey>('market_cap');
   const [sortOrder, setSortOrder]             = useState<'asc' | 'desc'>('desc');
+  const [selectedSector, setSelectedSector]   = useState('');
+  const [sectors, setSectors]                 = useState<string[]>([]);
+  const [sectorTickerMap, setSectorTickerMap] = useState<Record<string, string[]>>({});
 
   // Valuation tab
   const [peRange, setPeRange]         = useState<SliderRange>({ min: PE_RANGE.min,            max: PE_RANGE.max            });
@@ -142,6 +145,9 @@ export default function ScreenerPage() {
     upside_pct_min:       upsideRange.min > UPSIDE_PCT_RANGE.min ? upsideRange.min         : undefined,
     upside_pct_max:       upsideRange.max < UPSIDE_PCT_RANGE.max ? upsideRange.max         : undefined,
     exchange:             exchanges.size < 3 ? [...exchanges].join(',') : undefined,
+    tickers:              selectedSector && sectorTickerMap[selectedSector]?.length
+                            ? sectorTickerMap[selectedSector].join(',')
+                            : undefined,
     roe_min:              roeRange.min > ROE_RANGE.min           ? roeRange.min            : undefined,
     roe_max:              roeRange.max < ROE_RANGE.max           ? roeRange.max            : undefined,
     net_margin_min:       netMarginRange.min > NET_MARGIN_RANGE.min   ? netMarginRange.min   : undefined,
@@ -152,7 +158,7 @@ export default function ScreenerPage() {
     revenue_growth_max:   revGrowthRange.max < REVENUE_GROWTH_RANGE.max    ? revGrowthRange.max    : undefined,
     net_profit_growth_min: npGrowthRange.min > NET_PROFIT_GROWTH_RANGE.min ? npGrowthRange.min     : undefined,
     net_profit_growth_max: npGrowthRange.max < NET_PROFIT_GROWTH_RANGE.max ? npGrowthRange.max     : undefined,
-  }), [peRange, pbRange, priceRange, mcapRange, upsideRange, roeRange, netMarginRange, grossMarginRange, revGrowthRange, npGrowthRange, exchanges]);
+  }), [peRange, pbRange, priceRange, mcapRange, upsideRange, roeRange, netMarginRange, grossMarginRange, revGrowthRange, npGrowthRange, exchanges, selectedSector, sectorTickerMap]);
 
   // Per-tab active counts for badges
   const tabCounts = useMemo(() => ({
@@ -171,7 +177,27 @@ export default function ScreenerPage() {
     ).length,
   }), [peRange, pbRange, priceRange, mcapRange, upsideRange, roeRange, netMarginRange, grossMarginRange, revGrowthRange, npGrowthRange, hasValuationData]);
 
-  const totalActiveFilters = tabCounts.valuation + tabCounts.quality + tabCounts.growth;
+  const totalActiveFilters = tabCounts.valuation + tabCounts.quality + tabCounts.growth + (selectedSector ? 1 : 0);
+
+  // Load sectors from ticker_data.json
+  useEffect(() => {
+    fetch('/ticker_data.json')
+      .then((r) => r.json())
+      .then((data: { tickers: Array<{ symbol: string; sector: string }> }) => {
+        const map: Record<string, string[]> = {};
+        for (const t of data.tickers || []) {
+          const s = (t.sector || '').trim();
+          if (s && s !== 'Unknown') {
+            if (!map[s]) map[s] = [];
+            map[s].push(t.symbol);
+          }
+        }
+        const sorted = Object.keys(map).sort((a, b) => a.localeCompare(b, 'vi'));
+        setSectors(sorted);
+        setSectorTickerMap(map);
+      })
+      .catch(() => {/* ignore */});
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => { setPage(1); setDebouncedFilters(liveFilters); }, 180);
@@ -207,6 +233,7 @@ export default function ScreenerPage() {
 
   const resetAll = () => {
     setExchanges(new Set(['HOSE', 'HNX', 'UPCOM']));
+    setSelectedSector('');
     setPeRange({ min: PE_RANGE.min, max: PE_RANGE.max });
     setPbRange({ min: PB_RANGE.min, max: PB_RANGE.max });
     setPriceRange({ min: PRICE_RANGE.min, max: PRICE_RANGE.max });
@@ -285,6 +312,30 @@ export default function ScreenerPage() {
 
         {/* Filter panel */}
         <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden ${filtersOpen ? 'block' : 'hidden md:block'}`}>
+          {/* Industry filter */}
+          {sectors.length > 0 && (
+            <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">Industry</span>
+              <select
+                value={selectedSector}
+                onChange={(e) => { setSelectedSector(e.target.value); setPage(1); }}
+                className="input flex-1 max-w-xs"
+              >
+                <option value="">All industries</option>
+                {sectors.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {selectedSector && (
+                <button
+                  onClick={() => { setSelectedSector(''); setPage(1); }}
+                  className="text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                  title="Clear industry filter"
+                >✕</button>
+              )}
+            </div>
+          )}
+
           {/* Tab bar */}
           <div className="flex border-b border-slate-200 dark:border-slate-800">
             {TABS.map(({ id, label }) => {

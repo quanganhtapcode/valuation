@@ -606,6 +606,14 @@ def register(market_bp: Blueprint) -> None:
             s_like = f"%{sector.upper()}%"
             params.extend([s_like, s_like])
 
+        tickers_param = (request.args.get("tickers", "") or "").strip()
+        if tickers_param:
+            tickers_list = [t.strip().upper() for t in tickers_param.split(",") if t.strip()]
+            if tickers_list:
+                placeholders = ",".join(["?"] * len(tickers_list))
+                where_clauses.append(f"UPPER(s.ticker) IN ({placeholders})")
+                params.extend(tickers_list)
+
         try:
             for key, column in _SCREENER_NUMERIC_FILTER_COLUMNS.items():
                 min_val = _parse_float_or_none(request.args.get(f"{key}_min"))
