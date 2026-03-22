@@ -246,7 +246,8 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         let filtered = series.filter(d => d.vnindex != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
         return filtered.map(d => ({
-            date: formatDateLabel(d.date, timeRange),
+            date: dateKey(d.date),   // unique ISO key — prevents Recharts deduplication
+            label: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             close: d.vnindex!,
             volume: d.volume,
@@ -260,7 +261,8 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         let filtered = series.filter(d => d[field] != null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
         return filtered.map(d => ({
-            date: formatDateLabel(d.date, timeRange),
+            date: dateKey(d.date),   // unique ISO key
+            label: formatDateLabel(d.date, timeRange),
             fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
             value: d[field]!,
         }));
@@ -281,7 +283,8 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             const key = dateKey(d.date);
             const vnindex = vnByDate.get(key) ?? null;
             return {
-                date: formatDateLabel(d.date, timeRange),
+                date: key,   // unique ISO key
+                label: formatDateLabel(d.date, timeRange),
                 fullDate: d.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
                 percent: d.percent,
                 vnindex,
@@ -390,6 +393,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                 tick={{ fill: '#9ca3af', fontSize: 11 }}
                                 interval={tickInterval(vnData) - 1}
                                 height={24}
+                                tickFormatter={(_, idx) => vnData[idx]?.label ?? ''}
                             />
                             <YAxis
                                 yAxisId="price"
@@ -431,6 +435,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                 tick={{ fill: '#9ca3af', fontSize: 11 }}
                                 interval={tickInterval(breadthChartData) - 1}
                                 height={24}
+                                tickFormatter={(_, idx) => breadthChartData[idx]?.label ?? ''}
                             />
                             <YAxis
                                 yAxisId="vn"
@@ -494,6 +499,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                                     tick={{ fill: '#9ca3af', fontSize: 11 }}
                                     interval={tickInterval(ratioData) - 1}
                                     height={24}
+                                    tickFormatter={(_, idx) => ratioData[idx]?.label ?? ''}
                                 />
                                 <YAxis
                                     axisLine={false}
