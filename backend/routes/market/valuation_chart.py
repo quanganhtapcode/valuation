@@ -10,7 +10,7 @@ from typing import Any
 import requests as http_requests
 from flask import Blueprint, jsonify, request
 
-from backend.db_path import resolve_vci_screening_db_path
+from backend.db_path import resolve_vci_screening_db_path, resolve_valuation_cache_db_path
 from backend.data_sources.vci import VCIClient
 
 from .deps import cache_func, cache_ttl
@@ -39,36 +39,38 @@ _INDEX_ID_TO_VCI_SYMBOL = {
 }
 
 _SCREENER_SORT_COLUMNS = {
-    "ticker": "ticker",
-    "price": "marketPrice",
-    "market_cap": "marketCap",
-    "pe": "ttmPe",
-    "pb": "ttmPb",
-    "roe": "ttmRoe",
-    "net_margin": "netMargin",
-    "gross_margin": "grossMargin",
-    "net_profit_growth": "npatmiGrowthYoyQm1",
-    "revenue_growth": "revenueGrowthYoy",
-    "daily_change": "dailyPriceChangePercent",
-    "value": "accumulatedValue",
-    "volume": "accumulatedVolume",
-    "exchange": "exchange",
-    "sector": "viSector",
+    "ticker": "s.ticker",
+    "price": "s.marketPrice",
+    "market_cap": "s.marketCap",
+    "pe": "s.ttmPe",
+    "pb": "s.ttmPb",
+    "roe": "s.ttmRoe",
+    "net_margin": "s.netMargin",
+    "gross_margin": "s.grossMargin",
+    "net_profit_growth": "s.npatmiGrowthYoyQm1",
+    "revenue_growth": "s.revenueGrowthYoy",
+    "daily_change": "s.dailyPriceChangePercent",
+    "value": "s.accumulatedValue",
+    "volume": "s.accumulatedVolume",
+    "exchange": "s.exchange",
+    "sector": "s.viSector",
+    "upside_pct": "v.upside_pct",
 }
 
 _SCREENER_NUMERIC_FILTER_COLUMNS = {
-    "price": "marketPrice",
-    "market_cap": "marketCap",
-    "pe": "ttmPe",
-    "pb": "ttmPb",
-    "roe": "ttmRoe",
-    "net_margin": "netMargin",
-    "gross_margin": "grossMargin",
-    "net_profit_growth": "npatmiGrowthYoyQm1",
-    "revenue_growth": "revenueGrowthYoy",
-    "daily_change": "dailyPriceChangePercent",
-    "value": "accumulatedValue",
-    "volume": "accumulatedVolume",
+    "price": "s.marketPrice",
+    "market_cap": "s.marketCap",
+    "pe": "s.ttmPe",
+    "pb": "s.ttmPb",
+    "roe": "s.ttmRoe",
+    "net_margin": "s.netMargin",
+    "gross_margin": "s.grossMargin",
+    "net_profit_growth": "s.npatmiGrowthYoyQm1",
+    "revenue_growth": "s.revenueGrowthYoy",
+    "daily_change": "s.dailyPriceChangePercent",
+    "value": "s.accumulatedValue",
+    "volume": "s.accumulatedVolume",
+    "upside_pct": "v.upside_pct",
 }
 
 
@@ -562,6 +564,9 @@ def register(market_bp: Blueprint) -> None:
         if not db_path or not os.path.exists(db_path):
             return jsonify({"success": False, "error": "Screener DB not found"}), 500
 
+        val_cache_path = resolve_valuation_cache_db_path()
+        has_valuation_cache = bool(val_cache_path and os.path.exists(val_cache_path))
+
         try:
             page = max(1, int(request.args.get("page", "1")))
         except Exception:
@@ -574,16 +579,16 @@ def register(market_bp: Blueprint) -> None:
         offset = (page - 1) * page_size
 
         sort_key = (request.args.get("sort_by", "market_cap") or "market_cap").strip().lower()
-        sort_col = _SCREENER_SORT_COLUMNS.get(sort_key, "marketCap")
+        sort_col = _SCREENER_SORT_COLUMNS.get(sort_key, "s.marketCap")
         sort_order = (request.args.get("sort_order", "desc") or "desc").strip().lower()
         sort_order_sql = "ASC" if sort_order == "asc" else "DESC"
 
-        where_clauses = ["ticker IS NOT NULL", "ticker != ''"]
+        where_clauses = ["s.ticker IS NOT NULL", "s.ticker != ''"]
         params: list = []
 
         q = (request.args.get("q", "") or "").strip()
         if q:
-            where_clauses.append("(UPPER(ticker) LIKE ? OR UPPER(viOrganShortName) LIKE ? OR UPPER(enOrganShortName) LIKE ?)")
+            where_clauses.append("(UPPER(s.ticker) LIKE ? OR UPPER(s.viOrganShortName) LIKE ? OR UPPER(s.enOrganShortName) LIKE ?)")
             q_like = f"%{q.upper()}%"
             params.extend([q_like, q_like, q_like])
 
@@ -592,12 +597,12 @@ def register(market_bp: Blueprint) -> None:
             exchanges = [x.strip().upper() for x in exchange.split(",") if x.strip()]
             if exchanges:
                 placeholders = ",".join(["?"] * len(exchanges))
-                where_clauses.append(f"UPPER(exchange) IN ({placeholders})")
+                where_clauses.append(f"UPPER(s.exchange) IN ({placeholders})")
                 params.extend(exchanges)
 
         sector = (request.args.get("sector", "") or "").strip()
         if sector:
-            where_clauses.append("(UPPER(viSector) LIKE ? OR UPPER(enSector) LIKE ?)")
+            where_clauses.append("(UPPER(s.viSector) LIKE ? OR UPPER(s.enSector) LIKE ?)")
             s_like = f"%{sector.upper()}%"
             params.extend([s_like, s_like])
 
@@ -616,24 +621,42 @@ def register(market_bp: Blueprint) -> None:
 
         where_sql = " AND ".join(where_clauses)
 
+        # Build FROM clause: LEFT JOIN valuation cache if available
+        if has_valuation_cache:
+            attach_stmt = f"ATTACH DATABASE '{val_cache_path}' AS vc"
+            from_clause = (
+                "FROM screening_data s "
+                "LEFT JOIN vc.valuations v ON UPPER(s.ticker) = v.symbol"
+            )
+        else:
+            attach_stmt = None
+            from_clause = "FROM screening_data s LEFT JOIN (SELECT NULL AS symbol, NULL AS upside_pct, NULL AS intrinsic_value, NULL AS quality_grade WHERE 0) v ON 0"
+
         try:
             with sqlite3.connect(db_path) as conn:
                 conn.row_factory = sqlite3.Row
+                if attach_stmt:
+                    try:
+                        conn.execute(attach_stmt)
+                    except Exception as exc:
+                        logger.warning("Could not attach valuation cache: %s", exc)
+
                 total = conn.execute(
-                    f"SELECT COUNT(1) AS c FROM screening_data WHERE {where_sql}",
+                    f"SELECT COUNT(1) AS c {from_clause} WHERE {where_sql}",
                     params,
                 ).fetchone()["c"]
 
                 rows = conn.execute(
                     f"""
                     SELECT
-                        ticker, exchange, marketPrice, marketCap, dailyPriceChangePercent,
-                        ttmPe, ttmPb, ttmRoe, netMargin, grossMargin,
-                        npatmiGrowthYoyQm1, revenueGrowthYoy, accumulatedValue, accumulatedVolume,
-                        viOrganShortName, enOrganShortName, viSector, enSector
-                    FROM screening_data
+                        s.ticker, s.exchange, s.marketPrice, s.marketCap, s.dailyPriceChangePercent,
+                        s.ttmPe, s.ttmPb, s.ttmRoe, s.netMargin, s.grossMargin,
+                        s.npatmiGrowthYoyQm1, s.revenueGrowthYoy, s.accumulatedValue, s.accumulatedVolume,
+                        s.viOrganShortName, s.enOrganShortName, s.viSector, s.enSector,
+                        v.intrinsic_value, v.upside_pct, v.quality_grade
+                    {from_clause}
                     WHERE {where_sql}
-                    ORDER BY {sort_col} {sort_order_sql}, ticker ASC
+                    ORDER BY {sort_col} {sort_order_sql} NULLS LAST, s.ticker ASC
                     LIMIT ? OFFSET ?
                     """,
                     [*params, page_size, offset],
@@ -659,6 +682,9 @@ def register(market_bp: Blueprint) -> None:
                         "revenueGrowthYoy": r["revenueGrowthYoy"],
                         "accumulatedValue": r["accumulatedValue"],
                         "accumulatedVolume": r["accumulatedVolume"],
+                        "intrinsicValue": r["intrinsic_value"],
+                        "upsidePct": r["upside_pct"],
+                        "qualityGrade": r["quality_grade"],
                     }
                 )
 
@@ -671,6 +697,7 @@ def register(market_bp: Blueprint) -> None:
                     "pageSize": page_size,
                     "sortBy": sort_key,
                     "sortOrder": sort_order_sql.lower(),
+                    "hasValuationData": has_valuation_cache,
                 }
             )
         except Exception as exc:
