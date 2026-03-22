@@ -2175,13 +2175,17 @@ class StockDataProvider:
             if not market_data:
                 return None
             
-            # Normalize prices (VCI API usually returns in actual VND, but let's be safe)
-            # Actually, VCI API returns: 'c': 105500.0, 'ref': 105600.0 etc.
+            # Normalize prices:
+            # - VCI RAM/direct payloads are already full VND (e.g. 300, 105500)
+            # - Some vnstock fallback payloads may be in "thousand VND" units
+            source = str(market_data.get('source') or '')
+            should_scale_thousand_unit = source not in {'VCI_RAM', 'VCI_DIRECT'}
+
             def normalize(v):
                 if pd.isna(v) or v is None: return 0
                 val = float(v)
-                # Some APIs might return 105.5 instead of 105500
-                if 0 < val < 1000: return val * 1000
+                # Only apply *1000 heuristic for non-RAM/direct sources.
+                if should_scale_thousand_unit and 0 < val < 1000: return val * 1000
                 return val
 
             current_price = normalize(market_data.get('price') or market_data.get('c'))

@@ -95,6 +95,30 @@ class TestCurrentPriceEndpoint:
         resp = client.get("/api/current-price/VCB")
         assert resp.get_json() is not None
 
+    @patch("backend.routes.stock.prices.get_provider")
+    def test_current_price_keeps_low_vci_ram_price_unscaled(self, mock_get_provider, client):
+        provider = MagicMock()
+        provider._stock_data_cache = {"CPH": {"shares_outstanding": None}}
+        provider.get_current_price_with_change.return_value = {
+            "current_price": 300,
+            "price_change": 0,
+            "price_change_percent": 0,
+            "source": "VCI_RAM",
+            "open": 0,
+            "high": 0,
+            "low": 0,
+            "volume": 0,
+            "ceiling": 400,
+            "floor": 200,
+            "ref_price": 300,
+        }
+        mock_get_provider.return_value = provider
+
+        resp = client.get("/api/current-price/CPH")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["current_price"] == 300
+
 
 # ---------------------------------------------------------------------------
 # 404 for unknown routes
