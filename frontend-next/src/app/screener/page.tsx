@@ -432,7 +432,11 @@ export default function ScreenerPage() {
                 <tr className="text-left border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
                   <th className="py-2 pl-3 md:pl-0 pr-2 font-medium">Ticker</th>
                   <th className="py-2 px-2 font-medium text-right">Price</th>
-                  {hasValuationData && <th className="py-2 px-2 font-medium text-right">Intrinsic</th>}
+                  {hasValuationData && (
+                    <th className="py-2 px-2 font-medium text-right" title="Intrinsic value estimate. Grade (A–F) = data quality: A ≥85%, B ≥70%, C ≥55%, D ≥40%, F &lt;40%">
+                      Intrinsic <span className="hidden sm:inline text-slate-400 font-normal">(grade)</span>
+                    </th>
+                  )}
                   {hasValuationData && <th className="py-2 px-2 font-medium text-right">Upside</th>}
                   <th className="py-2 px-2 font-medium text-right hidden sm:table-cell">MCap</th>
                   <th className="py-2 px-2 font-medium text-right">P/E</th>
@@ -466,9 +470,27 @@ export default function ScreenerPage() {
                       {hasValuationData && (
                         <td className="py-2 px-2 text-right tabular-nums text-slate-500 dark:text-slate-400">
                           {row.intrinsicValue != null ? fmtNum(row.intrinsicValue, 0) : '—'}
-                          {row.qualityGrade && row.intrinsicValue != null && (
-                            <span className="ml-0.5 text-xs text-slate-400">({row.qualityGrade})</span>
-                          )}
+                          {row.qualityGrade && row.intrinsicValue != null && (() => {
+                            const g = row.qualityGrade;
+                            const cls =
+                              g === 'A' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' :
+                              g === 'B' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
+                              g === 'C' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                              g === 'D' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' :
+                                          'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
+                            const desc =
+                              g === 'A' ? 'High quality data (≥85%)' :
+                              g === 'B' ? 'Good quality data (≥70%)' :
+                              g === 'C' ? 'Moderate quality data (≥55%)' :
+                              g === 'D' ? 'Low quality data (≥40%)' :
+                                          'Very limited data (<40%)';
+                            return (
+                              <span
+                                className={`ml-1 inline-block rounded px-1 py-0.5 text-[10px] font-bold leading-none ${cls}`}
+                                title={`Data quality grade: ${desc}`}
+                              >{g}</span>
+                            );
+                          })()}
                         </td>
                       )}
                       {hasValuationData && (
