@@ -1,14 +1,27 @@
 from __future__ import annotations
 
 import logging
+from datetime import date
 
-from flask import Blueprint, jsonify
+import requests
+from flask import Blueprint, jsonify, request
 from vnstock import Vnstock
 
 from backend.services.news_service import NewsService
 from backend.utils import validate_stock_symbol
 from backend.services.vci_news_sqlite import query_news_for_symbol, default_news_db_path
+from backend.routes.market.http_headers import VCI_HEADERS
 from .cache import cache_get, cache_set
+
+_VCI_IQ_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1"
+
+_TAB_CONFIG: dict[str, dict] = {
+    "news":     {"path": "news",   "extra_params": {"languageId": "1"}},
+    "dividend": {"path": "events", "extra_params": {"eventCode": "DIV,ISS"}},
+    "insider":  {"path": "events", "extra_params": {"eventCode": "DDIND,DDINS,DDRP"}},
+    "agm":      {"path": "events", "extra_params": {"eventCode": "AGME,AGMR,EGME"}},
+    "other":    {"path": "events", "extra_params": {"eventCode": "AIS,MA,MOVE,NLIS,OTHE,RETU,SUSP"}},
+}
 
 
 logger = logging.getLogger(__name__)
@@ -77,4 +90,48 @@ def register(stock_bp: Blueprint) -> None:
             cache_set(cache_key, result)
             return jsonify(result)
         except Exception as exc:
+            return jsonify({"success": False, "error": str(exc)}), 500
+
+    @stock_bp.route("/vci-feed/<symbol>")
+    def api_vci_feed(symbol):
+        """Proxy VCI IQ news/events API for a given tab type."""
+        try:
+            is_valid, clean_symbol = validate_stock_symbol(symbol)
+            if not is_valid:
+                return jsonify({"success": False, "error": clean_symbol}), 400
+
+            tab = (request.args.get("tab") or "news").strip().lower()
+            if tab not in _TAB_CONFIG:
+                return jsonify({"success": False, "error": f"Unknown tab: {tab}"}), 400
+
+            cache_key = f"vci_feed_{clean_symbol}_{tab}"
+            cached = cache_get(cache_key)
+            if cached:
+                return jsonify(cached)
+
+            cfg = _TAB_CONFIG[tab]
+            today = date.today()
+            from_date = "20100101"
+            to_date = f"{today.year + 1}{today.month:02d}{today.day:02d}"
+
+            params: dict = {
+                "ticker": clean_symbol,
+                "fromDate": from_date,
+                "toDate": to_date,
+                "page": "0",
+                "size": "50",
+                **cfg["extra_params"],
+            }
+
+            url = f"{_VCI_IQ_BASE}/{cfg['path']}"
+            resp = requests.get(url, params=params, headers=VCI_HEADERS, timeout=10)
+            resp.raise_for_status()
+            raw = resp.json()
+
+            items = (raw.get("data") or {}).get("content") or []
+            result = {"success": True, "tab": tab, "data": items}
+            cache_set(cache_key, result)
+            return jsonify(result)
+        except Exception as exc:
+            logger.error("vci_feed error %s %s: %s", symbol, tab, exc)
             return jsonify({"success": False, "error": str(exc)}), 500
