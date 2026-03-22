@@ -338,26 +338,8 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
                             cap: stock.cap,
                             name: stock.name ?? '',
                             sector: stock.sector ?? '',
-
                             mx: e.clientX - br.left,
                             my: e.clientY - br.top
-                          });
-                        }}
-                        onTouchStart={e => {
-                          const svg = (e.currentTarget as SVGGElement).closest('svg');
-                          const br = svg?.getBoundingClientRect();
-                          if (!br) return;
-                          const touch = e.touches[0];
-                          setHover({
-                            ticker: stock.ticker,
-                            change: stock.change,
-                            price: stock.price,
-                            cap: stock.cap,
-                            name: stock.name ?? '',
-                            sector: stock.sector ?? '',
-
-                            mx: touch.clientX - br.left,
-                            my: touch.clientY - br.top
                           });
                         }}
                       >
