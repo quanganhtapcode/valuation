@@ -75,6 +75,21 @@
     margin: 0;
 }
 
+.list {
+    margin: 0;
+    padding-left: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.list li {
+    font-size: 1.05rem;
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+    padding-left: 4px;
+}
+
 .highlight {
     background: rgba(13, 150, 104, 0.05);
     border-left: 4px solid var(--color-primary);
