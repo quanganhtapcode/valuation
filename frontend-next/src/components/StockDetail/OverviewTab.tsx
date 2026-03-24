@@ -331,8 +331,8 @@ export default function OverviewTab({
 
 
                 {/* News & Events Feed */}
-                <section className={styles.section}>
-                    <h2 className={styles.sectionTitle}>📰 News & Events</h2>
+                <section className={`${styles.section} ${styles.sectionNews}`}>
+                    <h2 className={styles.sectionTitle}>News & Events</h2>
                     <VciNewsFeed symbol={symbol} />
                 </section>
             </div>
