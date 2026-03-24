@@ -253,8 +253,8 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
       <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              Corporate Feed
+            <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
+              Company News
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {countLabel(tabLabel, count)}
@@ -280,7 +280,7 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
               }`}
               title={label}
             >
-              <span className="text-sm leading-none">{icon}</span>
+              <span className="hidden sm:inline text-sm leading-none">{icon}</span>
               <span className="hidden sm:inline">{label}</span>
               <span className="sm:hidden">{shortLabel}</span>
             </button>

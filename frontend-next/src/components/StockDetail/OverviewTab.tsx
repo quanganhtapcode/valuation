@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { formatNumber, formatDate } from '@/lib/api';
 import styles from '../../app/stock/[symbol]/page.module.css';
-import VciNewsFeed from './VciNewsFeed';
 import { BarChart, Card, LineChart } from '@tremor/react';
 
 function classNames(...classes: Array<string | false | undefined | null>) {
@@ -55,14 +54,6 @@ interface FinancialData {
     debtToEquity?: number;
 }
 
-interface NewsItem {
-    Title: string;
-    Link?: string;
-    NewsUrl?: string;
-    PostDate?: string;
-    PublishDate?: string;
-}
-
 interface HistoricalData {
     time: string | number;
     open: number;
@@ -77,7 +68,6 @@ interface OverviewTabProps {
     stockInfo: StockInfo | null;
     priceData: PriceData | null;
     financials: FinancialData | null;
-    news: NewsItem[];
     historicalData: HistoricalData[];
     timeRange: '3M' | '6M' | '1Y' | '3Y' | '5Y';
     setTimeRange: (range: '3M' | '6M' | '1Y' | '3Y' | '5Y') => void;
@@ -91,7 +81,6 @@ export default function OverviewTab({
     stockInfo,
     priceData,
     financials,
-    news,
     historicalData,
     timeRange,
     setTimeRange,
@@ -330,11 +319,6 @@ export default function OverviewTab({
                 </section>
 
 
-                {/* News & Events Feed */}
-                <section className={`${styles.section} ${styles.sectionNews}`}>
-                    <h2 className={styles.sectionTitle}>News & Events</h2>
-                    <VciNewsFeed symbol={symbol} />
-                </section>
             </div>
 
             {/* Right Column */}
