@@ -45,9 +45,15 @@ function NewsCard({ item }: { item: any }) {
   const date = item.publicDate;
   const img = item.newsImageUrl || item.newsSmallImageUrl;
   const source = item.newsSource || item.source || 'VCI Feed';
+  const url = item.newsSourceLink || item.newsUrl || item.newsLink || item.url || '';
 
   return (
-    <article className="group rounded-xl border border-slate-200 bg-white p-3 transition-all hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
+    <a
+      href={url || '#'}
+      target="_blank"
+      rel="noreferrer"
+      className="group block rounded-xl border border-slate-200 bg-white p-3 transition-all hover:border-blue-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-800/70"
+    >
       <div className="flex gap-3">
         {img ? (
           <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
@@ -67,18 +73,20 @@ function NewsCard({ item }: { item: any }) {
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm font-medium leading-snug text-slate-800 transition-colors group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400">
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400">
             {title}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
               {source}
             </span>
-            <span className="text-slate-400 dark:text-slate-500">{fmtDate(date)}</span>
+            <span className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+              {fmtDate(date)}
+            </span>
           </div>
         </div>
       </div>
-    </article>
+    </a>
   );
 }
 
@@ -238,26 +246,27 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
   const err = errors[activeTab];
   const activeTabMeta = TABS.find((t) => t.id === activeTab);
   const count = items?.length;
+  const tabLabel = activeTabMeta?.label || 'Updates';
 
   return (
-    <div className="overflow-hidden rounded-tremor-default border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-      <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-              Market Feed
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              Corporate Feed
             </p>
-            <p className="text-xs text-tremor-content dark:text-dark-tremor-content">
-              {countLabel(activeTabMeta?.label || 'Updates', count)}
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {countLabel(tabLabel, count)}
             </p>
           </div>
-          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
             {symbol.toUpperCase()}
           </span>
         </div>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b border-gray-100 bg-gray-50/70 px-2 py-2 dark:border-gray-800 dark:bg-gray-900/60">
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50/70 px-2 py-2 dark:border-slate-800 dark:bg-slate-900/60">
         {TABS.map(({ id, label, icon, shortLabel }) => {
           const active = activeTab === id;
           return (
@@ -266,8 +275,8 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
               onClick={() => handleTab(id)}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap transition-all ${
                 active
-                  ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-100 dark:bg-gray-800 dark:text-blue-400 dark:ring-blue-900/40'
-                  : 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'
+                  ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-100 dark:bg-slate-800 dark:text-blue-400 dark:ring-blue-900/40'
+                  : 'text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
               }`}
               title={label}
             >
@@ -279,8 +288,8 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
         })}
       </div>
 
-      <div className="px-4 py-3">
-        <div className="max-h-[420px] overflow-y-auto pr-1">
+      <div className="px-3 md:px-4 py-3">
+        <div className="max-h-[460px] overflow-y-auto pr-1">
           {isLoad && <Skeleton />}
 
           {!isLoad && err && <ErrorState message={err} />}
