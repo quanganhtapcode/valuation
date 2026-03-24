@@ -10,7 +10,12 @@ from typing import Any
 import requests as http_requests
 from flask import Blueprint, jsonify, request
 
-from backend.db_path import resolve_vci_screening_db_path, resolve_valuation_cache_db_path
+from backend.db_path import (
+    resolve_vci_ratio_daily_db_path,
+    resolve_vci_screening_db_path,
+    resolve_vci_stats_financial_db_path,
+    resolve_valuation_cache_db_path,
+)
 from backend.data_sources.vci import VCIClient
 
 from .deps import cache_func, cache_ttl
@@ -38,15 +43,22 @@ _INDEX_ID_TO_VCI_SYMBOL = {
     '11': 'VN30',
 }
 
+_SCREENER_PE_EXPR = "COALESCE(s.ttmPe, rd_latest.pe, sf_latest.pe)"
+_SCREENER_PB_EXPR = "COALESCE(s.ttmPb, rd_latest.pb, sf_latest.pb)"
+_SCREENER_ROE_EXPR = "COALESCE(s.ttmRoe, CASE WHEN sf_latest.roe IS NOT NULL THEN sf_latest.roe * 100.0 END)"
+_SCREENER_NET_MARGIN_EXPR = "COALESCE(s.netMargin, CASE WHEN sf_latest.after_tax_margin IS NOT NULL THEN sf_latest.after_tax_margin * 100.0 END)"
+_SCREENER_GROSS_MARGIN_EXPR = "COALESCE(s.grossMargin, CASE WHEN sf_latest.gross_margin IS NOT NULL THEN sf_latest.gross_margin * 100.0 END)"
+_SCREENER_MCAP_EXPR = "COALESCE(s.marketCap, sf_latest.market_cap)"
+
 _SCREENER_SORT_COLUMNS = {
     "ticker": "s.ticker",
     "price": "s.marketPrice",
-    "market_cap": "s.marketCap",
-    "pe": "s.ttmPe",
-    "pb": "s.ttmPb",
-    "roe": "s.ttmRoe",
-    "net_margin": "s.netMargin",
-    "gross_margin": "s.grossMargin",
+    "market_cap": _SCREENER_MCAP_EXPR,
+    "pe": _SCREENER_PE_EXPR,
+    "pb": _SCREENER_PB_EXPR,
+    "roe": _SCREENER_ROE_EXPR,
+    "net_margin": _SCREENER_NET_MARGIN_EXPR,
+    "gross_margin": _SCREENER_GROSS_MARGIN_EXPR,
     "net_profit_growth": "s.npatmiGrowthYoyQm1",
     "revenue_growth": "s.revenueGrowthYoy",
     "daily_change": "s.dailyPriceChangePercent",
@@ -59,12 +71,12 @@ _SCREENER_SORT_COLUMNS = {
 
 _SCREENER_NUMERIC_FILTER_COLUMNS = {
     "price": "s.marketPrice",
-    "market_cap": "s.marketCap",
-    "pe": "s.ttmPe",
-    "pb": "s.ttmPb",
-    "roe": "s.ttmRoe",
-    "net_margin": "s.netMargin",
-    "gross_margin": "s.grossMargin",
+    "market_cap": _SCREENER_MCAP_EXPR,
+    "pe": _SCREENER_PE_EXPR,
+    "pb": _SCREENER_PB_EXPR,
+    "roe": _SCREENER_ROE_EXPR,
+    "net_margin": _SCREENER_NET_MARGIN_EXPR,
+    "gross_margin": _SCREENER_GROSS_MARGIN_EXPR,
     "net_profit_growth": "s.npatmiGrowthYoyQm1",
     "revenue_growth": "s.revenueGrowthYoy",
     "daily_change": "s.dailyPriceChangePercent",
@@ -566,6 +578,11 @@ def register(market_bp: Blueprint) -> None:
 
         val_cache_path = resolve_valuation_cache_db_path()
         has_valuation_cache = bool(val_cache_path and os.path.exists(val_cache_path))
+        ratio_db_path = resolve_vci_ratio_daily_db_path()
+        has_ratio_db = bool(ratio_db_path and os.path.exists(ratio_db_path))
+        stats_db_path = resolve_vci_stats_financial_db_path()
+        has_stats_db = bool(stats_db_path and os.path.exists(stats_db_path))
+
 
         try:
             page = max(1, int(request.args.get("page", "1")))
@@ -629,25 +646,75 @@ def register(market_bp: Blueprint) -> None:
 
         where_sql = " AND ".join(where_clauses)
 
-        # Build FROM clause: LEFT JOIN valuation cache if available
+        attach_statements: list[str] = []
         if has_valuation_cache:
-            attach_stmt = f"ATTACH DATABASE '{val_cache_path}' AS vc"
-            from_clause = (
-                "FROM screening_data s "
-                "LEFT JOIN vc.valuations v ON UPPER(s.ticker) = v.symbol"
-            )
-        else:
-            attach_stmt = None
-            from_clause = "FROM screening_data s LEFT JOIN (SELECT NULL AS symbol, NULL AS upside_pct, NULL AS intrinsic_value, NULL AS quality_grade WHERE 0) v ON 0"
+            attach_statements.append(f"ATTACH DATABASE '{val_cache_path}' AS vc")
+        if has_ratio_db:
+            attach_statements.append(f"ATTACH DATABASE '{ratio_db_path}' AS rd")
+        if has_stats_db:
+            attach_statements.append(f"ATTACH DATABASE '{stats_db_path}' AS sf")
+
+        valuation_join = (
+            "LEFT JOIN vc.valuations v ON UPPER(s.ticker) = v.symbol"
+            if has_valuation_cache
+            else "LEFT JOIN (SELECT NULL AS symbol, NULL AS upside_pct, NULL AS intrinsic_value, NULL AS quality_grade WHERE 0) v ON 0"
+        )
+        ratio_join = (
+            """
+            LEFT JOIN (
+                SELECT ticker, pe, pb
+                FROM (
+                    SELECT
+                        ticker,
+                        pe,
+                        pb,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY UPPER(ticker)
+                            ORDER BY COALESCE(trading_date, '') DESC, COALESCE(fetched_at, '') DESC, rowid DESC
+                        ) AS rn
+                    FROM rd.ratio_daily
+                )
+                WHERE rn = 1
+            ) rd_latest ON UPPER(s.ticker) = UPPER(rd_latest.ticker)
+            """
+            if has_ratio_db
+            else "LEFT JOIN (SELECT NULL AS ticker, NULL AS pe, NULL AS pb WHERE 0) rd_latest ON 0"
+        )
+        stats_join = (
+            """
+            LEFT JOIN (
+                SELECT ticker, pe, pb, roe, gross_margin, after_tax_margin, market_cap
+                FROM (
+                    SELECT
+                        ticker,
+                        pe,
+                        pb,
+                        roe,
+                        gross_margin,
+                        after_tax_margin,
+                        market_cap,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY UPPER(ticker)
+                            ORDER BY COALESCE(period_date, '') DESC, COALESCE(fetched_at, '') DESC, rowid DESC
+                        ) AS rn
+                    FROM sf.stats_financial
+                )
+                WHERE rn = 1
+            ) sf_latest ON UPPER(s.ticker) = UPPER(sf_latest.ticker)
+            """
+            if has_stats_db
+            else "LEFT JOIN (SELECT NULL AS ticker, NULL AS pe, NULL AS pb, NULL AS roe, NULL AS gross_margin, NULL AS after_tax_margin, NULL AS market_cap WHERE 0) sf_latest ON 0"
+        )
+        from_clause = f"FROM screening_data s {valuation_join} {ratio_join} {stats_join}"
 
         try:
             with sqlite3.connect(db_path) as conn:
                 conn.row_factory = sqlite3.Row
-                if attach_stmt:
+                for attach_stmt in attach_statements:
                     try:
                         conn.execute(attach_stmt)
                     except Exception as exc:
-                        logger.warning("Could not attach valuation cache: %s", exc)
+                        logger.warning("Could not attach sqlite database (%s): %s", attach_stmt, exc)
 
                 total = conn.execute(
                     f"SELECT COUNT(1) AS c {from_clause} WHERE {where_sql}",
@@ -657,8 +724,9 @@ def register(market_bp: Blueprint) -> None:
                 rows = conn.execute(
                     f"""
                     SELECT
-                        s.ticker, s.exchange, s.marketPrice, s.marketCap, s.dailyPriceChangePercent,
-                        s.ttmPe, s.ttmPb, s.ttmRoe, s.netMargin, s.grossMargin,
+                        s.ticker, s.exchange, s.marketPrice, {_SCREENER_MCAP_EXPR} AS marketCap, s.dailyPriceChangePercent,
+                        {_SCREENER_PE_EXPR} AS ttmPe, {_SCREENER_PB_EXPR} AS ttmPb, {_SCREENER_ROE_EXPR} AS ttmRoe,
+                        {_SCREENER_NET_MARGIN_EXPR} AS netMargin, {_SCREENER_GROSS_MARGIN_EXPR} AS grossMargin,
                         s.npatmiGrowthYoyQm1, s.revenueGrowthYoy, s.accumulatedValue, s.accumulatedVolume,
                         s.viOrganShortName, s.enOrganShortName, s.viSector, s.enSector,
                         v.intrinsic_value, v.upside_pct, v.quality_grade

@@ -324,14 +324,18 @@ export default function OverviewClient({
                     <HeatmapVN30 externalData={liveHeatmapData} useExternalOnly />
 
                     {/* P/E Chart */}
-                    <PEChart initialData={initialPEData} externalData={livePEData} useExternalOnly />
+                    <div className="order-1">
+                        <PEChart initialData={initialPEData} externalData={livePEData} useExternalOnly />
+                    </div>
 
                     {/* News Section */}
-                    <NewsSection
-                        news={news}
-                        isLoading={newsLoading}
-                        error={newsError}
-                    />
+                    <div className="order-2">
+                        <NewsSection
+                            news={news}
+                            isLoading={newsLoading}
+                            error={newsError}
+                        />
+                    </div>
                 </div>
 
                 {/* Right Column - Sidebar */}

@@ -1,14 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { NewsItem, formatRelativeTime, formatNumber } from '@/lib/api';
-import {
-    Card,
-    Title,
-    Flex,
-    Icon,
-} from '@tremor/react';
-import { RiNewspaperLine, RiArrowRightUpLine } from '@remixicon/react';
+import { NewsItem, formatRelativeTime } from '@/lib/api';
+import { Card, Icon } from '@tremor/react';
+import { RiArrowRightUpLine, RiNewspaperLine } from '@remixicon/react';
 import Link from 'next/link';
 
 interface NewsSectionProps {
@@ -47,14 +42,19 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
 
     if (isLoading) {
         return (
-            <Card className="p-6">
-                <Title className="text-tremor-content-strong dark:text-dark-tremor-content-strong font-bold flex items-center">
-                    <Icon icon={RiNewspaperLine} className="mr-2 text-blue-500" size="sm" />
-                    Market News
-                </Title>
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-tremor-brand" />
-                    <p className="text-tremor-content dark:text-dark-tremor-content text-sm">Loading latest news...</p>
+            <Card className="p-4 md:p-6">
+                <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                    <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
+                    <h3 className="text-base md:text-lg font-bold">Market News</h3>
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 animate-pulse">
+                            <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-4/5" />
+                            <div className="mt-2 h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/5" />
+                            <div className="mt-4 h-3 bg-slate-100 dark:bg-slate-900 rounded w-1/2" />
+                        </div>
+                    ))}
                 </div>
             </Card>
         );
@@ -62,34 +62,46 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
 
     if (error) {
         return (
-            <Card className="p-6">
-                <Title className="text-tremor-content-strong dark:text-dark-tremor-content-strong font-bold flex items-center">
-                    <Icon icon={RiNewspaperLine} className="mr-2 text-blue-500" size="sm" />
-                    Market News
-                </Title>
-                <div className="py-12 text-center text-rose-500">
-                    <p className="text-rose-500 font-medium text-sm">⚠️ {error}</p>
+            <Card className="p-4 md:p-6">
+                <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                    <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
+                    <h3 className="text-base md:text-lg font-bold">Market News</h3>
+                </div>
+                <div className="mt-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/80 dark:bg-rose-950/30 p-4">
+                    <p className="text-rose-600 dark:text-rose-400 font-medium text-sm">⚠️ {error}</p>
                 </div>
             </Card>
         );
     }
 
     return (
-        <Card className="p-3 md:p-6 mt-4 md:mt-6">
-            <Flex alignItems="center" justifyContent="between">
-                <Title className="text-sm md:text-tremor-content-strong dark:text-dark-tremor-content-strong font-semibold flex items-center">
-                    <Icon icon={RiNewspaperLine} className="mr-1.5 md:mr-2 text-blue-500" size="sm" />
-                    Market News
-                </Title>
-                {news.length > 8 && (
-                    <Link href="/news" className="text-xs font-medium text-tremor-brand hover:underline flex items-center">
-                        View More<span className="hidden sm:inline">&nbsp;News</span> <Icon icon={RiArrowRightUpLine} size="xs" className="ml-0.5 md:ml-1" />
-                    </Link>
-                )}
-            </Flex>
+        <Card className="p-4 md:p-6 mt-2 md:mt-4">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                        <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
+                        <h3 className="text-base md:text-lg font-bold">Market News</h3>
+                    </div>
+                    <p className="mt-1 text-xs md:text-sm text-slate-500 dark:text-slate-400">
+                        Tin mới nhất, cập nhật liên tục theo thị trường.
+                    </p>
+                </div>
+                <Link
+                    href="/news"
+                    className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-400"
+                >
+                    View all
+                    <Icon icon={RiArrowRightUpLine} size="xs" className="ml-1" />
+                </Link>
+            </div>
 
-            <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-4 border-t border-gray-100 dark:border-gray-800">
-                {news.slice(0, 10).map((item, index) => {
+            {news.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                    Chưa có tin tức mới.
+                </div>
+            ) : (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {news.slice(0, 10).map((item, index) => {
                     const url = item.url || item.Link || item.NewsUrl || '#';
                     const finalUrl = url.startsWith('http') ? url : `https://cafef.vn${url}`;
                     const title = item.title || item.Title || '';
@@ -100,7 +112,6 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                     const symbol = item.Symbol || item.symbol || '';
                     const priceInfo = symbol ? prices[symbol] : undefined;
 
-                    // Price color
                     const priceUp = priceInfo && priceInfo.change > 0;
                     const priceDown = priceInfo && priceInfo.change < 0;
                     const priceColor = priceUp
@@ -110,58 +121,63 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                             : 'text-gray-500';
 
                     return (
-                        <div
+                        <a
                             key={index}
-                            className={`flex items-start gap-3 md:gap-4 py-6 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all cursor-pointer group px-1 ${index % 2 === 0 ? 'lg:border-r lg:pr-4 lg:mr-[-1px]' : 'lg:pl-4'}`}
-                            onClick={() => window.open(finalUrl, '_blank')}
+                            href={finalUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 md:p-4 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all"
                         >
-                            <div className="flex-1 min-w-0 order-1">
-                                {/* Title */}
-                                <h3 className="text-[15px] md:text-[16px] font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-3">
-                                    {title}
-                                </h3>
-
-                                {/* Meta Footer */}
-                                <div className="flex items-center gap-2 flex-wrap text-slate-500">
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <div className="w-5 h-5 rounded overflow-hidden flex items-center justify-center bg-white shadow-sm border border-gray-100">
-                                            <img
-                                                src={`https://www.google.com/s2/favicons?domain=${finalUrl.split('/')[2]}&sz=64`}
-                                                alt=""
-                                                className="w-3.5 h-3.5 object-contain"
-                                                onError={(e) => { (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?domain=cafef.vn&sz=64'; }}
-                                            />
-                                        </div>
-                                        <span className="text-[12px] font-bold text-slate-700 dark:text-slate-300">{source}</span>
+                            <div className="flex items-start gap-3">
+                                {image ? (
+                                    <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                        <img
+                                            src={image}
+                                            alt=""
+                                            className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                                            loading="lazy"
+                                            onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
+                                        />
                                     </div>
-                                    <span className="text-slate-300 dark:text-slate-700 font-bold">·</span>
-                                    <span className="text-[12px] font-medium">{timeFormat}</span>
+                                ) : (
+                                    <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                                        <Icon icon={RiNewspaperLine} size="sm" className="text-slate-400" />
+                                    </div>
+                                )}
 
-                                    {symbol && (
-                                        <>
-                                            <span className="text-slate-300 dark:text-slate-700 font-bold">·</span>
-                                            <span className={`text-[12px] font-extrabold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 ${priceColor}`}>{symbol}</span>
-                                        </>
-                                    )}
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="text-[14px] md:text-[15px] font-semibold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                    {title}
+                                    </h4>
+
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] md:text-xs text-slate-500 dark:text-slate-400">
+                                        <div className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5">
+                                            <span className="font-medium text-slate-700 dark:text-slate-300">{source}</span>
+                                        </div>
+                                        {timeFormat && (
+                                            <span className="inline-flex items-center rounded-md bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 border border-slate-200 dark:border-slate-700">
+                                                {timeFormat}
+                                            </span>
+                                        )}
+
+                                        {symbol && (
+                                            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 font-bold bg-slate-100 dark:bg-slate-800 ${priceColor}`}>
+                                                {symbol}
+                                                {priceInfo?.price ? (
+                                                    <span className="ml-1 font-medium opacity-80">
+                                                        {Math.round(priceInfo.price).toLocaleString('en-US')}
+                                                    </span>
+                                                ) : null}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-
-                            {/* Thumbnail on the right */}
-                            {image && (
-                                <div className="w-20 h-20 md:w-28 md:h-20 shrink-0 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 shadow-sm order-2">
-                                    <img
-                                        src={image}
-                                        alt=""
-                                        className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500"
-                                        loading="lazy"
-                                        onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
-                                    />
-                                </div>
-                            )}
-                        </div>
+                        </a>
                     );
                 })}
-            </div>
+                </div>
+            )}
         </Card>
     );
 }
