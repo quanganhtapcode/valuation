@@ -13,6 +13,7 @@ import PriceHistoryTab from '@/components/StockDetail/PriceHistoryTab';
 import ValuationTab from '@/components/StockDetail/ValuationTab';
 import AnalysisTab from '@/components/StockDetail/AnalysisTab';
 import HoldersTab from '@/components/StockDetail/HoldersTab';
+import VciNewsFeed from '@/components/StockDetail/VciNewsFeed';
 import { Select, SelectItem } from '@tremor/react';
 import { getTickerData } from '@/lib/tickerCache';
 import { siteConfig } from '@/app/siteConfig';
@@ -80,14 +81,6 @@ interface FinancialReportItem {
     [key: string]: any;
 }
 
-interface NewsItem {
-    Title: string;
-    Link?: string;
-    NewsUrl?: string;
-    PostDate?: string;
-    PublishDate?: string;
-}
-
 export default function StockDetailPage() {
     const params = useParams();
     const symbol = (params.symbol as string)?.toUpperCase() || '';
@@ -96,13 +89,12 @@ export default function StockDetailPage() {
     const [priceData, setPriceData] = useState<PriceData | null>(null);
     const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
     const [financials, setFinancials] = useState<FinancialData | null>(null);
-    const [news, setNews] = useState<NewsItem[]>([]);
     const [timeRange, setTimeRange] = useState<'3M' | '6M' | '1Y' | '3Y' | '5Y'>('3M');
     const [isLoading, setIsLoading] = useState(true);
 
     const [error, setError] = useState<string | null>(null);
     const [isDescExpanded, setIsDescExpanded] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news'>('overview');
     const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['overview']));
     const [, startTransition] = useTransition();
     const [financialPeriod, setFinancialPeriod] = useState<'quarter' | 'year'>('quarter');
@@ -117,7 +109,7 @@ export default function StockDetailPage() {
     const [prefetchedChartData, setPrefetchedChartData] = useState<any>(null); // Shared between FinancialsTab & AnalysisTab
     const [isHistoryLoading, setIsHistoryLoading] = useState(true);
 
-    const handleTabChange = useCallback((nextTab: 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis') => {
+    const handleTabChange = useCallback((nextTab: 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news') => {
         if (nextTab === activeTab) return;
         startTransition(() => {
             setActiveTab(nextTab);
@@ -287,27 +279,6 @@ export default function StockDetailPage() {
                         }
                     })
                     .catch(() => { }); // Silently fail, we already have history data
-
-                // PHASE 3: Parallel Fetching of other data (News Only)
-                // Analysis & Financials data are now Lazy Loaded in their respective components
-                Promise.allSettled([
-                    fetch(`/api/news/${symbol}`).then(r => r.json())
-                ]).then(([newsRes]) => {
-
-                    // 1. News
-                    if (newsRes.status === 'fulfilled' && newsRes.value) {
-                        const newsData = newsRes.value.Data || newsRes.value.data || newsRes.value || [];
-                        if (Array.isArray(newsData)) {
-                            const mappedNews = newsData.map((item: any) => ({
-                                Title: item.Title || item.title,
-                                Link: item.Link || item.url || item.NewsUrl,
-                                NewsUrl: item.NewsUrl || item.url,
-                                PublishDate: item.PublishDate || item.publish_date || item.PostDate
-                            }));
-                            setNews(mappedNews.slice(0, 5));
-                        }
-                    }
-                });
 
             } catch (err) {
                 console.error('Error loading static data:', err);
@@ -550,13 +521,14 @@ export default function StockDetailPage() {
                                 { id: 'financials', label: 'Financials' },
                                 { id: 'holders', label: 'Holders' },
                                 { id: 'priceHistory', label: 'Price History' },
+                                { id: 'news', label: 'News' },
                                 { id: 'analysis', label: 'Analysis' },
                                 { id: 'valuation', label: 'Valuation' }
                             ].map(tab => (
                                 <button
                                     key={tab.id}
                                     type="button"
-                                    onClick={() => handleTabChange(tab.id as 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis')}
+                                    onClick={() => handleTabChange(tab.id as 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news')}
                                     className={classNames(
                                         activeTab === tab.id
                                             ? 'border-tremor-brand text-tremor-brand dark:border-dark-tremor-brand dark:text-dark-tremor-brand'
@@ -582,7 +554,6 @@ export default function StockDetailPage() {
                         stockInfo={stockInfo}
                         priceData={priceData}
                         financials={financials}
-                        news={news}
                         timeRange={timeRange}
                         setTimeRange={setTimeRange}
                         isDescExpanded={isDescExpanded}
@@ -653,6 +624,18 @@ export default function StockDetailPage() {
                             symbol={symbol}
                             initialData={fullHistoryData.length > 0 ? fullHistoryData : undefined}
                         />
+                    </div>
+                )}
+
+                {/* News Tab - Lazy & Persistent */}
+                {visitedTabs.has('news') && (
+                    <div className={activeTab === 'news' ? 'block' : 'hidden'}>
+                        <div className="mb-4 flex items-center justify-between gap-4">
+                            <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
+                                News
+                            </h3>
+                        </div>
+                        <VciNewsFeed symbol={symbol} />
                     </div>
                 )}
 
