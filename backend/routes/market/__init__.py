@@ -38,6 +38,7 @@ def register_market_routes(bp: Blueprint) -> None:
     from .world_indices import register as register_world_indices
     from .heatmap import register as register_heatmap
     from .overview_refresh import register as register_overview_refresh
+    from .macro import register as register_macro
 
     register_gold(bp)
     register_prices(bp)
@@ -51,6 +52,7 @@ def register_market_routes(bp: Blueprint) -> None:
     register_world_indices(bp)
     register_heatmap(bp)
     register_overview_refresh(bp)
+    register_macro(bp)
 
 
 # Register routes at import time (deps are set later by init_market_routes).

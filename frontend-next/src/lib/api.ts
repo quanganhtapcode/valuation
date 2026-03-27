@@ -30,6 +30,7 @@ export const API = {
     FOREIGN_VOLUME_CHART: `${API_BASE}/market/foreign-volume-chart`,
     GOLD: `${API_BASE}/market/gold`,
     LOTTERY: `${API_BASE}/market/lottery`,
+    MACRO: `${API_BASE}/market/macro`,
 
     // Stock Data (VCI Source via vnstock)
     STOCK: (symbol: string) => `${API_BASE}/stock/${symbol}?fetch_price=true`,
