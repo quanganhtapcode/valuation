@@ -270,6 +270,12 @@ export function Navbar() {
                             >
                                 Screener
                             </Link>
+                            <Link
+                                className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
+                                href="/macro"
+                            >
+                                Macro
+                            </Link>
                         </div>
                     </nav>
 
@@ -418,6 +424,9 @@ export function Navbar() {
                         </li>
                         <li onClick={() => setOpen(false)}>
                             <Link href="/screener">Screener</Link>
+                        </li>
+                        <li onClick={() => setOpen(false)}>
+                            <Link href="/macro">Macro</Link>
                         </li>
                     </ul>
                 </nav>
