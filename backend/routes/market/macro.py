@@ -35,6 +35,7 @@ _COMMODITY_SYMBOLS: dict[str, dict] = {
 
 # investing.com sbcharts event IDs for Vietnam
 _INVESTING_CPI_ID = 1851   # Vietnamese CPI YoY (monthly)
+_INVESTING_GDP_ID = 1853   # Vietnamese GDP YoY (quarterly)
 
 
 def _fetch_yahoo(sym: str) -> dict | None:
@@ -55,41 +56,72 @@ def _fetch_yahoo(sym: str) -> dict | None:
         return None
 
 
-def _fetch_investing_cpi(months: int = 36) -> list[dict]:
-    """Fetch Vietnam monthly CPI YoY from investing.com sbcharts API."""
+def _date_to_quarter(year: int, month: int) -> str:
+    """Convert publication month to Vietnam GDP quarter label.
+
+    Vietnam GSO releases:
+      Q1 data ≈ March/April   → month 3-4
+      Q2 data ≈ June/July     → month 5-7
+      Q3 data ≈ October       → month 8-10
+      Q4 data ≈ January(+1yr) → month 1
+    """
+    if month == 1:
+        return f'Q4/{year - 1}'
+    elif month <= 4:
+        return f'Q1/{year}'
+    elif month <= 7:
+        return f'Q2/{year}'
+    elif month <= 10:
+        return f'Q3/{year}'
+    else:
+        return f'Q4/{year}'
+
+
+def _fetch_investing(event_id: int, limit: int) -> list[dict]:
+    """Generic fetch from investing.com sbcharts API."""
     try:
-        url = f'https://sbcharts.investing.com/events_charts/eu/{_INVESTING_CPI_ID}.json'
+        url = f'https://sbcharts.investing.com/events_charts/eu/{event_id}.json'
         r = http_requests.get(url, timeout=8, headers=_YAHOO_HEADERS)
         if r.status_code != 200:
-            logger.warning('macro: investing.com CPI status %s', r.status_code)
+            logger.warning('macro: investing.com event %s status %s', event_id, r.status_code)
             return []
         raw = r.json().get('data', [])
-        # Each entry: [timestamp_ms, value, flag]
         results = []
         for entry in raw:
             try:
                 ts, val = entry[0], entry[1]
                 dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
-                results.append({'date': dt.strftime('%Y-%m'), 'value': round(float(val), 2)})
+                results.append({
+                    'date': dt.strftime('%Y-%m'),
+                    'value': round(float(val), 2),
+                })
             except Exception:
                 continue
-        # Sort ascending and return last N months
         results.sort(key=lambda x: x['date'])
-        return results[-months:]
+        return results[-limit:]
     except Exception as exc:
-        logger.warning('macro: investing.com CPI: %s', exc)
+        logger.warning('macro: investing.com event %s: %s', event_id, exc)
         return []
+
+
+def _add_quarter_labels(points: list[dict]) -> list[dict]:
+    """Enrich GDP points with a human-readable quarter label."""
+    out = []
+    for p in points:
+        year, month = int(p['date'][:4]), int(p['date'][5:7])
+        out.append({**p, 'quarter': _date_to_quarter(year, month)})
+    return out
 
 
 def _fetch_macro_data() -> dict:
     all_yahoo = list(_FX_SYMBOLS.keys()) + list(_COMMODITY_SYMBOLS.keys())
 
     yahoo_results: dict[str, dict] = {}
-    cpi: list[dict] = []
 
-    with ThreadPoolExecutor(max_workers=len(all_yahoo) + 1) as pool:
+    with ThreadPoolExecutor(max_workers=len(all_yahoo) + 2) as pool:
         yahoo_futures = {pool.submit(_fetch_yahoo, sym): sym for sym in all_yahoo}
-        cpi_future    = pool.submit(_fetch_investing_cpi)
+        cpi_future    = pool.submit(_fetch_investing, _INVESTING_CPI_ID, 36)
+        gdp_future    = pool.submit(_fetch_investing, _INVESTING_GDP_ID, 32)
 
         for future in as_completed(yahoo_futures):
             sym = yahoo_futures[future]
@@ -98,6 +130,7 @@ def _fetch_macro_data() -> dict:
                 yahoo_results[sym] = result
 
         cpi = cpi_future.result()
+        gdp = _add_quarter_labels(gdp_future.result())
 
     exchange_rates = [
         {'symbol': sym, 'name': name, **yahoo_results[sym]}
@@ -116,6 +149,7 @@ def _fetch_macro_data() -> dict:
         'commodities':    commodities,
         'economic': {
             'cpi': cpi,
+            'gdp': gdp,
         },
     }
 
@@ -123,7 +157,7 @@ def _fetch_macro_data() -> dict:
 def register(market_bp: Blueprint) -> None:
     @market_bp.route('/macro', methods=['GET'])
     def api_macro():
-        """Vietnam macro indicators: FX rates, commodities, monthly CPI. Cached 1 hour."""
+        """Vietnam macro indicators: FX, commodities, monthly CPI, quarterly GDP. Cached 1 hour."""
         try:
             data, _ = cache_func()('market_macro', 3600, _fetch_macro_data)
             return jsonify(data)
@@ -132,5 +166,5 @@ def register(market_bp: Blueprint) -> None:
             return jsonify({
                 'exchange_rates': [],
                 'commodities':    [],
-                'economic':       {'cpi': []},
+                'economic':       {'cpi': [], 'gdp': []},
             })
