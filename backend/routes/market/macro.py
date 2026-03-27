@@ -1,8 +1,9 @@
-"""Macro economic data route — exchange rates, commodities, and World Bank indicators."""
+"""Macro economic data route — exchange rates, commodities, and economic indicators."""
 from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 
 import requests as http_requests
 from flask import Blueprint, jsonify
@@ -26,15 +27,14 @@ _FX_SYMBOLS: dict[str, str] = {
 
 # Commodities relevant to Vietnam (USD-denominated)
 _COMMODITY_SYMBOLS: dict[str, dict] = {
-    'BZ=F':  {'name': 'Brent Crude',  'unit': 'USD/bbl'},
-    'HG=F':  {'name': 'Đồng (Copper)', 'unit': 'USD/lb'},
-    'ZR=F':  {'name': 'Lúa gạo (Rice)', 'unit': 'USD/cwt'},
-    'GC=F':  {'name': 'Vàng (Gold)',   'unit': 'USD/oz'},
+    'BZ=F': {'name': 'Brent Crude',    'unit': 'USD/bbl'},
+    'HG=F': {'name': 'Đồng (Copper)',  'unit': 'USD/lb'},
+    'ZR=F': {'name': 'Lúa gạo (Rice)', 'unit': 'USD/cwt'},
+    'GC=F': {'name': 'Vàng (Gold)',    'unit': 'USD/oz'},
 }
 
-# World Bank indicator codes for Vietnam
-_WB_CPI         = 'FP.CPI.TOTL.ZG'   # Inflation, consumer prices (annual %)
-_WB_GDP_GROWTH  = 'NY.GDP.MKTP.KD.ZG' # GDP growth (annual %)
+# investing.com sbcharts event IDs for Vietnam
+_INVESTING_CPI_ID = 1851   # Vietnamese CPI YoY (monthly)
 
 
 def _fetch_yahoo(sym: str) -> dict | None:
@@ -55,26 +55,29 @@ def _fetch_yahoo(sym: str) -> dict | None:
         return None
 
 
-def _fetch_world_bank(indicator: str, mrv: int = 10) -> list[dict]:
+def _fetch_investing_cpi(months: int = 36) -> list[dict]:
+    """Fetch Vietnam monthly CPI YoY from investing.com sbcharts API."""
     try:
-        url = (
-            f'https://api.worldbank.org/v2/country/VN/indicator/{indicator}'
-            f'?format=json&mrv={mrv}&per_page={mrv}'
-        )
-        r = http_requests.get(url, timeout=10)
+        url = f'https://sbcharts.investing.com/events_charts/eu/{_INVESTING_CPI_ID}.json'
+        r = http_requests.get(url, timeout=8, headers=_YAHOO_HEADERS)
         if r.status_code != 200:
+            logger.warning('macro: investing.com CPI status %s', r.status_code)
             return []
-        payload = r.json()
-        if len(payload) < 2 or not payload[1]:
-            return []
-        results = [
-            {'year': int(item['date']), 'value': round(float(item['value']), 2)}
-            for item in payload[1]
-            if item.get('value') is not None
-        ]
-        return sorted(results, key=lambda x: x['year'])
+        raw = r.json().get('data', [])
+        # Each entry: [timestamp_ms, value, flag]
+        results = []
+        for entry in raw:
+            try:
+                ts, val = entry[0], entry[1]
+                dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+                results.append({'date': dt.strftime('%Y-%m'), 'value': round(float(val), 2)})
+            except Exception:
+                continue
+        # Sort ascending and return last N months
+        results.sort(key=lambda x: x['date'])
+        return results[-months:]
     except Exception as exc:
-        logger.warning('macro: world bank %s: %s', indicator, exc)
+        logger.warning('macro: investing.com CPI: %s', exc)
         return []
 
 
@@ -83,12 +86,10 @@ def _fetch_macro_data() -> dict:
 
     yahoo_results: dict[str, dict] = {}
     cpi: list[dict] = []
-    gdp: list[dict] = []
 
-    with ThreadPoolExecutor(max_workers=len(all_yahoo) + 2) as pool:
-        yahoo_futures  = {pool.submit(_fetch_yahoo, sym): sym for sym in all_yahoo}
-        cpi_future     = pool.submit(_fetch_world_bank, _WB_CPI)
-        gdp_future     = pool.submit(_fetch_world_bank, _WB_GDP_GROWTH)
+    with ThreadPoolExecutor(max_workers=len(all_yahoo) + 1) as pool:
+        yahoo_futures = {pool.submit(_fetch_yahoo, sym): sym for sym in all_yahoo}
+        cpi_future    = pool.submit(_fetch_investing_cpi)
 
         for future in as_completed(yahoo_futures):
             sym = yahoo_futures[future]
@@ -97,7 +98,6 @@ def _fetch_macro_data() -> dict:
                 yahoo_results[sym] = result
 
         cpi = cpi_future.result()
-        gdp = gdp_future.result()
 
     exchange_rates = [
         {'symbol': sym, 'name': name, **yahoo_results[sym]}
@@ -115,8 +115,7 @@ def _fetch_macro_data() -> dict:
         'exchange_rates': exchange_rates,
         'commodities':    commodities,
         'economic': {
-            'cpi':        cpi,
-            'gdp_growth': gdp,
+            'cpi': cpi,
         },
     }
 
@@ -124,14 +123,14 @@ def _fetch_macro_data() -> dict:
 def register(market_bp: Blueprint) -> None:
     @market_bp.route('/macro', methods=['GET'])
     def api_macro():
-        """Vietnam macro indicators: FX rates, commodities, World Bank economic data. Cached 5 min."""
+        """Vietnam macro indicators: FX rates, commodities, monthly CPI. Cached 1 hour."""
         try:
-            data, _ = cache_func()('market_macro', 300, _fetch_macro_data)
+            data, _ = cache_func()('market_macro', 3600, _fetch_macro_data)
             return jsonify(data)
         except Exception as exc:
             logger.error('macro route error: %s', exc)
             return jsonify({
                 'exchange_rates': [],
                 'commodities':    [],
-                'economic':       {'cpi': [], 'gdp_growth': []},
+                'economic':       {'cpi': []},
             })
