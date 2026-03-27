@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart, Card } from '@tremor/react';
+import { AreaChart, Card } from '@tremor/react';
 import { API } from '@/lib/api';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -15,8 +15,8 @@ interface RateItem {
     unit?: string;
 }
 
-interface EconomicPoint {
-    year: number;
+interface CpiPoint {
+    date: string;  // "YYYY-MM"
     value: number;
 }
 
@@ -24,17 +24,15 @@ interface MacroData {
     exchange_rates: RateItem[];
     commodities: RateItem[];
     economic: {
-        cpi: EconomicPoint[];
-        gdp_growth: EconomicPoint[];
+        cpi: CpiPoint[];
     };
 }
 
-const REFRESH_MS = 5 * 60 * 1000;
+const REFRESH_MS = 60 * 60 * 1000; // 1 hour (matches backend cache)
 
 // ── Formatters ───────────────────────────────────────────────────────────────
 
 function fmtVndPrice(val: number): string {
-    // USD/VND ~25,450 → no decimals; JPY/VND ~170 → 1 decimal
     if (val >= 1000) return val.toLocaleString('en-US', { maximumFractionDigits: 0 });
     if (val >= 10)   return val.toFixed(2);
     return val.toFixed(4);
@@ -57,6 +55,12 @@ function fmtUsdChange(val: number): string {
     return `${sign}${Math.abs(val).toFixed(2)}`;
 }
 
+// "2025-03" → "T3/25"
+function fmtMonthLabel(date: string): string {
+    const [y, m] = date.split('-');
+    return `T${parseInt(m)}/${y.slice(2)}`;
+}
+
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -65,12 +69,8 @@ function SkeletonCard() {
 
 function RateCard({ item, isVnd }: { item: RateItem; isVnd: boolean }) {
     const up = item.changePercent >= 0;
-    const colorCls = up
-        ? 'text-emerald-600 dark:text-emerald-400'
-        : 'text-rose-600 dark:text-rose-400';
-    const bgCls = up
-        ? 'bg-emerald-50 dark:bg-emerald-900/20'
-        : 'bg-rose-50 dark:bg-rose-900/20';
+    const colorCls = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+    const bgCls    = up ? 'bg-emerald-50 dark:bg-emerald-900/20'   : 'bg-rose-50 dark:bg-rose-900/20';
 
     return (
         <Card className="p-4">
@@ -119,49 +119,64 @@ function ComingSoonCard({ title, desc }: { title: string; desc: string }) {
     );
 }
 
-function EconomicChart({
-    title,
-    subtitle,
-    data,
-    dataKey,
-    color,
-    loading,
-}: {
-    title: string;
-    subtitle: string;
-    data: EconomicPoint[];
-    dataKey: string;
-    color: 'blue' | 'emerald' | 'rose';
-    loading: boolean;
-}) {
-    const chartData = data.map((p) => ({ Năm: String(p.year), [dataKey]: p.value }));
+function CpiChart({ data, loading }: { data: CpiPoint[]; loading: boolean }) {
+    const latest = data[data.length - 1];
+    const prev   = data[data.length - 2];
+    const delta  = latest && prev ? latest.value - prev.value : null;
+
+    const chartData = data.map((p) => ({
+        date: fmtMonthLabel(p.date),
+        'CPI (%)': p.value,
+    }));
 
     return (
         <Card className="p-5">
-            <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                {title}
-            </p>
-            <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5 mb-4">
-                {subtitle}
-            </p>
+            <div className="flex items-start justify-between mb-1">
+                <div>
+                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                        Lạm phát CPI — YoY (%)
+                    </p>
+                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">
+                        Tháng gần nhất so với cùng kỳ năm trước — nguồn: investing.com
+                    </p>
+                </div>
+                {latest && (
+                    <div className="text-right shrink-0 ml-4">
+                        <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                            {latest.value.toFixed(2)}%
+                        </p>
+                        <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
+                            {fmtMonthLabel(latest.date)}
+                            {delta !== null && (
+                                <span className={`ml-1.5 font-semibold ${delta >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                    {delta >= 0 ? '+' : ''}{delta.toFixed(2)}
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                )}
+            </div>
+
             {loading ? (
-                <div className="h-48 flex items-center justify-center">
+                <div className="h-56 flex items-center justify-center mt-4">
                     <div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-700 border-t-slate-700 dark:border-t-slate-200 rounded-full animate-spin" />
                 </div>
             ) : chartData.length === 0 ? (
-                <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">
+                <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">
                     Không có dữ liệu
                 </div>
             ) : (
-                <BarChart
+                <AreaChart
                     data={chartData}
-                    index="Năm"
-                    categories={[dataKey]}
-                    colors={[color]}
-                    valueFormatter={(v: number) => `${v.toFixed(1)}%`}
-                    yAxisWidth={48}
+                    index="date"
+                    categories={['CPI (%)']}
+                    colors={['rose']}
+                    valueFormatter={(v: number) => `${v.toFixed(2)}%`}
+                    yAxisWidth={52}
                     showLegend={false}
-                    className="h-48"
+                    showGradient={true}
+                    tickGap={12}
+                    className="h-56 mt-4"
                 />
             )}
         </Card>
@@ -193,8 +208,7 @@ export default function MacroPage() {
 
     const fxRates     = data?.exchange_rates ?? [];
     const commodities = data?.commodities    ?? [];
-    const cpi         = data?.economic.cpi        ?? [];
-    const gdpGrowth   = data?.economic.gdp_growth ?? [];
+    const cpi         = data?.economic.cpi   ?? [];
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -208,8 +222,7 @@ export default function MacroPage() {
                     </h1>
                     <div className="w-28 h-1 bg-blue-500 rounded mt-2" />
                     <p className="text-slate-600 dark:text-slate-300 mt-3 text-sm md:text-base max-w-3xl">
-                        Tổng hợp các chỉ số kinh tế vĩ mô Việt Nam: tỷ giá hối đoái, hàng hóa quốc tế,
-                        lạm phát và tăng trưởng GDP.
+                        Tổng hợp các chỉ số kinh tế vĩ mô Việt Nam: tỷ giá hối đoái, hàng hóa quốc tế và lạm phát.
                     </p>
                 </div>
 
@@ -217,7 +230,7 @@ export default function MacroPage() {
                 <section>
                     <SectionHeader
                         title="Tỷ Giá Hối Đoái"
-                        subtitle="VND so với các đồng tiền chính — nguồn: Yahoo Finance, cập nhật mỗi 5 phút"
+                        subtitle="VND so với các đồng tiền chính — nguồn: Yahoo Finance (OTC thực), cache 1 giờ"
                     />
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {loading
@@ -234,7 +247,7 @@ export default function MacroPage() {
                 <section>
                     <SectionHeader
                         title="Hàng Hóa Quốc Tế"
-                        subtitle="Giá hàng hóa liên quan đến doanh nghiệp Việt Nam — nguồn: Yahoo Finance, cập nhật mỗi 5 phút"
+                        subtitle="Giá hàng hóa liên quan đến doanh nghiệp Việt Nam — nguồn: Yahoo Finance (trễ 15 phút), cache 1 giờ"
                     />
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {loading
@@ -250,39 +263,26 @@ export default function MacroPage() {
                     </p>
                 </section>
 
-                {/* ── Economic Indicators ── */}
+                {/* ── CPI ── */}
                 <section>
                     <SectionHeader
-                        title="Chỉ Số Kinh Tế Việt Nam"
-                        subtitle="Dữ liệu lịch sử hàng năm — nguồn: World Bank (độ trễ ~1 năm)"
+                        title="Lạm Phát Việt Nam"
+                        subtitle="Chỉ số giá tiêu dùng (CPI) so với cùng kỳ năm trước — 36 tháng gần nhất"
                     />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <EconomicChart
-                            title="Lạm phát CPI (%)"
-                            subtitle="Tỷ lệ lạm phát tiêu dùng hàng năm của Việt Nam"
-                            data={cpi}
-                            dataKey="Lạm phát (%)"
-                            color="rose"
-                            loading={loading}
-                        />
-                        <EconomicChart
-                            title="Tăng trưởng GDP (%)"
-                            subtitle="Tốc độ tăng trưởng GDP thực tế hàng năm của Việt Nam"
-                            data={gdpGrowth}
-                            dataKey="Tăng trưởng (%)"
-                            color="emerald"
-                            loading={loading}
-                        />
-                    </div>
+                    <CpiChart data={cpi} loading={loading} />
                 </section>
 
                 {/* ── Coming Soon ── */}
                 <section>
                     <SectionHeader
-                        title="Lãi Suất & Trái Phiếu"
-                        subtitle="Chính sách tiền tệ SBV và thị trường trái phiếu chính phủ"
+                        title="Sắp Ra Mắt"
+                        subtitle="Các chỉ số đang được tích hợp thêm"
                     />
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <ComingSoonCard
+                            title="Tăng trưởng GDP"
+                            desc="Tốc độ tăng trưởng GDP thực tế theo quý"
+                        />
                         <ComingSoonCard
                             title="Lãi suất điều hành SBV"
                             desc="Lãi suất tái cấp vốn, chiết khấu, qua đêm"
@@ -290,10 +290,6 @@ export default function MacroPage() {
                         <ComingSoonCard
                             title="Lợi suất trái phiếu chính phủ"
                             desc="Đường cong lợi suất 1Y – 5Y – 10Y (HNX)"
-                        />
-                        <ComingSoonCard
-                            title="Tăng trưởng tín dụng"
-                            desc="Tổng dư nợ tín dụng toàn hệ thống (SBV)"
                         />
                     </div>
                 </section>
