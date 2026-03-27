@@ -366,6 +366,10 @@ export default function OverviewClient({
 
                     {/* Lottery Results */}
                     <Lottery />
+
+                    <p className="rounded-lg border border-gray-200 bg-white p-3 text-[11px] leading-relaxed text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500">
+                        Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.
+                    </p>
                 </aside>
             </div>
         </div>
