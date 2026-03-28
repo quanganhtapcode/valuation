@@ -65,8 +65,36 @@ def init_db(path: str) -> sqlite3.Connection:
 
 # ── Fetch ─────────────────────────────────────────────────────────────────────
 
+def _normalize_unit_change(rows: list[tuple[str, float]]) -> list[tuple[str, float]]:
+    """Detect and fix a sudden ~100x unit change at the tail of the series.
+
+    Yahoo Finance occasionally changes the price unit for a futures contract
+    (e.g. ZR=F switched from cents/cwt to USD/cwt), causing all historical
+    values to be ~100x larger than the latest price. When detected, the older
+    values are divided by the inferred scale factor.
+    """
+    if len(rows) < 10:
+        return rows
+    last = rows[-1][1]
+    # Use median of last-10 to last-2 as the 'old unit' reference
+    recent = sorted(r[1] for r in rows[-10:-1])
+    median_prev = recent[len(recent) // 2]
+    if last <= 0 or median_prev <= 0:
+        return rows
+    ratio = median_prev / last
+    # If previous values are ~100x larger, divide them
+    if 80 < ratio < 120:
+        scale = round(ratio)
+        logger.info('Unit change detected (%.1fx) — normalising older values', scale)
+        return [
+            (date, round(close / scale, 6)) if close > last * (scale / 2) else (date, close)
+            for date, close in rows
+        ]
+    return rows
+
+
 def fetch_history(symbol: str, range_str: str = '3y') -> dict[str, float]:
-    """Return {date_str: close} for a symbol."""
+    """Return {date_str: close} for a symbol, with unit-change normalization."""
     url = (
         f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
         f'?interval=1d&range={range_str}'
@@ -78,12 +106,14 @@ def fetch_history(symbol: str, range_str: str = '3y') -> dict[str, float]:
         result = data['chart']['result'][0]
         timestamps = result['timestamp']
         closes = result['indicators']['quote'][0]['close']
-        out = {}
+        pairs: list[tuple[str, float]] = []
         for ts, c in zip(timestamps, closes):
             if c is None:
                 continue
             date_str = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
-            out[date_str] = round(float(c), 6)
+            pairs.append((date_str, round(float(c), 6)))
+        pairs = _normalize_unit_change(pairs)
+        out = dict(pairs)
         return out
     except Exception as exc:
         logger.warning('fetch_history %s: %s', symbol, exc)
