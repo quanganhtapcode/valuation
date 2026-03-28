@@ -133,15 +133,24 @@ function HistoryChart({
     const overallChange = first && last ? ((last - first) / first) * 100 : null;
     const up = overallChange === null ? true : overallChange >= 0;
 
-    const step = Math.max(1, Math.floor(points.length / 10));
-    const chartData = points.map((p, i) => ({
-        Ngày: (i % step === 0 || i === points.length - 1) ? p.date.slice(5) : '',
-        [item.name]: p.close,
-    }));
+    // Give every point a real date label — use DD/MM for ≤180 days, MM/YY for longer
+    // so the x-axis always has parseable strings (empty strings break recharts tick logic)
+    const useDayFormat = days <= 180;
+    const chartData = points.map((p) => {
+        const [y, m, d] = p.date.split('-');
+        return {
+            Ngày: useDayFormat ? `${d}/${m}` : `${m}/${y.slice(2)}`,
+            [item.name]: p.close,
+        };
+    });
 
     const fmtY = isVnd
         ? (v: number) => fmtVndPrice(v)
         : (v: number) => fmtUsdPrice(v);
+
+    // y-axis width: VND numbers (e.g. 26,320) need ~80px; commodities depend on magnitude
+    const maxClose = points.length ? Math.max(...points.map((p) => p.close)) : 0;
+    const yAxisW = isVnd ? 80 : maxClose >= 1000 ? 70 : 52;
 
     const rangeLabel = RANGE_OPTIONS.find((o) => o.days === days)?.label ?? '';
     const csvFilename = `${item.symbol.replace('=', '_')}_${rangeLabel}.csv`;
@@ -218,10 +227,11 @@ function HistoryChart({
                         categories={[item.name]}
                         colors={[up ? 'emerald' : 'rose']}
                         valueFormatter={fmtY}
-                        yAxisWidth={isVnd ? 72 : 56}
+                        yAxisWidth={yAxisW}
                         showLegend={false}
                         showGradient={true}
                         autoMinValue={true}
+                        tickGap={60}
                         className="h-48"
                     />
                 )}
