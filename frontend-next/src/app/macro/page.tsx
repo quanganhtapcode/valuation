@@ -92,6 +92,18 @@ function ComingSoonCard({ title, desc }: { title: string; desc: string }) {
 
 // ── History chart (inline expand) ────────────────────────────────────────────
 
+function downloadCsv(filename: string, rows: PricePoint[], name: string) {
+    const header = 'Date,Close\n';
+    const body   = rows.map((r) => `${r.date},${r.close}`).join('\n');
+    const blob   = new Blob([header + body], { type: 'text/csv;charset=utf-8;' });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href       = url;
+    a.download   = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 function HistoryChart({
     item,
     isVnd,
@@ -121,7 +133,6 @@ function HistoryChart({
     const overallChange = first && last ? ((last - first) / first) * 100 : null;
     const up = overallChange === null ? true : overallChange >= 0;
 
-    // Thin out labels: show every Nth point so x-axis isn't crowded
     const step = Math.max(1, Math.floor(points.length / 10));
     const chartData = points.map((p, i) => ({
         Ngày: (i % step === 0 || i === points.length - 1) ? p.date.slice(5) : '',
@@ -131,6 +142,9 @@ function HistoryChart({
     const fmtY = isVnd
         ? (v: number) => fmtVndPrice(v)
         : (v: number) => fmtUsdPrice(v);
+
+    const rangeLabel = RANGE_OPTIONS.find((o) => o.days === days)?.label ?? '';
+    const csvFilename = `${item.symbol.replace('=', '_')}_${rangeLabel}.csv`;
 
     return (
         <div className="mt-1 col-span-2 lg:col-span-4">
@@ -165,6 +179,19 @@ function HistoryChart({
                                 </button>
                             ))}
                         </div>
+                        {/* Download CSV */}
+                        {points.length > 0 && (
+                            <button
+                                onClick={() => downloadCsv(csvFilename, points, item.name)}
+                                title="Tải xuống CSV"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                    <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                CSV
+                            </button>
+                        )}
                         {/* Close */}
                         <button
                             onClick={onClose}
