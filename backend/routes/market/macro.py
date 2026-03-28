@@ -2,13 +2,24 @@
 from __future__ import annotations
 
 import logging
+import os
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 import requests as http_requests
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from .deps import cache_func
+
+_MACRO_HISTORY_DB = os.path.join(
+    os.path.dirname(__file__), '..', '..', '..', 'fetch_sqlite', 'macro_history.sqlite'
+)
+
+_ALLOWED_SYMBOLS = {
+    'USDVND=X', 'EURVND=X', 'CNYVND=X', 'JPYVND=X',
+    'BZ=F', 'HG=F', 'ZR=F', 'GC=F',
+}
 
 logger = logging.getLogger(__name__)
 
@@ -168,3 +179,37 @@ def register(market_bp: Blueprint) -> None:
                 'commodities':    [],
                 'economic':       {'cpi': [], 'gdp': []},
             })
+
+    @market_bp.route('/macro/history', methods=['GET'])
+    def api_macro_history():
+        """Historical daily prices for a macro symbol from SQLite. ?symbol=USDVND%3DX&days=365"""
+        symbol = request.args.get('symbol', '').upper()
+        if symbol not in _ALLOWED_SYMBOLS:
+            return jsonify({'error': 'unknown symbol'}), 400
+        try:
+            days = min(int(request.args.get('days', 365)), 3 * 365)
+        except ValueError:
+            days = 365
+
+        cache_key = f'macro_history_{symbol}_{days}'
+
+        def _read():
+            db_path = os.path.normpath(_MACRO_HISTORY_DB)
+            conn = sqlite3.connect(db_path)
+            rows = conn.execute(
+                '''SELECT date, close FROM macro_prices
+                   WHERE symbol = ?
+                   ORDER BY date DESC
+                   LIMIT ?''',
+                (symbol, days),
+            ).fetchall()
+            conn.close()
+            # Return ascending
+            return [{'date': r[0], 'close': r[1]} for r in reversed(rows)]
+
+        try:
+            data, _ = cache_func()(cache_key, 3600, _read)
+            return jsonify(data)
+        except Exception as exc:
+            logger.error('macro history %s: %s', symbol, exc)
+            return jsonify([])
