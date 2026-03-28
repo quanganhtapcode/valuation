@@ -3,11 +3,23 @@
 import { siteConfig } from "@/app/siteConfig"
 import useScroll from "@/lib/use-scroll"
 import { cx, focusInput } from "@/lib/utils"
-import { RiArrowDownSLine, RiCloseLine, RiMenuLine, RiSearchLine } from "@remixicon/react"
+import {
+    RiArrowDownSLine,
+    RiBarChartBoxLine,
+    RiBuilding2Line,
+    RiCloseLine,
+    RiExchangeDollarLine,
+    RiFilterLine,
+    RiGlobalLine,
+    RiLineChartLine,
+    RiMenuLine,
+    RiPieChartLine,
+    RiSearchLine,
+} from "@remixicon/react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { useDebounce } from "use-debounce"
-import React, { useState, useEffect, useRef, useCallback } from "react"
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { DatabaseLogo } from "@/components/DatabaseLogo"
 import { Button } from "@/components/Button"
 import { getTickerData } from "@/lib/tickerCache"
@@ -28,20 +40,26 @@ const NAV_GROUPS = [
         id: "market",
         label: "Market",
         items: [
-            { label: "Overview", href: "/" },
-            { label: "Foreign", href: "/foreign" },
-            { label: "Macro", href: "/macro" },
+            { label: "Overview", href: "/", icon: RiPieChartLine, desc: "Indices & movers" },
+            { label: "Foreign", href: "/foreign", icon: RiGlobalLine, desc: "Foreign investor flows" },
+            { label: "Macro", href: "/macro", icon: RiLineChartLine, desc: "FX, commodities & CPI" },
         ],
     },
     {
         id: "stocks",
         label: "Stocks",
         items: [
-            { label: "Company", href: "/stock/VCB" },
-            { label: "Screener", href: "/screener" },
+            { label: "Company", href: "/stock/VCB", icon: RiBuilding2Line, desc: "Financials & valuation" },
+            { label: "Screener", href: "/screener", icon: RiFilterLine, desc: "Filter by fundamentals" },
         ],
     },
 ] as const;
+
+// Height constants for dynamic mobile menu sizing
+const HEADER_ROW_H = 56;
+const NAV_MARGIN_H = 48;  // my-6 top + bottom
+const GROUP_BTN_H = 48;
+const SUB_ITEM_H = 44;
 
 export function Navbar() {
     const scrolled = useScroll(15)
@@ -64,6 +82,15 @@ export function Navbar() {
     const router = useRouter();
     const pathname = usePathname();
 
+    // Compute mobile menu height dynamically to avoid oversized blur
+    const mobileOpenHeight = useMemo(() => {
+        let h = HEADER_ROW_H + NAV_MARGIN_H + NAV_GROUPS.length * GROUP_BTN_H + (NAV_GROUPS.length - 1) * 4;
+        NAV_GROUPS.forEach(g => {
+            if (mobileExpanded === g.id) h += g.items.length * SUB_ITEM_H + 4;
+        });
+        return h + 8; // small buffer
+    }, [mobileExpanded]);
+
     // Close everything on navigation
     useEffect(() => {
         setSearchOpen(false);
@@ -74,21 +101,15 @@ export function Navbar() {
     }, [pathname]);
 
     useEffect(() => {
-        if (searchOpen && window.innerWidth < 768) {
-            setOpen(false);
-        }
+        if (searchOpen && window.innerWidth < 768) setOpen(false);
     }, [searchOpen]);
 
     useEffect(() => {
-        const mediaQuery: MediaQueryList = window.matchMedia("(min-width: 768px)")
-        const handleMediaQueryChange = () => {
-            setOpen(false)
-            setSearchOpen(false)
-            setMobileExpanded(null)
-        }
-        mediaQuery.addEventListener("change", handleMediaQueryChange)
-        handleMediaQueryChange()
-        return () => mediaQuery.removeEventListener("change", handleMediaQueryChange)
+        const mq = window.matchMedia("(min-width: 768px)")
+        const handle = () => { setOpen(false); setSearchOpen(false); setMobileExpanded(null); }
+        mq.addEventListener("change", handle)
+        handle()
+        return () => mq.removeEventListener("change", handle)
     }, [])
 
     const ensureTickersLoaded = useCallback(async () => {
@@ -107,14 +128,11 @@ export function Navbar() {
         if (searchOpen) ensureTickersLoaded();
     }, [searchOpen, ensureTickersLoaded]);
 
-    // Click outside search
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             const target = event.target as Node;
             if (searchOpen) {
-                let inside = false;
-                if (searchRef.current?.contains(target)) inside = true;
-                if (mobileSearchRef.current?.contains(target)) inside = true;
+                const inside = searchRef.current?.contains(target) || mobileSearchRef.current?.contains(target);
                 if (!inside) setSearchOpen(false);
             }
         }
@@ -122,25 +140,22 @@ export function Navbar() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [searchOpen]);
 
-    // Search filtering
     useEffect(() => {
         if (typeof debouncedQuery !== 'string' || debouncedQuery.length < 1) {
             setSearchResults([]);
             return;
         }
-        const upperQuery = debouncedQuery.toUpperCase();
-        const lowerQuery = debouncedQuery.toLowerCase();
-        const filtered = allTickers.filter(ticker => {
-            if (!ticker) return false;
-            return (ticker.symbol || '').toUpperCase().includes(upperQuery) ||
-                (ticker.name || '').toLowerCase().includes(lowerQuery);
-        }).sort((a, b) => {
+        const upper = debouncedQuery.toUpperCase();
+        const lower = debouncedQuery.toLowerCase();
+        const filtered = allTickers.filter(t =>
+            t && ((t.symbol || '').toUpperCase().includes(upper) || (t.name || '').toLowerCase().includes(lower))
+        ).sort((a, b) => {
             const sa = (a?.symbol || '').toUpperCase();
             const sb = (b?.symbol || '').toUpperCase();
-            if (sa === upperQuery && sb !== upperQuery) return -1;
-            if (sb === upperQuery && sa !== upperQuery) return 1;
-            if (sa.startsWith(upperQuery) && !sb.startsWith(upperQuery)) return -1;
-            if (!sa.startsWith(upperQuery) && sb.startsWith(upperQuery)) return 1;
+            if (sa === upper && sb !== upper) return -1;
+            if (sb === upper && sa !== upper) return 1;
+            if (sa.startsWith(upper) && !sb.startsWith(upper)) return -1;
+            if (!sa.startsWith(upper) && sb.startsWith(upper)) return 1;
             return 0;
         }).slice(0, 10);
         setSearchResults(filtered);
@@ -160,7 +175,6 @@ export function Navbar() {
         });
     }
 
-    // Ctrl+K / Cmd+K
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key === 'k' || e.key === 'K')) {
@@ -181,33 +195,29 @@ export function Navbar() {
 
     useEffect(() => {
         if (searchOpen) {
-            if (mobileInputRef.current) {
-                setTimeout(() => mobileInputRef.current?.focus(), 100);
-            } else if (desktopInputRef.current) {
-                setTimeout(() => desktopInputRef.current?.focus(), 50);
-            }
+            if (mobileInputRef.current) setTimeout(() => mobileInputRef.current?.focus(), 100);
+            else if (desktopInputRef.current) setTimeout(() => desktopInputRef.current?.focus(), 50);
         }
     }, [searchOpen]);
 
-    // Hover handlers with delay to prevent flicker
     const handleMouseEnter = (id: string) => {
         if (dropdownTimerRef.current) clearTimeout(dropdownTimerRef.current);
         setActiveDropdown(id);
     };
-
     const handleMouseLeave = () => {
-        dropdownTimerRef.current = setTimeout(() => setActiveDropdown(null), 120);
+        dropdownTimerRef.current = setTimeout(() => setActiveDropdown(null), 150);
     };
 
     return (
         <header
             className={cx(
                 "fixed inset-x-2 top-2 z-50 mx-auto flex max-w-6xl transform-gpu animate-slide-down-fade justify-center overflow-visible rounded-xl border border-transparent px-3 py-2.5 md:top-4 md:px-3 md:py-3 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1.03)] will-change-transform",
-                open === true ? "h-96" : "h-14 md:h-16",
-                scrolled || open === true || searchOpen
+                !open && "h-14 md:h-16",
+                scrolled || open || searchOpen
                     ? "backdrop-blur-nav max-w-4xl border-gray-100 bg-white/80 shadow-xl shadow-black/5 dark:border-white/15 dark:bg-black/70"
                     : "bg-white/0 dark:bg-gray-950/0",
             )}
+            style={open ? { height: `${mobileOpenHeight}px` } : undefined}
         >
             <div className="w-full md:my-auto">
                 <div className="flex items-center justify-between gap-4">
@@ -230,7 +240,12 @@ export function Navbar() {
                                     onMouseLeave={handleMouseLeave}
                                 >
                                     <button
-                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600 transition-colors"
+                                        className={cx(
+                                            "flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                                            activeDropdown === group.id
+                                                ? "bg-gray-100 text-blue-600 dark:bg-gray-800 dark:text-blue-400"
+                                                : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600"
+                                        )}
                                     >
                                         {group.label}
                                         <RiArrowDownSLine
@@ -244,20 +259,45 @@ export function Navbar() {
                                     {/* Dropdown panel */}
                                     {activeDropdown === group.id && (
                                         <div
-                                            className="absolute left-0 top-full pt-2"
+                                            className="absolute left-0 top-full pt-2.5"
                                             onMouseEnter={() => handleMouseEnter(group.id)}
                                             onMouseLeave={handleMouseLeave}
                                         >
-                                            <div className="min-w-[160px] rounded-xl border border-gray-200 bg-white/95 py-1.5 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/95">
-                                                {group.items.map((item) => (
-                                                    <Link
-                                                        key={item.href}
-                                                        href={item.href}
-                                                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                                    >
-                                                        {item.label}
-                                                    </Link>
-                                                ))}
+                                            {/* Arrow caret */}
+                                            <div className="absolute left-4 top-[6px] size-2.5 rotate-45 border-l border-t border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900" />
+                                            <div className="min-w-[200px] rounded-xl border border-gray-200 bg-white shadow-xl shadow-black/10 dark:border-white/10 dark:bg-gray-900 overflow-hidden">
+                                                {group.items.map((item) => {
+                                                    const Icon = item.icon;
+                                                    const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                                                    return (
+                                                        <Link
+                                                            key={item.href}
+                                                            href={item.href}
+                                                            className={cx(
+                                                                "flex items-center gap-3 px-4 py-3 transition-colors",
+                                                                isActive
+                                                                    ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                                                                    : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                            )}
+                                                        >
+                                                            <div className={cx(
+                                                                "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                                                                isActive
+                                                                    ? "bg-blue-100 dark:bg-blue-900/40"
+                                                                    : "bg-gray-100 dark:bg-gray-800"
+                                                            )}>
+                                                                <Icon className={cx(
+                                                                    "size-4",
+                                                                    isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
+                                                                )} />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-medium leading-tight">{item.label}</span>
+                                                                <span className="text-[11px] text-gray-400 dark:text-gray-500 leading-tight mt-0.5">{item.desc}</span>
+                                                            </div>
+                                                        </Link>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -288,10 +328,7 @@ export function Navbar() {
                                             setSearchQuery('');
                                         }
                                     }}
-                                    onFocus={() => {
-                                        setSearchOpen(true);
-                                        if (!tickersLoaded) void ensureTickersLoaded();
-                                    }}
+                                    onFocus={() => { setSearchOpen(true); if (!tickersLoaded) void ensureTickersLoaded(); }}
                                 />
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center group-focus-within:opacity-100 opacity-0 transition-opacity pointer-events-none">
                                     <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[10px] font-medium text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-400">
@@ -313,9 +350,7 @@ export function Navbar() {
                                                     href={`/stock/${result.symbol}`}
                                                     prefetch={false}
                                                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 group"
-                                                    onMouseDown={() => {
-                                                        router.push(`/stock/${result.symbol}`);
-                                                    }}
+                                                    onMouseDown={() => router.push(`/stock/${result.symbol}`)}
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div className="shrink-0 relative w-8 h-8 rounded-lg bg-white border border-gray-100 dark:border-gray-800 flex items-center justify-center p-1 group-hover:border-blue-200 transition-colors shadow-sm overflow-hidden">
@@ -333,22 +368,14 @@ export function Navbar() {
                                                                     }
                                                                 }}
                                                             />
-                                                            <span className="hidden text-[10px] font-bold text-gray-600 dark:text-gray-400">
-                                                                {result.symbol[0]}
-                                                            </span>
+                                                            <span className="hidden text-[10px] font-bold text-gray-600 dark:text-gray-400">{result.symbol[0]}</span>
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
-                                                            <span className="font-bold text-gray-900 dark:text-gray-50 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
-                                                                {result.symbol}
-                                                            </span>
-                                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
-                                                                {result.name}
-                                                            </span>
+                                                            <span className="font-bold text-gray-900 dark:text-gray-50 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">{result.symbol}</span>
+                                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[200px]">{result.name}</span>
                                                         </div>
                                                     </div>
-                                                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                                                        {result.exchange}
-                                                    </span>
+                                                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">{result.exchange}</span>
                                                 </Link>
                                             ))
                                         ) : (
@@ -368,18 +395,11 @@ export function Navbar() {
                             <RiSearchLine className="size-5" />
                         </Button>
                         <Button
-                            onClick={() => {
-                                setOpen(!open);
-                                if (!open) { setSearchOpen(false); setMobileExpanded(null); }
-                            }}
+                            onClick={() => { setOpen(!open); if (!open) { setSearchOpen(false); setMobileExpanded(null); } }}
                             variant="light"
                             className="aspect-square p-2"
                         >
-                            {open ? (
-                                <RiCloseLine aria-hidden="true" className="size-5" />
-                            ) : (
-                                <RiMenuLine aria-hidden="true" className="size-5" />
-                            )}
+                            {open ? <RiCloseLine aria-hidden="true" className="size-5" /> : <RiMenuLine aria-hidden="true" className="size-5" />}
                         </Button>
                     </div>
                 </div>
@@ -390,29 +410,34 @@ export function Navbar() {
                         {NAV_GROUPS.map((group) => (
                             <li key={group.id}>
                                 <button
-                                    className="flex w-full items-center justify-between rounded-lg px-2 py-2.5 text-lg text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                    className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-base font-semibold text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                     onClick={() => setMobileExpanded(prev => prev === group.id ? null : group.id)}
                                 >
                                     {group.label}
-                                    <RiArrowDownSLine
-                                        className={cx(
-                                            "size-5 transition-transform duration-200",
-                                            mobileExpanded === group.id ? "rotate-180" : ""
-                                        )}
-                                    />
+                                    <RiArrowDownSLine className={cx("size-5 transition-transform duration-200", mobileExpanded === group.id ? "rotate-180" : "")} />
                                 </button>
                                 {mobileExpanded === group.id && (
-                                    <ul className="mt-1 ml-3 space-y-1 border-l-2 border-gray-100 dark:border-gray-800 pl-3">
-                                        {group.items.map((item) => (
-                                            <li key={item.href} onClick={() => setOpen(false)}>
-                                                <Link
-                                                    href={item.href}
-                                                    className="block rounded-lg px-2 py-2 text-base text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                                >
-                                                    {item.label}
-                                                </Link>
-                                            </li>
-                                        ))}
+                                    <ul className="mt-1 ml-2 space-y-0.5 border-l-2 border-gray-100 dark:border-gray-800 pl-3">
+                                        {group.items.map((item) => {
+                                            const Icon = item.icon;
+                                            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                                            return (
+                                                <li key={item.href} onClick={() => setOpen(false)}>
+                                                    <Link
+                                                        href={item.href}
+                                                        className={cx(
+                                                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                                                            isActive
+                                                                ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                                                                : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        )}
+                                                    >
+                                                        <Icon className="size-4 shrink-0" />
+                                                        {item.label}
+                                                    </Link>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 )}
                             </li>
@@ -448,7 +473,7 @@ export function Navbar() {
                                             href={`/stock/${result.symbol}`}
                                             prefetch={false}
                                             className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-900"
-                                            onMouseDown={() => { router.push(`/stock/${result.symbol}`); }}
+                                            onMouseDown={() => router.push(`/stock/${result.symbol}`)}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-gray-900 dark:text-gray-50">{result.symbol}</span>
