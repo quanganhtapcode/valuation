@@ -30,7 +30,8 @@ export const API = {
     FOREIGN_VOLUME_CHART: `${API_BASE}/market/foreign-volume-chart`,
     GOLD: `${API_BASE}/market/gold`,
     LOTTERY: `${API_BASE}/market/lottery`,
-    MACRO: `${API_BASE}/market/macro`,
+    MACRO_RATES:    `${API_BASE}/market/macro/rates`,
+    MACRO_ECONOMIC: `${API_BASE}/market/macro/economic`,
     MACRO_HISTORY: (symbol: string, days: number) =>
         `${API_BASE}/market/macro/history?symbol=${encodeURIComponent(symbol)}&days=${days}`,
 
