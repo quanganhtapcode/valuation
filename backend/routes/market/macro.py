@@ -170,7 +170,7 @@ def register(market_bp: Blueprint) -> None:
     def api_macro():
         """Vietnam macro indicators: FX, commodities, monthly CPI, quarterly GDP. Cached 1 hour."""
         try:
-            data, _ = cache_func()('market_macro', 3600, _fetch_macro_data)
+            data, _ = cache_func()('market_macro', 300, _fetch_macro_data)
             return jsonify(data)
         except Exception as exc:
             logger.error('macro route error: %s', exc)
