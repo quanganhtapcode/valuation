@@ -33,7 +33,7 @@ const RANGE_OPTIONS = [
     { label: '3N', days: 1095 },
 ] as const;
 
-const MACRO_REFRESH_MS = 60 * 60 * 1000;
+const MACRO_REFRESH_MS = 5 * 60 * 1000;
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
