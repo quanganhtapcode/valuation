@@ -3,7 +3,7 @@
 import { siteConfig } from "@/app/siteConfig"
 import useScroll from "@/lib/use-scroll"
 import { cx, focusInput } from "@/lib/utils"
-import { RiCloseLine, RiMenuLine, RiSearchLine } from "@remixicon/react"
+import { RiArrowDownSLine, RiCloseLine, RiMenuLine, RiSearchLine } from "@remixicon/react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { useDebounce } from "use-debounce"
@@ -23,9 +23,31 @@ interface TickerData {
     tickers: Ticker[];
 }
 
+const NAV_GROUPS = [
+    {
+        id: "market",
+        label: "Market",
+        items: [
+            { label: "Overview", href: "/" },
+            { label: "Foreign", href: "/foreign" },
+            { label: "Macro", href: "/macro" },
+        ],
+    },
+    {
+        id: "stocks",
+        label: "Stocks",
+        items: [
+            { label: "Company", href: "/stock/VCB" },
+            { label: "Screener", href: "/screener" },
+        ],
+    },
+] as const;
+
 export function Navbar() {
     const scrolled = useScroll(15)
     const [open, setOpen] = React.useState(false)
+    const [mobileExpanded, setMobileExpanded] = useState<string | null>(null)
+    const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedQuery] = useDebounce(searchQuery, 300);
@@ -35,21 +57,22 @@ export function Navbar() {
     const tickerLoadingRef = useRef(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const mobileSearchRef = useRef<HTMLDivElement>(null);
-    // Separate refs to avoid conflicts
     const desktopInputRef = useRef<HTMLInputElement>(null);
     const mobileInputRef = useRef<HTMLInputElement>(null);
+    const dropdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const router = useRouter();
     const pathname = usePathname();
 
-    // Close search on navigation
+    // Close everything on navigation
     useEffect(() => {
         setSearchOpen(false);
         setSearchQuery('');
         setOpen(false);
+        setMobileExpanded(null);
+        setActiveDropdown(null);
     }, [pathname]);
 
-    // Close mobile menu when search is toggled
     useEffect(() => {
         if (searchOpen && window.innerWidth < 768) {
             setOpen(false);
@@ -61,25 +84,19 @@ export function Navbar() {
         const handleMediaQueryChange = () => {
             setOpen(false)
             setSearchOpen(false)
+            setMobileExpanded(null)
         }
-
         mediaQuery.addEventListener("change", handleMediaQueryChange)
         handleMediaQueryChange()
-
-        return () => {
-            mediaQuery.removeEventListener("change", handleMediaQueryChange)
-        }
+        return () => mediaQuery.removeEventListener("change", handleMediaQueryChange)
     }, [])
 
     const ensureTickersLoaded = useCallback(async () => {
         if (tickersLoaded || tickerLoadingRef.current) return;
-
         tickerLoadingRef.current = true;
         try {
             const data = await getTickerData();
-            if (data) {
-                setAllTickers((data as TickerData).tickers || []);
-            }
+            if (data) setAllTickers((data as TickerData).tickers || []);
             setTickersLoaded(true);
         } finally {
             tickerLoadingRef.current = false;
@@ -87,149 +104,106 @@ export function Navbar() {
     }, [tickersLoaded]);
 
     useEffect(() => {
-        if (searchOpen) {
-            ensureTickersLoaded();
-        }
+        if (searchOpen) ensureTickersLoaded();
     }, [searchOpen, ensureTickersLoaded]);
 
-    // Handle click outside search
+    // Click outside search
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             const target = event.target as Node;
-            // Check if click is outside desktop search container
-            const isOutsideDesktop = searchRef.current && !searchRef.current.contains(target);
-            // Check if click is outside mobile search container
-            const isOutsideMobile = mobileSearchRef.current && !mobileSearchRef.current.contains(target);
-
-            // If we are on mobile (desktop is hidden), we care effectively about mobile click.
-            // If we are on desktop, we care about desktop click.
-
-            // To be safe: if it is outside BOTH, then close.
-            // Wait, if mobile search is NOT open/rendered, mobileSearchRef.current is null.
-            // In that case isOutsideMobile is null (falsy) -> check logic.
-
-            // Logic:
-            // if (searchOpen) {
-            //    if (mobileSearchRef.current && contains) return; // Inside mobile
-            //    if (searchRef.current && contains) return; // Inside desktop
-            //    setSearchOpen(false);
-            // }
-
-            // Refined:
             if (searchOpen) {
                 let inside = false;
-                if (searchRef.current && searchRef.current.contains(target)) inside = true;
-                if (mobileSearchRef.current && mobileSearchRef.current.contains(target)) inside = true;
-
-                if (!inside) {
-                    setSearchOpen(false);
-                }
+                if (searchRef.current?.contains(target)) inside = true;
+                if (mobileSearchRef.current?.contains(target)) inside = true;
+                if (!inside) setSearchOpen(false);
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [searchOpen]);
 
-
-    // Optimized search logic with debouncing
+    // Search filtering
     useEffect(() => {
         if (typeof debouncedQuery !== 'string' || debouncedQuery.length < 1) {
             setSearchResults([]);
             return;
         }
-
-        const upperQuery = (debouncedQuery || '').toUpperCase();
-        const lowerQuery = (debouncedQuery || '').toLowerCase();
-
-        // Limit results computation with ROBUST null checks
+        const upperQuery = debouncedQuery.toUpperCase();
+        const lowerQuery = debouncedQuery.toLowerCase();
         const filtered = allTickers.filter(ticker => {
             if (!ticker) return false;
-            const sym = (ticker.symbol || '').toUpperCase();
-            const nam = (ticker.name || '').toLowerCase();
-            return sym.includes(upperQuery) || nam.includes(lowerQuery);
+            return (ticker.symbol || '').toUpperCase().includes(upperQuery) ||
+                (ticker.name || '').toLowerCase().includes(lowerQuery);
         }).sort((a, b) => {
-            const symbolA = (a?.symbol || '').toUpperCase();
-            const symbolB = (b?.symbol || '').toUpperCase();
-            if (symbolA === upperQuery && symbolB !== upperQuery) return -1;
-            if (symbolB === upperQuery && symbolA !== upperQuery) return 1;
-            if (symbolA.startsWith(upperQuery) && !symbolB.startsWith(upperQuery)) return -1;
-            if (!symbolA.startsWith(upperQuery) && symbolB.startsWith(upperQuery)) return 1;
+            const sa = (a?.symbol || '').toUpperCase();
+            const sb = (b?.symbol || '').toUpperCase();
+            if (sa === upperQuery && sb !== upperQuery) return -1;
+            if (sb === upperQuery && sa !== upperQuery) return 1;
+            if (sa.startsWith(upperQuery) && !sb.startsWith(upperQuery)) return -1;
+            if (!sa.startsWith(upperQuery) && sb.startsWith(upperQuery)) return 1;
             return 0;
         }).slice(0, 10);
-
         setSearchResults(filtered);
     }, [debouncedQuery, allTickers]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!tickersLoaded) {
-            void ensureTickersLoaded();
-        }
+        if (!tickersLoaded) void ensureTickersLoaded();
         setSearchQuery(e.target.value);
-    };
-
-    const handleSelectStock = (symbol: string) => {
-        setSearchOpen(false);
-        setSearchQuery('');
-        router.push(`/stock/${symbol}`);
     };
 
     const toggleSearch = () => {
         setSearchOpen(prev => {
             const next = !prev;
-            if (next && !tickersLoaded) {
-                void ensureTickersLoaded();
-            }
-            if (next) setOpen(false); // Close menu when opening search
+            if (next && !tickersLoaded) void ensureTickersLoaded();
+            if (next) setOpen(false);
             return next;
         });
     }
 
-    // Handle Ctrl+K / Cmd+K
+    // Ctrl+K / Cmd+K
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            // Check for K key with Meta (Mac) or Ctrl (Windows/Linux)
             if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key === 'k' || e.key === 'K')) {
                 e.preventDefault();
                 setSearchOpen(true);
-                // Priority focus
                 if (window.innerWidth < 768) {
-                    setOpen(false); // Close menu if on mobile
+                    setOpen(false);
                     setTimeout(() => mobileInputRef.current?.focus(), 100);
                 } else {
                     desktopInputRef.current?.focus();
                 }
             }
-            // Close search on Escape
-            if (e.key === 'Escape') {
-                setSearchOpen(false);
-            }
+            if (e.key === 'Escape') setSearchOpen(false);
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [tickersLoaded]); // Added tickersLoaded as dependency to ensure it can trigger loading if needed (though it does anyway)
+    }, [tickersLoaded]);
 
-    // Focus handling
     useEffect(() => {
         if (searchOpen) {
-            // Check if mobile input is available first (priority if we are on mobile)
             if (mobileInputRef.current) {
-                // Slight delay to ensure visibility / animation start
-                setTimeout(() => {
-                    mobileInputRef.current?.focus();
-                }, 100);
+                setTimeout(() => mobileInputRef.current?.focus(), 100);
             } else if (desktopInputRef.current) {
-                setTimeout(() => {
-                    desktopInputRef.current?.focus();
-                }, 50);
+                setTimeout(() => desktopInputRef.current?.focus(), 50);
             }
         }
     }, [searchOpen]);
+
+    // Hover handlers with delay to prevent flicker
+    const handleMouseEnter = (id: string) => {
+        if (dropdownTimerRef.current) clearTimeout(dropdownTimerRef.current);
+        setActiveDropdown(id);
+    };
+
+    const handleMouseLeave = () => {
+        dropdownTimerRef.current = setTimeout(() => setActiveDropdown(null), 120);
+    };
 
     return (
         <header
             className={cx(
                 "fixed inset-x-2 top-2 z-50 mx-auto flex max-w-6xl transform-gpu animate-slide-down-fade justify-center overflow-visible rounded-xl border border-transparent px-3 py-2.5 md:top-4 md:px-3 md:py-3 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1.03)] will-change-transform",
-                open === true ? "h-80" : "h-14 md:h-16",
+                open === true ? "h-96" : "h-14 md:h-16",
                 scrolled || open === true || searchOpen
                     ? "backdrop-blur-nav max-w-4xl border-gray-100 bg-white/80 shadow-xl shadow-black/5 dark:border-white/15 dark:bg-black/70"
                     : "bg-white/0 dark:bg-gray-950/0",
@@ -237,6 +211,7 @@ export function Navbar() {
         >
             <div className="w-full md:my-auto">
                 <div className="flex items-center justify-between gap-4">
+                    {/* Logo */}
                     <div className="flex-shrink-0">
                         <Link href={siteConfig.baseLinks.overview}>
                             <span className="sr-only">Overview</span>
@@ -244,42 +219,54 @@ export function Navbar() {
                         </Link>
                     </div>
 
+                    {/* Desktop Nav */}
                     <nav className="hidden md:flex flex-1 justify-center">
-                        <div className="flex items-center gap-6 lg:gap-8 font-medium">
-                            <Link
-                                className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
-                                href={siteConfig.baseLinks.home}
-                            >
-                                Market
-                            </Link>
-                            <Link
-                                className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
-                                href="/stock/VCB"
-                            >
-                                Company
-                            </Link>
-                            <Link
-                                className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
-                                href="/foreign"
-                            >
-                                Foreign
-                            </Link>
-                            <Link
-                                className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
-                                href="/screener"
-                            >
-                                Screener
-                            </Link>
-                            <Link
-                                className="px-2 py-1 text-gray-900 dark:text-gray-50 hover:text-blue-600 transition-colors"
-                                href="/macro"
-                            >
-                                Macro
-                            </Link>
+                        <div className="flex items-center gap-1 font-medium">
+                            {NAV_GROUPS.map((group) => (
+                                <div
+                                    key={group.id}
+                                    className="relative"
+                                    onMouseEnter={() => handleMouseEnter(group.id)}
+                                    onMouseLeave={handleMouseLeave}
+                                >
+                                    <button
+                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600 transition-colors"
+                                    >
+                                        {group.label}
+                                        <RiArrowDownSLine
+                                            className={cx(
+                                                "size-4 transition-transform duration-200",
+                                                activeDropdown === group.id ? "rotate-180" : ""
+                                            )}
+                                        />
+                                    </button>
+
+                                    {/* Dropdown panel */}
+                                    {activeDropdown === group.id && (
+                                        <div
+                                            className="absolute left-0 top-full pt-2"
+                                            onMouseEnter={() => handleMouseEnter(group.id)}
+                                            onMouseLeave={handleMouseLeave}
+                                        >
+                                            <div className="min-w-[160px] rounded-xl border border-gray-200 bg-white/95 py-1.5 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/95">
+                                                {group.items.map((item) => (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                    >
+                                                        {item.label}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     </nav>
 
-                    {/* Desktop Actions - Permanent Search Bar */}
+                    {/* Desktop Search */}
                     <div className="hidden items-center md:flex">
                         <div className="relative" ref={searchRef}>
                             <div className="relative group">
@@ -303,9 +290,7 @@ export function Navbar() {
                                     }}
                                     onFocus={() => {
                                         setSearchOpen(true);
-                                        if (!tickersLoaded) {
-                                            void ensureTickersLoaded();
-                                        }
+                                        if (!tickersLoaded) void ensureTickersLoaded();
                                     }}
                                 />
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center group-focus-within:opacity-100 opacity-0 transition-opacity pointer-events-none">
@@ -328,8 +313,7 @@ export function Navbar() {
                                                     href={`/stock/${result.symbol}`}
                                                     prefetch={false}
                                                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 group"
-                                                    onMouseDown={(e) => {
-                                                        // Use onMouseDown to trigger before the document's 'click-outside' listener closes the dropdown
+                                                    onMouseDown={() => {
                                                         router.push(`/stock/${result.symbol}`);
                                                     }}
                                                 >
@@ -378,20 +362,15 @@ export function Navbar() {
                         </div>
                     </div>
 
-                    {/* Mobile Menu Toggle */}
+                    {/* Mobile: Search + Hamburger */}
                     <div className="flex gap-x-2 md:hidden">
-                        <Button
-                            onClick={toggleSearch}
-                            variant="ghost"
-                            className="aspect-square p-2"
-                        >
+                        <Button onClick={toggleSearch} variant="ghost" className="aspect-square p-2">
                             <RiSearchLine className="size-5" />
                         </Button>
-
                         <Button
                             onClick={() => {
                                 setOpen(!open);
-                                if (!open) setSearchOpen(false); // Close search when opening menu
+                                if (!open) { setSearchOpen(false); setMobileExpanded(null); }
                             }}
                             variant="light"
                             className="aspect-square p-2"
@@ -406,32 +385,42 @@ export function Navbar() {
                 </div>
 
                 {/* Mobile Menu */}
-                <nav
-                    className={cx(
-                        "my-6 flex text-lg ease-in-out will-change-transform md:hidden",
-                        open ? "" : "hidden",
-                    )}
-                >
-                    <ul className="space-y-4 font-medium">
-                        <li onClick={() => setOpen(false)}>
-                            <Link href={siteConfig.baseLinks.home}>Market</Link>
-                        </li>
-                        <li onClick={() => setOpen(false)}>
-                            <Link href="/stock/VCB">Company</Link>
-                        </li>
-                        <li onClick={() => setOpen(false)}>
-                            <Link href="/foreign">Foreign</Link>
-                        </li>
-                        <li onClick={() => setOpen(false)}>
-                            <Link href="/screener">Screener</Link>
-                        </li>
-                        <li onClick={() => setOpen(false)}>
-                            <Link href="/macro">Macro</Link>
-                        </li>
+                <nav className={cx("my-6 flex ease-in-out will-change-transform md:hidden", open ? "" : "hidden")}>
+                    <ul className="w-full space-y-1 font-medium">
+                        {NAV_GROUPS.map((group) => (
+                            <li key={group.id}>
+                                <button
+                                    className="flex w-full items-center justify-between rounded-lg px-2 py-2.5 text-lg text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                    onClick={() => setMobileExpanded(prev => prev === group.id ? null : group.id)}
+                                >
+                                    {group.label}
+                                    <RiArrowDownSLine
+                                        className={cx(
+                                            "size-5 transition-transform duration-200",
+                                            mobileExpanded === group.id ? "rotate-180" : ""
+                                        )}
+                                    />
+                                </button>
+                                {mobileExpanded === group.id && (
+                                    <ul className="mt-1 ml-3 space-y-1 border-l-2 border-gray-100 dark:border-gray-800 pl-3">
+                                        {group.items.map((item) => (
+                                            <li key={item.href} onClick={() => setOpen(false)}>
+                                                <Link
+                                                    href={item.href}
+                                                    className="block rounded-lg px-2 py-2 text-base text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                >
+                                                    {item.label}
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </li>
+                        ))}
                     </ul>
                 </nav>
 
-                {/* Mobile Search Overlay - Simple version for now */}
+                {/* Mobile Search Overlay */}
                 {searchOpen && (
                     <div className="absolute left-0 top-16 z-50 w-full md:hidden" ref={mobileSearchRef}>
                         <div className="mx-auto max-w-sm rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-800 dark:bg-gray-950">
@@ -448,14 +437,9 @@ export function Navbar() {
                                     placeholder="Search stock symbol..."
                                     value={searchQuery}
                                     onChange={handleSearch}
-                                    onFocus={() => {
-                                        if (!tickersLoaded) {
-                                            void ensureTickersLoaded();
-                                        }
-                                    }}
+                                    onFocus={() => { if (!tickersLoaded) void ensureTickersLoaded(); }}
                                 />
                             </div>
-
                             {searchResults.length > 0 && (
                                 <div className="mt-2 max-h-64 overflow-y-auto">
                                     {searchResults.map((result) => (
@@ -464,9 +448,7 @@ export function Navbar() {
                                             href={`/stock/${result.symbol}`}
                                             prefetch={false}
                                             className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-900"
-                                            onMouseDown={(e) => {
-                                                router.push(`/stock/${result.symbol}`);
-                                            }}
+                                            onMouseDown={() => { router.push(`/stock/${result.symbol}`); }}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-gray-900 dark:text-gray-50">{result.symbol}</span>
@@ -484,4 +466,3 @@ export function Navbar() {
         </header>
     )
 }
-
