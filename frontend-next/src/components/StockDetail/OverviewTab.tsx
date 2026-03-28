@@ -97,15 +97,16 @@ export default function OverviewTab({
 
         return historicalData.map((d, i) => {
             const date = new Date(d.time);
+            const day   = date.getDate().toString().padStart(2, '0');
             const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const year = date.getFullYear().toString().slice(-2);
+            const year  = date.getFullYear().toString().slice(-2);
 
             // Determine volume color based on price change
             const prevClose = i > 0 ? historicalData[i - 1].close : d.open;
             const isUp = d.close >= prevClose;
 
             return {
-                date: `${month}/${year}`,
+                date: `${day}/${month}/${year}`,
                 Price: d.close,
                 Volume: d.volume,
                 volumeColor: isUp ? '#10b981' : '#ef4444',
