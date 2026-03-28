@@ -221,7 +221,7 @@ function HistoryChart({
                         yAxisWidth={isVnd ? 72 : 56}
                         showLegend={false}
                         showGradient={true}
-                        startEndOnly={false}
+                        autoMinValue={true}
                         className="h-48"
                     />
                 )}
@@ -363,7 +363,7 @@ function CpiChart({ data, loading }: { data: CpiPoint[]; loading: boolean }) {
                 ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
                 : <AreaChart data={chartData} index="Tháng" categories={['CPI (%)']} colors={['rose']}
                     valueFormatter={(v: number) => `${v.toFixed(2)}%`} yAxisWidth={52}
-                    showLegend={false} showGradient className="h-56 mt-4" />}
+                    showLegend={false} showGradient autoMinValue className="h-56 mt-4" />}
         </EcoChartCard>
     );
 }
@@ -380,7 +380,7 @@ function GdpChart({ data, loading }: { data: GdpPoint[]; loading: boolean }) {
                 ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
                 : <AreaChart data={chartData} index="Quý" categories={['GDP (%)']} colors={['emerald']}
                     valueFormatter={(v: number) => `${v.toFixed(2)}%`} yAxisWidth={52}
-                    showLegend={false} showGradient className="h-56 mt-4" />}
+                    showLegend={false} showGradient autoMinValue className="h-56 mt-4" />}
         </EcoChartCard>
     );
 }
