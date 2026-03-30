@@ -7,6 +7,7 @@ import {
     RiArrowDownSLine,
     RiBarChartBoxLine,
     RiBuilding2Line,
+    RiCalendarEventLine,
     RiCloseLine,
     RiExchangeDollarLine,
     RiFilterLine,
@@ -43,6 +44,7 @@ const NAV_GROUPS = [
             { label: "Overview", href: "/", icon: RiPieChartLine, desc: "Indices & movers" },
             { label: "Foreign", href: "/foreign", icon: RiGlobalLine, desc: "Foreign investor flows" },
             { label: "Macro", href: "/macro", icon: RiLineChartLine, desc: "FX, commodities & CPI" },
+            { label: "Events", href: "/events", icon: RiCalendarEventLine, desc: "Dividends, AGMs & more" },
         ],
     },
     {
