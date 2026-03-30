@@ -605,9 +605,16 @@ function StockTab() {
     const suggestions = useMemo(() => {
         if (!query.trim()) return [];
         const q = query.toUpperCase();
-        return tickers.filter(t =>
-            t.symbol.startsWith(q) || t.name?.toUpperCase().includes(q)
-        ).slice(0, 8);
+        const rank = (t: Ticker) => {
+            if (t.symbol === q) return 0;                        // exact symbol
+            if (t.symbol.startsWith(q)) return 1;               // symbol prefix
+            if (t.name?.toUpperCase().includes(q)) return 2;    // name contains
+            return 99;
+        };
+        return tickers
+            .filter(t => rank(t) < 99)
+            .sort((a, b) => rank(a) - rank(b) || a.symbol.localeCompare(b.symbol))
+            .slice(0, 8);
     }, [query, tickers]);
 
     const select = (t: Ticker) => {
