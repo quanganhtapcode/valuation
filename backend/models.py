@@ -59,6 +59,20 @@ class ValuationModels:
         except Exception as e:
             results['justified_pb'] = 0
 
+        # Calculate Graham Number
+        try:
+            graham_result = self.calculate_graham(assumptions, known_sector=known_sector)
+            results['graham'] = graham_result
+        except Exception as e:
+            results['graham'] = 0
+
+        # Calculate Comparable P/S
+        try:
+            ps_result = self.calculate_justified_ps(assumptions, known_sector=known_sector)
+            results['justified_ps'] = ps_result
+        except Exception as e:
+            results['justified_ps'] = 0
+
         results['weighted_average'] = 0
         results['summary'] = {}
 
@@ -71,14 +85,19 @@ class ValuationModels:
              is_bank = True
 
         # Calculate weighted average of valid models
+        # Non-banks: DCF 40% (FCFE+FCFF), Comparables 40% (PE+PB), Graham 10%, PS 10%
         default_weights = {
-            'fcfe': 0.25, 'fcff': 0.25, 'justified_pe': 0.25, 'justified_pb': 0.25
+            'fcfe': 0.20, 'fcff': 0.20,
+            'justified_pe': 0.20, 'justified_pb': 0.20,
+            'graham': 0.10, 'justified_ps': 0.10,
         }
-        
-        # Override weights for Banks: FCFE=0, FCFF=0, P/E=0.5, P/B=0.5
+
+        # Override weights for Banks: only P/E and P/B
         if is_bank:
             default_weights = {
-                'fcfe': 0, 'fcff': 0, 'justified_pe': 0.5, 'justified_pb': 0.5
+                'fcfe': 0, 'fcff': 0,
+                'justified_pe': 0.5, 'justified_pb': 0.5,
+                'graham': 0, 'justified_ps': 0,
             }
             # Add flag to results
             results['is_bank'] = True
@@ -86,7 +105,7 @@ class ValuationModels:
         model_weights = assumptions.get('model_weights', default_weights)
         
         # If user didn't provide specific weights (using defaults), ensure bank logic is applied
-        if is_bank and model_weights.get('fcfe') == 0.25 and model_weights.get('fcff') == 0.25:
+        if is_bank and model_weights.get('fcfe') == 0.20 and model_weights.get('fcff') == 0.20:
              model_weights = default_weights
         
         # Helper to extract numeric value from result
@@ -860,6 +879,103 @@ class ValuationModels:
             traceback.print_exc()
             return {'shareValue': 0, 'error': str(e)}
     
+    def calculate_graham(self, assumptions, known_sector=None):
+        """
+        Graham Number Valuation
+        Formula: sqrt(22.5 × EPS × BVPS)
+        22.5 = 15 (max P/E) × 1.5 (max P/B) per Graham's rule
+        Returns: value per share in VND
+        """
+        try:
+            data_frequency = assumptions.get('data_frequency', 'year')
+            shares_outstanding = self.get_shares_outstanding()
+
+            # Get EPS
+            eps = 0
+            if self.stock_data:
+                eps = self.stock_data.get('eps', 0) or self.stock_data.get('eps_ttm', 0) or self.stock_data.get('earnings_per_share', 0)
+            if eps == 0 and self.stock:
+                income_data = self.get_cached_income_data(period=data_frequency)
+                _, proc = self.check_data_frequency(income_data.copy(), data_frequency)
+                net_income = self.find_financial_value(proc, ['Net Profit For the Year', 'net_profit_parent_company', 'net_profit'], proc.shape[0] > 1)
+                eps = net_income / shares_outstanding if shares_outstanding > 0 else 0
+
+            # Get BVPS
+            bvps = 0
+            if self.stock_data:
+                bvps = self.stock_data.get('bvps', 0) or self.stock_data.get('book_value_per_share', 0)
+            if bvps == 0 and self.stock:
+                balance_data = self.get_cached_balance_data(period=data_frequency)
+                _, proc_b = self.check_data_frequency(balance_data.copy(), data_frequency)
+                equity_cols = ['Total Equity', 'Total shareholders equity', 'Vốn chủ sở hữu', 'Tổng vốn chủ sở hữu']
+                total_equity = self.find_financial_value(proc_b, equity_cols, False)
+                if total_equity == 0:
+                    ta = self.find_financial_value(proc_b, ['Total Assets', 'TOTAL ASSETS'], False)
+                    tl = self.find_financial_value(proc_b, ['Total Liabilities', 'TOTAL LIABILITIES'], False)
+                    total_equity = ta - tl if ta > 0 else 0
+                bvps = total_equity / shares_outstanding if shares_outstanding > 0 else 0
+
+            if eps <= 0 or bvps <= 0:
+                print(f"⚠️ Graham: EPS={eps:.2f} or BVPS={bvps:.2f} is non-positive, cannot calculate")
+                return 0
+
+            graham_value = (22.5 * eps * bvps) ** 0.5
+            print(f"📐 Graham: √(22.5 × {eps:,.0f} × {bvps:,.0f}) = {graham_value:,.0f} VND")
+            return float(graham_value)
+
+        except Exception as e:
+            print(f"❌ Graham error: {e}")
+            return 0
+
+    def calculate_justified_ps(self, assumptions, known_sector=None):
+        """
+        Comparable P/S Valuation (Price-to-Sales)
+        Formula: Sector Median P/S × Revenue per Share
+        Returns: value per share in VND
+        """
+        try:
+            data_frequency = assumptions.get('data_frequency', 'year')
+            shares_outstanding = self.get_shares_outstanding()
+
+            # Get revenue per share
+            revenue_per_share = 0
+            if self.stock_data:
+                revenue = self.stock_data.get('revenue_ttm', 0) or self.stock_data.get('revenue', 0)
+                if revenue > 0 and shares_outstanding > 0:
+                    revenue_per_share = revenue / shares_outstanding
+
+            if revenue_per_share == 0 and self.stock:
+                income_data = self.get_cached_income_data(period=data_frequency)
+                _, proc = self.check_data_frequency(income_data.copy(), data_frequency)
+                is_quarterly = proc.shape[0] > 1
+                revenue = self.find_financial_value(proc, [
+                    'Net Revenue', 'Revenue', 'Net revenue', 'Net sales',
+                    'net_revenue', 'revenue', 'sales'
+                ], is_quarterly)
+                if revenue > 0 and shares_outstanding > 0:
+                    revenue_per_share = revenue / shares_outstanding
+
+            if revenue_per_share <= 0:
+                print(f"⚠️ P/S: Revenue per share is {revenue_per_share:.2f}, cannot calculate")
+                return 0
+
+            # Get sector median P/S
+            peer_data = self.get_sector_peers(num_peers=10, known_sector=known_sector)
+            median_ps = peer_data.get('median_ps')
+
+            # Fallback to market average if no peer data
+            if median_ps is None or median_ps <= 0:
+                print(f"⚠️ P/S: No sector median P/S found, using market average of 1.5x")
+                median_ps = 1.5
+
+            ps_value = median_ps * revenue_per_share
+            print(f"💰 P/S: RevPS={revenue_per_share:,.0f} × Median PS={median_ps:.2f} = {ps_value:,.0f} VND")
+            return float(ps_value)
+
+        except Exception as e:
+            print(f"❌ P/S error: {e}")
+            return 0
+
     def calculate_dividend_discount(self, assumptions):
         """
         Calculate Dividend Discount Model
