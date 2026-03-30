@@ -32,6 +32,9 @@ export const API = {
     LOTTERY: `${API_BASE}/market/lottery`,
     MACRO_RATES:    `${API_BASE}/market/macro/rates`,
     MACRO_ECONOMIC: `${API_BASE}/market/macro/economic`,
+    MARKET_EVENTS: (date: string) => `${API_BASE}/market/events?date=${date}`,
+    MARKET_EVENTS_EXPORT: (fromDate: string, toDate: string) =>
+        `${API_BASE}/market/events/export?fromDate=${fromDate}&toDate=${toDate}`,
     MACRO_HISTORY: (symbol: string, days: number) =>
         `${API_BASE}/market/macro/history?symbol=${encodeURIComponent(symbol)}&days=${days}`,
 

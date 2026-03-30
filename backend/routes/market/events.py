@@ -14,12 +14,11 @@ logger = logging.getLogger(__name__)
 _VCI_HEADERS = {
     'accept': 'application/json',
     'user-agent': (
-        'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) '
-        'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36'
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     ),
     'origin': 'https://trading.vietcap.com.vn',
     'referer': 'https://trading.vietcap.com.vn/',
-    'x-requested-with': 'XMLHttpRequest',
 }
 
 _EVENTS_URL  = 'https://iq.vietcap.com.vn/api/iq-insight-service/v1/events'
