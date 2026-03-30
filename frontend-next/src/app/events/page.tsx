@@ -109,7 +109,7 @@ export default function EventsPage() {
         setLoading(true);
         setError(false);
         try {
-            const res = await fetch(API.EVENTS(date));
+            const res = await fetch(API.MARKET_EVENTS(date));
             if (!res.ok) throw new Error('fetch failed');
             setEvents(await res.json());
         } catch (_) {
@@ -131,7 +131,7 @@ export default function EventsPage() {
 
     // ── Excel download ────────────────────────────────────────────────────
     const handleExport = () => {
-        window.location.href = API.EVENTS_EXPORT(dateYYYYMMDD, dateYYYYMMDD);
+        window.location.href = API.MARKET_EVENTS_EXPORT(dateYYYYMMDD, dateYYYYMMDD);
     };
 
     return (
