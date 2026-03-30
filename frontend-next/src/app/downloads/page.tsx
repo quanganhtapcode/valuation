@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import JSZip from 'jszip';
 import ExcelJS from 'exceljs';
@@ -8,20 +8,21 @@ import ExcelJS from 'exceljs';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type DownloadStatus = 'idle' | 'loading' | 'done' | 'error';
-type PreviewStatus  = 'idle' | 'loading' | 'ready' | 'error';
 type ExportFormat   = 'CSV' | 'XLSX';
-type GroupId        = 'ALL' | 'market' | 'indices' | 'valuation' | 'reference';
+type MainTab        = 'market' | 'stock';
+type MarketGroupId  = 'ALL' | 'market' | 'indices' | 'valuation' | 'reference';
 
 type FlatRow = Record<string, string | number | boolean | null>;
 
-type RawDataset = {
+type Dataset = {
     id: string;
     title: string;
     description: string;
-    endpoint: string;
-    group: Exclude<GroupId, 'ALL'>;
+    endpoint: string | ((symbol: string) => string);
+    group: Exclude<MarketGroupId, 'ALL'>;
     formats: ExportFormat[];
-    filename: (format: ExportFormat) => string;
+    filename: (format: ExportFormat, symbol?: string) => string;
+    notes?: string;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -30,22 +31,13 @@ const today = () => new Date().toISOString().slice(0, 10);
 const DATE_FIELD_HINT       = /(date|time|timestamp|trading|ngay)/i;
 const DATE_FIELD_CANDIDATES = ['date', 'tradingDate', 'trading_date', 'time', 'timestamp', 'datetime', 'published_at', 'created_at'];
 
-// ── Dataset config ────────────────────────────────────────────────────────────
+// ── Market datasets ───────────────────────────────────────────────────────────
 
-const RAW_DATASETS: RawDataset[] = [
-    {
-        id: 'overview-refresh',
-        title: 'Market Overview Snapshot',
-        description: 'Full combined payload used by homepage widgets.',
-        endpoint: '/api/market/overview-refresh',
-        group: 'market',
-        formats: ['CSV', 'XLSX'],
-        filename: (f) => `market_overview_refresh_${today()}.${f.toLowerCase()}`,
-    },
+const MARKET_DATASETS: Dataset[] = [
     {
         id: 'vci-indices',
-        title: 'Realtime Market Indices',
-        description: 'VNINDEX, VN30, HNX, UPCOM index payload.',
+        title: 'Chỉ số thị trường',
+        description: 'VNINDEX, VN30, HNX, UPCOM — giá, thay đổi, khối lượng khớp.',
         endpoint: '/api/market/vci-indices',
         group: 'market',
         formats: ['CSV', 'XLSX'],
@@ -53,8 +45,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'top-movers-up',
-        title: 'Top Movers (Up)',
-        description: 'Top gaining stocks snapshot.',
+        title: 'Tăng mạnh nhất',
+        description: 'Top cổ phiếu tăng giá mạnh nhất phiên.',
         endpoint: '/api/market/top-movers?type=UP',
         group: 'market',
         formats: ['CSV', 'XLSX'],
@@ -62,8 +54,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'top-movers-down',
-        title: 'Top Movers (Down)',
-        description: 'Top losing stocks snapshot.',
+        title: 'Giảm mạnh nhất',
+        description: 'Top cổ phiếu giảm giá mạnh nhất phiên.',
         endpoint: '/api/market/top-movers?type=DOWN',
         group: 'market',
         formats: ['CSV', 'XLSX'],
@@ -71,8 +63,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'market-news',
-        title: 'Market News',
-        description: 'Latest market news payload.',
+        title: 'Tin tức thị trường',
+        description: 'Tin tức mới nhất với điểm sentiment AI (Positive/Negative/Neutral).',
         endpoint: '/api/market/news',
         group: 'market',
         formats: ['CSV', 'XLSX'],
@@ -80,17 +72,18 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'heatmap-hsx',
-        title: 'Heatmap (HSX)',
-        description: 'Heatmap payload with sector grouping and price patches.',
-        endpoint: '/api/market/heatmap?exchange=HSX&limit=300',
+        title: 'Heatmap HSX (phẳng)',
+        description: 'Toàn bộ cổ phiếu HSX với ngành, giá, % thay đổi, vốn hóa.',
+        endpoint: '/api/market/heatmap?exchange=HSX&limit=300&flat=1',
         group: 'market',
         formats: ['CSV', 'XLSX'],
         filename: (f) => `heatmap_hsx_${today()}.${f.toLowerCase()}`,
+        notes: 'Dữ liệu đã flatten — mỗi dòng là 1 cổ phiếu.',
     },
     {
         id: 'vnindex-history',
-        title: 'VNINDEX OHLCV History',
-        description: 'Full historical OHLCV series.',
+        title: 'VNINDEX — Lịch sử OHLCV',
+        description: 'Dữ liệu giá mở/đóng, cao/thấp, khối lượng và foreign flow theo ngày.',
         endpoint: '/api/market/index-history?index=VNINDEX&days=5000',
         group: 'indices',
         formats: ['CSV', 'XLSX'],
@@ -98,8 +91,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'vn30-history',
-        title: 'VN30 OHLCV History',
-        description: 'Full historical OHLCV series.',
+        title: 'VN30 — Lịch sử OHLCV',
+        description: 'Dữ liệu lịch sử chỉ số VN30.',
         endpoint: '/api/market/index-history?index=VN30&days=5000',
         group: 'indices',
         formats: ['CSV', 'XLSX'],
@@ -107,8 +100,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'hnx-history',
-        title: 'HNX OHLCV History',
-        description: 'Full historical OHLCV series.',
+        title: 'HNX — Lịch sử OHLCV',
+        description: 'Dữ liệu lịch sử chỉ số HNX.',
         endpoint: '/api/market/index-history?index=HNXIndex&days=5000',
         group: 'indices',
         formats: ['CSV', 'XLSX'],
@@ -116,8 +109,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'upcom-history',
-        title: 'UPCOM OHLCV History',
-        description: 'Full historical OHLCV series.',
+        title: 'UPCOM — Lịch sử OHLCV',
+        description: 'Dữ liệu lịch sử chỉ số UPCOM.',
         endpoint: '/api/market/index-history?index=HNXUpcomIndex&days=5000',
         group: 'indices',
         formats: ['CSV', 'XLSX'],
@@ -125,8 +118,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'index-valuation',
-        title: 'Index Valuation (PE/PB)',
-        description: 'PE/PB valuation chart payload for VNINDEX.',
+        title: 'Định giá VNINDEX (PE/PB)',
+        description: 'Chuỗi thời gian PE và PB của VNINDEX so với các mức trung bình lịch sử.',
         endpoint: '/api/market/pe-chart?metric=both&time_frame=ALL',
         group: 'valuation',
         formats: ['CSV', 'XLSX'],
@@ -134,8 +127,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'gold',
-        title: 'Gold Prices',
-        description: 'Gold market payload used by sidebar.',
+        title: 'Giá vàng',
+        description: 'Giá vàng SJC và các thương hiệu khác (mua/bán).',
         endpoint: '/api/market/gold',
         group: 'valuation',
         formats: ['CSV', 'XLSX'],
@@ -143,8 +136,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'world-indices',
-        title: 'World Indices',
-        description: 'Global benchmark indices payload.',
+        title: 'Chỉ số thế giới',
+        description: 'S&P 500, Nasdaq, Nikkei, Hang Seng và các chỉ số toàn cầu khác.',
         endpoint: '/api/market/world-indices',
         group: 'reference',
         formats: ['CSV', 'XLSX'],
@@ -152,8 +145,8 @@ const RAW_DATASETS: RawDataset[] = [
     },
     {
         id: 'tickers',
-        title: 'All Tickers',
-        description: 'Complete ticker universe from the platform.',
+        title: 'Danh sách mã cổ phiếu',
+        description: 'Toàn bộ ~1556 mã niêm yết: mã, tên công ty, ngành, sàn.',
         endpoint: '/api/tickers',
         group: 'reference',
         formats: ['CSV', 'XLSX'],
@@ -161,43 +154,127 @@ const RAW_DATASETS: RawDataset[] = [
     },
 ];
 
-// ── Group config ──────────────────────────────────────────────────────────────
+// ── Per-stock datasets ────────────────────────────────────────────────────────
 
-const GROUPS: { id: GroupId; label: string; color: string; bg: string }[] = [
-    { id: 'ALL',        label: 'Tất cả',       color: 'text-slate-700 dark:text-slate-200',    bg: 'bg-slate-100 dark:bg-slate-700' },
-    { id: 'market',     label: 'Market',        color: 'text-blue-700 dark:text-blue-300',      bg: 'bg-blue-50 dark:bg-blue-900/30' },
-    { id: 'indices',    label: 'Lịch sử Index', color: 'text-violet-700 dark:text-violet-300',  bg: 'bg-violet-50 dark:bg-violet-900/30' },
-    { id: 'valuation',  label: 'Valuation',     color: 'text-emerald-700 dark:text-emerald-300',bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { id: 'reference',  label: 'Reference',     color: 'text-amber-700 dark:text-amber-300',    bg: 'bg-amber-50 dark:bg-amber-900/30' },
+type StockDataset = {
+    id: string;
+    title: string;
+    description: string;
+    endpoint: (symbol: string) => string;
+    filename: (format: ExportFormat, symbol: string) => string;
+    badge: string;
+    badgeColor: string;
+    notes?: string;
+};
+
+const STOCK_DATASETS: StockDataset[] = [
+    {
+        id: 'price-history',
+        title: 'Lịch sử giá (OHLCV)',
+        description: 'Giá mở/đóng/cao/thấp, khối lượng giao dịch theo ngày — toàn bộ lịch sử.',
+        endpoint: (s) => `/api/stock/history/${s}?period=ALL`,
+        filename: (f, s) => `${s}_price_history_${today()}.${f.toLowerCase()}`,
+        badge: 'Giá',
+        badgeColor: 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30',
+    },
+    {
+        id: 'financial-report',
+        title: 'Báo cáo tài chính',
+        description: 'Kết quả kinh doanh, bảng cân đối kế toán, lưu chuyển tiền tệ — theo quý/năm.',
+        endpoint: (s) => `/api/financial-report/${s}`,
+        filename: (f, s) => `${s}_financial_report_${today()}.${f.toLowerCase()}`,
+        badge: 'Tài chính',
+        badgeColor: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30',
+    },
+    {
+        id: 'financial-ratios',
+        title: 'Chỉ số tài chính lịch sử',
+        description: 'ROE, ROA, P/E, P/B, EPS, biên lợi nhuận, thanh khoản — theo quý.',
+        endpoint: (s) => `/api/historical-chart-data/${s}?period=quarter`,
+        filename: (f, s) => `${s}_financial_ratios_${today()}.${f.toLowerCase()}`,
+        badge: 'Tài chính',
+        badgeColor: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30',
+    },
+    {
+        id: 'company-profile',
+        title: 'Hồ sơ công ty',
+        description: 'Thông tin cơ bản: tên, ngành, vốn điều lệ, số cổ phiếu lưu hành, giới thiệu.',
+        endpoint: (s) => `/api/company/profile/${s}`,
+        filename: (f, s) => `${s}_company_profile_${today()}.${f.toLowerCase()}`,
+        badge: 'Công ty',
+        badgeColor: 'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30',
+    },
+    {
+        id: 'stock-snapshot',
+        title: 'Snapshot hiện tại',
+        description: 'Giá hiện tại, vốn hóa, P/E, P/B, EPS, tăng trưởng doanh thu — tất cả trong 1 dòng.',
+        endpoint: (s) => `/api/stock/${s}?fetch_price=true`,
+        filename: (f, s) => `${s}_snapshot_${today()}.${f.toLowerCase()}`,
+        badge: 'Tổng quan',
+        badgeColor: 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700',
+    },
+    {
+        id: 'news-sentiment',
+        title: 'Tin tức & Sentiment AI',
+        description: 'Tin tức gần nhất với điểm phân tích sentiment (Positive/Negative/Neutral).',
+        endpoint: (s) => `/api/news/${s}`,
+        filename: (f, s) => `${s}_news_${today()}.${f.toLowerCase()}`,
+        badge: 'Tin tức',
+        badgeColor: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30',
+    },
+    {
+        id: 'holders',
+        title: 'Cơ cấu cổ đông',
+        description: 'Danh sách cổ đông lớn với tỷ lệ sở hữu.',
+        endpoint: (s) => `/api/stock/holders/${s}`,
+        filename: (f, s) => `${s}_holders_${today()}.${f.toLowerCase()}`,
+        badge: 'Cổ đông',
+        badgeColor: 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-900/30',
+    },
+    {
+        id: 'stock-events',
+        title: 'Sự kiện cổ phiếu',
+        description: 'Cổ tức, đại hội cổ đông, ngày giao dịch không hưởng quyền.',
+        endpoint: (s) => `/api/events/${s}`,
+        filename: (f, s) => `${s}_events_${today()}.${f.toLowerCase()}`,
+        badge: 'Sự kiện',
+        badgeColor: 'text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-900/30',
+    },
 ];
 
-function groupConfig(id: GroupId) {
-    return GROUPS.find(g => g.id === id) ?? GROUPS[0];
-}
+// ── Group config ──────────────────────────────────────────────────────────────
 
-function GroupBadge({ group }: { group: Exclude<GroupId, 'ALL'> }) {
-    const cfg = groupConfig(group);
-    return (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.color} ${cfg.bg}`}>
-            {cfg.label}
-        </span>
-    );
-}
+const MARKET_GROUPS: { id: MarketGroupId; label: string }[] = [
+    { id: 'ALL',       label: 'Tất cả' },
+    { id: 'market',    label: 'Market' },
+    { id: 'indices',   label: 'Lịch sử Index' },
+    { id: 'valuation', label: 'Valuation' },
+    { id: 'reference', label: 'Reference' },
+];
+
+const GROUP_STYLES: Record<Exclude<MarketGroupId, 'ALL'>, string> = {
+    market:    'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30',
+    indices:   'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30',
+    valuation: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30',
+    reference: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30',
+};
+
+const GROUP_LABELS: Record<Exclude<MarketGroupId, 'ALL'>, string> = {
+    market: 'Market', indices: 'Lịch sử', valuation: 'Valuation', reference: 'Reference',
+};
 
 // ── Data utilities ────────────────────────────────────────────────────────────
 
 async function fetchJson(endpoint: string): Promise<unknown> {
     const res = await fetch(endpoint, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Failed: ${endpoint}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
 }
 
 function triggerBlobDownload(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
+    a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
 }
 
@@ -228,10 +305,11 @@ function normalizeToRows(payload: unknown): FlatRow[] {
     }
     if (payload && typeof payload === 'object') {
         const obj = payload as Record<string, unknown>;
+        // Look for main array key
         const arrayKey = DATE_FIELD_CANDIDATES
             .map(c => Object.keys(obj).find(k => k.toLowerCase() === c.toLowerCase()))
             .find(Boolean)
-            || Object.keys(obj).find(k => Array.isArray(obj[k]));
+            || Object.keys(obj).find(k => Array.isArray(obj[k]) && (obj[k] as unknown[]).length > 0);
         if (arrayKey && Array.isArray(obj[arrayKey])) {
             return (obj[arrayKey] as unknown[]).map((item, idx) => {
                 if (item && typeof item === 'object' && !Array.isArray(item)) return flattenObject(item as Record<string, unknown>);
@@ -251,318 +329,468 @@ function getColumns(rows: FlatRow[]): string[] {
     return Array.from(set);
 }
 
-function guessColumnType(rows: FlatRow[], column: string): string {
-    const sample = rows.map(r => r[column]).find(v => v !== null && v !== undefined && v !== '');
-    if (sample === undefined) return 'empty';
-    if (typeof sample === 'number') return 'number';
-    if (typeof sample === 'boolean') return 'boolean';
-    if (typeof sample === 'string' && !Number.isNaN(Date.parse(sample))) return 'date';
+function guessType(rows: FlatRow[], col: string): string {
+    const s = rows.map(r => r[col]).find(v => v !== null && v !== undefined && v !== '');
+    if (s === undefined) return '—';
+    if (typeof s === 'number') return 'number';
+    if (typeof s === 'boolean') return 'boolean';
+    if (typeof s === 'string' && !Number.isNaN(Date.parse(s))) return 'date';
     return 'string';
 }
 
 function detectDateField(rows: FlatRow[], columns: string[]): string | null {
     const hinted = columns.find(c => DATE_FIELD_HINT.test(c));
     if (hinted) return hinted;
-    for (const column of columns) {
-        const samples = rows.map(r => r[column]).filter((v): v is string => typeof v === 'string').slice(0, 20);
-        if (samples.length > 0 && samples.filter(v => !Number.isNaN(Date.parse(v))).length >= Math.ceil(samples.length * 0.7)) return column;
+    for (const col of columns) {
+        const samples = rows.map(r => r[col]).filter((v): v is string => typeof v === 'string').slice(0, 20);
+        if (samples.length > 0 && samples.filter(v => !Number.isNaN(Date.parse(v))).length >= Math.ceil(samples.length * 0.7)) return col;
     }
     return null;
 }
 
-function filterRowsByDate(rows: FlatRow[], dateField: string | null, fromDate: string, toDate: string): FlatRow[] {
-    if (!dateField || (!fromDate && !toDate)) return rows;
-    const fromTs = fromDate ? new Date(fromDate).getTime() : Number.NEGATIVE_INFINITY;
-    const toTs   = toDate   ? new Date(`${toDate}T23:59:59`).getTime() : Number.POSITIVE_INFINITY;
-    return rows.filter(row => {
-        const value = row[dateField];
-        if (typeof value !== 'string' && typeof value !== 'number') return false;
-        const ts = new Date(value).getTime();
-        return !Number.isNaN(ts) && ts >= fromTs && ts <= toTs;
+function filterByDate(rows: FlatRow[], field: string | null, from: string, to: string): FlatRow[] {
+    if (!field || (!from && !to)) return rows;
+    const fromTs = from ? new Date(from).getTime() : -Infinity;
+    const toTs   = to   ? new Date(`${to}T23:59:59`).getTime() : Infinity;
+    return rows.filter(r => {
+        const v = r[field];
+        if (typeof v !== 'string' && typeof v !== 'number') return false;
+        const ts = new Date(v).getTime();
+        return !isNaN(ts) && ts >= fromTs && ts <= toTs;
     });
 }
 
-function toCsv(rows: FlatRow[], columns: string[]): string {
-    const escape = (v: unknown) => `"${valueToString(v).replace(/"/g, '""')}"`;
-    return '\uFEFF' + [columns.map(c => escape(c)).join(','), ...rows.map(r => columns.map(c => escape(r[c])).join(','))].join('\n');
+function toCsv(rows: FlatRow[], cols: string[]): string {
+    const esc = (v: unknown) => `"${valueToString(v).replace(/"/g, '""')}"`;
+    return '\uFEFF' + [cols.map(esc).join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n');
 }
 
-async function toXlsxBuffer(rows: FlatRow[], columns: string[], sheetName = 'Data'): Promise<ArrayBuffer> {
+async function toXlsxBuf(rows: FlatRow[], cols: string[], sheet = 'Data'): Promise<ArrayBuffer> {
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet(sheetName.slice(0, 31));
-    ws.addRow(columns);
-    rows.forEach(r => ws.addRow(columns.map(c => r[c] ?? '')));
+    const ws = wb.addWorksheet(sheet.slice(0, 31));
+    ws.addRow(cols);
+    rows.forEach(r => ws.addRow(cols.map(c => r[c] ?? '')));
     ws.getRow(1).font = { bold: true };
-    ws.columns = columns.map(col => ({ header: col, key: col, width: Math.min(Math.max(col.length + 4, 14), 40) }));
+    ws.columns = cols.map(c => ({ header: c, key: c, width: Math.min(Math.max(c.length + 4, 14), 40) }));
     return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }
 
-async function exportRows(rows: FlatRow[], columns: string[], format: ExportFormat, filename: string) {
-    if (format === 'CSV') {
-        triggerBlobDownload(new Blob([toCsv(rows, columns)], { type: 'text/csv;charset=utf-8' }), filename);
-        return;
-    }
-    const buffer = await toXlsxBuffer(rows, columns);
-    triggerBlobDownload(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename);
+async function doExport(rows: FlatRow[], cols: string[], format: ExportFormat, filename: string) {
+    if (format === 'CSV') { triggerBlobDownload(new Blob([toCsv(rows, cols)], { type: 'text/csv;charset=utf-8' }), filename); return; }
+    triggerBlobDownload(new Blob([await toXlsxBuf(rows, cols)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename);
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
-function IconDownload({ className }: { className?: string }) {
+const IcoDownload = ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+    </svg>
+);
+const IcoCheck = ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+    </svg>
+);
+const IcoSpin = ({ className }: { className?: string }) => (
+    <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+    </svg>
+);
+const IcoChevron = ({ className, open }: { className?: string; open: boolean }) => (
+    <svg className={`transition-transform duration-200 ${open ? 'rotate-180' : ''} ${className}`} viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+    </svg>
+);
+
+// ── Shared download button ────────────────────────────────────────────────────
+
+function DlBtn({ format, status, onClick }: { format: ExportFormat; status: DownloadStatus; onClick: () => void }) {
+    const busy = status === 'loading';
+    const done = status === 'done';
+    const err  = status === 'error';
+    const base = 'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed';
+    const cls  = format === 'XLSX'
+        ? `${base} ${done ? 'bg-emerald-600 text-white' : err ? 'bg-red-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`
+        : `${base} ${done ? 'border border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300' : err ? 'border border-red-400 text-red-500' : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400'}`;
     return (
-        <svg className={className} viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-        </svg>
-    );
-}
-
-function IconCheck({ className }: { className?: string }) {
-    return (
-        <svg className={className} viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-        </svg>
-    );
-}
-
-function IconSpinner({ className }: { className?: string }) {
-    return (
-        <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-        </svg>
-    );
-}
-
-function IconChevron({ className, open }: { className?: string; open: boolean }) {
-    return (
-        <svg className={`transition-transform ${open ? 'rotate-180' : ''} ${className}`} viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-        </svg>
-    );
-}
-
-// ── Download button ───────────────────────────────────────────────────────────
-
-function DownloadBtn({
-    format, status, disabled, onClick,
-}: {
-    format: ExportFormat;
-    status: DownloadStatus;
-    disabled: boolean;
-    onClick: () => void;
-}) {
-    const isLoading = status === 'loading';
-    const isDone    = status === 'done';
-    const isError   = status === 'error';
-
-    const base = 'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all focus:outline-none';
-    const styles = {
-        CSV: isError
-            ? `${base} bg-red-50 border border-red-300 text-red-600 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400`
-            : isDone
-            ? `${base} bg-emerald-50 border border-emerald-300 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400`
-            : `${base} border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400`,
-        XLSX: isError
-            ? `${base} bg-red-50 border border-red-300 text-red-600 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400`
-            : isDone
-            ? `${base} bg-emerald-50 border border-emerald-300 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400`
-            : `${base} bg-blue-600 text-white hover:bg-blue-700`,
-    };
-
-    return (
-        <button onClick={onClick} disabled={disabled || isLoading} className={`${styles[format]} disabled:opacity-50 disabled:cursor-not-allowed`}>
-            {isLoading
-                ? <IconSpinner className="w-4 h-4" />
-                : isDone
-                ? <IconCheck className="w-4 h-4" />
-                : <IconDownload className="w-4 h-4" />}
-            {isLoading ? 'Đang tải…' : isDone ? 'Xong!' : isError ? 'Thử lại' : format}
+        <button onClick={onClick} disabled={busy} className={cls}>
+            {busy ? <IcoSpin className="w-3.5 h-3.5" /> : done ? <IcoCheck className="w-3.5 h-3.5" /> : <IcoDownload className="w-3.5 h-3.5" />}
+            {busy ? 'Đang tải…' : done ? 'Xong!' : err ? 'Lỗi' : format}
         </button>
     );
 }
 
-// ── Dataset card ──────────────────────────────────────────────────────────────
+// ── Preview panel ─────────────────────────────────────────────────────────────
 
-function DatasetCard({ ds }: { ds: RawDataset }) {
+function PreviewPanel({ rows, cols, dateField }: { rows: FlatRow[]; cols: string[]; dateField: string | null }) {
+    const [from, setFrom] = useState('');
+    const [to, setTo]     = useState('');
+    const filtered = useMemo(() => filterByDate(rows, dateField, from, to), [rows, dateField, from, to]);
+    const preview  = cols.slice(0, 8);
+
+    return (
+        <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-5 py-4 space-y-3">
+            {/* Stats */}
+            <div className="flex flex-wrap gap-2">
+                <span className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200">{rows.length.toLocaleString()} dòng</span>
+                <span className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200">{cols.length} cột</span>
+                {dateField && <span className="rounded-md bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-2.5 py-1 text-xs text-blue-700 dark:text-blue-300">date: {dateField}</span>}
+            </div>
+            {/* Date filter */}
+            {dateField && (
+                <div className="flex flex-wrap gap-2 items-end">
+                    {[['Từ ngày', from, setFrom], ['Đến ngày', to, setTo]].map(([label, val, set]) => (
+                        <div key={label as string} className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wide">{label as string}</span>
+                            <input type="date" value={val as string} onChange={e => (set as (v: string) => void)(e.target.value)}
+                                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                    ))}
+                    {(from || to) && (
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wide">Sau lọc</span>
+                            <span className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">{filtered.length.toLocaleString()} dòng</span>
+                        </div>
+                    )}
+                </div>
+            )}
+            {/* Schema table */}
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                            <th className="px-3 py-2 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Cột</th>
+                            <th className="px-3 py-2 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-16">Kiểu</th>
+                            <th className="px-3 py-2 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Mẫu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {preview.map(col => {
+                            const sample = filtered.map(r => r[col]).find(v => v !== null && v !== undefined && v !== '');
+                            return (
+                                <tr key={col} className="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-white dark:hover:bg-slate-900/50">
+                                    <td className="px-3 py-1.5 font-mono text-slate-800 dark:text-slate-200">{col}</td>
+                                    <td className="px-3 py-1.5 text-slate-400">{guessType(filtered, col)}</td>
+                                    <td className="px-3 py-1.5 text-slate-500 dark:text-slate-400 truncate max-w-[180px]">{valueToString(sample) || <span className="italic text-slate-300 dark:text-slate-600">—</span>}</td>
+                                </tr>
+                            );
+                        })}
+                        {cols.length > 8 && (
+                            <tr><td colSpan={3} className="px-3 py-1.5 text-slate-400 italic">+ {cols.length - 8} cột nữa…</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+// ── Generic dataset card (used for both market + stock) ───────────────────────
+
+function DatasetCard({
+    title, description, endpoint, filename, badge, badgeColor, notes, formats = ['CSV', 'XLSX'],
+}: {
+    title: string; description: string; endpoint: string;
+    filename: (f: ExportFormat) => string;
+    badge: string; badgeColor: string; notes?: string;
+    formats?: ExportFormat[];
+}) {
     const [csvStatus,  setCsvStatus]  = useState<DownloadStatus>('idle');
     const [xlsxStatus, setXlsxStatus] = useState<DownloadStatus>('idle');
-    const [previewStatus, setPreviewStatus] = useState<PreviewStatus>('idle');
+    const [previewSt,  setPreviewSt]  = useState<'idle'|'loading'|'ready'|'error'>('idle');
     const [rows,    setRows]    = useState<FlatRow[]>([]);
-    const [columns, setColumns] = useState<string[]>([]);
+    const [cols,    setCols]    = useState<string[]>([]);
     const [dateField, setDateField] = useState<string | null>(null);
-    const [fromDate, setFromDate]   = useState('');
-    const [toDate,   setToDate]     = useState('');
-    const [previewOpen, setPreviewOpen] = useState(false);
-
-    const filteredRows   = useMemo(() => filterRowsByDate(rows, dateField, fromDate, toDate), [rows, dateField, fromDate, toDate]);
-    const previewColumns = columns.slice(0, 8);
+    const [open, setOpen] = useState(false);
 
     const ensureData = async () => {
-        if (previewStatus === 'ready') return { rows, columns };
-        setPreviewStatus('loading');
+        if (previewSt === 'ready') return { rows, cols };
+        setPreviewSt('loading');
         try {
-            const payload     = await fetchJson(ds.endpoint);
-            const parsedRows  = normalizeToRows(payload);
-            const parsedCols  = getColumns(parsedRows);
-            setRows(parsedRows);
-            setColumns(parsedCols);
-            setDateField(detectDateField(parsedRows, parsedCols));
-            setPreviewStatus('ready');
-            return { rows: parsedRows, columns: parsedCols };
+            const payload = await fetchJson(endpoint);
+            const r = normalizeToRows(payload);
+            const c = getColumns(r);
+            setRows(r); setCols(c); setDateField(detectDateField(r, c));
+            setPreviewSt('ready');
+            return { rows: r, cols: c };
         } catch {
-            setPreviewStatus('error');
+            setPreviewSt('error');
             throw new Error('load failed');
         }
     };
 
     const handleDownload = async (format: ExportFormat) => {
-        const setStatus = format === 'CSV' ? setCsvStatus : setXlsxStatus;
-        setStatus('loading');
+        const set = format === 'CSV' ? setCsvStatus : setXlsxStatus;
+        set('loading');
         try {
-            const data = await ensureData();
-            const r    = data?.rows ?? rows;
-            const c    = data?.columns?.length ? data.columns : getColumns(r);
-            const fr   = filterRowsByDate(r, dateField, fromDate, toDate);
-            await exportRows(fr, c, format, ds.filename(format));
-            setStatus('done');
-            setTimeout(() => setStatus('idle'), 2500);
+            const d = await ensureData();
+            const r = d?.rows ?? rows;
+            const c = d?.cols?.length ? d.cols : getColumns(r);
+            await doExport(r, c, format, filename(format));
+            set('done'); setTimeout(() => set('idle'), 2500);
         } catch {
-            setStatus('error');
-            setTimeout(() => setStatus('idle'), 3000);
+            set('error'); setTimeout(() => set('idle'), 3000);
         }
     };
 
-    const handlePreviewToggle = async () => {
-        if (!previewOpen) {
-            setPreviewOpen(true);
-            try { await ensureData(); } catch { /* error handled in state */ }
+    const handlePreview = async () => {
+        if (!open) {
+            setOpen(true);
+            try { await ensureData(); } catch { /* handled */ }
         } else {
-            setPreviewOpen(false);
+            setOpen(false);
         }
     };
 
     return (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            {/* Card header */}
-            <div className="px-5 pt-4 pb-3">
-                <div className="flex items-start justify-between gap-3 mb-1">
-                    <p className="font-semibold text-slate-900 dark:text-slate-100 leading-snug">{ds.title}</p>
-                    <GroupBadge group={ds.group} />
+            <div className="px-5 pt-4 pb-4">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="font-semibold text-slate-900 dark:text-slate-100 leading-snug text-sm">{title}</p>
+                    <span className={`flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badgeColor}`}>{badge}</span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{ds.description}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{description}</p>
+                {notes && <p className="text-[11px] text-blue-600 dark:text-blue-400 mb-2 italic">{notes}</p>}
 
-                {/* Endpoint pill */}
                 <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-1.5 mb-4">
                     <svg className="w-3 h-3 text-slate-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
                     </svg>
-                    <code className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{ds.endpoint}</code>
+                    <code className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{endpoint}</code>
                 </div>
 
-                {/* Download buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    {ds.formats.includes('CSV') && (
-                        <DownloadBtn format="CSV"  status={csvStatus}  disabled={false} onClick={() => void handleDownload('CSV')} />
-                    )}
-                    {ds.formats.includes('XLSX') && (
-                        <DownloadBtn format="XLSX" status={xlsxStatus} disabled={false} onClick={() => void handleDownload('XLSX')} />
-                    )}
-                    <button
-                        onClick={() => void handlePreviewToggle()}
-                        className="ml-auto flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                    >
-                        {previewStatus === 'loading'
-                            ? <><IconSpinner className="w-3.5 h-3.5" /> Đang tải…</>
-                            : <><IconChevron className="w-3.5 h-3.5" open={previewOpen} /> Xem trước</>}
+                    {formats.includes('CSV')  && <DlBtn format="CSV"  status={csvStatus}  onClick={() => void handleDownload('CSV')} />}
+                    {formats.includes('XLSX') && <DlBtn format="XLSX" status={xlsxStatus} onClick={() => void handleDownload('XLSX')} />}
+                    <button onClick={() => void handlePreview()}
+                        className="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+                        {previewSt === 'loading'
+                            ? <><IcoSpin className="w-3.5 h-3.5" />Đang tải…</>
+                            : <><IcoChevron className="w-3.5 h-3.5" open={open} />Preview</>}
                     </button>
                 </div>
             </div>
 
-            {/* Preview panel */}
-            {previewOpen && (
-                <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-5 py-4">
-                    {previewStatus === 'error' ? (
-                        <p className="text-xs text-red-500">Không tải được dữ liệu.</p>
-                    ) : previewStatus === 'loading' ? (
-                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                            <IconSpinner className="w-4 h-4" /> Đang tải preview…
-                        </div>
-                    ) : (
-                        <>
-                            {/* Stats row */}
-                            <div className="flex flex-wrap items-center gap-3 mb-3">
-                                <span className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                    {rows.length.toLocaleString()} dòng
-                                </span>
-                                <span className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                    {columns.length} cột
-                                </span>
-                                {dateField && (
-                                    <span className="rounded-md bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-2.5 py-1 text-xs text-blue-700 dark:text-blue-300">
-                                        date: {dateField}
-                                    </span>
-                                )}
-                            </div>
+            {open && (
+                previewSt === 'error'
+                    ? <div className="px-5 pb-4 text-xs text-red-500">Không tải được dữ liệu.</div>
+                    : previewSt === 'loading'
+                    ? <div className="flex items-center gap-2 px-5 pb-4 text-xs text-slate-400"><IcoSpin className="w-4 h-4" />Đang tải preview…</div>
+                    : previewSt === 'ready' && <PreviewPanel rows={rows} cols={cols} dateField={dateField} />
+            )}
+        </div>
+    );
+}
 
-                            {/* Date filter */}
-                            {dateField && (
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-[10px] text-slate-400 uppercase tracking-wide">Từ ngày</span>
-                                        <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-                                            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                    </div>
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-[10px] text-slate-400 uppercase tracking-wide">Đến ngày</span>
-                                        <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-                                            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                    </div>
-                                    {(fromDate || toDate) && (
-                                        <div className="flex flex-col justify-end">
-                                            <span className="text-[10px] text-slate-400 mb-0.5">Sau lọc</span>
-                                            <span className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                                                {filteredRows.length.toLocaleString()} dòng
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+// ── Stock tab ─────────────────────────────────────────────────────────────────
 
-                            {/* Schema preview table */}
-                            <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                <table className="w-full text-xs">
-                                    <thead>
-                                        <tr className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                                            <th className="px-3 py-2 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Cột</th>
-                                            <th className="px-3 py-2 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-20">Kiểu</th>
-                                            <th className="px-3 py-2 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Mẫu</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {previewColumns.map(col => {
-                                            const sample = filteredRows.map(r => r[col]).find(v => v !== null && v !== undefined && v !== '');
-                                            return (
-                                                <tr key={col} className="border-b border-slate-100 dark:border-slate-800 last:border-0">
-                                                    <td className="px-3 py-2 font-mono font-medium text-slate-800 dark:text-slate-200">{col}</td>
-                                                    <td className="px-3 py-2 text-slate-400 dark:text-slate-500">{guessColumnType(filteredRows, col)}</td>
-                                                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{valueToString(sample) || <span className="italic text-slate-300 dark:text-slate-600">(trống)</span>}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                        {columns.length > 8 && (
-                                            <tr>
-                                                <td colSpan={3} className="px-3 py-2 text-slate-400 dark:text-slate-500 italic">
-                                                    + {columns.length - 8} cột nữa…
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
+interface Ticker { symbol: string; name: string; exchange: string; }
+
+function StockTab() {
+    const [query,   setQuery]   = useState('');
+    const [symbol,  setSymbol]  = useState('');
+    const [tickers, setTickers] = useState<Ticker[]>([]);
+    const [showSug, setShowSug] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        fetch('/api/tickers', { cache: 'force-cache' })
+            .then(r => r.json())
+            .then(d => setTickers((d as { tickers?: Ticker[] }).tickers ?? d))
+            .catch(() => {});
+    }, []);
+
+    const suggestions = useMemo(() => {
+        if (!query.trim()) return [];
+        const q = query.toUpperCase();
+        return tickers.filter(t =>
+            t.symbol.startsWith(q) || t.name?.toUpperCase().includes(q)
+        ).slice(0, 8);
+    }, [query, tickers]);
+
+    const select = (t: Ticker) => {
+        setSymbol(t.symbol.toUpperCase());
+        setQuery(t.symbol.toUpperCase());
+        setShowSug(false);
+    };
+
+    const handleInput = (v: string) => {
+        setQuery(v);
+        setSymbol(v.toUpperCase().trim());
+        setShowSug(true);
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setSymbol(query.toUpperCase().trim());
+        setShowSug(false);
+    };
+
+    return (
+        <div>
+            {/* Symbol search */}
+            <form onSubmit={handleSubmit} className="relative mb-6">
+                <div className="flex gap-2 items-center">
+                    <div className="relative flex-1 max-w-sm">
+                        <input
+                            ref={inputRef}
+                            value={query}
+                            onChange={e => handleInput(e.target.value)}
+                            onFocus={() => setShowSug(true)}
+                            onBlur={() => setTimeout(() => setShowSug(false), 150)}
+                            placeholder="Nhập mã cổ phiếu… (VD: VCB, FPT, VNM)"
+                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                        />
+                        {/* Autocomplete */}
+                        {showSug && suggestions.length > 0 && (
+                            <div className="absolute z-50 top-full mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
+                                {suggestions.map(t => (
+                                    <button key={t.symbol} type="button" onMouseDown={() => select(t)}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition-colors">
+                                        <span className="font-bold text-slate-900 dark:text-slate-100 w-14 flex-shrink-0">{t.symbol}</span>
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{t.name}</span>
+                                        <span className="ml-auto text-[10px] text-slate-400 flex-shrink-0">{t.exchange}</span>
+                                    </button>
+                                ))}
                             </div>
-                        </>
-                    )}
+                        )}
+                    </div>
+                    <button type="submit"
+                        className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 text-sm font-semibold transition-colors">
+                        Tải dữ liệu
+                    </button>
+                </div>
+            </form>
+
+            {/* Dataset cards for selected symbol */}
+            {symbol ? (
+                <>
+                    <div className="flex items-center gap-3 mb-4">
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            Dữ liệu cho <span className="text-blue-600 dark:text-blue-400 font-bold">{symbol}</span>
+                        </p>
+                        <span className="text-xs text-slate-400">— {STOCK_DATASETS.length} loại dữ liệu</span>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {STOCK_DATASETS.map(ds => (
+                            <DatasetCard
+                                key={`${ds.id}-${symbol}`}
+                                title={ds.title}
+                                description={ds.description}
+                                endpoint={ds.endpoint(symbol)}
+                                filename={(f) => ds.filename(f, symbol)}
+                                badge={ds.badge}
+                                badgeColor={ds.badgeColor}
+                                notes={ds.notes}
+                            />
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
+                    <svg className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                    <p className="text-sm text-slate-400 dark:text-slate-500 mb-1">Nhập mã cổ phiếu để xem dữ liệu</p>
+                    <p className="text-xs text-slate-300 dark:text-slate-600">Lịch sử giá, tài chính, valuation, cổ đông, tin tức…</p>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ── Market tab ────────────────────────────────────────────────────────────────
+
+function MarketTab() {
+    const [activeGroup, setActiveGroup] = useState<MarketGroupId>('ALL');
+    const [bulkStatus, setBulkStatus]   = useState<DownloadStatus>('idle');
+    const [bulkFormat, setBulkFormat]   = useState<ExportFormat>('CSV');
+
+    const counts = useMemo(() => {
+        const c: Record<string, number> = { ALL: MARKET_DATASETS.length };
+        MARKET_DATASETS.forEach(d => { c[d.group] = (c[d.group] ?? 0) + 1; });
+        return c;
+    }, []);
+
+    const visible = activeGroup === 'ALL' ? MARKET_DATASETS : MARKET_DATASETS.filter(d => d.group === activeGroup);
+
+    const downloadZip = async () => {
+        setBulkStatus('loading');
+        try {
+            const zip = new JSZip();
+            for (const ds of MARKET_DATASETS) {
+                const ep = typeof ds.endpoint === 'string' ? ds.endpoint : ds.endpoint('');
+                const payload = await fetchJson(ep);
+                const r = normalizeToRows(payload);
+                const c = getColumns(r);
+                if (bulkFormat === 'CSV') zip.file(ds.filename('CSV'), toCsv(r, c));
+                else zip.file(ds.filename('XLSX'), await toXlsxBuf(r, c, ds.title));
+            }
+            triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `market_data_${bulkFormat.toLowerCase()}_${today()}.zip`);
+            setBulkStatus('done'); setTimeout(() => setBulkStatus('idle'), 2500);
+        } catch {
+            setBulkStatus('error'); setTimeout(() => setBulkStatus('idle'), 3500);
+        }
+    };
+
+    return (
+        <div>
+            {/* Bulk bar */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-3.5 mb-5 flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Tải toàn bộ {MARKET_DATASETS.length} datasets dạng ZIP</p>
+                    <p className="text-xs text-slate-400">Đóng gói tất cả thành một file</p>
+                </div>
+                <select value={bulkFormat} onChange={e => setBulkFormat(e.target.value as ExportFormat)}
+                    className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="CSV">ZIP / CSV</option>
+                    <option value="XLSX">ZIP / XLSX</option>
+                </select>
+                <button onClick={() => void downloadZip()} disabled={bulkStatus === 'loading'}
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+                    {bulkStatus === 'loading' ? <><IcoSpin className="w-4 h-4" />Đang đóng gói…</> :
+                     bulkStatus === 'done'    ? <><IcoCheck className="w-4 h-4" />Đã tải!</> :
+                     <><IcoDownload className="w-4 h-4" />Tải ZIP</>}
+                </button>
+            </div>
+
+            {/* Group tabs */}
+            <div className="flex flex-wrap gap-2 mb-5">
+                {MARKET_GROUPS.map(g => (
+                    <button key={g.id} onClick={() => setActiveGroup(g.id)}
+                        className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors border ${
+                            activeGroup === g.id
+                                ? 'border-blue-500 bg-blue-600 text-white'
+                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-blue-400'
+                        }`}>
+                        {g.label}
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${activeGroup === g.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                            {counts[g.id] ?? 0}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Cards */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {visible.map(ds => {
+                    const ep = typeof ds.endpoint === 'string' ? ds.endpoint : ds.endpoint('');
+                    return (
+                        <DatasetCard key={ds.id}
+                            title={ds.title}
+                            description={ds.description}
+                            endpoint={ep}
+                            filename={(f) => ds.filename(f)}
+                            badge={GROUP_LABELS[ds.group]}
+                            badgeColor={GROUP_STYLES[ds.group]}
+                            notes={ds.notes}
+                            formats={ds.formats}
+                        />
+                    );
+                })}
+            </div>
         </div>
     );
 }
@@ -570,41 +798,7 @@ function DatasetCard({ ds }: { ds: RawDataset }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DownloadsPage() {
-    const [activeGroup, setActiveGroup] = useState<GroupId>('ALL');
-    const [bulkStatus, setBulkStatus]   = useState<DownloadStatus>('idle');
-    const [bulkFormat, setBulkFormat]   = useState<ExportFormat>('CSV');
-
-    const counts = useMemo(() => {
-        const c: Record<string, number> = { ALL: RAW_DATASETS.length };
-        RAW_DATASETS.forEach(d => { c[d.group] = (c[d.group] ?? 0) + 1; });
-        return c;
-    }, []);
-
-    const filtered = activeGroup === 'ALL' ? RAW_DATASETS : RAW_DATASETS.filter(d => d.group === activeGroup);
-
-    const downloadAllZip = async () => {
-        setBulkStatus('loading');
-        try {
-            const zip = new JSZip();
-            for (const ds of RAW_DATASETS) {
-                const payload = await fetchJson(ds.endpoint);
-                const r = normalizeToRows(payload);
-                const c = getColumns(r);
-                if (bulkFormat === 'CSV') {
-                    zip.file(ds.filename('CSV'), toCsv(r, c));
-                } else {
-                    zip.file(ds.filename('XLSX'), await toXlsxBuffer(r, c, ds.title));
-                }
-            }
-            const blob = await zip.generateAsync({ type: 'blob' });
-            triggerBlobDownload(blob, `datasets_${bulkFormat.toLowerCase()}_${today()}.zip`);
-            setBulkStatus('done');
-            setTimeout(() => setBulkStatus('idle'), 2500);
-        } catch {
-            setBulkStatus('error');
-            setTimeout(() => setBulkStatus('idle'), 3500);
-        }
-    };
+    const [tab, setTab] = useState<MainTab>('market');
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -617,75 +811,35 @@ export default function DownloadsPage() {
                     </h1>
                     <div className="w-24 h-1 bg-blue-500 rounded mt-2" />
                     <p className="text-slate-600 dark:text-slate-300 mt-3 text-sm max-w-2xl">
-                        Xuất toàn bộ dữ liệu website đang dùng theo định dạng CSV hoặc XLSX. Xem trước schema, lọc theo thời gian, hoặc tải bulk ZIP.
+                        Xuất dữ liệu thị trường và từng cổ phiếu theo định dạng CSV hoặc XLSX. Xem trước schema, lọc theo thời gian.
                     </p>
                 </div>
 
-                {/* Bulk download bar */}
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 mb-5 flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <svg className="w-5 h-5 text-blue-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" /><path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
-                        </svg>
-                        <div>
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Tải toàn bộ {RAW_DATASETS.length} datasets dạng ZIP</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Đóng gói tất cả thành một file ZIP</p>
-                        </div>
-                    </div>
-                    <select
-                        value={bulkFormat}
-                        onChange={e => setBulkFormat(e.target.value as ExportFormat)}
-                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="CSV">ZIP / CSV</option>
-                        <option value="XLSX">ZIP / XLSX</option>
-                    </select>
-                    <button
-                        onClick={() => void downloadAllZip()}
-                        disabled={bulkStatus === 'loading'}
-                        className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                    >
-                        {bulkStatus === 'loading' ? <><IconSpinner className="w-4 h-4" />Đang đóng gói…</> :
-                         bulkStatus === 'done'    ? <><IconCheck   className="w-4 h-4" />Đã tải!</> :
-                         bulkStatus === 'error'   ? 'Thử lại' :
-                         <><IconDownload className="w-4 h-4" />Tải ZIP {bulkFormat}</>}
-                    </button>
-                    <Link href="/disclaimer"
-                        className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        Disclaimer
-                    </Link>
-                </div>
-
-                {/* Group filter tabs */}
-                <div className="flex flex-wrap gap-2 mb-5">
-                    {GROUPS.map(g => (
-                        <button
-                            key={g.id}
-                            onClick={() => setActiveGroup(g.id)}
-                            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors border ${
-                                activeGroup === g.id
-                                    ? 'border-blue-500 bg-blue-600 text-white'
-                                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-blue-400'
-                            }`}
-                        >
-                            {g.label}
-                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                                activeGroup === g.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                {/* Main tabs */}
+                <div className="flex gap-1 mb-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 w-fit">
+                    {([
+                        { id: 'market', label: 'Dữ liệu thị trường', count: MARKET_DATASETS.length },
+                        { id: 'stock',  label: 'Dữ liệu cổ phiếu',   count: STOCK_DATASETS.length },
+                    ] as const).map(t => (
+                        <button key={t.id} onClick={() => setTab(t.id)}
+                            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                                tab === t.id
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                             }`}>
-                                {counts[g.id] ?? 0}
+                            {t.label}
+                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${tab === t.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>
+                                {t.count}
                             </span>
                         </button>
                     ))}
                 </div>
 
-                {/* Dataset grid */}
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {filtered.map(ds => <DatasetCard key={ds.id} ds={ds} />)}
-                </div>
+                {tab === 'market' ? <MarketTab /> : <StockTab />}
 
-                {/* Footer */}
-                <p className="mt-6 text-xs text-slate-400 dark:text-slate-500">
-                    Dữ liệu được lấy trực tiếp từ các endpoint API của hệ thống · Cập nhật realtime hoặc theo cache TTL
+                <p className="mt-8 text-xs text-slate-400 dark:text-slate-500">
+                    Nguồn: VCI, CafeF, BTMC, Yahoo Finance · Cache TTL 45s–10p tuỳ endpoint ·{' '}
+                    <Link href="/disclaimer" className="underline hover:text-slate-600 dark:hover:text-slate-300">Disclaimer</Link>
                 </p>
             </div>
         </div>
