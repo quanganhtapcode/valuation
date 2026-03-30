@@ -104,12 +104,12 @@ function NewsCard({ item }: { item: any }) {
 
   return (
     <a href={url || '#'} target="_blank" rel="noreferrer"
-      className="group flex gap-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-blue-200 dark:hover:border-blue-800/60 hover:shadow-md transition-all duration-200">
+      className="group flex gap-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-blue-200 dark:hover:border-blue-800/60 transition-colors">
 
       {/* Thumbnail */}
       <div className="flex-shrink-0 w-[88px] h-[64px] rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
         {img && !imgErr ? (
-          <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={() => setImgErr(true)} />
+          <img src={img} alt="" className="w-full h-full object-cover" onError={() => setImgErr(true)} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <IcoNewspaper />
@@ -302,18 +302,16 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
         ))}
       </div>
 
-      {/* Content */}
-      <div className="max-h-[560px] overflow-y-auto">
-        <div className="p-4 space-y-3">
-          {isLoad && <Skeleton />}
-          {!isLoad && err     && <ErrorState message={err} />}
-          {!isLoad && !err && items !== undefined && items.length === 0 && <EmptyState label={tabMeta.label} />}
-          {!isLoad && !err && items?.length ? (
-            activeTab === 'news'
-              ? items.map((item, i) => <NewsCard key={item.id ?? i} item={item} />)
-              : items.map((item, i) => <EventCard key={item.id ?? i} item={item} />)
-          ) : null}
-        </div>
+      {/* Content — no inner scroll, let the page scroll */}
+      <div className="p-4 space-y-3">
+        {isLoad && <Skeleton />}
+        {!isLoad && err     && <ErrorState message={err} />}
+        {!isLoad && !err && items !== undefined && items.length === 0 && <EmptyState label={tabMeta.label} />}
+        {!isLoad && !err && items?.length ? (
+          activeTab === 'news'
+            ? items.map((item, i) => <NewsCard key={item.id ?? i} item={item} />)
+            : items.map((item, i) => <EventCard key={item.id ?? i} item={item} />)
+        ) : null}
       </div>
     </div>
   );
