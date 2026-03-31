@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AreaChart, Card } from '@tremor/react';
 import { API } from '@/lib/api';
+import { getFFWS, extractPrice, FFMessage } from '@/lib/ffWS';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -336,6 +337,50 @@ export default function MacroPage() {
     const [ratesLoading, setRL]       = useState(true);
     const [economicLoading, setEL]    = useState(true);
 
+    // FF WS: live updates for commodities (VND pairs have no FF equivalent)
+    const ffDayOpen = useRef<Map<string, number>>(new Map());
+    // Yahoo symbol → FF channel
+    const FF_COMMODITY_MAP: Record<string, string> = {
+        'GC=F':  'GOLD/USD',
+        'BZ=F':  'BRENT/USD',
+        'HG=F':  'COPPER/USD',
+        'WTIC/USD': 'WTIC/USD',
+    };
+    // FF channel → Yahoo symbol (reverse map)
+    const FF_TO_YAHOO: Record<string, string> = {
+        'GOLD/USD':   'GC=F',
+        'BRENT/USD':  'BZ=F',
+        'COPPER/USD': 'HG=F',
+    };
+
+    useEffect(() => {
+        const ws = getFFWS();
+        const channels = Object.values(FF_COMMODITY_MAP);
+        const unsubs = channels.map(ch =>
+            ws.subscribe(ch, (msg: FFMessage) => {
+                const prevOpen = ffDayOpen.current.get(ch);
+                const snap = extractPrice(msg, prevOpen);
+                if (!snap) return;
+                if (!msg.Partial && snap.dayOpen > 0) {
+                    ffDayOpen.current.set(ch, snap.dayOpen);
+                }
+                const yahooSym = FF_TO_YAHOO[ch];
+                if (!yahooSym) return;
+                setRates(prev => {
+                    if (!prev) return prev;
+                    const updated = prev.commodities.map(item => {
+                        if (item.symbol !== yahooSym) return item;
+                        const change = snap.dayOpen > 0 ? snap.price - snap.dayOpen : item.change;
+                        return { ...item, price: snap.price, change, changePercent: snap.changePercent };
+                    });
+                    return { ...prev, commodities: updated };
+                });
+            })
+        );
+        return () => unsubs.forEach(fn => fn());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Fetch rates (Yahoo Finance — 5 min refresh)
     const loadRates = useCallback(async () => {
         try {
@@ -398,7 +443,7 @@ export default function MacroPage() {
                 {/* Commodities — loads with rates */}
                 <section>
                     <SectionHeader title="Hàng Hóa Quốc Tế"
-                        subtitle="Giá hàng hóa liên quan đến doanh nghiệp Việt Nam — nguồn: Yahoo Finance (trễ 15 phút)" />
+                        subtitle="Giá hàng hóa liên quan đến doanh nghiệt Nam — live: Forex Factory · khởi tạo: Yahoo Finance" />
                     {ratesLoading
                         ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
                         : commodities.length === 0
