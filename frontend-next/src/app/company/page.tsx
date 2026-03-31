@@ -1,9 +1,10 @@
 import styles from './company.module.css';
 
 export const metadata = {
-    title: 'Company Directory',
+    title: 'Vietnam Listed Company Directory',
     description: 'Browse and analyze companies listed on Vietnam stock exchanges (HOSE, HNX, UPCOM).',
-    alternates: { canonical: 'https://stock.quanganh.org/company' },
+    keywords: ['vietnam listed companies', 'hose company list', 'hnx company list', 'upcom company list'],
+    alternates: { canonical: '/company' },
 };
 
 export default function CompanyPage() {

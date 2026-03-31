@@ -422,6 +422,87 @@ def fetch_to_sqlite(
         conn.close()
 
 
+def sync_financial_metrics(db_path: str) -> None:
+    """Populate NULL financial columns in screening_data from sibling SQLite files."""
+    import os
+    db_dir = os.path.dirname(os.path.abspath(db_path))
+
+    sf_path = os.path.join(db_dir, "vci_stats_financial.sqlite")
+    stocks_candidates = [
+        os.path.join(os.path.dirname(db_dir), "vietnam_stocks.db"),
+        "/var/www/valuation/vietnam_stocks.db",
+        "/var/www/store/vietnam_stocks.db",
+    ]
+    stocks_path = next((p for p in stocks_candidates if os.path.exists(p)), None)
+
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+
+        # --- PE, PB, ROE, margins from vci_stats_financial.sqlite ---
+        if os.path.exists(sf_path):
+            try:
+                conn.execute(f"ATTACH DATABASE '{sf_path}' AS sf")
+                conn.execute("""
+                    UPDATE screening_data
+                    SET
+                        ttmPe      = (SELECT sf.pe               FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)),
+                        ttmPb      = (SELECT sf.pb               FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)),
+                        ttmRoe     = (SELECT sf.roe * 100.0      FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)),
+                        netMargin  = (SELECT sf.after_tax_margin * 100.0 FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)),
+                        grossMargin= (SELECT sf.gross_margin * 100.0     FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker))
+                """)
+                conn.execute("DETACH DATABASE sf")
+                conn.commit()
+                print(f"Synced PE/PB/ROE/margins from {sf_path}")
+            except Exception as exc:
+                print(f"Warning: could not sync from stats_financial: {exc}")
+
+        # --- Revenue growth and NP growth from vietnam_stocks.db ---
+        if stocks_path:
+            try:
+                conn.execute(f"ATTACH DATABASE '{stocks_path}' AS main_db")
+                conn.execute("""
+                    UPDATE screening_data
+                    SET
+                        revenueGrowthYoy = (
+                            SELECT
+                                CASE WHEN prev.revenue > 0
+                                     THEN (curr.revenue - prev.revenue) * 100.0 / prev.revenue
+                                     ELSE NULL END
+                            FROM main_db.income_statement curr
+                            JOIN main_db.income_statement prev
+                              ON curr.symbol = prev.symbol
+                             AND prev.year = curr.year - 1
+                             AND curr.quarter IS NULL AND prev.quarter IS NULL
+                            WHERE UPPER(curr.symbol) = UPPER(screening_data.ticker)
+                            ORDER BY curr.year DESC
+                            LIMIT 1
+                        ),
+                        npatmiGrowthYoyQm1 = (
+                            SELECT
+                                CASE WHEN prev.net_profit_parent_company > 0
+                                     THEN (curr.net_profit_parent_company - prev.net_profit_parent_company) * 100.0 / prev.net_profit_parent_company
+                                     ELSE NULL END
+                            FROM main_db.income_statement curr
+                            JOIN main_db.income_statement prev
+                              ON curr.symbol = prev.symbol
+                             AND prev.year = curr.year - 1
+                             AND curr.quarter IS NULL AND prev.quarter IS NULL
+                            WHERE UPPER(curr.symbol) = UPPER(screening_data.ticker)
+                            ORDER BY curr.year DESC
+                            LIMIT 1
+                        )
+                """)
+                conn.execute("DETACH DATABASE main_db")
+                conn.commit()
+                print(f"Synced revenue/NP growth from {stocks_path}")
+            except Exception as exc:
+                print(f"Warning: could not sync growth from stocks db: {exc}")
+    finally:
+        conn.close()
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Fetch VCI screening/paging and store into SQLite")
     p.add_argument("--start-page", type=int, default=0, help="Start page (inclusive)")
@@ -467,6 +548,7 @@ def main() -> int:
         disable_filter=args.no_filter,
         workers=args.workers,
     )
+    sync_financial_metrics(args.db)
     return 0
 
 

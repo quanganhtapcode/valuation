@@ -140,7 +140,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: pageTitle,
     description,
     keywords,
-    alternates: { canonical: canonicalPath },
+    alternates: {
+      canonical: canonicalPath,
+      languages: {
+        'x-default': canonicalPath,
+        en: canonicalPath,
+      },
+    },
     openGraph: {
       title: ogTitle,
       description,

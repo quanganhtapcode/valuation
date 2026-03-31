@@ -23,7 +23,7 @@ from vnstock import Vnstock, Listing, Company, Quote
 from backend.data_sources import VCIClient
 from backend.data_sources.sqlite_db import SQLiteDB
 from backend.db_path import resolve_stocks_db_path, resolve_vci_screening_db_path
-from backend.services.source_priority import apply_peer_source_priority, get_screening_metrics_map, get_stats_financial_metrics_map
+from backend.services.source_priority import apply_peer_source_priority, get_screening_metrics_map, get_stats_financial_metrics_map, get_ratio_daily_metrics_map
 import logging
 
 logger = logging.getLogger(__name__)
@@ -711,9 +711,11 @@ class StockDataProvider:
                 all_symbols.append(symbol.upper())
             screening_map: dict[str, dict] = {}
             stats_fin_map: dict[str, dict] = {}
+            ratio_daily_map: dict[str, dict] = {}
             if all_symbols:
                 screening_map = get_screening_metrics_map(all_symbols)
                 stats_fin_map = get_stats_financial_metrics_map(all_symbols)
+                ratio_daily_map = get_ratio_daily_metrics_map(all_symbols)
 
             # Normalize keys to camelCase for frontend
             result = []
@@ -722,7 +724,7 @@ class StockDataProvider:
             if current_row:
                 p = dict(current_row)
                 sym = symbol.upper()
-                p = apply_peer_source_priority(p, screening_map.get(sym), stats_fin_map.get(sym))
+                p = apply_peer_source_priority(p, screening_map.get(sym), stats_fin_map.get(sym), ratio_daily_map.get(sym))
                 p['price'] = p['current_price']
                 p['marketCap'] = p['market_cap']
                 p['netMargin'] = p['net_profit_margin']
@@ -733,7 +735,7 @@ class StockDataProvider:
             for p in peers:
                 sym = str(p.get('symbol', '')).upper()
                 p = apply_peer_source_priority(
-                    p, screening_map.get(sym), stats_fin_map.get(sym)
+                    p, screening_map.get(sym), stats_fin_map.get(sym), ratio_daily_map.get(sym)
                 )
                 p['price'] = p['current_price']
                 p['marketCap'] = p['market_cap']
@@ -1750,21 +1752,9 @@ class StockDataProvider:
             if pd.notna(current_price) and pd.notna(shares_outstanding)
             else np.nan
         )
-        pe = (
-            current_price / eps
-            if pd.notna(current_price) and pd.notna(eps) and eps > 0
-            else np.nan
-        )
-        pb = (
-            current_price / book_value
-            if pd.notna(current_price) and pd.notna(book_value) and book_value > 0
-            else np.nan
-        )
         return {
             "current_price": current_price,
             "market_cap": market_cap,
-            "pe_ratio": pe,
-            "pb_ratio": pb
         }
 
     def _get_vci_data(self, symbol: str, period: str) -> dict:
@@ -2308,18 +2298,6 @@ class StockDataProvider:
                 # Market cap
                 if not stock_data.get('market_cap') and current_price > 0:
                     stock_data['market_cap'] = current_price * shares_outstanding
-                
-                # P/E ratio
-                if not stock_data.get('pe_ratio') and current_price > 0:
-                    eps_ttm = stock_data.get('eps_ttm')
-                    if eps_ttm and eps_ttm > 0:
-                        stock_data['pe_ratio'] = current_price / eps_ttm
-                
-                # P/B ratio
-                if not stock_data.get('pb_ratio') and current_price > 0:
-                    bvps = stock_data.get('bvps')
-                    if bvps and bvps > 0:
-                        stock_data['pb_ratio'] = current_price / bvps
                 
                 # P/S ratio
                 if not stock_data.get('ps_ratio') and current_price > 0 and revenue > 0:

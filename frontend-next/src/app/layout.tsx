@@ -20,15 +20,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: "Quang Anh | Vietnam Stock Analysis & Valuation",
+    default: "Vietnam Stock Market Today | Quang Anh",
     template: "%s | Quang Anh",
   },
   description: siteConfig.description,
-  keywords: [
-    "vietnam stock market", "stock analysis", "stock valuation", "vnindex",
-    "vn30", "dcf valuation", "financial analysis", "market heatmap",
-    "hose", "hnx", "upcom", "pe ratio", "pb ratio",
-  ],
+  applicationName: siteConfig.shortName,
+  keywords: siteConfig.keywords,
+  category: "Finance",
   authors: [{ name: "Quang Anh", url: siteConfig.url }],
   creator: "Quang Anh",
   publisher: "Quang Anh",
@@ -50,24 +48,37 @@ export const metadata: Metadata = {
     apple: { url: '/apple-touch-icon.png', sizes: '180x180' },
   },
   openGraph: {
-    title: "Quang Anh | Vietnam Stock Analysis & Valuation",
+    title: "Vietnam Stock Market Today | Quang Anh",
     description: siteConfig.description,
     url: siteConfig.url,
-    siteName: "Quang Anh",
+    siteName: siteConfig.shortName,
     type: "website",
-    locale: "en_US",
+    locale: siteConfig.locale,
+    images: [
+      {
+        url: siteConfig.defaultOgImage,
+        width: 512,
+        height: 512,
+        alt: "Quang Anh Vietnam stock platform",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Quang Anh | Vietnam Stock Analysis",
+    title: "Vietnam Stock Market Today | Quang Anh",
     description: siteConfig.description,
     creator: "@quanganh",
+    images: [siteConfig.defaultOgImage],
   },
   alternates: {
-    canonical: siteConfig.url,
+    canonical: "/",
+    languages: {
+      "x-default": "/",
+      en: "/",
+    },
   },
   verification: {
-    google: "", // add Google Search Console verification token here
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "",
   },
 };
 
@@ -79,9 +90,11 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Quang Anh",
+    "name": siteConfig.shortName,
+    "alternateName": "Quang Anh",
     "url": siteConfig.url,
     "description": siteConfig.description,
+    "inLanguage": "en",
     "potentialAction": {
       "@type": "SearchAction",
       "target": {
@@ -92,6 +105,15 @@ export default function RootLayout({
     },
   };
 
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Quang Anh",
+    "url": siteConfig.url,
+    "logo": `${siteConfig.url}/android-chrome-512x512.png`,
+    "sameAs": [],
+  };
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -100,6 +122,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
       <body className={`${inter.className} ${inter.variable} min-h-screen scroll-auto antialiased selection:bg-indigo-100 selection:text-indigo-700 dark:bg-gray-950`}>

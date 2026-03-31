@@ -418,9 +418,17 @@ export interface ValuationResult {
         bull?: ValuationScenario;
     };
     metrics?: StockApiData;
+    quality?: {
+        score: number;
+        grade: string;
+        raw_points: number;
+        max_points: number;
+        checks: Array<{ name: string; passed: boolean; points: number; max_points: number; detail: string }>;
+    } | null;
     inputs?: {
         current_price?: number;
         eps_ttm?: number;
+        eps_history_yearly?: Array<{ year: number; eps: number }>;
         [key: string]: unknown;
     };
     export?: {

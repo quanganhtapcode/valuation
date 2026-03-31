@@ -320,10 +320,20 @@ def main():
 
     incremental = '--full' not in sys.argv
 
+    # --pages N: number of pages to fetch per symbol (default: 1 incremental, 25 full)
+    pages_per_symbol = 1 if incremental else 25
+    if '--pages' in sys.argv:
+        idx = sys.argv.index('--pages')
+        if idx + 1 < len(sys.argv):
+            try:
+                pages_per_symbol = int(sys.argv[idx + 1])
+            except ValueError:
+                pass
+
     updater = PriceHistoryUpdater(
         max_workers=3,
         delay=1.2,
-        pages_per_symbol=5,
+        pages_per_symbol=pages_per_symbol,
         incremental=incremental,
         retries=2,
         retry_backoff=1.5,

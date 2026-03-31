@@ -228,16 +228,25 @@ def _extract_latest_row(entries: list[dict[str, Any]]) -> dict[str, Any] | None:
     """
     if not entries:
         return None
-    # Try to sort by date field if present
-    date_keys = ("date", "period", "reportDate", "periodDate", "quarter", "year")
-    for key in date_keys:
+    # Try to sort by (year, quarter) combined — most reliable for VCI API responses
+    if "yearReport" in entries[0] or "year" in entries[0]:
+        try:
+            def _yq_key(x: dict) -> tuple:
+                yr = x.get("yearReport") or x.get("year") or 0
+                qt = x.get("quarter") or x.get("quarterReport") or 0
+                return (int(yr), int(qt))
+            return sorted(entries, key=_yq_key, reverse=True)[0]
+        except Exception:
+            pass
+    # Fallback: sort by date string field
+    for key in ("date", "period", "reportDate", "periodDate"):
         if key in entries[0]:
             try:
                 sorted_entries = sorted(entries, key=lambda x: str(x.get(key) or ""), reverse=True)
                 return sorted_entries[0]
             except Exception:
                 pass
-    # No date key found — return last element (API usually sends newest last)
+    # Last resort — return last element (API usually sends newest last)
     return entries[-1]
 
 

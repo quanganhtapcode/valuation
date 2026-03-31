@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AreaChart, Card } from '@tremor/react';
+import { AreaChart, BarChart, Card } from '@tremor/react';
 import { API } from '@/lib/api';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 
@@ -15,7 +15,6 @@ interface RateItem {
     changePercent: number;
     unit?: string;
 }
-
 interface CpiPoint   { date: string; value: number }
 interface GdpPoint   { date: string; quarter: string; value: number }
 interface Vn10yPoint { date: string; value: number }
@@ -25,12 +24,24 @@ interface RatesData {
     exchange_rates: RateItem[];
     commodities:    RateItem[];
 }
-
 interface EconomicData {
     cpi:   CpiPoint[];
     gdp:   GdpPoint[];
     vn10y: Vn10yPoint[];
 }
+
+// FireAnt types
+interface FAIndicator {
+    id: number;
+    nameVN: string;
+    name: string;
+    unit: string;
+    frequency: string;
+    lastValue: number | null;
+    lastDate: string;
+    data: { date: string; value: number }[];
+}
+type FAData = Record<string, FAIndicator[]>;   // type → indicators[]
 
 const RANGE_OPTIONS = [
     { label: '1T', days: 30 },
@@ -40,29 +51,27 @@ const RANGE_OPTIONS = [
     { label: '3N', days: 1095 },
 ] as const;
 
-// 5-minute refresh for exchange rates/commodities; economic data uses server 1-hr cache
-const RATES_REFRESH_MS    = 5 * 60 * 1000;
-const ECONOMIC_REFRESH_MS = 60 * 60 * 1000;
+const RATES_REFRESH_MS = 5 * 60 * 1000;
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
-function fmtVndPrice(val: number): string {
+function fmtVndPrice(val: number) {
     if (val >= 1000) return val.toLocaleString('en-US', { maximumFractionDigits: 0 });
     if (val >= 10)   return val.toFixed(2);
     return val.toFixed(4);
 }
-function fmtUsdPrice(val: number): string {
+function fmtUsdPrice(val: number) {
     if (val >= 1000) return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return val.toFixed(2);
 }
-function fmtVndChange(val: number): string {
+function fmtVndChange(val: number) {
     const abs = Math.abs(val);
     return `${val >= 0 ? '+' : '-'}${abs >= 10 ? abs.toFixed(0) : abs.toFixed(2)}`;
 }
-function fmtUsdChange(val: number): string {
+function fmtUsdChange(val: number) {
     return `${val >= 0 ? '+' : '-'}${Math.abs(val).toFixed(2)}`;
 }
-function fmtMonth(date: string): string {
+function fmtMonth(date: string) {
     const [y, m] = date.split('-');
     return `T${parseInt(m)}/${y.slice(2)}`;
 }
@@ -91,7 +100,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle: string })
     );
 }
 
-// ── History chart (inline expand) ────────────────────────────────────────────
+// ── History chart for exchange rates / commodities ────────────────────────────
 
 function downloadCsv(filename: string, rows: PricePoint[]) {
     const body = rows.map((r) => `${r.date},${r.close}`).join('\n');
@@ -210,23 +219,18 @@ const FF_INDICES_CHANNELS = [
     { channel: 'Nikkei/JPY', label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
 ] as const;
 
-// ── FF live card (no history chart — pure WS data) ────────────────────────────
-
 interface FFCardDef { channel: string; label: string; fmt: (p: number) => string }
 
 function FFLiveCard({ def, snap }: { def: FFCardDef; snap: FFPrice | undefined }) {
-    const up   = (snap?.changePercent ?? 0) >= 0;
-    const colorCls = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
-    const bgCls    = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
-
+    const up        = (snap?.changePercent ?? 0) >= 0;
+    const colorCls  = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+    const bgCls     = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
     return (
         <div className="rounded-tremor-default ring-1 ring-tremor-ring dark:ring-dark-tremor-ring bg-tremor-background dark:bg-dark-tremor-background p-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content mb-1">{def.label}</p>
             {snap ? (
                 <>
-                    <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                        {def.fmt(snap.price)}
-                    </p>
+                    <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{def.fmt(snap.price)}</p>
                     <div className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${bgCls} ${colorCls}`}>
                         <span>{up ? '▲' : '▼'}</span>
                         <span>{Math.abs(snap.changePercent).toFixed(2)}%</span>
@@ -246,9 +250,9 @@ function FFLiveCard({ def, snap }: { def: FFCardDef; snap: FFPrice | undefined }
 // ── Rate Card ─────────────────────────────────────────────────────────────────
 
 function RateCard({ item, isVnd, selected, onClick }: { item: RateItem; isVnd: boolean; selected: boolean; onClick: () => void }) {
-    const up = item.changePercent >= 0;
-    const colorCls = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
-    const bgCls    = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
+    const up        = item.changePercent >= 0;
+    const colorCls  = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+    const bgCls     = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
     return (
         <button onClick={onClick}
             className={`text-left rounded-tremor-default ring-1 transition-all duration-150 focus:outline-none
@@ -289,7 +293,7 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
     );
 }
 
-// ── Economic charts ───────────────────────────────────────────────────────────
+// ── investing.com charts (CPI + VN10Y) ───────────────────────────────────────
 
 function EcoChartCard({ title, subtitle, latest, latestLabel, delta, children }: {
     title: string; subtitle: string; latest: number | null;
@@ -344,29 +348,11 @@ function CpiChart({ data }: { data: CpiPoint[] }) {
     );
 }
 
-function GdpChart({ data }: { data: GdpPoint[] }) {
-    const latest = data.at(-1) ?? null;
-    const prev   = data.at(-2) ?? null;
-    const delta  = latest && prev ? latest.value - prev.value : null;
-    const chartData = data.map((p) => ({ 'Quý': p.quarter, 'GDP (%)': p.value }));
-    return (
-        <EcoChartCard title="Tăng trưởng GDP — YoY (%)" subtitle="Theo quý — nguồn: investing.com"
-            latest={latest?.value ?? null} latestLabel={latest?.quarter ?? ''} delta={delta}>
-            {chartData.length === 0
-                ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
-                : <AreaChart data={chartData} index="Quý" categories={['GDP (%)']} colors={['emerald']}
-                    valueFormatter={(v) => `${v.toFixed(2)}%`} yAxisWidth={52}
-                    showLegend={false} showGradient autoMinValue className="h-56 mt-4" />}
-        </EcoChartCard>
-    );
-}
-
 function Vn10yChart({ data }: { data: Vn10yPoint[] }) {
     const latest = data.at(-1) ?? null;
     const prev   = data.at(-2) ?? null;
     const delta  = latest && prev ? latest.value - prev.value : null;
-    // Show year/month labels spaced out
-    const step = Math.max(1, Math.floor(data.length / 10));
+    const step   = Math.max(1, Math.floor(data.length / 10));
     const chartData = data.map((p, i) => ({
         Tháng: (i % step === 0 || i === data.length - 1) ? fmtMonth(p.date) : '',
         'Lợi suất (%)': p.value,
@@ -383,27 +369,181 @@ function Vn10yChart({ data }: { data: Vn10yPoint[] }) {
     );
 }
 
+// ── FireAnt indicator charts ──────────────────────────────────────────────────
+
+function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; barChart?: boolean }) {
+    const latest = ind.data.at(-1) ?? null;
+    const prev   = ind.data.at(-2) ?? null;
+    const delta  = latest && prev ? latest.value - prev.value : null;
+    const up     = delta === null ? true : delta >= 0;
+    const isGrowth = ind.unit === '%';
+    const fmt = (v: number) => isGrowth
+        ? `${v.toFixed(2)}%`
+        : Math.abs(v) >= 1000
+            ? v.toLocaleString('en-US', { maximumFractionDigits: 0 })
+            : v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+    const chartData = ind.data.map(p => ({ 'Kỳ': p.date, [ind.nameVN]: p.value }));
+    const tickGap = ind.frequency?.includes('tháng') ? 24
+        : ind.frequency?.includes('quý') || ind.frequency?.includes('Quý') ? 12
+        : 4;
+
+    return (
+        <Card className="p-5">
+            <div className="flex items-start justify-between mb-1">
+                <div className="min-w-0">
+                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm truncate">{ind.nameVN}</p>
+                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">FireAnt · {ind.unit}</p>
+                </div>
+                {latest && (
+                    <div className="text-right shrink-0 ml-3">
+                        <p className="text-xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                            {fmt(latest.value)}
+                        </p>
+                        <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
+                            {latest.date}
+                            {delta !== null && (
+                                <span className={`ml-1.5 font-semibold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {up ? '+' : ''}{delta.toFixed(2)}
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                )}
+            </div>
+            {ind.data.length === 0
+                ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
+                : barChart
+                    ? <BarChart data={chartData} index="Kỳ" categories={[ind.nameVN]} colors={[color]}
+                        valueFormatter={fmt} yAxisWidth={60} showLegend={false}
+                        tickGap={tickGap} className="h-48 mt-4" />
+                    : <AreaChart data={chartData} index="Kỳ" categories={[ind.nameVN]} colors={[color]}
+                        valueFormatter={fmt} yAxisWidth={isGrowth ? 48 : 60}
+                        showLegend={false} showGradient autoMinValue
+                        tickGap={tickGap} className="h-48 mt-4" />
+            }
+        </Card>
+    );
+}
+
+function TradeChart({ exp, imp, bal }: { exp: FAIndicator; imp: FAIndicator; bal: FAIndicator }) {
+    const last = bal.data.at(-1);
+    const prev = bal.data.at(-2);
+    const delta = last && prev ? last.value - prev.value : null;
+    // Align by common dates
+    const impMap = new Map(imp.data.map(p => [p.date, p.value]));
+    const combined = exp.data
+        .filter(p => impMap.has(p.date))
+        .map(p => ({ 'Tháng': p.date, 'Xuất khẩu': p.value, 'Nhập khẩu': impMap.get(p.date)! }));
+
+    return (
+        <Card className="p-5">
+            <div className="flex items-start justify-between mb-1">
+                <div>
+                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm">Xuất & Nhập khẩu</p>
+                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">FireAnt · Tỷ USD · hàng tháng</p>
+                </div>
+                {last && (
+                    <div className="text-right shrink-0 ml-3">
+                        <p className={`text-xl font-bold tabular-nums ${last.value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                            {last.value >= 0 ? '+' : ''}{last.value.toFixed(2)} tỷ
+                        </p>
+                        <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
+                            Cán cân {last.date}
+                            {delta !== null && (
+                                <span className={`ml-1.5 font-semibold ${delta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {delta >= 0 ? '+' : ''}{delta.toFixed(2)}
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                )}
+            </div>
+            {combined.length === 0
+                ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
+                : <AreaChart data={combined} index="Tháng"
+                    categories={['Xuất khẩu', 'Nhập khẩu']} colors={['emerald', 'rose']}
+                    valueFormatter={(v) => `${v.toFixed(1)} tỷ`} yAxisWidth={56}
+                    showLegend={true} showGradient={false} autoMinValue tickGap={24}
+                    className="h-48 mt-4" />}
+        </Card>
+    );
+}
+
+// Grid of FireAnt charts for a given type
+const FA_COLORS: Record<string, string> = {
+    GDP: 'emerald', Prices: 'rose', Trade: 'blue', Labour: 'violet',
+    Money: 'amber', Consumer: 'cyan', Business: 'orange', InterestRate: 'indigo', Taxes: 'gray',
+};
+
+function FASection({ title, subtitle, indicators, type }: {
+    title: string; subtitle: string; indicators: FAIndicator[]; type: string;
+}) {
+    if (!indicators.length) return null;
+    const color = FA_COLORS[type] ?? 'blue';
+    const expInd = indicators.find(i => i.id === 59);
+    const impInd = indicators.find(i => i.id === 62);
+    const balInd = indicators.find(i => i.id === 54);
+    const otherInds = type === 'Trade'
+        ? indicators.filter(i => ![54, 59, 62].includes(i.id))
+        : indicators;
+
+    return (
+        <section>
+            <SectionHeader title={title} subtitle={subtitle} />
+            <div className="space-y-4">
+                {type === 'Trade' && expInd && impInd && balInd && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <TradeChart exp={expInd} imp={impInd} bal={balInd} />
+                        {otherInds.length > 0 && <FAChart ind={otherInds[0]} color={color} />}
+                    </div>
+                )}
+                {type === 'Trade' && otherInds.slice(type === 'Trade' ? 1 : 0).length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {otherInds.slice(1).map(ind => <FAChart key={ind.id} ind={ind} color={color} />)}
+                    </div>
+                )}
+                {type !== 'Trade' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {otherInds.map(ind => <FAChart key={ind.id} ind={ind} color={color} />)}
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function MacroPage() {
-    const [rates, setRates]           = useState<RatesData | null>(null);
-    const [economic, setEconomic]     = useState<EconomicData | null>(null);
-    const [ratesLoading, setRL]       = useState(true);
-    const [economicLoading, setEL]    = useState(true);
-    const [ffForex, setFfForex]       = useState<Map<string, FFPrice>>(new Map());
-    const [ffIndices, setFfIndices]   = useState<Map<string, FFPrice>>(new Map());
+type TabId = 'vietnam' | 'world';
 
-    // FF channel → Yahoo symbol (for commodity live updates)
+const TAB_LABELS: { id: TabId; label: string }[] = [
+    { id: 'vietnam', label: 'Việt Nam' },
+    { id: 'world',   label: 'Thế Giới' },
+];
+
+export default function MacroPage() {
+    const [activeTab, setActiveTab] = useState<TabId>('vietnam');
+
+    // World data
+    const [rates, setRates]         = useState<RatesData | null>(null);
+    const [economic, setEconomic]   = useState<EconomicData | null>(null);
+    const [ratesLoading, setRL]     = useState(true);
+    const [economicLoading, setEL]  = useState(true);
+    const [ffForex, setFfForex]     = useState<Map<string, FFPrice>>(new Map());
+    const [ffIndices, setFfIndices] = useState<Map<string, FFPrice>>(new Map());
+
+    // Vietnam data (FireAnt)
+    const [faData, setFaData]       = useState<FAData>({});
+    const [faLoading, setFaL]       = useState(true);
+
     const FF_TO_YAHOO: Record<string, string> = {
-        'Gold/USD':  'GC=F',
-        'WTI/USD':   'CL=F',
-        'Copper/USD':'HG=F',
+        'Gold/USD': 'GC=F', 'WTI/USD': 'CL=F', 'Copper/USD': 'HG=F',
     };
 
+    // FF WebSocket (world tab)
     useEffect(() => {
         const ws = getFFWS();
-
-        // Commodity overlay on Yahoo Finance cards
         const commodityUnsubs = Object.keys(FF_TO_YAHOO).map(ch =>
             ws.subscribe(ch, (snap: FFPrice) => {
                 const yahooSym = FF_TO_YAHOO[ch];
@@ -418,138 +558,156 @@ export default function MacroPage() {
                 });
             })
         );
-
-        // Forex pairs section
-        const forexUnsubs = FF_FOREX_CHANNELS.map(def =>
-            ws.subscribe(def.channel, (snap: FFPrice) =>
-                setFfForex(prev => new Map(prev).set(def.channel, snap))
-            )
+        const forexUnsubs   = FF_FOREX_CHANNELS.map(def =>
+            ws.subscribe(def.channel, (snap: FFPrice) => setFfForex(prev => new Map(prev).set(def.channel, snap)))
         );
-
-        // World indices section
         const indicesUnsubs = FF_INDICES_CHANNELS.map(def =>
-            ws.subscribe(def.channel, (snap: FFPrice) =>
-                setFfIndices(prev => new Map(prev).set(def.channel, snap))
-            )
+            ws.subscribe(def.channel, (snap: FFPrice) => setFfIndices(prev => new Map(prev).set(def.channel, snap)))
         );
-
-        return () => {
-            [...commodityUnsubs, ...forexUnsubs, ...indicesUnsubs].forEach(fn => fn());
-        };
+        return () => { [...commodityUnsubs, ...forexUnsubs, ...indicesUnsubs].forEach(fn => fn()); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Fetch rates (Yahoo Finance — 5 min refresh)
-    const loadRates = useCallback(async () => {
-        try {
-            const res = await fetch(API.MACRO_RATES);
-            if (res.ok) setRates(await res.json());
-        } catch (_) {}
-        finally { setRL(false); }
+    const loadRates    = useCallback(async () => {
+        try { const r = await fetch(API.MACRO_RATES);    if (r.ok) setRates(await r.json()); }
+        catch (_) {} finally { setRL(false); }
     }, []);
-
-    // Fetch economic data (investing.com sbcharts — 1 hr server cache, rarely stale)
     const loadEconomic = useCallback(async () => {
-        try {
-            const res = await fetch(API.MACRO_ECONOMIC);
-            if (res.ok) setEconomic(await res.json());
-        } catch (_) {}
-        finally { setEL(false); }
+        try { const r = await fetch(API.MACRO_ECONOMIC); if (r.ok) setEconomic(await r.json()); }
+        catch (_) {} finally { setEL(false); }
+    }, []);
+    const loadFaData   = useCallback(async () => {
+        try { const r = await fetch(API.MACRO_FIREANT()); if (r.ok) setFaData(await r.json()); }
+        catch (_) {} finally { setFaL(false); }
     }, []);
 
     useEffect(() => {
-        // Kick off both in parallel on mount
-        loadRates();
-        loadEconomic();
-
-        // Only auto-refresh rates (economic data is slow-changing)
+        loadRates(); loadEconomic(); loadFaData();
         const t = setInterval(loadRates, RATES_REFRESH_MS);
         return () => clearInterval(t);
-    }, [loadRates, loadEconomic]);
+    }, [loadRates, loadEconomic, loadFaData]);
 
-    const fxRates    = rates?.exchange_rates ?? [];
-    const commodities= rates?.commodities    ?? [];
-    const cpi        = economic?.cpi         ?? [];
-    const gdp        = economic?.gdp         ?? [];
-    const vn10y      = economic?.vn10y       ?? [];
+    const fxRates     = rates?.exchange_rates ?? [];
+    const commodities = rates?.commodities    ?? [];
+    const cpi         = economic?.cpi         ?? [];
+    const vn10y       = economic?.vn10y       ?? [];
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-            <div className="max-w-[1600px] mx-auto p-4 md:p-6 space-y-10">
+            <div className="max-w-[1600px] mx-auto p-4 md:p-6 space-y-8">
 
+                {/* Header */}
                 <div>
                     <h1 className="text-3xl md:text-4xl font-bold leading-tight tracking-tight">
                         Kinh Tế <span className="text-blue-600 dark:text-blue-400">Vĩ Mô</span>
                     </h1>
                     <div className="w-28 h-1 bg-blue-500 rounded mt-2" />
                     <p className="text-slate-600 dark:text-slate-300 mt-3 text-sm md:text-base max-w-3xl">
-                        Tổng hợp các chỉ số kinh tế vĩ mô Việt Nam: tỷ giá hối đoái, hàng hóa quốc tế, lạm phát, tăng trưởng GDP và lợi suất trái phiếu.
+                        Tổng hợp các chỉ số kinh tế vĩ mô Việt Nam và thế giới — dữ liệu từ FireAnt, Yahoo Finance và Forex Factory.
                     </p>
                 </div>
 
-                {/* Exchange rates — loads independently */}
-                <section>
-                    <SectionHeader title="Tỷ Giá Hối Đoái"
-                        subtitle="VND so với các đồng tiền chính — nguồn: Yahoo Finance" />
-                    {ratesLoading
-                        ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
-                        : fxRates.length === 0
-                        ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu tỷ giá.</p>
-                        : <CardGrid items={fxRates} isVnd={true} />}
-                </section>
+                {/* Tab switcher */}
+                <div className="flex gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/60 w-fit">
+                    {TAB_LABELS.map(tab => (
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-150
+                                ${activeTab === tab.id
+                                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'}`}>
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
 
-                {/* Major forex pairs — live FF WS */}
-                <section>
-                    <SectionHeader title="Ngoại Hối Quốc Tế"
-                        subtitle="Các cặp tiền tệ chính — live: Forex Factory" />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
-                        {FF_FOREX_CHANNELS.map(def => (
-                            <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
-                        ))}
+                {/* ── Vietnam Tab ── */}
+                {activeTab === 'vietnam' && (
+                    <div className="space-y-10">
+                        {faLoading ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {Array.from({ length: 6 }).map((_, i) => <SkeletonChart key={i} />)}
+                            </div>
+                        ) : (
+                            <>
+                                <FASection title="GDP Việt Nam" subtitle="Nguồn: FireAnt / Ngân hàng Thế giới & GSO"
+                                    indicators={faData['GDP'] ?? []} type="GDP" />
+                                <FASection title="Giá Cả & Lạm Phát" subtitle="Nguồn: FireAnt / GSO"
+                                    indicators={faData['Prices'] ?? []} type="Prices" />
+                                <FASection title="Thương Mại & Đầu Tư" subtitle="Nguồn: FireAnt / Hải quan Việt Nam"
+                                    indicators={faData['Trade'] ?? []} type="Trade" />
+                                <FASection title="Thị Trường Tiền Tệ" subtitle="Nguồn: FireAnt / NHNN"
+                                    indicators={faData['Money'] ?? []} type="Money" />
+                                <FASection title="Lãi Suất Liên Ngân Hàng" subtitle="Nguồn: FireAnt / NHNN"
+                                    indicators={faData['InterestRate'] ?? []} type="InterestRate" />
+                                <FASection title="Lao Động & Việc Làm" subtitle="Nguồn: FireAnt / GSO"
+                                    indicators={faData['Labour'] ?? []} type="Labour" />
+                                <FASection title="Sản Xuất & Kinh Doanh" subtitle="Nguồn: FireAnt / S&P Global PMI"
+                                    indicators={faData['Business'] ?? []} type="Business" />
+                                <FASection title="Tiêu Dùng" subtitle="Nguồn: FireAnt / GSO"
+                                    indicators={faData['Consumer'] ?? []} type="Consumer" />
+
+                                {/* CPI + VN10Y from investing.com as supplement */}
+                                <section>
+                                    <SectionHeader title="Chỉ Số Bổ Sung"
+                                        subtitle="CPI YoY và lợi suất TPCP 10 năm — nguồn: investing.com" />
+                                    {economicLoading
+                                        ? <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><SkeletonChart /><SkeletonChart /></div>
+                                        : <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                            <CpiChart data={cpi} />
+                                            <Vn10yChart data={vn10y} />
+                                          </div>}
+                                </section>
+                            </>
+                        )}
                     </div>
-                </section>
+                )}
 
-                {/* World indices — live FF WS */}
-                <section>
-                    <SectionHeader title="Chỉ Số Chứng Khoán Thế Giới"
-                        subtitle="Chỉ số các thị trường lớn — live: Forex Factory" />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                        {FF_INDICES_CHANNELS.map(def => (
-                            <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
-                        ))}
+                {/* ── World Tab ── */}
+                {activeTab === 'world' && (
+                    <div className="space-y-10">
+                        <section>
+                            <SectionHeader title="Tỷ Giá Hối Đoái" subtitle="VND so với các đồng tiền chính — nguồn: Yahoo Finance" />
+                            {ratesLoading
+                                ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+                                : fxRates.length === 0
+                                ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu tỷ giá.</p>
+                                : <CardGrid items={fxRates} isVnd={true} />}
+                        </section>
+
+                        <section>
+                            <SectionHeader title="Ngoại Hối Quốc Tế" subtitle="Các cặp tiền tệ chính — live: Forex Factory" />
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+                                {FF_FOREX_CHANNELS.map(def => (
+                                    <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
+                                ))}
+                            </div>
+                        </section>
+
+                        <section>
+                            <SectionHeader title="Chỉ Số Chứng Khoán Thế Giới" subtitle="Chỉ số các thị trường lớn — live: Forex Factory" />
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                                {FF_INDICES_CHANNELS.map(def => (
+                                    <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
+                                ))}
+                            </div>
+                        </section>
+
+                        <section>
+                            <SectionHeader title="Hàng Hóa Quốc Tế"
+                                subtitle="Giá hàng hóa liên quan đến doanh nghiệp VN — live: Forex Factory · khởi tạo: Yahoo Finance" />
+                            {ratesLoading
+                                ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+                                : commodities.length === 0
+                                ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu hàng hóa.</p>
+                                : <CardGrid items={commodities} isVnd={false} />}
+                            {!ratesLoading && (
+                                <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+                                    Brent ảnh hưởng GAS, PVD, PLX · Đồng → REE, điện · Gạo → LTG, NSC · Vàng → SJC, PNJ
+                                </p>
+                            )}
+                        </section>
                     </div>
-                </section>
-
-                {/* Commodities — loads with rates */}
-                <section>
-                    <SectionHeader title="Hàng Hóa Quốc Tế"
-                        subtitle="Giá hàng hóa liên quan đến doanh nghiệt Nam — live: Forex Factory · khởi tạo: Yahoo Finance" />
-                    {ratesLoading
-                        ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
-                        : commodities.length === 0
-                        ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu hàng hóa.</p>
-                        : <CardGrid items={commodities} isVnd={false} />}
-                    {!ratesLoading && (
-                        <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-                            Brent ảnh hưởng GAS, PVD, PLX · Đồng → REE, điện · Gạo → LTG, NSC · Vàng → SJC, PNJ
-                        </p>
-                    )}
-                </section>
-
-                {/* Economic indicators — loads independently (faster: sbcharts CDN) */}
-                <section>
-                    <SectionHeader title="Chỉ Số Kinh Tế Việt Nam"
-                        subtitle="CPI hàng tháng, GDP theo quý, lợi suất TPCP 10 năm — nguồn: investing.com" />
-                    {economicLoading
-                        ? <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                            <SkeletonChart /><SkeletonChart /><SkeletonChart />
-                          </div>
-                        : <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                            <CpiChart data={cpi} />
-                            <GdpChart data={gdp} />
-                            <Vn10yChart data={vn10y} />
-                          </div>}
-                </section>
+                )}
 
             </div>
         </div>

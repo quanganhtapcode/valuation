@@ -120,7 +120,7 @@ def register(stock_bp: Blueprint) -> None:
 
             try:
                 range_param = request.args.get("period", request.args.get("range", "6M")).upper()
-                days_map = {"1M": 30, "3M": 90, "6M": 180, "1Y": 365, "5Y": 1825, "ALL": 3650}
+                days_map = {"1M": 30, "3M": 90, "6M": 180, "1Y": 365, "3Y": 1095, "5Y": 1825, "ALL": 1825}
                 days_back = days_map.get(range_param, 180)
 
                 end_date = datetime.now()

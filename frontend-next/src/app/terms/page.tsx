@@ -3,7 +3,7 @@ import styles from './page.module.css';
 export const metadata = {
     title: 'Terms of Service',
     description: 'Terms of Service for the Quang Anh stock analysis platform.',
-    alternates: { canonical: 'https://stock.quanganh.org/terms' },
+    alternates: { canonical: '/terms' },
 };
 
 export default function TermsPage() {

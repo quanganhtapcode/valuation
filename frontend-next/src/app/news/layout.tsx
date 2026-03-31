@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'News',
-  description: 'Latest Vietnam stock market news — continuously updated from listed companies.',
+  title: 'Vietnam Stock Market News',
+  description: 'Latest Vietnam stock market news and company updates, continuously refreshed for investors and researchers.',
+  keywords: ['vietnam stock news', 'vnindex news', 'hose news', 'hnx news', 'upcom news'],
   alternates: { canonical: '/news' },
   openGraph: {
-    title: 'Stock Market News | Quang Anh',
-    description: 'Latest Vietnam stock market news from listed companies.',
+    title: 'Vietnam Stock Market News | Quang Anh',
+    description: 'Latest Vietnam stock market news from listed companies and market sources.',
     url: '/news',
   },
 };

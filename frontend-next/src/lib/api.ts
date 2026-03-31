@@ -30,8 +30,12 @@ export const API = {
     FOREIGN_VOLUME_CHART: `${API_BASE}/market/foreign-volume-chart`,
     GOLD: `${API_BASE}/market/gold`,
     LOTTERY: `${API_BASE}/market/lottery`,
-    MACRO_RATES:    `${API_BASE}/market/macro/rates`,
-    MACRO_ECONOMIC: `${API_BASE}/market/macro/economic`,
+    MACRO_RATES:        `${API_BASE}/market/macro/rates`,
+    MACRO_ECONOMIC:     `${API_BASE}/market/macro/economic`,
+    MACRO_FIREANT_GDP:  `${API_BASE}/market/macro/fireant-gdp`,
+    MACRO_FIREANT:      (types?: string) => types
+        ? `${API_BASE}/market/macro/fireant?types=${types}`
+        : `${API_BASE}/market/macro/fireant`,
     MARKET_EVENTS: (date: string) => `${API_BASE}/market/events?date=${date}`,
     MARKET_EVENTS_EXPORT: (fromDate: string, toDate: string) =>
         `${API_BASE}/market/events/export?fromDate=${fromDate}&toDate=${toDate}`,

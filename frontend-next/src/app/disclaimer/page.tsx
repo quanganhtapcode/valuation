@@ -3,7 +3,7 @@ import styles from './page.module.css';
 export const metadata = {
     title: 'Disclaimer',
     description: 'Legal disclaimer regarding information and data on the Quang Anh platform.',
-    alternates: { canonical: 'https://stock.quanganh.org/disclaimer' },
+    alternates: { canonical: '/disclaimer' },
 };
 
 export default function DisclaimerPage() {
