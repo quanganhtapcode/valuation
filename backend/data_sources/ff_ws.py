@@ -34,11 +34,11 @@ CHANNELS = [
     # Forex pairs
     "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CHF", "USD/CAD", "NZD/USD",
     # US indices + volatility + dollar index
-    "SPX/USD", "NDX/USD", "VIX/USD", "DXY/USD",
-    # Asian / European indices (active only during market hours)
-    "NIK/JPY", "FTSE/GBP", "DAX/EUR",
+    "SPX/USD", "NDX/USD", "Dow/USD", "VIX/USD", "DXY/USD",
+    # Asian index (active only during JP market hours 0–6 UTC)
+    "Nikkei/JPY",
     # Commodities
-    "WTI/USD", "BTC/USD", "ETH/USD",
+    "Gold/USD", "Silver/USD", "WTI/USD", "Copper/USD", "BTC/USD", "ETH/USD",
 ]
 
 # ── In-memory price cache ─────────────────────────────────────────────────────
