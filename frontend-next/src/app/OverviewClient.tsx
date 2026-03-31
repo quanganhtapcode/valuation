@@ -5,7 +5,7 @@ import IndexCard from '@/components/IndexCard';
 import PEChart from '@/components/PEChart';
 import NewsSection from '@/components/NewsSection';
 
-import { CryptoPrices, GoldPrice, Lottery, MarketPulse, WatchlistCard, PolymarketEvents } from '@/components/Sidebar';
+import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard, PolymarketEvents } from '@/components/Sidebar';
 import { HeatmapVN30 } from '@/components/HeatmapVN30';
 import { useWatchlist } from '@/lib/watchlistContext';
 import {
@@ -349,6 +349,12 @@ export default function OverviewClient({
                         losers={losers}
                         isLoading={moversLoading}
                     />
+
+                    {/* World Markets (FF WebSocket) */}
+                    <FFWorldMarkets />
+
+                    {/* Forex Rates (FF WebSocket) */}
+                    <FFForexRates />
 
                     {/* Crypto Prices (OKX WebSocket) */}
                     <CryptoPrices />
