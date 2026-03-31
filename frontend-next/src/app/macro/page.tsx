@@ -111,6 +111,27 @@ function downloadCsv(filename: string, rows: PricePoint[]) {
     URL.revokeObjectURL(url);
 }
 
+function downloadFACsv(filename: string, headers: string[], rows: (string | number)[][]) {
+    const body = rows.map(r => r.join(',')).join('\n');
+    const blob  = new Blob([`${headers.join(',')}\n${body}`], { type: 'text/csv;charset=utf-8;' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+}
+
+function CsvButton({ onClick }: { onClick: () => void }) {
+    return (
+        <button onClick={onClick} title="Tải CSV"
+            className="flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0">
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            CSV
+        </button>
+    );
+}
+
 function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean; onClose: () => void }) {
     const [days, setDays]       = useState(365);
     const [points, setPoints]   = useState<PricePoint[]>([]);
@@ -295,32 +316,35 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
 
 // ── investing.com charts (CPI + VN10Y) ───────────────────────────────────────
 
-function EcoChartCard({ title, subtitle, latest, latestLabel, delta, children }: {
+function EcoChartCard({ title, subtitle, latest, latestLabel, delta, onDownload, children }: {
     title: string; subtitle: string; latest: number | null;
-    latestLabel: string; delta: number | null; children: React.ReactNode;
+    latestLabel: string; delta: number | null; onDownload?: () => void; children: React.ReactNode;
 }) {
     return (
         <Card className="p-5">
             <div className="flex items-start justify-between mb-1">
-                <div>
+                <div className="min-w-0">
                     <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</p>
                     <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">{subtitle}</p>
                 </div>
-                {latest !== null && (
-                    <div className="text-right shrink-0 ml-4">
-                        <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                            {latest.toFixed(2)}%
-                        </p>
-                        <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                            {latestLabel}
-                            {delta !== null && (
-                                <span className={`ml-1.5 font-semibold ${delta >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                                    {delta >= 0 ? '+' : ''}{delta.toFixed(2)}
-                                </span>
-                            )}
-                        </p>
-                    </div>
-                )}
+                <div className="flex items-start gap-2 shrink-0 ml-3">
+                    {onDownload && <CsvButton onClick={onDownload} />}
+                    {latest !== null && (
+                        <div className="text-right">
+                            <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                {latest.toFixed(2)}%
+                            </p>
+                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
+                                {latestLabel}
+                                {delta !== null && (
+                                    <span className={`ml-1.5 font-semibold ${delta >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                        {delta >= 0 ? '+' : ''}{delta.toFixed(2)}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
             {children}
         </Card>
@@ -338,7 +362,8 @@ function CpiChart({ data }: { data: CpiPoint[] }) {
     }));
     return (
         <EcoChartCard title="Lạm phát CPI — YoY (%)" subtitle="Hàng tháng — nguồn: investing.com"
-            latest={latest?.value ?? null} latestLabel={latest ? fmtMonth(latest.date) : ''} delta={delta}>
+            latest={latest?.value ?? null} latestLabel={latest ? fmtMonth(latest.date) : ''} delta={delta}
+            onDownload={data.length ? () => downloadFACsv('cpi.csv', ['Date','CPI_%'], data.map(p => [p.date, p.value])) : undefined}>
             {chartData.length === 0
                 ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
                 : <AreaChart data={chartData} index="Tháng" categories={['CPI (%)']} colors={['rose']}
@@ -359,7 +384,8 @@ function Vn10yChart({ data }: { data: Vn10yPoint[] }) {
     }));
     return (
         <EcoChartCard title="Lợi suất TPCP 10 năm (%)" subtitle="Trái phiếu chính phủ VN — nguồn: investing.com"
-            latest={latest?.value ?? null} latestLabel={latest ? fmtMonth(latest.date) : ''} delta={delta}>
+            latest={latest?.value ?? null} latestLabel={latest ? fmtMonth(latest.date) : ''} delta={delta}
+            onDownload={data.length ? () => downloadFACsv('vn10y.csv', ['Date','Yield_%'], data.map(p => [p.date, p.value])) : undefined}>
             {chartData.length === 0
                 ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
                 : <AreaChart data={chartData} index="Tháng" categories={['Lợi suất (%)']} colors={['blue']}
@@ -388,28 +414,38 @@ function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; ba
         : ind.frequency?.includes('quý') || ind.frequency?.includes('Quý') ? 12
         : 4;
 
+    const slug = ind.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const handleDownload = () => downloadFACsv(
+        `${slug}.csv`,
+        ['Date', `${ind.name} (${ind.unit})`],
+        ind.data.map(p => [p.date, p.value]),
+    );
+
     return (
         <Card className="p-5">
             <div className="flex items-start justify-between mb-1">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm truncate">{ind.nameVN}</p>
                     <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">FireAnt · {ind.unit}</p>
                 </div>
-                {latest && (
-                    <div className="text-right shrink-0 ml-3">
-                        <p className="text-xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                            {fmt(latest.value)}
-                        </p>
-                        <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                            {latest.date}
-                            {delta !== null && (
-                                <span className={`ml-1.5 font-semibold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                    {up ? '+' : ''}{delta.toFixed(2)}
-                                </span>
-                            )}
-                        </p>
-                    </div>
-                )}
+                <div className="flex items-start gap-2 shrink-0 ml-3">
+                    {ind.data.length > 0 && <CsvButton onClick={handleDownload} />}
+                    {latest && (
+                        <div className="text-right">
+                            <p className="text-xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                {fmt(latest.value)}
+                            </p>
+                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
+                                {latest.date}
+                                {delta !== null && (
+                                    <span className={`ml-1.5 font-semibold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {up ? '+' : ''}{delta.toFixed(2)}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
             {ind.data.length === 0
                 ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
@@ -430,34 +466,42 @@ function TradeChart({ exp, imp, bal }: { exp: FAIndicator; imp: FAIndicator; bal
     const last = bal.data.at(-1);
     const prev = bal.data.at(-2);
     const delta = last && prev ? last.value - prev.value : null;
-    // Align by common dates
     const impMap = new Map(imp.data.map(p => [p.date, p.value]));
     const combined = exp.data
         .filter(p => impMap.has(p.date))
         .map(p => ({ 'Tháng': p.date, 'Xuất khẩu': p.value, 'Nhập khẩu': impMap.get(p.date)! }));
 
+    const handleDownload = () => downloadFACsv(
+        'trade_exports_imports.csv',
+        ['Date', 'Exports_BillionUSD', 'Imports_BillionUSD', 'Balance_BillionUSD'],
+        exp.data.map(p => [p.date, p.value, impMap.get(p.date) ?? '', (p.value - (impMap.get(p.date) ?? 0)).toFixed(2)]),
+    );
+
     return (
         <Card className="p-5">
             <div className="flex items-start justify-between mb-1">
-                <div>
+                <div className="flex-1 min-w-0">
                     <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm">Xuất & Nhập khẩu</p>
                     <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">FireAnt · Tỷ USD · hàng tháng</p>
                 </div>
-                {last && (
-                    <div className="text-right shrink-0 ml-3">
-                        <p className={`text-xl font-bold tabular-nums ${last.value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                            {last.value >= 0 ? '+' : ''}{last.value.toFixed(2)} tỷ
-                        </p>
-                        <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                            Cán cân {last.date}
-                            {delta !== null && (
-                                <span className={`ml-1.5 font-semibold ${delta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                    {delta >= 0 ? '+' : ''}{delta.toFixed(2)}
-                                </span>
-                            )}
-                        </p>
-                    </div>
-                )}
+                <div className="flex items-start gap-2 shrink-0 ml-3">
+                    {combined.length > 0 && <CsvButton onClick={handleDownload} />}
+                    {last && (
+                        <div className="text-right">
+                            <p className={`text-xl font-bold tabular-nums ${last.value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                {last.value >= 0 ? '+' : ''}{last.value.toFixed(2)} tỷ
+                            </p>
+                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
+                                Cán cân {last.date}
+                                {delta !== null && (
+                                    <span className={`ml-1.5 font-semibold ${delta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {delta >= 0 ? '+' : ''}{delta.toFixed(2)}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
             {combined.length === 0
                 ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
