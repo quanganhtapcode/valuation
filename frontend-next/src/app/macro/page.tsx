@@ -189,6 +189,60 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
     );
 }
 
+// ── FF live channel definitions ───────────────────────────────────────────────
+
+const FF_FOREX_CHANNELS = [
+    { channel: 'EUR/USD',  label: 'EUR/USD',  fmt: (p: number) => p.toFixed(4) },
+    { channel: 'GBP/USD',  label: 'GBP/USD',  fmt: (p: number) => p.toFixed(4) },
+    { channel: 'USD/JPY',  label: 'USD/JPY',  fmt: (p: number) => p.toFixed(2) },
+    { channel: 'AUD/USD',  label: 'AUD/USD',  fmt: (p: number) => p.toFixed(4) },
+    { channel: 'USD/CHF',  label: 'USD/CHF',  fmt: (p: number) => p.toFixed(4) },
+    { channel: 'USD/CAD',  label: 'USD/CAD',  fmt: (p: number) => p.toFixed(4) },
+    { channel: 'NZD/USD',  label: 'NZD/USD',  fmt: (p: number) => p.toFixed(4) },
+] as const;
+
+const FF_INDICES_CHANNELS = [
+    { channel: 'SPX/USD',  label: 'S&P 500',    fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+    { channel: 'NAS/USD',  label: 'Nasdaq',      fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+    { channel: 'DJIA/USD', label: 'Dow Jones',   fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+    { channel: 'DAX/EUR',  label: 'DAX',         fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+    { channel: 'FTSE/GBP', label: 'FTSE 100',   fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+    { channel: 'NIK/JPY',  label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+] as const;
+
+// ── FF live card (no history chart — pure WS data) ────────────────────────────
+
+interface FFCardDef { channel: string; label: string; fmt: (p: number) => string }
+
+function FFLiveCard({ def, snap }: { def: FFCardDef; snap: FFPrice | undefined }) {
+    const up   = (snap?.changePercent ?? 0) >= 0;
+    const colorCls = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+    const bgCls    = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
+
+    return (
+        <div className="rounded-tremor-default ring-1 ring-tremor-ring dark:ring-dark-tremor-ring bg-tremor-background dark:bg-dark-tremor-background p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content mb-1">{def.label}</p>
+            {snap ? (
+                <>
+                    <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                        {def.fmt(snap.price)}
+                    </p>
+                    <div className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${bgCls} ${colorCls}`}>
+                        <span>{up ? '▲' : '▼'}</span>
+                        <span>{Math.abs(snap.changePercent).toFixed(2)}%</span>
+                    </div>
+                    <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">Live · Forex Factory</p>
+                </>
+            ) : (
+                <div className="space-y-2 mt-1">
+                    <div className="h-7 w-28 rounded bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                    <div className="h-4 w-16 rounded-full bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Rate Card ─────────────────────────────────────────────────────────────────
 
 function RateCard({ item, isVnd, selected, onClick }: { item: RateItem; isVnd: boolean; selected: boolean; onClick: () => void }) {
@@ -336,8 +390,10 @@ export default function MacroPage() {
     const [economic, setEconomic]     = useState<EconomicData | null>(null);
     const [ratesLoading, setRL]       = useState(true);
     const [economicLoading, setEL]    = useState(true);
+    const [ffForex, setFfForex]       = useState<Map<string, FFPrice>>(new Map());
+    const [ffIndices, setFfIndices]   = useState<Map<string, FFPrice>>(new Map());
 
-    // FF channel → Yahoo symbol
+    // FF channel → Yahoo symbol (for commodity live updates)
     const FF_TO_YAHOO: Record<string, string> = {
         'GOLD/USD':  'GC=F',
         'BRENT/USD': 'BZ=F',
@@ -346,7 +402,9 @@ export default function MacroPage() {
 
     useEffect(() => {
         const ws = getFFWS();
-        const unsubs = Object.keys(FF_TO_YAHOO).map(ch =>
+
+        // Commodity overlay on Yahoo Finance cards
+        const commodityUnsubs = Object.keys(FF_TO_YAHOO).map(ch =>
             ws.subscribe(ch, (snap: FFPrice) => {
                 const yahooSym = FF_TO_YAHOO[ch];
                 setRates(prev => {
@@ -360,7 +418,24 @@ export default function MacroPage() {
                 });
             })
         );
-        return () => unsubs.forEach(fn => fn());
+
+        // Forex pairs section
+        const forexUnsubs = FF_FOREX_CHANNELS.map(def =>
+            ws.subscribe(def.channel, (snap: FFPrice) =>
+                setFfForex(prev => new Map(prev).set(def.channel, snap))
+            )
+        );
+
+        // World indices section
+        const indicesUnsubs = FF_INDICES_CHANNELS.map(def =>
+            ws.subscribe(def.channel, (snap: FFPrice) =>
+                setFfIndices(prev => new Map(prev).set(def.channel, snap))
+            )
+        );
+
+        return () => {
+            [...commodityUnsubs, ...forexUnsubs, ...indicesUnsubs].forEach(fn => fn());
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -421,6 +496,28 @@ export default function MacroPage() {
                         : fxRates.length === 0
                         ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu tỷ giá.</p>
                         : <CardGrid items={fxRates} isVnd={true} />}
+                </section>
+
+                {/* Major forex pairs — live FF WS */}
+                <section>
+                    <SectionHeader title="Ngoại Hối Quốc Tế"
+                        subtitle="Các cặp tiền tệ chính — live: Forex Factory" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+                        {FF_FOREX_CHANNELS.map(def => (
+                            <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
+                        ))}
+                    </div>
+                </section>
+
+                {/* World indices — live FF WS */}
+                <section>
+                    <SectionHeader title="Chỉ Số Chứng Khoán Thế Giới"
+                        subtitle="Chỉ số các thị trường lớn — live: Forex Factory" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                        {FF_INDICES_CHANNELS.map(def => (
+                            <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
+                        ))}
+                    </div>
                 </section>
 
                 {/* Commodities — loads with rates */}
