@@ -66,20 +66,25 @@ class FFWSManager {
   connect() {
     if (this.destroyed) return;
     try {
+      console.log('[FF] connecting...');
       this.ws = new WebSocket(FF_WS_URL);
       this.ws.binaryType = 'arraybuffer';
       this.ws.onopen = () => {
+        console.log('[FF] connected, subscribing', this.subscriptions.size, 'channels');
         this.failedConnects = 0;
         for (const ch of this.subscriptions) this.sendSub(ch);
       };
       this.ws.onmessage = (e) => this.onMessage(e);
-      this.ws.onclose = () => {
+      this.ws.onclose = (e) => {
+        console.warn('[FF] closed', e.code, e.reason);
         if (this.destroyed) return;
         this.failedConnects++;
         const delay = Math.min(1000 * this.failedConnects, 30_000);
         setTimeout(() => this.connect(), delay);
       };
-    } catch {
+      this.ws.onerror = (e) => console.error('[FF] ws error', e);
+    } catch (err) {
+      console.error('[FF] connect throw', err);
       this.failedConnects++;
       const delay = Math.min(1000 * this.failedConnects, 30_000);
       setTimeout(() => this.connect(), delay);
@@ -102,7 +107,9 @@ class FFWSManager {
       try {
         const text = await decompress(e.data);
         this.dispatch(text);
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.error('[FF] decompress failed', err);
+      }
       return;
     }
     // Text frame — newline-delimited
@@ -123,6 +130,7 @@ class FFWSManager {
     try {
       const msg: FFMessage = JSON.parse(text);
       if (!msg.Name) return;
+      console.log('[FF] msg', msg.Name, msg.Partial ? 'partial' : 'full', 'price:', msg.Quotes?.MDSAgg?.BidRounded);
       const set = this.listeners.get(msg.Name);
       if (set) for (const fn of set) fn(msg);
     } catch { /* ignore */ }
