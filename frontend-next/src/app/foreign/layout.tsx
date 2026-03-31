@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Khối Ngoại',
-    description: 'Giao dịch khối ngoại theo thời gian thực — mua/bán ròng, khối lượng và giá trị lũy kế trong phiên.',
+    title: 'Foreign Investor Flow: Net Buy/Sell in Vietnam Stocks',
+    description: 'Track real-time foreign investor trading in Vietnam stocks with net buy/sell value and intraday volume trends.',
+    keywords: ['foreign flow vietnam', 'foreign investor vietnam stocks', 'net buy net sell vietnam', 'khoi ngoai'],
     alternates: { canonical: '/foreign' },
     openGraph: {
-        title: 'Giao Dịch Khối Ngoại | Quang Anh',
-        description: 'Top mua bán khối ngoại và biểu đồ khối lượng giao dịch trong phiên.',
+        title: 'Foreign Investor Flow | Quang Anh',
+        description: 'Top foreign net buy/sell stocks and intraday cumulative foreign trading charts.',
         url: '/foreign',
     },
 };

@@ -417,6 +417,38 @@ def get_screening_metrics(
     return result
 
 
+def get_ratio_daily_metrics_map(
+    symbols: list[str],
+    cache_get: CacheGet | None = None,
+    cache_set: CacheSet | None = None,
+) -> dict[str, dict]:
+    normalized = sorted({str(s or "").upper().strip() for s in symbols if str(s or "").strip()})
+    if not normalized:
+        return {}
+
+    out: dict[str, dict] = {}
+    misses: list[str] = []
+
+    for symbol in normalized:
+        cache_key = f"ratio_daily_{symbol}"
+        cached = _cache_get(cache_get, cache_key)
+        if cached is None:
+            misses.append(symbol)
+        elif isinstance(cached, dict):
+            out[symbol] = cached
+
+    if misses:
+        loaded = _load_ratio_daily_rows(misses)
+        for symbol in misses:
+            cache_key = f"ratio_daily_{symbol}"
+            value = loaded.get(symbol)
+            _cache_set(cache_set, cache_key, value)
+            if isinstance(value, dict):
+                out[symbol] = value
+
+    return out
+
+
 def get_screening_metrics_map(
     symbols: list[str],
     cache_get: CacheGet | None = None,
@@ -518,27 +550,32 @@ def apply_source_priority(
     out = dict(data)
     out.setdefault("source_priority", SOURCE_PRIORITY_LABEL)
 
-    # Layer 1 (lowest priority): VCI screening (updated every 5 min)
-    screening = get_screening_metrics(symbol, cache_get=cache_get, cache_set=cache_set)
-    if screening:
-        _apply_overlay(out, screening, screening["source"])
+    # Remove self-calculated PE/PB from overview (vietnam_stocks.db) — use VCI sources only
+    out["pe"] = None
+    out["pb"] = None
+    out["pe_ratio"] = None
+    out["pb_ratio"] = None
 
-    # Layer 2: VCI stats-financial (updated every 60 min, richer data)
-    stats_fin = get_stats_financial_metrics(symbol, cache_get=cache_get, cache_set=cache_set)
-    if stats_fin:
-        _apply_overlay(out, stats_fin, stats_fin["source"])
-
-    # Layer 3 (highest priority): VCI ratio-daily — PE/PB TTM against today's closing price
+    # Layer 1 (lowest): VCI ratio-daily — PE/PB TTM against today's closing price
     ratio_daily = get_ratio_daily_metrics(symbol, cache_get=cache_get, cache_set=cache_set)
     if ratio_daily:
         _apply_overlay(out, ratio_daily, ratio_daily["source"])
-        # Expose explicit TTM fields
         if ratio_daily.get("pe_ttm"):
             out["pe_ttm"] = ratio_daily["pe_ttm"]
         if ratio_daily.get("pb_ttm"):
             out["pb_ttm"] = ratio_daily["pb_ttm"]
         if ratio_daily.get("trading_date"):
             out["ratio_daily_date"] = ratio_daily["trading_date"]
+
+    # Layer 2: VCI stats-financial (updated every 60 min, richer data)
+    stats_fin = get_stats_financial_metrics(symbol, cache_get=cache_get, cache_set=cache_set)
+    if stats_fin:
+        _apply_overlay(out, stats_fin, stats_fin["source"])
+
+    # Layer 3 (highest priority): VCI screening — updated every 5 min, most current
+    screening = get_screening_metrics(symbol, cache_get=cache_get, cache_set=cache_set)
+    if screening:
+        _apply_overlay(out, screening, screening["source"])
 
     return out
 
@@ -558,7 +595,7 @@ def _apply_peer_overlay(out: dict, src: dict) -> None:
         ("net_interest_margin", "net_interest_margin"),
     ):
         v = src.get(src_key)
-        if v is not None:
+        if v:  # skip None and 0 — 0 means no data from source
             out[dest_key] = v
 
     out["fresh_metrics_source"] = src.get("source", VCI_METRICS_SOURCE)
@@ -568,6 +605,7 @@ def apply_peer_source_priority(
     peer: dict,
     screening: dict | None,
     stats_financial: dict | None = None,
+    ratio_daily: dict | None = None,
 ) -> dict:
     if not isinstance(peer, dict):
         return peer
@@ -575,12 +613,20 @@ def apply_peer_source_priority(
     out = dict(peer)
     out["source_priority"] = SOURCE_PRIORITY_LABEL
 
-    # Layer 1: VCI screening (always available, updated every 5 min)
-    if screening:
-        _apply_peer_overlay(out, screening)
+    # Remove self-calculated PE/PB from overview (vietnam_stocks.db) — use VCI sources only
+    out["pe"] = None
+    out["pb"] = None
 
-    # Layer 2: VCI stats-financial (richer, updated every 60 min — overrides screening)
+    # Layer 1 (lowest): VCI ratio-daily
+    if ratio_daily:
+        _apply_peer_overlay(out, ratio_daily)
+
+    # Layer 2: VCI stats-financial (richer, updated every 60 min)
     if stats_financial:
         _apply_peer_overlay(out, stats_financial)
+
+    # Layer 3 (highest): VCI screening — updated every 5 min, most current
+    if screening:
+        _apply_peer_overlay(out, screening)
 
     return out

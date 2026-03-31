@@ -3,7 +3,7 @@ import styles from './page.module.css';
 export const metadata = {
     title: 'Contact',
     description: 'Get in touch with the Quang Anh team.',
-    alternates: { canonical: 'https://stock.quanganh.org/contact' },
+    alternates: { canonical: '/contact' },
 };
 
 export default function ContactPage() {

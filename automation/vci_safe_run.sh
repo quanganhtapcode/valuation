@@ -14,6 +14,8 @@ Options:
   --keep-ratio <float>      Min allowed keep ratio for quality metric vs old run (default: 0.70)
   --notify-telegram <0|1>   Send Telegram summary if script exists (default: 1)
   --notify-script <path>    Telegram sender script (default: scripts/send_telegram_message.sh)
+  --keep-local <n>          Number of timestamped backups to keep locally (default: 2)
+  --rclone-remote <remote>  rclone remote:path to upload backups before local pruning (e.g. onedrive:valuation-backups)
 EOF
 }
 
@@ -27,6 +29,8 @@ DROP_TOTAL_PCT=0.25
 KEEP_RATIO=0.70
 NOTIFY_TELEGRAM=1
 NOTIFY_SCRIPT="scripts/send_telegram_message.sh"
+KEEP_LOCAL=2
+RCLONE_REMOTE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -40,6 +44,8 @@ while [[ $# -gt 0 ]]; do
     --keep-ratio) KEEP_RATIO="${2:-}"; shift 2 ;;
     --notify-telegram) NOTIFY_TELEGRAM="${2:-}"; shift 2 ;;
     --notify-script) NOTIFY_SCRIPT="${2:-}"; shift 2 ;;
+    --keep-local) KEEP_LOCAL="${2:-}"; shift 2 ;;
+    --rclone-remote) RCLONE_REMOTE="${2:-}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[safe-run] Unknown arg: $1" >&2; usage; exit 2 ;;
   esac
@@ -120,6 +126,36 @@ calc_metrics() {
   echo "${total}|${quality}"
 }
 
+prune_backups() {
+  # Find all timestamped backups for this DB (excludes last_good.bak)
+  local pattern="${BACKUP_DIR}/${db_basename}.20*.bak"
+  # shellcheck disable=SC2207
+  local files=( $(ls -t ${pattern} 2>/dev/null) )
+  local count=${#files[@]}
+
+  if [[ $count -le $KEEP_LOCAL ]]; then
+    echo "[safe-run][$JOB_NAME] prune: $count backup(s) found, keeping all (keep-local=$KEEP_LOCAL)"
+    return 0
+  fi
+
+  local to_delete=( "${files[@]:$KEEP_LOCAL}" )
+  echo "[safe-run][$JOB_NAME] prune: $count backups, keeping $KEEP_LOCAL, removing $((count - KEEP_LOCAL))"
+
+  for f in "${to_delete[@]}"; do
+    if [[ -n "$RCLONE_REMOTE" ]] && command -v rclone &>/dev/null; then
+      local remote_path="${RCLONE_REMOTE}/$(basename "$f")"
+      if rclone copyto "$f" "$remote_path" --no-check-dest 2>/dev/null; then
+        echo "[safe-run][$JOB_NAME] prune: uploaded $(basename "$f") -> $remote_path"
+      else
+        echo "[safe-run][$JOB_NAME] prune: warning: rclone upload failed for $(basename "$f"), skipping delete"
+        continue
+      fi
+    fi
+    rm -f "$f"
+    echo "[safe-run][$JOB_NAME] prune: deleted $(basename "$f")"
+  done
+}
+
 send_telegram_summary() {
   local status="$1"
   local note="$2"
@@ -184,6 +220,7 @@ if [[ $run_ok -ne 1 ]]; then
     cp -f "$last_backup" "$DB_PATH"
     echo "[safe-run][$JOB_NAME] rollback applied from $last_backup"
   fi
+  prune_backups
   send_telegram_summary "FAILED" "job failed after retries; rollback attempted"
   exit 1
 fi
@@ -215,10 +252,12 @@ if [[ $should_rollback -eq 1 ]]; then
   else
     echo "[safe-run][$JOB_NAME] rollback requested but no last backup found"
   fi
+  prune_backups
   send_telegram_summary "ROLLED_BACK" "health threshold violated; restored last good backup"
   exit 3
 fi
 
 echo "[safe-run][$JOB_NAME] health check passed"
+prune_backups
 send_telegram_summary "OK" "update completed and health check passed"
 exit 0

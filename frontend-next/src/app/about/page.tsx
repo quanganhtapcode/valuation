@@ -4,7 +4,7 @@ import styles from './page.module.css';
 export const metadata = {
     title: 'About',
     description: 'Quang Anh is a Vietnam stock analysis platform with DCF valuation tools, P/E, P/B ratios and real-time financial data.',
-    alternates: { canonical: 'https://stock.quanganh.org/about' },
+    alternates: { canonical: '/about' },
 };
 
 export default function AboutPage() {

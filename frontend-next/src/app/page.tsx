@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import OverviewClient from './OverviewClient';
 import {
   INDEX_MAP,
@@ -10,6 +11,34 @@ import {
 
 // Force runtime SSR to avoid build-time prerender making network calls.
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Vietnam Stock Market Today, VNINDEX, VN30, News & Valuation',
+  description:
+    'Track Vietnam stock market today with live VNINDEX/VN30 data, top movers, heatmap, foreign flows, and valuation tools for HOSE, HNX, and UPCOM stocks.',
+  keywords: [
+    'vietnam stock',
+    'vietnam stock market today',
+    'vnindex today',
+    'vn30 index',
+    'hose hnx upcom',
+    'vietnam stock news',
+  ],
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: 'Vietnam Stock Market Today | Quang Anh',
+    description:
+      'Live Vietnam stock market dashboard with VNINDEX, VN30, top movers, heatmap, and stock insights.',
+    url: '/',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vietnam Stock Market Today | Quang Anh',
+    description:
+      'Live VNINDEX/VN30, top movers, heatmap, and valuation insights for Vietnam stocks.',
+  },
+};
 
 interface IndexData {
   id: string;

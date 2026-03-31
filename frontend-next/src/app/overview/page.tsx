@@ -4,12 +4,13 @@ import MarketIntelligence from "@/components/MarketIntelligence"
 import OverviewGlobeSection from "@/components/OverviewGlobeSection"
 
 export const metadata: Metadata = {
-  title: 'Overview',
-  description: 'Explore Quang Anh — stock analysis, market tracking, DCF valuation and Vietnam stock market news.',
+  title: 'Vietnam Stock Market Overview',
+  description: 'Explore Vietnam stock market overview with analysis tools, market tracking, valuation insights, and latest market intelligence.',
+  keywords: ['vietnam stock overview', 'vnindex overview', 'vietnam market intelligence'],
   alternates: { canonical: '/overview' },
   openGraph: {
-    title: 'Overview | Quang Anh',
-    description: 'Vietnam stock analysis and valuation platform.',
+    title: 'Vietnam Stock Market Overview | Quang Anh',
+    description: 'Vietnam stock analysis, valuation, and market intelligence in one place.',
     url: '/overview',
   },
 };

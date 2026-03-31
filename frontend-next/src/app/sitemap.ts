@@ -32,7 +32,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteConfig.url,                  lastModified: now, changeFrequency: 'daily',   priority: 1.0 },
     { url: `${siteConfig.url}/overview`,    lastModified: now, changeFrequency: 'daily',   priority: 0.9 },
-{ url: `${siteConfig.url}/news`,        lastModified: now, changeFrequency: 'hourly',  priority: 0.8 },
+    { url: `${siteConfig.url}/news`,        lastModified: now, changeFrequency: 'hourly',  priority: 0.8 },
+    { url: `${siteConfig.url}/screener`,    lastModified: now, changeFrequency: 'daily',   priority: 0.85 },
+    { url: `${siteConfig.url}/macro`,       lastModified: now, changeFrequency: 'daily',   priority: 0.8 },
+    { url: `${siteConfig.url}/foreign`,     lastModified: now, changeFrequency: 'hourly',  priority: 0.75 },
+    { url: `${siteConfig.url}/downloads`,   lastModified: now, changeFrequency: 'weekly',  priority: 0.55 },
     { url: `${siteConfig.url}/company`,     lastModified: now, changeFrequency: 'weekly',  priority: 0.7 },
     { url: `${siteConfig.url}/about`,       lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${siteConfig.url}/contact`,     lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
