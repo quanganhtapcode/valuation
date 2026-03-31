@@ -31,9 +31,14 @@ FF_HEADERS = {
 }
 
 CHANNELS = [
+    # Forex pairs
     "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CHF", "USD/CAD", "NZD/USD",
-    "SPX/USD", "NAS/USD", "DJIA/USD", "DAX/EUR", "FTSE/GBP", "NIK/JPY",
-    "GOLD/USD", "WTIC/USD", "BTC/USD", "ETH/USD",
+    # US indices + volatility + dollar index
+    "SPX/USD", "NDX/USD", "VIX/USD", "DXY/USD",
+    # Asian / European indices (active only during market hours)
+    "NIK/JPY", "FTSE/GBP", "DAX/EUR",
+    # Commodities
+    "WTI/USD", "BTC/USD", "ETH/USD",
 ]
 
 # ── In-memory price cache ─────────────────────────────────────────────────────

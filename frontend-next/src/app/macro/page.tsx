@@ -202,12 +202,13 @@ const FF_FOREX_CHANNELS = [
 ] as const;
 
 const FF_INDICES_CHANNELS = [
-    { channel: 'SPX/USD',  label: 'S&P 500',    fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
-    { channel: 'NAS/USD',  label: 'Nasdaq',      fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
-    { channel: 'DJIA/USD', label: 'Dow Jones',   fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+    { channel: 'SPX/USD',  label: 'S&P 500',     fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+    { channel: 'NDX/USD',  label: 'Nasdaq 100',  fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
+    { channel: 'VIX/USD',  label: 'VIX',         fmt: (p: number) => p.toFixed(2) },
+    { channel: 'DXY/USD',  label: 'USD Index',   fmt: (p: number) => p.toFixed(2) },
+    { channel: 'NIK/JPY',  label: 'Nikkei 225',  fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+    { channel: 'FTSE/GBP', label: 'FTSE 100',    fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
     { channel: 'DAX/EUR',  label: 'DAX',         fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
-    { channel: 'FTSE/GBP', label: 'FTSE 100',   fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
-    { channel: 'NIK/JPY',  label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
 ] as const;
 
 // ── FF live card (no history chart — pure WS data) ────────────────────────────
@@ -395,7 +396,7 @@ export default function MacroPage() {
 
     // FF channel → Yahoo symbol (for commodity live updates)
     const FF_TO_YAHOO: Record<string, string> = {
-        'GOLD/USD':  'GC=F',
+        'WTI/USD':   'CL=F',
         'BRENT/USD': 'BZ=F',
         'COPPER/USD':'HG=F',
     };
@@ -513,7 +514,7 @@ export default function MacroPage() {
                 <section>
                     <SectionHeader title="Chỉ Số Chứng Khoán Thế Giới"
                         subtitle="Chỉ số các thị trường lớn — live: Forex Factory" />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
                         {FF_INDICES_CHANNELS.map(def => (
                             <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
                         ))}
