@@ -5,7 +5,7 @@ import IndexCard from '@/components/IndexCard';
 import PEChart from '@/components/PEChart';
 import NewsSection from '@/components/NewsSection';
 
-import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard, PolymarketEvents } from '@/components/Sidebar';
+import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard } from '@/components/Sidebar';
 import { HeatmapVN30 } from '@/components/HeatmapVN30';
 import { useWatchlist } from '@/lib/watchlistContext';
 import {
@@ -366,9 +366,6 @@ export default function OverviewClient({
                         updatedAt={goldUpdatedAt}
                         source={goldSource}
                     />
-
-                    {/* Polymarket Economic Events */}
-                    <PolymarketEvents />
 
                     {/* Lottery Results */}
                     <Lottery />
