@@ -1,9 +1,41 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AreaChart, BarChart, Card } from '@tremor/react';
 import { API } from '@/lib/api';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
+
+// ── Downsample: keep last N points for display ────────────────────────────────
+// Recharts tooltip is O(n) on every mousemove — capping at 60 pts kills lag.
+const MAX_MONTHLY  = 60;   // 5 years of monthly data
+const MAX_QUARTERLY = 40;  // 10 years of quarterly
+const MAX_ANNUAL   = 40;   // all annual (rarely > 40)
+const MAX_DAILY    = 66;   // ~3 months of daily
+
+function downsample<T>(arr: T[], max: number): T[] {
+    return arr.length > max ? arr.slice(arr.length - max) : arr;
+}
+
+function limitByFreq<T>(arr: T[], freq: string): T[] {
+    if (freq.includes('ngày') || freq.includes('ngay')) return downsample(arr, MAX_DAILY);
+    if (freq.includes('tháng') || freq.includes('thang')) return downsample(arr, MAX_MONTHLY);
+    if (freq.includes('quý') || freq.includes('Quý')) return downsample(arr, MAX_QUARTERLY);
+    return downsample(arr, MAX_ANNUAL);
+}
+
+// ── Lazy section: only mount children when scrolled into view ─────────────────
+function LazySection({ children, className }: { children: React.ReactNode; className?: string }) {
+    const ref  = useRef<HTMLDivElement>(null);
+    const [vis, setVis] = useState(false);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVis(true); obs.disconnect(); } }, { rootMargin: '200px' });
+        obs.observe(el);
+        return () => obs.disconnect();
+    }, []);
+    return <div ref={ref} className={className}>{vis ? children : <div className="h-[260px] rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />}</div>;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -409,7 +441,8 @@ function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; ba
             ? v.toLocaleString('en-US', { maximumFractionDigits: 0 })
             : v.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-    const chartData = ind.data.map(p => ({ 'Kỳ': p.date, [ind.nameVN]: p.value }));
+    const displayData = limitByFreq(ind.data, ind.frequency ?? '');
+    const chartData = displayData.map(p => ({ 'Kỳ': p.date, [ind.nameVN]: p.value }));
     const tickGap = ind.frequency?.includes('tháng') ? 24
         : ind.frequency?.includes('quý') || ind.frequency?.includes('Quý') ? 12
         : 4;
@@ -452,11 +485,11 @@ function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; ba
                 : barChart
                     ? <BarChart data={chartData} index="Kỳ" categories={[ind.nameVN]} colors={[color]}
                         valueFormatter={fmt} yAxisWidth={60} showLegend={false}
-                        tickGap={tickGap} className="h-48 mt-4" />
+                        showAnimation={false} tickGap={tickGap} className="h-48 mt-4" />
                     : <AreaChart data={chartData} index="Kỳ" categories={[ind.nameVN]} colors={[color]}
                         valueFormatter={fmt} yAxisWidth={isGrowth ? 48 : 60}
                         showLegend={false} showGradient autoMinValue
-                        tickGap={tickGap} className="h-48 mt-4" />
+                        showAnimation={false} tickGap={tickGap} className="h-48 mt-4" />
             }
         </Card>
     );
@@ -467,9 +500,12 @@ function TradeChart({ exp, imp, bal }: { exp: FAIndicator; imp: FAIndicator; bal
     const prev = bal.data.at(-2);
     const delta = last && prev ? last.value - prev.value : null;
     const impMap = new Map(imp.data.map(p => [p.date, p.value]));
-    const combined = exp.data
-        .filter(p => impMap.has(p.date))
-        .map(p => ({ 'Tháng': p.date, 'Xuất khẩu': p.value, 'Nhập khẩu': impMap.get(p.date)! }));
+    const combined = downsample(
+        exp.data
+            .filter(p => impMap.has(p.date))
+            .map(p => ({ 'Tháng': p.date, 'Xuất khẩu': p.value, 'Nhập khẩu': impMap.get(p.date)! })),
+        MAX_MONTHLY,
+    );
 
     const handleDownload = () => downloadFACsv(
         'trade_exports_imports.csv',
@@ -508,8 +544,8 @@ function TradeChart({ exp, imp, bal }: { exp: FAIndicator; imp: FAIndicator; bal
                 : <AreaChart data={combined} index="Tháng"
                     categories={['Xuất khẩu', 'Nhập khẩu']} colors={['emerald', 'rose']}
                     valueFormatter={(v) => `${v.toFixed(1)} tỷ`} yAxisWidth={56}
-                    showLegend={true} showGradient={false} autoMinValue tickGap={24}
-                    className="h-48 mt-4" />}
+                    showLegend={true} showGradient={false} autoMinValue
+                    showAnimation={false} tickGap={24} className="h-48 mt-4" />}
         </Card>
     );
 }
@@ -537,20 +573,26 @@ function FASection({ title, subtitle, indicators, type }: {
             <SectionHeader title={title} subtitle={subtitle} />
             <div className="space-y-4">
                 {type === 'Trade' && expInd && impInd && balInd && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <TradeChart exp={expInd} imp={impInd} bal={balInd} />
-                        {otherInds.length > 0 && <FAChart ind={otherInds[0]} color={color} />}
-                    </div>
+                    <LazySection>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <TradeChart exp={expInd} imp={impInd} bal={balInd} />
+                            {otherInds.length > 0 && <FAChart ind={otherInds[0]} color={color} />}
+                        </div>
+                    </LazySection>
                 )}
                 {type === 'Trade' && otherInds.slice(type === 'Trade' ? 1 : 0).length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {otherInds.slice(1).map(ind => <FAChart key={ind.id} ind={ind} color={color} />)}
-                    </div>
+                    <LazySection>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {otherInds.slice(1).map(ind => <FAChart key={ind.id} ind={ind} color={color} />)}
+                        </div>
+                    </LazySection>
                 )}
                 {type !== 'Trade' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {otherInds.map(ind => <FAChart key={ind.id} ind={ind} color={color} />)}
-                    </div>
+                    <LazySection>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {otherInds.map(ind => <FAChart key={ind.id} ind={ind} color={color} />)}
+                        </div>
+                    </LazySection>
                 )}
             </div>
         </section>
