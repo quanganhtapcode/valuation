@@ -26,6 +26,7 @@ from backend.routes.market import market_bp, init_market_routes
 from backend.routes.download_routes import download_bp
 from backend.routes.health_routes import health_bp
 from backend.data_sources.vci import VCIClient
+from backend.data_sources.ff_ws import ensure_started as ff_ensure_started, get_prices as ff_get_prices, register_client as ff_register, unregister_client as ff_unregister
 from backend.telemetry import record_request_latency
 
 # Initialize Flask App
@@ -111,6 +112,7 @@ init_market_routes(get_cached_market_data, MARKET_CACHE_TTL, GoldService)
 # Warm-up: start background price refresh thread immediately so RAM cache is
 # populated before the first HTTP request arrives (avoids cold-start latency).
 VCIClient.ensure_background_refresh()
+ff_ensure_started()
 
 # Register Blueprints
 app.register_blueprint(stock_bp, url_prefix='/api')
@@ -285,6 +287,32 @@ def ws_market_prices(ws):
 @sock.route('/api/ws/market/prices')
 def ws_market_prices_api(ws):
     _handle_prices_ws(ws)
+
+@sock.route('/ws/market/ff-prices')
+def ws_ff_prices(ws):
+    """Stream Forex Factory prices to browser clients."""
+    logger.info("WS client connected: /ws/market/ff-prices")
+    # Send current snapshot immediately
+    try:
+        snapshot = ff_get_prices()
+        if snapshot:
+            ws.send(json.dumps({"type": "ff_snapshot", "data": snapshot}, ensure_ascii=False))
+    except Exception:
+        pass
+
+    q = ff_register()
+    try:
+        while True:
+            try:
+                update = q.get(timeout=30)
+                ws.send(json.dumps({"type": "ff_update", "data": update}, ensure_ascii=False))
+            except queue.Empty:
+                ws.send(json.dumps({"type": "ff_ping"}))
+    except Exception as exc:
+        logger.info("WS client disconnected: /ws/market/ff-prices (%s)", exc)
+    finally:
+        ff_unregister(q)
+
 
 if __name__ == "__main__":
     logger.info("Vietnamese Stock Valuation Backend – running on http://0.0.0.0:5000")

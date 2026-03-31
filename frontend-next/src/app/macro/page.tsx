@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AreaChart, Card } from '@tremor/react';
 import { API } from '@/lib/api';
-import { getFFWS, extractPrice, FFMessage } from '@/lib/ffWS';
+import { getFFWS, FFPrice } from '@/lib/ffWS';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -337,35 +337,18 @@ export default function MacroPage() {
     const [ratesLoading, setRL]       = useState(true);
     const [economicLoading, setEL]    = useState(true);
 
-    // FF WS: live updates for commodities (VND pairs have no FF equivalent)
-    const ffDayOpen = useRef<Map<string, number>>(new Map());
-    // Yahoo symbol → FF channel
-    const FF_COMMODITY_MAP: Record<string, string> = {
-        'GC=F':  'GOLD/USD',
-        'BZ=F':  'BRENT/USD',
-        'HG=F':  'COPPER/USD',
-        'WTIC/USD': 'WTIC/USD',
-    };
-    // FF channel → Yahoo symbol (reverse map)
+    // FF channel → Yahoo symbol
     const FF_TO_YAHOO: Record<string, string> = {
-        'GOLD/USD':   'GC=F',
-        'BRENT/USD':  'BZ=F',
-        'COPPER/USD': 'HG=F',
+        'GOLD/USD':  'GC=F',
+        'BRENT/USD': 'BZ=F',
+        'COPPER/USD':'HG=F',
     };
 
     useEffect(() => {
         const ws = getFFWS();
-        const channels = Object.values(FF_COMMODITY_MAP);
-        const unsubs = channels.map(ch =>
-            ws.subscribe(ch, (msg: FFMessage) => {
-                const prevOpen = ffDayOpen.current.get(ch);
-                const snap = extractPrice(msg, prevOpen);
-                if (!snap) return;
-                if (!msg.Partial && snap.dayOpen > 0) {
-                    ffDayOpen.current.set(ch, snap.dayOpen);
-                }
+        const unsubs = Object.keys(FF_TO_YAHOO).map(ch =>
+            ws.subscribe(ch, (snap: FFPrice) => {
                 const yahooSym = FF_TO_YAHOO[ch];
-                if (!yahooSym) return;
                 setRates(prev => {
                     if (!prev) return prev;
                     const updated = prev.commodities.map(item => {
