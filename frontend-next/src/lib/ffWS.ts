@@ -1,7 +1,5 @@
 'use client';
 
-import pako from 'pako';
-
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface FFBar {
@@ -31,22 +29,26 @@ export interface FFMessage {
 
 export interface FFPrice {
   channel: string;
-  price: number;       // MDSAgg mid price
-  dayOpen: number;     // D1 bar open — reference for % change
+  price: number;
+  dayOpen: number;
   changePercent: number;
 }
 
 type Listener = (msg: FFMessage) => void;
 
-// ── Decompress ───────────────────────────────────────────────────────────────
+// ── Decompress — native browser DecompressionStream, no external lib ─────────
 
-function decompress(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  try {
-    return pako.inflate(bytes, { to: 'string' });
-  } catch {
-    return pako.inflateRaw(bytes, { to: 'string' });
+async function decompress(buf: ArrayBuffer): Promise<string> {
+  const formats: CompressionFormat[] = ['deflate', 'deflate-raw'];
+  for (const fmt of formats) {
+    try {
+      const ds = new DecompressionStream(fmt);
+      const blob = new Blob([buf]);
+      const out = await new Response(blob.stream().pipeThrough(ds)).arrayBuffer();
+      return new TextDecoder().decode(out);
+    } catch { /* try next format */ }
   }
+  throw new Error('ff: decompress failed');
 }
 
 // ── Manager ──────────────────────────────────────────────────────────────────
@@ -95,9 +97,12 @@ class FFWSManager {
     this.ws.send(JSON.stringify({ type: 'unsubscribe', channel: ch }));
   }
 
-  private onMessage(e: MessageEvent) {
+  private async onMessage(e: MessageEvent) {
     if (e.data instanceof ArrayBuffer) {
-      try { this.dispatch(decompress(e.data)); } catch { /* ignore */ }
+      try {
+        const text = await decompress(e.data);
+        this.dispatch(text);
+      } catch { /* ignore */ }
       return;
     }
     // Text frame — newline-delimited
@@ -150,7 +155,7 @@ class FFWSManager {
   }
 }
 
-// Singleton — shared across all components on the page
+// Singleton — connect immediately at module load time (client only)
 let _manager: FFWSManager | null = null;
 
 export function getFFWS(): FFWSManager {
@@ -161,9 +166,10 @@ export function getFFWS(): FFWSManager {
   return _manager;
 }
 
-// ── Helper: extract a normalised price snapshot from a message ────────────────
-// Uses Metrics.Metrics.D1.price as the reference — FF's own internal anchor.
-// No manual bar selection needed.
+// Pre-connect as soon as this module is imported on the client
+if (typeof window !== 'undefined') getFFWS();
+
+// ── Helper: extract price from a FF message ───────────────────────────────────
 
 export function extractPrice(msg: FFMessage, prevRef?: number): FFPrice | null {
   const agg = msg.Quotes?.MDSAgg;
@@ -172,7 +178,6 @@ export function extractPrice(msg: FFMessage, prevRef?: number): FFPrice | null {
   const price = agg.BidRounded ?? agg.Bid;
   if (price == null) return null;
 
-  // FF provides Metrics.D1.price on full messages — use it as the reference
   let dayOpen = prevRef ?? 0;
   if (!msg.Partial) {
     const d1ref = msg.Metrics?.Metrics?.D1?.price;

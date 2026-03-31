@@ -66,9 +66,20 @@ export default function TickerTape() {
     return () => unsubs.forEach(fn => fn());
   }, []);
 
-  // Only render items that have received data
   const activeItems = TAPE_ITEMS.filter(it => prices.has(it.channel));
-  if (activeItems.length === 0) return null;
+
+  // Show skeleton bar while waiting for first WS data
+  if (activeItems.length === 0) {
+    return (
+      <div className="fixed z-40 h-6 overflow-hidden bg-white/80 backdrop-blur-md border border-gray-200/50 dark:border-gray-800/50 dark:bg-gray-950/80 top-[72px] md:top-[92px] left-1/2 -translate-x-1/2 w-[calc(100%-16px)] max-w-7xl shadow-sm rounded-full">
+        <div className="h-full flex items-center px-6 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-2.5 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" style={{ width: `${48 + (i % 3) * 16}px` }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const items = [...activeItems, ...activeItems]; // duplicate for seamless loop
   const duration = Math.max(30, activeItems.length * 6);
