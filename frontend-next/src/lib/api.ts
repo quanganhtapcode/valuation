@@ -461,6 +461,11 @@ function getIndicesWsUrl(): string {
     return 'ws://127.0.0.1:5000/ws/market/indices';
 }
 
+/** Generic helper: build a VPS WebSocket URL for any path (e.g. '/ws/market/ff-prices') */
+export function getWsUrl(path: string): string {
+    return getIndicesWsUrl().replace('/ws/market/indices', path);
+}
+
 export function subscribeIndicesStream(options: {
     onData: (data: Record<string, MarketIndexData>, source?: string) => void;
     onStatus?: (status: IndicesStreamStatus) => void;
