@@ -1,8 +1,9 @@
 """
 Forex Factory WebSocket proxy
 Connects to wss://mds-wss.forexfactory.com:2096 in a background thread,
-decompresses binary frames with zlib, caches latest prices in RAM,
-and notifies registered browser WS queues on every update.
+decompresses binary frames with a persistent zlib context (permessage-deflate
+with server context takeover), caches latest prices in RAM, and notifies
+registered browser WS queues on every update.
 """
 from __future__ import annotations
 
@@ -19,8 +20,16 @@ import websocket  # websocket-client
 logger = logging.getLogger(__name__)
 
 FF_WS_URL = "wss://mds-wss.forexfactory.com:2096"
+FF_HEADERS = {
+    "Origin": "https://www.forexfactory.com",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/123.0.0.0 Safari/537.36"
+    ),
+    "Referer": "https://www.forexfactory.com/",
+}
 
-# Channels we subscribe to
 CHANNELS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CHF", "USD/CAD", "NZD/USD",
     "SPX/USD", "NAS/USD", "DJIA/USD", "DAX/EUR", "FTSE/GBP", "NIK/JPY",
@@ -28,29 +37,17 @@ CHANNELS = [
 ]
 
 # ── In-memory price cache ─────────────────────────────────────────────────────
-# { channel: { "price": float, "dayOpen": float, "changePercent": float } }
 _prices: Dict[str, Dict[str, float]] = {}
 _prices_lock = threading.Lock()
 
-# Browser WS queues (one per connected client)
+# Browser WS queues
 _clients: Set[queue.Queue] = set()
 _clients_lock = threading.Lock()
 
 _started = False
 _start_lock = threading.Lock()
 
-
-def _decompress(data: bytes) -> str:
-    """Try zlib then raw-deflate; raise if both fail."""
-    try:
-        return zlib.decompress(data).decode("utf-8")
-    except Exception:
-        pass
-    try:
-        return zlib.decompress(data, wbits=-15).decode("utf-8")
-    except Exception:
-        pass
-    raise ValueError("ff_ws: decompress failed")
+_SYNC_TAIL = b"\x00\x00\xff\xff"
 
 
 def _extract_price(msg: dict, prev_day_open: float | None) -> dict | None:
@@ -63,17 +60,16 @@ def _extract_price(msg: dict, prev_day_open: float | None) -> dict | None:
 
     day_open = prev_day_open or 0.0
     if not msg.get("Partial"):
-        d1 = (msg.get("Metrics") or {}).get("Metrics", {}).get("D1", {})
+        d1 = ((msg.get("Metrics") or {}).get("Metrics") or {}).get("D1") or {}
         ref = d1.get("price")
         if ref and ref > 0:
-            day_open = ref
+            day_open = float(ref)
 
     change_pct = ((price - day_open) / day_open * 100) if day_open > 0 else 0.0
     return {"price": price, "dayOpen": day_open, "changePercent": change_pct}
 
 
 def _broadcast(update: dict) -> None:
-    """Push update to all registered browser WS queues."""
     with _clients_lock:
         dead: Set[queue.Queue] = set()
         for q in _clients:
@@ -87,79 +83,77 @@ def _broadcast(update: dict) -> None:
 
 
 def _run_ws() -> None:
-    partial_buf = ""
-    ws_app: websocket.WebSocketApp | None = None
-
-    def on_open(ws: websocket.WebSocketApp) -> None:
-        logger.info("[FF] WS connected, subscribing %d channels", len(CHANNELS))
-        for ch in CHANNELS:
-            ws.send(json.dumps({"type": "subscribe", "channel": ch}))
-            ws.send(json.dumps({"type": "subscribe", "channel": f"{ch}.partial"}))
-
-    def on_binary(ws: websocket.WebSocketApp, data: bytes) -> None:
-        try:
-            text = _decompress(data)
-        except Exception as exc:
-            logger.debug("[FF] decompress failed: %s", exc)
-            return
-        _handle_text(text)
-
-    def on_message(ws: websocket.WebSocketApp, message: str) -> None:
-        nonlocal partial_buf
-        partial_buf += message
-        if "\n" not in partial_buf:
-            return
-        lines = partial_buf.split("\n")
-        partial_buf = lines.pop()
-        for line in lines:
-            if line == "ping":
-                try:
-                    ws.send("pong")
-                except Exception:
-                    pass
-            elif line:
-                _handle_text(line)
-
-    def _handle_text(text: str) -> None:
-        try:
-            msg = json.loads(text)
-        except Exception:
-            return
-        name = msg.get("Name")
-        if not name:
-            return
-
-        with _prices_lock:
-            prev = _prices.get(name, {})
-            snap = _extract_price(msg, prev.get("dayOpen"))
-            if snap is None:
-                return
-            _prices[name] = snap
-
-        update = {"channel": name, **snap}
-        _broadcast(update)
-
-    def on_error(ws: websocket.WebSocketApp, error: Any) -> None:
-        logger.warning("[FF] WS error: %s", error)
-
-    def on_close(ws: websocket.WebSocketApp, code: Any, msg: Any) -> None:
-        logger.info("[FF] WS closed: %s %s — reconnecting in 3s", code, msg)
-
     backoff = 3
+
     while True:
+        # Fresh decompressor for each connection (server resets context on reconnect)
+        decompressor = zlib.decompressobj(wbits=-15)
+
+        def _decompress(data: bytes) -> str:
+            payload = data if data.endswith(_SYNC_TAIL) else data + _SYNC_TAIL
+            return decompressor.decompress(payload).decode("utf-8")
+
+        def _handle_text(text: str) -> None:
+            try:
+                msg = json.loads(text)
+            except Exception:
+                return
+            name = msg.get("Name")
+            if not name:
+                return
+            with _prices_lock:
+                prev = _prices.get(name, {})
+                snap = _extract_price(msg, prev.get("dayOpen"))
+                if snap is None:
+                    return
+                _prices[name] = snap
+            _broadcast({"channel": name, **snap})
+
+        def on_open(ws: websocket.WebSocketApp) -> None:
+            nonlocal backoff
+            logger.info("[FF] connected, subscribing %d channels", len(CHANNELS))
+            backoff = 3
+            for ch in CHANNELS:
+                ws.send(json.dumps({"type": "subscribe", "channel": ch}))
+                ws.send(json.dumps({"type": "subscribe", "channel": f"{ch}.partial"}))
+
+        def on_message(ws: websocket.WebSocketApp, msg: Any) -> None:
+            if isinstance(msg, bytes):
+                if len(msg) <= 10:
+                    return  # skip short frames (ping etc.)
+                try:
+                    _handle_text(_decompress(msg))
+                except Exception as exc:
+                    logger.debug("[FF] decompress error: %s", exc)
+            elif isinstance(msg, str):
+                msg = msg.strip()
+                if msg == "ping":
+                    try:
+                        ws.send("pong")
+                    except Exception:
+                        pass
+                elif msg:
+                    _handle_text(msg)
+
+        def on_error(ws: websocket.WebSocketApp, error: Any) -> None:
+            logger.warning("[FF] error: %s", error)
+
+        def on_close(ws: websocket.WebSocketApp, code: Any, reason: Any) -> None:
+            logger.info("[FF] closed %s %s", code, reason)
+
         try:
             ws_app = websocket.WebSocketApp(
                 FF_WS_URL,
                 on_open=on_open,
-                on_binary=on_binary,
                 on_message=on_message,
                 on_error=on_error,
                 on_close=on_close,
-                header={"Origin": "https://www.forexfactory.com"},
+                header=FF_HEADERS,
             )
-            ws_app.run_forever(ping_interval=0)
+            ws_app.run_forever(skip_utf8_validation=True, ping_interval=0)
         except Exception as exc:
             logger.warning("[FF] run_forever crashed: %s", exc)
+
         time.sleep(backoff)
         backoff = min(backoff * 2, 60)
 
@@ -173,7 +167,7 @@ def ensure_started() -> None:
     with _start_lock:
         if _started:
             return
-        t = threading.Thread(target=_run_ws, daemon=True, name="ff-ws-thread")
+        t = threading.Thread(target=_run_ws, daemon=True, name="ff-ws")
         t.start()
         _started = True
         logger.info("[FF] background thread started")
