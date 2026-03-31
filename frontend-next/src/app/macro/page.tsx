@@ -346,6 +346,13 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
     );
 }
 
+// ── Y-axis width: auto-size based on longest label ───────────────────────────
+function calcYAxisWidth(values: number[], fmt: (v: number) => string): number {
+    if (!values.length) return 56;
+    const maxLen = Math.max(...values.map(v => fmt(v).length));
+    return Math.max(44, Math.min(96, maxLen * 7 + 10));
+}
+
 // ── investing.com charts (CPI + VN10Y) ───────────────────────────────────────
 
 function EcoChartCard({ title, subtitle, latest, latestLabel, delta, onDownload, children }: {
@@ -399,7 +406,8 @@ function CpiChart({ data }: { data: CpiPoint[] }) {
             {chartData.length === 0
                 ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
                 : <AreaChart data={chartData} index="Tháng" categories={['CPI (%)']} colors={['rose']}
-                    valueFormatter={(v) => `${v.toFixed(2)}%`} yAxisWidth={52}
+                    valueFormatter={(v) => `${v.toFixed(2)}%`}
+                    yAxisWidth={calcYAxisWidth(data.map(p => p.value), (v) => `${v.toFixed(2)}%`)}
                     showLegend={false} showGradient autoMinValue className="h-56 mt-4" />}
         </EcoChartCard>
     );
@@ -421,7 +429,8 @@ function Vn10yChart({ data }: { data: Vn10yPoint[] }) {
             {chartData.length === 0
                 ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
                 : <AreaChart data={chartData} index="Tháng" categories={['Lợi suất (%)']} colors={['blue']}
-                    valueFormatter={(v) => `${v.toFixed(2)}%`} yAxisWidth={52}
+                    valueFormatter={(v) => `${v.toFixed(2)}%`}
+                    yAxisWidth={calcYAxisWidth(data.map(p => p.value), (v) => `${v.toFixed(2)}%`)}
                     showLegend={false} showGradient autoMinValue className="h-56 mt-4" />}
         </EcoChartCard>
     );
@@ -443,6 +452,7 @@ function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; ba
 
     const displayData = limitByFreq(ind.data, ind.frequency ?? '');
     const chartData = displayData.map(p => ({ 'Kỳ': p.date, [ind.nameVN]: p.value }));
+    const yAxisWidth = calcYAxisWidth(displayData.map(p => p.value), fmt);
     const tickGap = ind.frequency?.includes('tháng') ? 24
         : ind.frequency?.includes('quý') || ind.frequency?.includes('Quý') ? 12
         : 4;
@@ -484,10 +494,10 @@ function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; ba
                 ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
                 : barChart
                     ? <BarChart data={chartData} index="Kỳ" categories={[ind.nameVN]} colors={[color]}
-                        valueFormatter={fmt} yAxisWidth={60} showLegend={false}
+                        valueFormatter={fmt} yAxisWidth={yAxisWidth} showLegend={false}
                         showAnimation={false} tickGap={tickGap} className="h-48 mt-4" />
                     : <AreaChart data={chartData} index="Kỳ" categories={[ind.nameVN]} colors={[color]}
-                        valueFormatter={fmt} yAxisWidth={isGrowth ? 48 : 60}
+                        valueFormatter={fmt} yAxisWidth={yAxisWidth}
                         showLegend={false} showGradient autoMinValue
                         showAnimation={false} tickGap={tickGap} className="h-48 mt-4" />
             }
@@ -505,6 +515,11 @@ function TradeChart({ exp, imp, bal }: { exp: FAIndicator; imp: FAIndicator; bal
             .filter(p => impMap.has(p.date))
             .map(p => ({ 'Tháng': p.date, 'Xuất khẩu': p.value, 'Nhập khẩu': impMap.get(p.date)! })),
         MAX_MONTHLY,
+    );
+    const tradeFmt = (v: number) => `${v.toFixed(1)} tỷ`;
+    const tradeYAxisWidth = calcYAxisWidth(
+        combined.flatMap(p => [p['Xuất khẩu'], p['Nhập khẩu']]),
+        tradeFmt,
     );
 
     const handleDownload = () => downloadFACsv(
@@ -543,7 +558,7 @@ function TradeChart({ exp, imp, bal }: { exp: FAIndicator; imp: FAIndicator; bal
                 ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
                 : <AreaChart data={combined} index="Tháng"
                     categories={['Xuất khẩu', 'Nhập khẩu']} colors={['emerald', 'rose']}
-                    valueFormatter={(v) => `${v.toFixed(1)} tỷ`} yAxisWidth={56}
+                    valueFormatter={tradeFmt} yAxisWidth={tradeYAxisWidth}
                     showLegend={true} showGradient={false} autoMinValue
                     showAnimation={false} tickGap={24} className="h-48 mt-4" />}
         </Card>
