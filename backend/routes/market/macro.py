@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
@@ -54,6 +55,15 @@ logger = logging.getLogger(__name__)
 _YAHOO_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'application/json',
+}
+
+_INVESTING_API_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'domain-id': 'www',
+    'Referer': 'https://www.investing.com/',
+    'Origin': 'https://www.investing.com',
 }
 
 # VND exchange rate pairs (price = VND per 1 foreign currency unit)
@@ -179,12 +189,35 @@ def _fetch_rates_data() -> dict:
     }
 
 
+def _fetch_vn10y() -> list[dict]:
+    """Fetch Vietnam 10Y bond yield from investing.com financial data API (monthly, instrument 29379)."""
+    import json as _json
+    try:
+        url = 'https://api.investing.com/api/financialdata/29379/historical/chart/?interval=P1M&pointscount=160'
+        req = urllib.request.Request(url, headers=_INVESTING_API_HEADERS)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = _json.loads(resp.read()).get('data', [])
+        results = []
+        for item in raw:
+            try:
+                ts, close = item[0], item[4]
+                dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+                results.append({'date': dt.strftime('%Y-%m'), 'value': round(float(close), 3)})
+            except Exception:
+                continue
+        results.sort(key=lambda x: x['date'])
+        return results
+    except Exception as exc:
+        logger.warning('macro: vn10y fetch error: %s', exc)
+        return []
+
+
 def _fetch_economic_data() -> dict:
-    """Fetch CPI, GDP, VN10Y from investing.com sbcharts. Cache 1 hour."""
+    """Fetch CPI, GDP, VN10Y from investing.com. Cache 1 hour."""
     with ThreadPoolExecutor(max_workers=3) as pool:
-        cpi_f   = pool.submit(_fetch_investing, _INVESTING_CPI_ID,   36)
-        gdp_f   = pool.submit(_fetch_investing, _INVESTING_GDP_ID,   32)
-        vn10y_f = pool.submit(_fetch_investing, _INVESTING_VN10Y_ID, 84)
+        cpi_f   = pool.submit(_fetch_investing, _INVESTING_CPI_ID, 36)
+        gdp_f   = pool.submit(_fetch_investing, _INVESTING_GDP_ID, 32)
+        vn10y_f = pool.submit(_fetch_vn10y)
         cpi   = cpi_f.result()
         gdp   = _add_quarter_labels(gdp_f.result())
         vn10y = vn10y_f.result()

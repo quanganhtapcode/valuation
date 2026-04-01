@@ -813,7 +813,7 @@ export default function MacroPage() {
 
                         {/* VND Exchange Rates */}
                         <section>
-                            <SectionHeader title="Tỷ Giá Hối Đoái VND" subtitle="VND so với các đồng tiền chính — nguồn: Yahoo Finance" />
+                            <SectionHeader title="Tỷ Giá Hối Đoái VND" subtitle="VND so với các đồng tiền chính" />
                             {ratesLoading
                                 ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
                                 : fxRates.length === 0
@@ -823,7 +823,7 @@ export default function MacroPage() {
 
                         {/* Forex */}
                         <section>
-                            <SectionHeader title="Ngoại Hối Quốc Tế" subtitle="Các cặp tiền tệ chính — live: Forex Factory" />
+                            <SectionHeader title="Ngoại Hối Quốc Tế" subtitle="Các cặp tiền tệ chính" />
                             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
                                 {FF_FOREX_CHANNELS.map(def => (
                                     <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
@@ -881,18 +881,12 @@ export default function MacroPage() {
 
                         {/* Commodities */}
                         <section>
-                            <SectionHeader title="Hàng Hóa Quốc Tế"
-                                subtitle="Giá hàng hóa liên quan đến doanh nghiệp VN — live: Forex Factory · lịch sử: Yahoo Finance" />
+                            <SectionHeader title="Hàng Hóa Quốc Tế" subtitle="Live: Forex Factory · lịch sử: Yahoo Finance" />
                             {ratesLoading
                                 ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
                                 : commodities.length === 0
                                 ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu hàng hóa.</p>
                                 : <CardGrid items={commodities} isVnd={false} />}
-                            {!ratesLoading && (
-                                <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-                                    Brent ảnh hưởng GAS, PVD, PLX · Bạc → kim loại quý · Gạo → LTG, NSC · Vàng → SJC, PNJ
-                                </p>
-                            )}
                         </section>
                     </div>
                     );
