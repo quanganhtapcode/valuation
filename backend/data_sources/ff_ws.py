@@ -33,10 +33,12 @@ FF_HEADERS = {
 CHANNELS = [
     # Forex pairs
     "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CHF", "USD/CAD", "NZD/USD",
+    # Asia-Pacific indices
+    "Nikkei225/USD", "ASX/USD",
+    # European indices
+    "DAX/USD", "FTSE100/USD", "CAC/USD", "STOXX50/USD",
     # US indices + volatility + dollar index
-    "SPX/USD", "NDX/USD", "Dow/USD", "VIX/USD", "DXY/USD",
-    # Asian index
-    "Nikkei225/USD",
+    "SPX/USD", "NDX/USD", "Dow/USD", "VIX/USD", "DXY/USD", "US2000/USD",
     # Commodities
     "Gold/USD", "Silver/USD", "WTI/USD", "Brent/USD", "BTC/USD", "ETH/USD",
 ]
