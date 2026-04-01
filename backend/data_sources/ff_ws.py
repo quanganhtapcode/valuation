@@ -35,8 +35,8 @@ CHANNELS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CHF", "USD/CAD", "NZD/USD",
     # US indices + volatility + dollar index
     "SPX/USD", "NDX/USD", "Dow/USD", "VIX/USD", "DXY/USD",
-    # Asian index (active only during JP market hours 0–6 UTC)
-    "Nikkei225/JPY",
+    # Asian index
+    "Nikkei225/USD",
     # Commodities
     "Gold/USD", "Silver/USD", "WTI/USD", "Brent/USD", "BTC/USD", "ETH/USD",
 ]
