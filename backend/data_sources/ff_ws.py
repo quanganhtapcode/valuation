@@ -36,9 +36,9 @@ CHANNELS = [
     # US indices + volatility + dollar index
     "SPX/USD", "NDX/USD", "Dow/USD", "VIX/USD", "DXY/USD",
     # Asian index (active only during JP market hours 0–6 UTC)
-    "Nikkei/JPY",
+    "Nikkei225/JPY",
     # Commodities
-    "Gold/USD", "Silver/USD", "WTI/USD", "Copper/USD", "BTC/USD", "ETH/USD",
+    "Gold/USD", "Silver/USD", "WTI/USD", "Brent/USD", "BTC/USD", "ETH/USD",
 ]
 
 # ── In-memory price cache ─────────────────────────────────────────────────────

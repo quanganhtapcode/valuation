@@ -269,7 +269,7 @@ const FF_INDICES_CHANNELS = [
     { channel: 'Dow/USD',    label: 'Dow Jones',  fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
     { channel: 'VIX/USD',    label: 'VIX',        fmt: (p: number) => p.toFixed(2) },
     { channel: 'DXY/USD',    label: 'USD Index',  fmt: (p: number) => p.toFixed(2) },
-    { channel: 'Nikkei/JPY', label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+    { channel: 'Nikkei225/JPY', label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
 ] as const;
 
 interface FFCardDef { channel: string; label: string; fmt: (p: number) => string }
@@ -639,7 +639,7 @@ export default function MacroPage() {
     const [faLoading, setFaL]       = useState(true);
 
     const FF_TO_YAHOO: Record<string, string> = {
-        'Gold/USD': 'GC=F', 'WTI/USD': 'CL=F', 'Copper/USD': 'HG=F',
+        'Gold/USD': 'GC=F', 'WTI/USD': 'CL=F', 'Silver/USD': 'SI=F', 'Brent/USD': 'BZ=F',
     };
 
     // FF WebSocket (world tab)

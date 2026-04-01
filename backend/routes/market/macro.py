@@ -46,7 +46,7 @@ _FIREANT_HEADERS = {
 
 _ALLOWED_SYMBOLS = {
     'USDVND=X', 'EURVND=X', 'CNYVND=X', 'JPYVND=X',
-    'BZ=F', 'HG=F', 'ZR=F', 'GC=F',
+    'BZ=F', 'SI=F', 'ZR=F', 'GC=F',
 }
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ _FX_SYMBOLS: dict[str, str] = {
 # Commodities relevant to Vietnam (USD-denominated)
 _COMMODITY_SYMBOLS: dict[str, dict] = {
     'BZ=F': {'name': 'Brent Crude',    'unit': 'USD/bbl'},
-    'HG=F': {'name': 'Đồng (Copper)',  'unit': 'USD/lb'},
+    'SI=F': {'name': 'Bạc (Silver)',   'unit': 'USD/oz'},
     'ZR=F': {'name': 'Lúa gạo (Rice)', 'unit': 'USD/cwt'},
     'GC=F': {'name': 'Vàng (Gold)',    'unit': 'USD/oz'},
 }

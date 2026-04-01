@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 _DIRECT_SYMBOLS = [
     'USDVND=X', 'EURVND=X',
     'USDJPY=X', 'USDCNY=X',
-    'BZ=F', 'HG=F', 'ZR=F', 'GC=F',
+    'BZ=F', 'SI=F', 'ZR=F', 'GC=F',
 ]
 
 PRUNE_DAYS = 3 * 365
@@ -177,7 +177,7 @@ def main() -> None:
             time.sleep(0.1)
 
     # Upsert direct symbols (skip helper cross-rate symbols)
-    for sym in ('USDVND=X', 'EURVND=X', 'BZ=F', 'HG=F', 'ZR=F', 'GC=F'):
+    for sym in ('USDVND=X', 'EURVND=X', 'BZ=F', 'SI=F', 'ZR=F', 'GC=F'):
         n = upsert(conn, sym, fetched.get(sym, {}))
         logger.info('  %-12s  %d rows upserted', sym, n)
 
