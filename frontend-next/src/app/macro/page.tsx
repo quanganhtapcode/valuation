@@ -657,12 +657,11 @@ function FASection({ title, subtitle, indicators, type }: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type TabId = 'vietnam' | 'world' | 'download';
+type TabId = 'vietnam' | 'world';
 
 const TAB_LABELS: { id: TabId; label: string }[] = [
     { id: 'vietnam',  label: 'Việt Nam' },
     { id: 'world',    label: 'Thế Giới' },
-    { id: 'download', label: 'Tải Dữ Liệu' },
 ];
 
 export default function MacroPage() {
@@ -891,117 +890,6 @@ export default function MacroPage() {
                     </div>
                     );
                 })()}
-
-                {/* ── Download Tab ── */}
-                {activeTab === 'download' && (
-                    <div className="space-y-8">
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Tải dữ liệu thô dưới dạng CSV. Dữ liệu FireAnt cập nhật hàng ngày lúc 2:00 AM · Tỷ giá và hàng hóa cập nhật hàng ngày lúc 1:00 AM.
-                        </p>
-
-                        {/* Vietnam indicators */}
-                        {!faLoading && Object.keys(faData).length > 0 && (() => {
-                            const sections: { key: string; title: string }[] = [
-                                { key: 'GDP',          title: 'GDP Việt Nam' },
-                                { key: 'Prices',       title: 'Giá Cả & Lạm Phát' },
-                                { key: 'Trade',        title: 'Thương Mại & Đầu Tư' },
-                                { key: 'Money',        title: 'Thị Trường Tiền Tệ' },
-                                { key: 'InterestRate', title: 'Lãi Suất Liên Ngân Hàng' },
-                                { key: 'Labour',       title: 'Lao Động & Việc Làm' },
-                                { key: 'Business',     title: 'Sản Xuất & Kinh Doanh' },
-                                { key: 'Consumer',     title: 'Tiêu Dùng' },
-                            ];
-                            return (
-                                <section>
-                                    <SectionHeader title="Chỉ Số Kinh Tế Việt Nam" subtitle="Nguồn: FireAnt · cập nhật hàng ngày" />
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {sections.map(({ key, title }) => {
-                                            const inds = faData[key] ?? [];
-                                            if (!inds.length) return null;
-                                            const handleDownload = () => {
-                                                const rows: (string | number)[][] = [];
-                                                for (const ind of inds) {
-                                                    for (const p of ind.data) {
-                                                        rows.push([p.date, ind.name, ind.unit, p.value]);
-                                                    }
-                                                }
-                                                rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-                                                downloadFACsv(`vn_${key.toLowerCase()}.csv`, ['Date','Indicator','Unit','Value'], rows);
-                                            };
-                                            return (
-                                                <Card key={key} className="p-4 flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <p className="font-semibold text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</p>
-                                                        <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">{inds.length} chỉ số · {inds.reduce((s, i) => s + i.data.length, 0)} điểm dữ liệu</p>
-                                                    </div>
-                                                    <CsvButton onClick={handleDownload} />
-                                                </Card>
-                                            );
-                                        })}
-                                    </div>
-                                </section>
-                            );
-                        })()}
-
-                        {/* World rates & commodities */}
-                        {!ratesLoading && (fxRates.length > 0 || commodities.length > 0) && (
-                            <section>
-                                <SectionHeader title="Tỷ Giá & Hàng Hóa" subtitle="Nguồn: Yahoo Finance · lịch sử 3 năm" />
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {fxRates.length > 0 && (
-                                        <Card className="p-4 flex items-start justify-between gap-3">
-                                            <div>
-                                                <p className="font-semibold text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong">Tỷ Giá VND</p>
-                                                <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">USD, EUR, CNY, JPY · giá hiện tại</p>
-                                            </div>
-                                            <CsvButton onClick={() => downloadFACsv('vnd_rates.csv',
-                                                ['Symbol','Name','Price','Change','ChangePct'],
-                                                fxRates.map(r => [r.symbol, r.name, r.price, r.change, r.changePercent]))} />
-                                        </Card>
-                                    )}
-                                    {commodities.length > 0 && (
-                                        <Card className="p-4 flex items-start justify-between gap-3">
-                                            <div>
-                                                <p className="font-semibold text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong">Hàng Hóa</p>
-                                                <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">Brent, Bạc, Gạo, Vàng · giá hiện tại</p>
-                                            </div>
-                                            <CsvButton onClick={() => downloadFACsv('commodities.csv',
-                                                ['Symbol','Name','Unit','Price','Change','ChangePct'],
-                                                commodities.map(r => [r.symbol, r.name, r.unit ?? '', r.price, r.change, r.changePercent]))} />
-                                        </Card>
-                                    )}
-                                </div>
-                            </section>
-                        )}
-
-                        {/* CPI + VN10Y */}
-                        {!economicLoading && (cpi.length > 0 || vn10y.length > 0) && (
-                            <section>
-                                <SectionHeader title="Chỉ Số Bổ Sung" subtitle="Nguồn: investing.com" />
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {cpi.length > 0 && (
-                                        <Card className="p-4 flex items-start justify-between gap-3">
-                                            <div>
-                                                <p className="font-semibold text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong">CPI YoY (%)</p>
-                                                <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">{cpi.length} điểm · hàng tháng</p>
-                                            </div>
-                                            <CsvButton onClick={() => downloadFACsv('cpi.csv', ['Date','CPI_%'], cpi.map(p => [p.date, p.value]))} />
-                                        </Card>
-                                    )}
-                                    {vn10y.length > 0 && (
-                                        <Card className="p-4 flex items-start justify-between gap-3">
-                                            <div>
-                                                <p className="font-semibold text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong">TPCP 10 năm (%)</p>
-                                                <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">{vn10y.length} điểm · hàng tháng</p>
-                                            </div>
-                                            <CsvButton onClick={() => downloadFACsv('vn10y.csv', ['Date','Yield_%'], vn10y.map(p => [p.date, p.value]))} />
-                                        </Card>
-                                    )}
-                                </div>
-                            </section>
-                        )}
-                    </div>
-                )}
 
             </div>
         </div>
