@@ -212,11 +212,16 @@ def _fetch_vn10y() -> list[dict]:
         return []
 
 
-def _fetch_economic_data() -> dict:
-    """Fetch CPI, GDP, VN10Y from investing.com. Cache 1 hour."""
+def _fetch_economic_data(full: bool = False) -> dict:
+    """Fetch CPI, GDP, VN10Y from investing.com. Cache 1 hour.
+
+    full=True returns all available historical data (no truncation).
+    """
+    cpi_limit = 9999 if full else 36
+    gdp_limit = 9999 if full else 32
     with ThreadPoolExecutor(max_workers=3) as pool:
-        cpi_f   = pool.submit(_fetch_investing, _INVESTING_CPI_ID, 36)
-        gdp_f   = pool.submit(_fetch_investing, _INVESTING_GDP_ID, 32)
+        cpi_f   = pool.submit(_fetch_investing, _INVESTING_CPI_ID, cpi_limit)
+        gdp_f   = pool.submit(_fetch_investing, _INVESTING_GDP_ID, gdp_limit)
         vn10y_f = pool.submit(_fetch_vn10y)
         cpi   = cpi_f.result()
         gdp   = _add_quarter_labels(gdp_f.result())
@@ -273,8 +278,11 @@ _FA_EXPOSED: dict[str, list[int] | None] = {
 }
 
 
-def _fetch_fireant_macro_data(types: list[str] | None = None) -> dict:
-    """Read FireAnt macro indicators from SQLite by type. Cache 6h."""
+def _fetch_fireant_macro_data(types: list[str] | None = None, full: bool = False) -> dict:
+    """Read FireAnt macro indicators from SQLite by type. Cache 6h.
+
+    full=True skips the _FA_EXPOSED filter and returns all indicators in each type.
+    """
     if types is None:
         types = list(_FA_EXPOSED.keys())
 
@@ -284,9 +292,10 @@ def _fetch_fireant_macro_data(types: list[str] | None = None) -> dict:
         for future in as_completed(futures):
             t = futures[future]
             indicators = future.result()
-            allowed = _FA_EXPOSED.get(t)
-            if allowed is not None:
-                indicators = [i for i in indicators if i['id'] in allowed]
+            if not full:
+                allowed = _FA_EXPOSED.get(t)
+                if allowed is not None:
+                    indicators = [i for i in indicators if i['id'] in allowed]
             result[t] = indicators
 
     return result
@@ -305,9 +314,12 @@ def register(market_bp: Blueprint) -> None:
 
     @market_bp.route('/macro/economic', methods=['GET'])
     def api_macro_economic():
-        """CPI, GDP, VN 10Y bond yield from investing.com. Cache 1 hour."""
+        """CPI, GDP, VN 10Y bond yield from investing.com. Cache 1 hour.
+        ?full=1 returns all available history (no truncation)."""
+        full = request.args.get('full', '0') == '1'
+        cache_key = 'market_macro_economic_full' if full else 'market_macro_economic'
         try:
-            data, _ = cache_func()('market_macro_economic', 3600, _fetch_economic_data)
+            data, _ = cache_func()(cache_key, 3600, lambda: _fetch_economic_data(full))
             return jsonify(data)
         except Exception as exc:
             logger.error('macro/economic error: %s', exc)
@@ -351,13 +363,16 @@ def register(market_bp: Blueprint) -> None:
 
     @market_bp.route('/macro/fireant', methods=['GET'])
     def api_macro_fireant():
-        """All FireAnt macro indicators from SQLite, grouped by type. ?types=GDP,Trade
+        """All FireAnt macro indicators from SQLite, grouped by type.
+        ?types=GDP,Trade  — filter by type
+        ?full=1           — return all indicators (no _FA_EXPOSED filter)
         Cache 6h — refreshed by fetch_sqlite/fetch_fireant_macro.py cron."""
         try:
             types_param = request.args.get('types', '')
+            full = request.args.get('full', '0') == '1'
             types = [t.strip() for t in types_param.split(',') if t.strip()] if types_param else None
-            cache_key = f'market_macro_fireant_{types_param or "all"}'
-            data, _ = cache_func()(cache_key, 6 * 3600, lambda: _fetch_fireant_macro_data(types))
+            cache_key = f'market_macro_fireant_{types_param or "all"}_{"full" if full else "filtered"}'
+            data, _ = cache_func()(cache_key, 6 * 3600, lambda: _fetch_fireant_macro_data(types, full))
             return jsonify(data)
         except Exception as exc:
             logger.error('macro/fireant error: %s', exc)
@@ -365,30 +380,39 @@ def register(market_bp: Blueprint) -> None:
 
     @market_bp.route('/macro/history', methods=['GET'])
     def api_macro_history():
-        """Historical daily prices for a macro symbol from SQLite. ?symbol=USDVND%3DX&days=365"""
+        """Historical daily prices for a macro symbol from SQLite.
+        ?symbol=USDVND%3DX&days=365  (chart use)
+        ?symbol=USDVND%3DX&full=1    (download — all available data)"""
         symbol = request.args.get('symbol', '').upper()
         if symbol not in _ALLOWED_SYMBOLS:
             return jsonify({'error': 'unknown symbol'}), 400
+        full = request.args.get('full', '0') == '1'
         try:
-            days = min(int(request.args.get('days', 365)), 3 * 365)
+            days = None if full else min(int(request.args.get('days', 365)), 3 * 365)
         except ValueError:
             days = 365
 
-        cache_key = f'macro_history_{symbol}_{days}'
+        cache_key = f'macro_history_{symbol}_{"full" if full else days}'
 
         def _read():
             db_path = os.path.normpath(_MACRO_HISTORY_DB)
             conn = sqlite3.connect(db_path)
-            rows = conn.execute(
-                '''SELECT date, close FROM macro_prices
-                   WHERE symbol = ?
-                   ORDER BY date DESC
-                   LIMIT ?''',
-                (symbol, days),
-            ).fetchall()
+            if days is None:
+                rows = conn.execute(
+                    'SELECT date, close FROM macro_prices WHERE symbol = ? ORDER BY date ASC',
+                    (symbol,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    '''SELECT date, close FROM macro_prices
+                       WHERE symbol = ?
+                       ORDER BY date DESC
+                       LIMIT ?''',
+                    (symbol, days),
+                ).fetchall()
+                rows = list(reversed(rows))
             conn.close()
-            # Return ascending
-            return [{'date': r[0], 'close': r[1]} for r in reversed(rows)]
+            return [{'date': r[0], 'close': r[1]} for r in rows]
 
         try:
             data, _ = cache_func()(cache_key, 3600, _read)

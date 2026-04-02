@@ -9,7 +9,7 @@ import ExcelJS from 'exceljs';
 
 type DownloadStatus = 'idle' | 'loading' | 'done' | 'error';
 type ExportFormat   = 'CSV' | 'XLSX';
-type MainTab        = 'market' | 'stock';
+type MainTab        = 'market' | 'stock' | 'macro';
 type MarketGroupId  = 'ALL' | 'market' | 'indices' | 'valuation' | 'reference';
 
 type FlatRow = Record<string, string | number | boolean | null>;
@@ -708,6 +708,166 @@ function StockTab() {
     );
 }
 
+// ── Macro tab ─────────────────────────────────────────────────────────────────
+
+function SimpleDlCard({
+    title, description, badge, badgeColor, endpoint, filename, extract, notes,
+}: {
+    title: string; description: string; badge: string; badgeColor: string;
+    endpoint: string; filename: (f: ExportFormat) => string;
+    extract?: (data: unknown) => unknown;
+    notes?: string;
+}) {
+    const [csvStatus,  setCsvStatus]  = useState<DownloadStatus>('idle');
+    const [xlsxStatus, setXlsxStatus] = useState<DownloadStatus>('idle');
+
+    const handleDownload = async (format: ExportFormat) => {
+        const set = format === 'CSV' ? setCsvStatus : setXlsxStatus;
+        set('loading');
+        try {
+            let payload = await fetchJson(endpoint);
+            if (extract) payload = extract(payload);
+            const rows = normalizeToRows(payload);
+            const cols = getColumns(rows);
+            await doExport(rows, cols, format, filename(format));
+            set('done'); setTimeout(() => set('idle'), 2500);
+        } catch {
+            set('error'); setTimeout(() => set('idle'), 3000);
+        }
+    };
+
+    return (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="px-5 pt-4 pb-4">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="font-semibold text-slate-900 dark:text-slate-100 leading-snug text-sm">{title}</p>
+                    <span className={`flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badgeColor}`}>{badge}</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{description}</p>
+                {notes && <p className="text-[11px] text-blue-600 dark:text-blue-400 mb-2 italic">{notes}</p>}
+                <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-1.5 mb-4">
+                    <svg className="w-3 h-3 text-slate-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
+                    </svg>
+                    <code className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{endpoint}</code>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <DlBtn format="CSV"  status={csvStatus}  onClick={() => void handleDownload('CSV')} />
+                    <DlBtn format="XLSX" status={xlsxStatus} onClick={() => void handleDownload('XLSX')} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const MACRO_BADGE_FX   = 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30';
+const MACRO_BADGE_COMM = 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30';
+const MACRO_BADGE_ECO  = 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30';
+const MACRO_BADGE_FA   = 'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30';
+
+const MACRO_HISTORY_CARDS = [
+    { title: 'USD/VND — Lịch sử', badge: 'Tỷ giá', badgeColor: MACRO_BADGE_FX, description: 'Tỷ giá USD/VND hàng ngày — toàn bộ lịch sử từ Yahoo Finance.', endpoint: '/api/market/macro/history?symbol=USDVND%3DX&full=1', filename: (f: ExportFormat) => `usdvnd_history_${today()}.${f.toLowerCase()}` },
+    { title: 'EUR/VND — Lịch sử', badge: 'Tỷ giá', badgeColor: MACRO_BADGE_FX, description: 'Tỷ giá EUR/VND hàng ngày — toàn bộ lịch sử.', endpoint: '/api/market/macro/history?symbol=EURVND%3DX&full=1', filename: (f: ExportFormat) => `eurvnd_history_${today()}.${f.toLowerCase()}` },
+    { title: 'CNY/VND — Lịch sử', badge: 'Tỷ giá', badgeColor: MACRO_BADGE_FX, description: 'Tỷ giá CNY/VND hàng ngày — toàn bộ lịch sử.', endpoint: '/api/market/macro/history?symbol=CNYVND%3DX&full=1', filename: (f: ExportFormat) => `cnyvnd_history_${today()}.${f.toLowerCase()}` },
+    { title: 'JPY/VND — Lịch sử', badge: 'Tỷ giá', badgeColor: MACRO_BADGE_FX, description: 'Tỷ giá JPY/VND hàng ngày — toàn bộ lịch sử.', endpoint: '/api/market/macro/history?symbol=JPYVND%3DX&full=1', filename: (f: ExportFormat) => `jpyvnd_history_${today()}.${f.toLowerCase()}` },
+    { title: 'Brent Crude — Lịch sử', badge: 'Hàng hóa', badgeColor: MACRO_BADGE_COMM, description: 'Giá dầu thô Brent (USD/bbl) hàng ngày — toàn bộ lịch sử từ Yahoo Finance.', endpoint: '/api/market/macro/history?symbol=BZ%3DF&full=1', filename: (f: ExportFormat) => `brent_history_${today()}.${f.toLowerCase()}` },
+    { title: 'Bạc (Silver) — Lịch sử', badge: 'Hàng hóa', badgeColor: MACRO_BADGE_COMM, description: 'Giá bạc (USD/oz) hàng ngày — toàn bộ lịch sử.', endpoint: '/api/market/macro/history?symbol=SI%3DF&full=1', filename: (f: ExportFormat) => `silver_history_${today()}.${f.toLowerCase()}` },
+    { title: 'Lúa gạo (Rice) — Lịch sử', badge: 'Hàng hóa', badgeColor: MACRO_BADGE_COMM, description: 'Giá lúa gạo (USD/cwt) hàng ngày — toàn bộ lịch sử.', endpoint: '/api/market/macro/history?symbol=ZR%3DF&full=1', filename: (f: ExportFormat) => `rice_history_${today()}.${f.toLowerCase()}` },
+    { title: 'Vàng (Gold) — Lịch sử', badge: 'Hàng hóa', badgeColor: MACRO_BADGE_COMM, description: 'Giá vàng thế giới (USD/oz) hàng ngày — toàn bộ lịch sử.', endpoint: '/api/market/macro/history?symbol=GC%3DF&full=1', filename: (f: ExportFormat) => `gold_futures_history_${today()}.${f.toLowerCase()}` },
+];
+
+const MACRO_ECO_CARDS: { title: string; badge: string; badgeColor: string; description: string; endpoint: string; extract: (d: unknown) => unknown; filename: (f: ExportFormat) => string; notes?: string }[] = [
+    { title: 'CPI Việt Nam (YoY)', badge: 'Kinh tế', badgeColor: MACRO_BADGE_ECO, description: 'Chỉ số giá tiêu dùng Việt Nam theo tháng — % so với cùng kỳ năm trước — toàn bộ lịch sử.', endpoint: '/api/market/macro/economic?full=1', extract: (d) => (d as Record<string, unknown>).cpi, filename: (f: ExportFormat) => `vn_cpi_${today()}.${f.toLowerCase()}` },
+    { title: 'GDP Việt Nam (YoY)', badge: 'Kinh tế', badgeColor: MACRO_BADGE_ECO, description: 'Tăng trưởng GDP Việt Nam theo quý — % so với cùng kỳ — toàn bộ lịch sử.', endpoint: '/api/market/macro/economic?full=1', extract: (d) => (d as Record<string, unknown>).gdp, filename: (f: ExportFormat) => `vn_gdp_${today()}.${f.toLowerCase()}` },
+    { title: 'Lợi suất TPCP 10 năm', badge: 'Kinh tế', badgeColor: MACRO_BADGE_ECO, description: 'Lãi suất trái phiếu Chính phủ Việt Nam kỳ hạn 10 năm (%) theo tháng — toàn bộ lịch sử.', endpoint: '/api/market/macro/economic?full=1', extract: (d) => (d as Record<string, unknown>).vn10y, filename: (f: ExportFormat) => `vn10y_yield_${today()}.${f.toLowerCase()}` },
+];
+
+const MACRO_FA_CARDS: { type: string; title: string; description: string }[] = [
+    { type: 'GDP',          title: 'GDP & Tăng trưởng',   description: 'GDP tổng, tăng trưởng QoQ/YoY, GDP bình quân đầu người, tăng trưởng theo ngành.' },
+    { type: 'Prices',       title: 'Lạm phát & Giá cả',   description: 'CPI tổng, lõi, PPI, chỉ số giá tiêu dùng theo nhóm hàng.' },
+    { type: 'Trade',        title: 'Thương mại quốc tế',  description: 'Cán cân thương mại, xuất khẩu, nhập khẩu, FDI, tài khoản vãng lai.' },
+    { type: 'Labour',       title: 'Lao động & Dân số',   description: 'Tỷ lệ thất nghiệp, dân số, lương trung bình.' },
+    { type: 'Money',        title: 'Tiền tệ & Tín dụng',  description: 'Dự trữ ngoại hối, M0/M1/M2, lãi suất tiền gửi.' },
+    { type: 'Consumer',     title: 'Tiêu dùng',            description: 'Doanh thu bán lẻ, giá xăng, chỉ số niềm tin người tiêu dùng.' },
+    { type: 'Business',     title: 'Sản xuất & Kinh doanh', description: 'PMI, sản xuất công nghiệp, sản lượng điện, doanh số ô tô.' },
+    { type: 'InterestRate', title: 'Lãi suất điều hành',  description: 'Lãi suất qua đêm, 1 tuần, 1 tháng, 3 tháng, lãi suất tái cấp vốn.' },
+    { type: 'Taxes',        title: 'Thuế & Ngân sách',    description: 'Thu thuế TNDN, TNCN, VAT.' },
+];
+
+function MacroTab() {
+    return (
+        <div className="space-y-8">
+            {/* FX + Commodities history */}
+            <section>
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                    Lịch sử tỷ giá VND & Hàng hóa
+                    <span className="text-xs font-normal text-slate-400">· Nguồn: Yahoo Finance · 3 năm · Hàng ngày</span>
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {MACRO_HISTORY_CARDS.map(card => (
+                        <DatasetCard
+                            key={card.title}
+                            title={card.title}
+                            description={card.description}
+                            endpoint={card.endpoint}
+                            filename={card.filename}
+                            badge={card.badge}
+                            badgeColor={card.badgeColor}
+                        />
+                    ))}
+                </div>
+            </section>
+
+            {/* Economic indicators */}
+            <section>
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    Chỉ số kinh tế vĩ mô
+                    <span className="text-xs font-normal text-slate-400">· Nguồn: investing.com · Theo tháng/quý</span>
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {MACRO_ECO_CARDS.map(card => (
+                        <SimpleDlCard
+                            key={card.title}
+                            title={card.title}
+                            description={card.description}
+                            endpoint={card.endpoint}
+                            extract={card.extract}
+                            filename={card.filename}
+                            badge={card.badge}
+                            badgeColor={card.badgeColor}
+                        />
+                    ))}
+                </div>
+            </section>
+
+            {/* FireAnt macro data by type */}
+            <section>
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                    Dữ liệu vĩ mô FireAnt
+                    <span className="text-xs font-normal text-slate-400">· Nguồn: FireAnt · Cập nhật hàng ngày</span>
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {MACRO_FA_CARDS.map(card => (
+                        <SimpleDlCard
+                            key={card.type}
+                            title={card.title}
+                            description={card.description}
+                            endpoint={`/api/market/macro/fireant?types=${card.type}&full=1`}
+                            extract={(d) => (d as Record<string, unknown>)[card.type]}
+                            filename={(f) => `fireant_${card.type.toLowerCase()}_${today()}.${f.toLowerCase()}`}
+                            badge="FireAnt"
+                            badgeColor={MACRO_BADGE_FA}
+                        />
+                    ))}
+                </div>
+            </section>
+        </div>
+    );
+}
+
 // ── Market tab ────────────────────────────────────────────────────────────────
 
 function MarketTab() {
@@ -827,6 +987,7 @@ export default function DownloadsPage() {
                     {([
                         { id: 'market', label: 'Dữ liệu thị trường', count: MARKET_DATASETS.length },
                         { id: 'stock',  label: 'Dữ liệu cổ phiếu',   count: STOCK_DATASETS.length },
+                        { id: 'macro',  label: 'Dữ liệu vĩ mô',      count: MACRO_HISTORY_CARDS.length + MACRO_ECO_CARDS.length + MACRO_FA_CARDS.length },
                     ] as const).map(t => (
                         <button key={t.id} onClick={() => setTab(t.id)}
                             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
@@ -842,7 +1003,7 @@ export default function DownloadsPage() {
                     ))}
                 </div>
 
-                {tab === 'market' ? <MarketTab /> : <StockTab />}
+                {tab === 'market' ? <MarketTab /> : tab === 'macro' ? <MacroTab /> : <StockTab />}
 
                 <p className="mt-8 text-xs text-slate-400 dark:text-slate-500">
                     Nguồn: VCI, CafeF, BTMC, Yahoo Finance · Cache TTL 45s–10p tuỳ endpoint ·{' '}
