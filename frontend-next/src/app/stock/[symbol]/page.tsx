@@ -168,6 +168,12 @@ export default function StockDetailPage() {
             setError(null);
 
             try {
+                // Start realtime price request immediately so it runs in parallel
+                // with ticker/overview fetching instead of waiting for them.
+                const realtimePricePromise = fetch(`/api/current-price/${symbol}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .catch(() => null);
+
                 // PHASE 1: Fast data from DB/cache (ticker info, profile, stock overview)
                 // PHASE 1: Fast data from local cache and summary DB
                 const [tickerData, stockRes] = await Promise.all([
@@ -250,35 +256,31 @@ export default function StockDetailPage() {
                 // Render Header immediately with DB data
                 setIsLoading(false);
 
-                // PHASE 2: Background fetch for real-time price (slow API, don't block)
-                fetch(`/api/current-price/${symbol}`)
-                    .then(r => r.ok ? r.json() : null)
-                    .then(priceRes => {
-                        if (priceRes && priceRes.success) {
-                            const data = priceRes.data || priceRes;
+                // PHASE 2: Apply real-time price when available
+                const priceRes = await realtimePricePromise;
+                if (priceRes && priceRes.success) {
+                    const data = priceRes.data || priceRes;
 
-                            // Backend normalizes all prices to full VND
-                            const newPrice = data.current_price || data.price || 0;
+                    // Backend normalizes all prices to full VND
+                    const newPrice = data.current_price || data.price || 0;
 
-                            // Only update price if we got a valid realtime price
-                            // Preserve history-based open/high/low/change if API doesn't provide them
-                            if (newPrice > 0) {
-                                setPriceData(prev => ({
-                                    ...prev!,
-                                    price: newPrice,
-                                    // Only overwrite these if API provides them (non-zero)
-                                    ...(data.open > 0 && { open: data.open }),
-                                    ...(data.high > 0 && { high: data.high }),
-                                    ...(data.low > 0 && { low: data.low }),
-                                    ...(data.volume > 0 && { volume: data.volume }),
-                                    ceiling: data.ceiling || data.priceHigh || 0,
-                                    floor: data.floor || data.priceLow || 0,
-                                    ref: data.ref_price || data.ref || 0,
-                                }));
-                            }
-                        }
-                    })
-                    .catch(() => { }); // Silently fail, we already have history data
+                    // Only update price if we got a valid realtime price
+                    // Preserve history-based open/high/low/change if API doesn't provide them
+                    if (newPrice > 0) {
+                        setPriceData(prev => ({
+                            ...prev!,
+                            price: newPrice,
+                            // Only overwrite these if API provides them (non-zero)
+                            ...(data.open > 0 && { open: data.open }),
+                            ...(data.high > 0 && { high: data.high }),
+                            ...(data.low > 0 && { low: data.low }),
+                            ...(data.volume > 0 && { volume: data.volume }),
+                            ceiling: data.ceiling || data.priceHigh || 0,
+                            floor: data.floor || data.priceLow || 0,
+                            ref: data.ref_price || data.ref || 0,
+                        }));
+                    }
+                }
 
             } catch (err) {
                 console.error('Error loading static data:', err);
@@ -327,7 +329,9 @@ export default function StockDetailPage() {
 
                             setPriceData(prev => ({
                                 ...prev!,
-                                price: latest.close,
+                                // Do not overwrite a newer realtime quote.
+                                // Only fallback to latest close when price is still missing.
+                                price: (prev?.price && prev.price > 0) ? prev.price : latest.close,
                                 open: latest.open,
                                 high: latest.high,
                                 low: latest.low,
