@@ -165,6 +165,11 @@ export default function FinancialsTab({
         cashflow: [],
         ratio: [],
     });
+    const [metricMaps, setMetricMaps] = useState<Record<'income' | 'balance' | 'cashflow', Record<string, string>>>({
+        income: {},
+        balance: {},
+        cashflow: {},
+    });
     const reportScrollRef = useRef<HTMLDivElement>(null);
     const periodInitRef = useRef(false);
     const isInitialMount = useRef(true);
@@ -269,6 +274,27 @@ export default function FinancialsTab({
             });
         return () => controller.abort();
     }, [symbol, effectivePeriod]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        Promise.allSettled([
+            fetch(`/api/financial-report-metrics/${symbol}?type=income`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report-metrics/${symbol}?type=balance`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report-metrics/${symbol}?type=cashflow`, { signal: controller.signal }).then(r => r.json()),
+        ]).then(([income, balance, cashflow]) => {
+            if (controller.signal.aborted) return;
+            const unwrap = (res: PromiseSettledResult<any>) => {
+                if (res.status !== 'fulfilled') return {};
+                return (res.value?.field_map ?? {}) as Record<string, string>;
+            };
+            setMetricMaps({
+                income: unwrap(income),
+                balance: unwrap(balance),
+                cashflow: unwrap(cashflow),
+            });
+        });
+        return () => controller.abort();
+    }, [symbol]);
 
     useEffect(() => {
         if (activeSubTab === 'ratio') return;
@@ -415,11 +441,16 @@ export default function FinancialsTab({
                                     const rawRows = reportData[activeSubTab] || [];
                                     const periodRows = [...rawRows].sort((a, b) => periodSortKey(a) - periodSortKey(b));
                                     const metricKeys = pickColumns(periodRows);
+                                    const currentMap = activeSubTab === 'income'
+                                        ? metricMaps.income
+                                        : activeSubTab === 'balance'
+                                            ? metricMaps.balance
+                                            : metricMaps.cashflow;
                                     if (!periodRows.length || !metricKeys.length) {
                                         return <div className="text-sm text-slate-500 dark:text-slate-400">No data.</div>;
                                     }
                                     return (
-                                        <div className="overflow-auto" ref={reportScrollRef}>
+                                        <div className="overflow-auto max-w-[960px]" ref={reportScrollRef}>
                                             <table className="text-sm" style={{ minWidth: `${280 + periodRows.length * 170}px` }}>
                                                 <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
                                                     <tr>
@@ -437,7 +468,7 @@ export default function FinancialsTab({
                                                     {metricKeys.map((metric) => (
                                                         <tr key={metric}>
                                                             <td className="sticky left-0 z-[1] min-w-[280px] px-3 py-2 font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900">
-                                                                {formatMetricLabel(metric)}
+                                                                {currentMap[metric.toLowerCase()] || formatMetricLabel(metric)}
                                                             </td>
                                                             {periodRows.map((row, idx) => (
                                                                 <td key={`${metric}-${idx}`} className="min-w-[170px] px-3 py-2 text-right text-slate-600 dark:text-slate-300">
