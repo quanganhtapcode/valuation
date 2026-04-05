@@ -88,6 +88,12 @@ function renderPeriod(row: Record<string, any>) {
     return '-';
 }
 
+function periodSortKey(row: Record<string, any>): number {
+    const year = Number(row?.year ?? row?.year_report ?? row?.yearReport ?? 0);
+    const quarter = Number(row?.quarter ?? row?.quarter_report ?? row?.quarterReport ?? 0);
+    return year * 10 + quarter;
+}
+
 function pickColumns(rows: Record<string, any>[]): string[] {
     if (!rows.length) return [];
     const excluded = new Set([
@@ -95,6 +101,11 @@ function pickColumns(rows: Record<string, any>[]): string[] {
         'ticker',
         'organ_code',
         'organCode',
+        'source',
+        'period',
+        'data_json',
+        'created_at',
+        'updated_at',
         'create_date',
         'update_date',
         'public_date',
@@ -124,6 +135,13 @@ function formatCell(value: unknown): string {
     return String(value);
 }
 
+function formatMetricLabel(key: string): string {
+    if (!key) return '';
+    if (/^[a-z]{3}\d+$/i.test(key)) return key.toUpperCase(); // isa1/bsa1/cfa1/noc1
+    const text = key.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FinancialsTab({
@@ -134,8 +152,7 @@ export default function FinancialsTab({
     initialOverviewData,
     isLoading: isParentLoading = false,
 }: FinancialsTabProps) {
-    void _setPeriod;
-    const effectivePeriod: 'quarter' | 'year' = period ?? 'quarter';
+    const effectivePeriod: 'quarter' | 'year' = period ?? 'year';
     const [chartData, setChartData] = useState<HistoricalChartData | null>(() => parseChartResponse(initialChartData) || null);
     const [overviewData, setOverviewData] = useState<any>(initialOverviewData || null);
     const [loading, setLoading] = useState<boolean>(!initialChartData && !isParentLoading);
@@ -148,11 +165,19 @@ export default function FinancialsTab({
         cashflow: [],
         ratio: [],
     });
+    const reportScrollRef = useRef<HTMLDivElement>(null);
+    const periodInitRef = useRef(false);
     const isInitialMount = useRef(true);
 
     const BANK_SYMBOLS = new Set(['VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB','TPB','LPB','MSB','OCB','EIB','ABB','NAB','PGB','VAB','VIB','SSB','BAB','KLB','BVB','KBS','SGB','NVB']);
     const nimValue = overviewData?.nim ?? overviewData?.net_interest_margin ?? null;
     const isBank = nimValue !== null && nimValue !== undefined ? Number(nimValue) > 0 : BANK_SYMBOLS.has(symbol);
+
+    useEffect(() => {
+        if (periodInitRef.current) return;
+        periodInitRef.current = true;
+        if (_setPeriod && period !== 'year') _setPeriod('year');
+    }, [period, _setPeriod]);
 
     useEffect(() => {
         if (initialChartData && effectivePeriod === 'quarter') {
@@ -244,6 +269,17 @@ export default function FinancialsTab({
             });
         return () => controller.abort();
     }, [symbol, effectivePeriod]);
+
+    useEffect(() => {
+        if (activeSubTab === 'ratio') return;
+        if (reportLoading) return;
+        const el = reportScrollRef.current;
+        if (!el) return;
+        requestAnimationFrame(() => {
+            // Show latest periods by default; user can scroll left to older periods.
+            el.scrollLeft = el.scrollWidth;
+        });
+    }, [activeSubTab, reportLoading, reportData]);
 
     // ── data helpers ──────────────────────────────────────────────────────────
 
@@ -376,31 +412,36 @@ export default function FinancialsTab({
                                 <div className="text-sm text-slate-500 dark:text-slate-400">Loading report...</div>
                             ) : (
                                 (() => {
-                                    const rows = reportData[activeSubTab] || [];
-                                    const cols = pickColumns(rows);
-                                    if (!rows.length || !cols.length) {
+                                    const rawRows = reportData[activeSubTab] || [];
+                                    const periodRows = [...rawRows].sort((a, b) => periodSortKey(a) - periodSortKey(b));
+                                    const metricKeys = pickColumns(periodRows);
+                                    if (!periodRows.length || !metricKeys.length) {
                                         return <div className="text-sm text-slate-500 dark:text-slate-400">No data.</div>;
                                     }
                                     return (
-                                        <div className="overflow-auto">
-                                            <table className="min-w-full text-sm">
+                                        <div className="overflow-auto" ref={reportScrollRef}>
+                                            <table className="text-sm" style={{ minWidth: `${280 + periodRows.length * 170}px` }}>
                                                 <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
                                                     <tr>
-                                                        <th className="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-200">Period</th>
-                                                        {cols.map((col) => (
-                                                            <th key={col} className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200">
-                                                                {col}
+                                                        <th className="sticky left-0 z-10 min-w-[280px] px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800">
+                                                            {activeSubTab === 'income' ? 'Income Statement' : activeSubTab === 'balance' ? 'Balance Sheet' : 'Cash Flow'}
+                                                        </th>
+                                                        {periodRows.map((row, idx) => (
+                                                            <th key={`${renderPeriod(row)}-${idx}`} className="min-w-[170px] px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200">
+                                                                {renderPeriod(row)}
                                                             </th>
                                                         ))}
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                    {rows.map((row, idx) => (
-                                                        <tr key={`${renderPeriod(row)}-${idx}`}>
-                                                            <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-200">{renderPeriod(row)}</td>
-                                                            {cols.map((col) => (
-                                                                <td key={col} className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">
-                                                                    {formatCell(row[col])}
+                                                    {metricKeys.map((metric) => (
+                                                        <tr key={metric}>
+                                                            <td className="sticky left-0 z-[1] min-w-[280px] px-3 py-2 font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900">
+                                                                {formatMetricLabel(metric)}
+                                                            </td>
+                                                            {periodRows.map((row, idx) => (
+                                                                <td key={`${metric}-${idx}`} className="min-w-[170px] px-3 py-2 text-right text-slate-600 dark:text-slate-300">
+                                                                    {formatCell(row[metric])}
                                                                 </td>
                                                             ))}
                                                         </tr>
