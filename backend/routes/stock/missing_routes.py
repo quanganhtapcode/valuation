@@ -6,6 +6,7 @@ Endpoints added:
   GET  /api/companies/search?q=&limit=         – full-text search by ticker / name
   GET  /api/companies/industry/<industry>      – list stocks in an industry
   GET  /api/financial-report/<symbol>          – income / balance / cashflow / ratio
+  GET  /api/financial-report-metrics/<symbol>  – field-code mapping for statements
   GET  /api/batch-overview?symbols=            – stock overview for multiple tickers
   GET  /api/db/stats                           – database statistics
   GET  /api/stock/<symbol>/freshness           – data-freshness for a symbol
@@ -293,6 +294,72 @@ def register(stock_bp: Blueprint) -> None:
             return jsonify(data)
         except Exception as exc:
             logger.error(f"GET /financial-report/{clean_symbol} error: {exc}")
+            return jsonify({"error": str(exc)}), 500
+
+    # ------------------------------------------------------------------ #
+    # GET /api/financial-report-metrics/<symbol>                         #
+    # ------------------------------------------------------------------ #
+    @stock_bp.route("/financial-report-metrics/<symbol>")
+    def api_financial_report_metrics(symbol: str):
+        """Return mapping for VCI field codes (isa1/bsa1/cfa1 -> label)."""
+        is_valid, clean_symbol = validate_stock_symbol(symbol)
+        if not is_valid:
+            return jsonify({"error": clean_symbol}), 400
+
+        report_type = request.args.get("type", "income").lower()
+        section_map = {
+            "income": "INCOME_STATEMENT",
+            "balance": "BALANCE_SHEET",
+            "cashflow": "CASH_FLOW",
+            "note": "NOTE",
+        }
+        section = section_map.get(report_type)
+        if not section:
+            return jsonify({"error": f"Unknown report type '{report_type}'"}), 400
+
+        cache_key = f"fin_report_metrics_{report_type}"
+        cached = _cache_get(cache_key)
+        if cached:
+            return jsonify(cached)
+
+        fs_db_path = resolve_vci_financial_statement_db_path()
+        if not fs_db_path or not os.path.exists(fs_db_path):
+            return jsonify({"data": [], "field_map": {}})
+
+        try:
+            conn = sqlite3.connect(fs_db_path)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT field, title_vi, title_en, name
+                FROM statement_metrics
+                WHERE section = ?
+                ORDER BY field
+                """,
+                (section,),
+            ).fetchall()
+            conn.close()
+
+            data: list[dict] = []
+            field_map: dict[str, str] = {}
+            for r in rows:
+                field = str(r["field"] or "").strip().lower()
+                if not field:
+                    continue
+                label = (
+                    str(r["title_vi"] or "").strip()
+                    or str(r["title_en"] or "").strip()
+                    or str(r["name"] or "").strip()
+                    or field.upper()
+                )
+                data.append({"field": field, "label": label})
+                field_map[field] = label
+
+            result = {"data": data, "field_map": field_map}
+            _cache_set(cache_key, result)
+            return jsonify(result)
+        except Exception as exc:
+            logger.error(f"GET /financial-report-metrics/{clean_symbol} error: {exc}")
             return jsonify({"error": str(exc)}), 500
 
     # ------------------------------------------------------------------ #
