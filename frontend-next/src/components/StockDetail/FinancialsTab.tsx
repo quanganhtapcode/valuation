@@ -16,6 +16,8 @@ interface FinancialsTabProps {
     isLoading?: boolean;
 }
 
+type ReportType = 'income' | 'balance' | 'cashflow' | 'ratio';
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function parseChartResponse(res: any): HistoricalChartData | null {
@@ -78,6 +80,50 @@ const ChartCard = ({ title, children }: { title: string; children: React.ReactNo
     </div>
 );
 
+function renderPeriod(row: Record<string, any>) {
+    const year = row?.year ?? row?.year_report ?? row?.yearReport;
+    const quarter = row?.quarter ?? row?.quarter_report ?? row?.quarterReport;
+    if (quarter && Number(quarter) > 0) return `Q${quarter} ${year ?? ''}`.trim();
+    if (year) return String(year);
+    return '-';
+}
+
+function pickColumns(rows: Record<string, any>[]): string[] {
+    if (!rows.length) return [];
+    const excluded = new Set([
+        'symbol',
+        'ticker',
+        'organ_code',
+        'organCode',
+        'create_date',
+        'update_date',
+        'public_date',
+        'id',
+        'year',
+        'quarter',
+        'year_report',
+        'quarter_report',
+        'yearReport',
+        'quarterReport',
+    ]);
+    const keys = new Set<string>();
+    for (const row of rows) {
+        Object.keys(row || {}).forEach((k) => {
+            if (!excluded.has(k)) keys.add(k);
+        });
+    }
+    return Array.from(keys).sort();
+}
+
+function formatCell(value: unknown): string {
+    if (value === null || value === undefined || value === '') return '-';
+    if (typeof value === 'number') {
+        if (Math.abs(value) < 1) return value.toFixed(4);
+        return formatNumber(value);
+    }
+    return String(value);
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FinancialsTab({
@@ -94,6 +140,14 @@ export default function FinancialsTab({
     const [overviewData, setOverviewData] = useState<any>(initialOverviewData || null);
     const [loading, setLoading] = useState<boolean>(!initialChartData && !isParentLoading);
     const [bankingHistory, setBankingHistory] = useState<any[]>([]);
+    const [activeSubTab, setActiveSubTab] = useState<'ratio' | 'income' | 'balance' | 'cashflow'>('ratio');
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportData, setReportData] = useState<Record<ReportType, Record<string, any>[]>>({
+        income: [],
+        balance: [],
+        cashflow: [],
+        ratio: [],
+    });
     const isInitialMount = useRef(true);
 
     const BANK_SYMBOLS = new Set(['VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB','TPB','LPB','MSB','OCB','EIB','ABB','NAB','PGB','VAB','VIB','SSB','BAB','KLB','BVB','KBS','SGB','NVB']);
@@ -159,6 +213,37 @@ export default function FinancialsTab({
             .catch(() => {});
         return () => controller.abort();
     }, [symbol, isBank, effectivePeriod]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        queueMicrotask(() => setReportLoading(true));
+        Promise.allSettled([
+            fetch(`/api/financial-report/${symbol}?type=income&period=${effectivePeriod}&limit=12`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=balance&period=${effectivePeriod}&limit=12`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=cashflow&period=${effectivePeriod}&limit=12`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=ratio&period=${effectivePeriod}&limit=12`, { signal: controller.signal }).then(r => r.json()),
+        ])
+            .then(([income, balance, cashflow, ratio]) => {
+                if (controller.signal.aborted) return;
+                const unwrap = (res: PromiseSettledResult<any>) => {
+                    if (res.status !== 'fulfilled') return [];
+                    const payload = res.value;
+                    if (Array.isArray(payload)) return payload;
+                    if (Array.isArray(payload?.data)) return payload.data;
+                    return [];
+                };
+                setReportData({
+                    income: unwrap(income),
+                    balance: unwrap(balance),
+                    cashflow: unwrap(cashflow),
+                    ratio: unwrap(ratio),
+                });
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setReportLoading(false);
+            });
+        return () => controller.abort();
+    }, [symbol, effectivePeriod]);
 
     // ── data helpers ──────────────────────────────────────────────────────────
 
@@ -255,8 +340,83 @@ export default function FinancialsTab({
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <div className="mb-1">
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Financials</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            Income Statement, Balance Sheet, Cash Flow and Ratios
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+                        {[
+                            { id: 'ratio', label: 'Ratios' },
+                            { id: 'income', label: 'Income Statement' },
+                            { id: 'balance', label: 'Balance Sheet' },
+                            { id: 'cashflow', label: 'Cash Flow' },
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setActiveSubTab(tab.id as 'ratio' | 'income' | 'balance' | 'cashflow')}
+                                className={cx(
+                                    'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                                    activeSubTab === tab.id
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                                )}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {activeSubTab !== 'ratio' && (
+                        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                            {reportLoading ? (
+                                <div className="text-sm text-slate-500 dark:text-slate-400">Loading report...</div>
+                            ) : (
+                                (() => {
+                                    const rows = reportData[activeSubTab] || [];
+                                    const cols = pickColumns(rows);
+                                    if (!rows.length || !cols.length) {
+                                        return <div className="text-sm text-slate-500 dark:text-slate-400">No data.</div>;
+                                    }
+                                    return (
+                                        <div className="overflow-auto">
+                                            <table className="min-w-full text-sm">
+                                                <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
+                                                    <tr>
+                                                        <th className="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-200">Period</th>
+                                                        {cols.map((col) => (
+                                                            <th key={col} className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200">
+                                                                {col}
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {rows.map((row, idx) => (
+                                                        <tr key={`${renderPeriod(row)}-${idx}`}>
+                                                            <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-200">{renderPeriod(row)}</td>
+                                                            {cols.map((col) => (
+                                                                <td key={col} className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">
+                                                                    {formatCell(row[col])}
+                                                                </td>
+                                                            ))}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    );
+                                })()
+                            )}
+                        </div>
+                    )}
 
                     {/* Metric cards */}
+                    {activeSubTab === 'ratio' && (
+                    <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <MetricCard title="Valuation">
                             <MetricRow label={effectivePeriod === 'quarter' ? 'EPS (Quarter)' : 'EPS (TTM)'} value={getEpsForPeriod()} />
@@ -429,6 +589,8 @@ export default function FinancialsTab({
                             )}
 
                         </div>
+                    )}
+                    </>
                     )}
                 </div>
             )}
