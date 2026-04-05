@@ -22,8 +22,8 @@ def resolve_stocks_db_path(explicit_path: Optional[str] = None) -> str:
     Precedence:
     1) explicit_path argument
     2) env STOCKS_DB_PATH
-    3) known on-disk locations (project root + common VPS paths)
-    4) default to <project_root>/stocks.db (even if missing)
+    3) stocks_optimized.new.db / stocks_optimized.db in project root
+    4) default to <project_root>/stocks_optimized.db (even if missing)
     """
 
     candidates: list[Path] = []
@@ -36,41 +36,18 @@ def resolve_stocks_db_path(explicit_path: Optional[str] = None) -> str:
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
-
-    # Most optimized canonical DB (pruned + compacted)
     candidates.append(root / "stocks_optimized.new.db")
     candidates.append(root / "stocks_optimized.db")
-
-    # Preferred canonical DB name (unified schema)
-    # On Windows, a previous output file may be locked; keep a side-by-side *.new.db fallback.
-    candidates.append(root / "stocks_unified.new.db")
-    candidates.append(root / "stocks_unified.db")
-
-    # Main DB used by db_updater pipeline in this repo
-    candidates.append(root / "vietnam_stocks.db")
-
-    # Legacy canonical name historically used by the backend
-    candidates.append(root / "stocks.db")
-
-    # Legacy/accidental locations seen in scripts
-    candidates.append(root / "backend" / "stocks.db")
-
-    # Common VPS locations (historical + current)
-    candidates.append(Path("/var/www/store/stocks.db"))
-    candidates.append(Path("/var/www/valuation/stocks.db"))
-    candidates.append(Path("/var/www/valuation/vietnam_stocks.db"))
 
     for path in candidates:
         try:
             path = path.resolve()
         except Exception:
-            # Non-existent *nix paths on Windows will fail resolve(); keep as-is.
             pass
         if path.exists():
             return str(path)
 
-    # Fallback: return the default location (do not create new random names)
-    return str((root / "stocks.db").resolve())
+    return str((root / "stocks_optimized.db").resolve())
 
 
 def iter_candidate_db_paths() -> Iterable[str]:
@@ -78,14 +55,6 @@ def iter_candidate_db_paths() -> Iterable[str]:
     root = _project_root()
     yield str((root / "stocks_optimized.new.db").resolve())
     yield str((root / "stocks_optimized.db").resolve())
-    yield str((root / "stocks_unified.new.db").resolve())
-    yield str((root / "stocks_unified.db").resolve())
-    yield str((root / "vietnam_stocks.db").resolve())
-    yield str((root / "stocks.db").resolve())
-    yield str((root / "backend" / "stocks.db").resolve())
-    yield "/var/www/store/stocks.db"
-    yield "/var/www/valuation/stocks.db"
-    yield "/var/www/valuation/vietnam_stocks.db"
 
 
 def resolve_vci_screening_db_path(explicit_path: Optional[str] = None) -> str:
@@ -278,3 +247,33 @@ def resolve_vci_ratio_daily_db_path(explicit_path: Optional[str] = None) -> str:
             return str(path)
 
     return str((root / "fetch_sqlite" / "vci_ratio_daily.sqlite").resolve())
+
+
+def resolve_vci_financial_statement_db_path(explicit_path: Optional[str] = None) -> str:
+    """Return absolute path to VCI financial-statement SQLite DB."""
+    candidates: list[Path] = []
+
+    if explicit_path:
+        candidates.append(Path(explicit_path).expanduser())
+
+    env_path = os.getenv("VCI_FINANCIAL_STATEMENT_DB_PATH")
+    if env_path:
+        candidates.append(Path(env_path).expanduser())
+
+    root = _project_root()
+    candidates.append(root / "vci_financial_statement_data" / "hose_only" / "vci_financial_statements.sqlite")
+    candidates.append(root / "vci_financial_statement_data" / "vci_financial_statements.sqlite")
+    candidates.append(Path("/var/www/valuation/vci_financial_statement_data/hose_only/vci_financial_statements.sqlite"))
+    candidates.append(Path("/var/www/valuation/vci_financial_statement_data/vci_financial_statements.sqlite"))
+    candidates.append(Path("/var/www/store/vci_financial_statement_data/hose_only/vci_financial_statements.sqlite"))
+    candidates.append(Path("/var/www/store/vci_financial_statement_data/vci_financial_statements.sqlite"))
+
+    for path in candidates:
+        try:
+            path = path.resolve()
+        except Exception:
+            pass
+        if path.exists():
+            return str(path)
+
+    return str((root / "vci_financial_statement_data" / "hose_only" / "vci_financial_statements.sqlite").resolve())

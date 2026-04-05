@@ -22,7 +22,11 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from backend.db_path import resolve_stocks_db_path, resolve_vci_screening_db_path
+from backend.db_path import (
+    resolve_stocks_db_path,
+    resolve_vci_financial_statement_db_path,
+    resolve_vci_screening_db_path,
+)
 from backend.extensions import get_provider, get_stock_service, get_financial_service, get_valuation_service
 from backend.utils import validate_stock_symbol
 
@@ -203,6 +207,58 @@ def register(stock_bp: Blueprint) -> None:
         table = table_map.get(report_type)
         if not table:
             return jsonify({"error": f"Unknown report type '{report_type}'"}), 400
+
+        # Prefer VCI financial-statement SQLite for statement tabs.
+        # Returns rows keyed by VCI field codes (e.g. isa1/bsa1/cfa1).
+        if report_type in ("income", "balance", "cashflow"):
+            fs_db_path = resolve_vci_financial_statement_db_path()
+            section_map = {
+                "income": "INCOME_STATEMENT",
+                "balance": "BALANCE_SHEET",
+                "cashflow": "CASH_FLOW",
+            }
+            section = section_map[report_type]
+            if fs_db_path and os.path.exists(fs_db_path):
+                try:
+                    conn = sqlite3.connect(fs_db_path)
+                    conn.row_factory = sqlite3.Row
+                    period_kind = "YEAR" if period == "year" else "QUARTER"
+                    period_rows = conn.execute(
+                        """
+                        SELECT year_report, quarter_report
+                        FROM statement_periods
+                        WHERE ticker = ? AND section = ? AND period_kind = ?
+                        ORDER BY year_report DESC, quarter_report DESC
+                        LIMIT ?
+                        """,
+                        (clean_symbol, section, period_kind, limit),
+                    ).fetchall()
+
+                    if period_rows:
+                        data: list[dict] = []
+                        for prow in period_rows:
+                            y = int(prow["year_report"])
+                            q = int(prow["quarter_report"] or 0)
+                            values = conn.execute(
+                                """
+                                SELECT field, value
+                                FROM statement_values
+                                WHERE ticker = ? AND section = ? AND period_kind = ?
+                                  AND year_report = ? AND quarter_report = ?
+                                ORDER BY field
+                                """,
+                                (clean_symbol, section, period_kind, y, q),
+                            ).fetchall()
+                            row: dict = {"year": y, "quarter": q}
+                            for v in values:
+                                row[str(v["field"])] = v["value"]
+                            data.append(row)
+                        conn.close()
+                        _cache_set(cache_key, data)
+                        return jsonify(data)
+                    conn.close()
+                except Exception as exc:
+                    logger.warning(f"VCI FS DB read failed for {clean_symbol}: {exc}")
 
         try:
             conn = sqlite3.connect(db_path)
