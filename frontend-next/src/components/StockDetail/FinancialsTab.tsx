@@ -162,38 +162,6 @@ function isImportantMetric(metric: string, label: string, tab: ReportType): bool
     return /doanh thu|lợi nhuận|revenue|profit|cash flow|dòng tiền/.test(l);
 }
 
-type FormulaRule = { deps: string[]; hint: string };
-
-const FORMULA_RULES: Partial<Record<ReportType, Record<string, FormulaRule>>> = {
-    income: {
-        isb27: { deps: ['isb25', 'isb26'], hint: '≈ ISB25 + ISB26' },
-        isa19: { deps: ['isa17', 'isa18'], hint: '≈ ISA17 + ISA18' },
-        isa20: { deps: ['isa16', 'isa19'], hint: '≈ ISA16 + ISA19' },
-    },
-    cashflow: {
-        cfa35: { deps: ['cfa18', 'cfa26', 'cfa34'], hint: '≈ CFA18 + CFA26 + CFA34' },
-    },
-};
-
-function getFormulaStatus(metric: string, tab: ReportType, rows: Record<string, any>[]) {
-    const rule = FORMULA_RULES[tab]?.[metric.toLowerCase()];
-    if (!rule) return null;
-    let checked = 0;
-    let ok = 0;
-    for (const row of rows) {
-        const base = Number(row[metric]);
-        if (!Number.isFinite(base)) continue;
-        const depVals = rule.deps.map((k) => Number(row[k]));
-        if (depVals.some((v) => !Number.isFinite(v))) continue;
-        checked += 1;
-        const expected = depVals.reduce((a, b) => a + b, 0);
-        const tolerance = Math.max(1, Math.abs(base), Math.abs(expected)) * 1e-6;
-        if (Math.abs(base - expected) <= tolerance) ok += 1;
-    }
-    if (!checked) return { hint: rule.hint, status: null as null | boolean };
-    return { hint: rule.hint, status: ok === checked };
-}
-
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FinancialsTab({
@@ -565,18 +533,10 @@ export default function FinancialsTab({
                                                         (() => {
                                                             const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
                                                             const important = isImportantMetric(metric, label, activeSubTab);
-                                                            const formula = getFormulaStatus(metric, activeSubTab, periodRows);
                                                             return (
                                                         <tr key={metric} className={cx("hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors", important && "bg-amber-50/30 dark:bg-amber-900/10")}>
                                                             <td className={cx("sticky left-0 z-[1] min-w-[260px] bg-white px-4 py-3 text-sm font-medium text-tremor-content-strong dark:bg-gray-950 dark:text-dark-tremor-content-strong", important && "text-amber-700 dark:text-amber-300 font-semibold")}>
-                                                                <div className="space-y-1">
-                                                                    <div>{label}</div>
-                                                                    {formula && (
-                                                                        <div className={cx("text-[10px] font-medium", formula.status === true && "text-emerald-600 dark:text-emerald-400", formula.status === false && "text-amber-600 dark:text-amber-400", formula.status === null && "text-slate-500 dark:text-slate-400")}>
-                                                                            {formula.hint}{formula.status === true ? ' • khớp' : formula.status === false ? ' • lệch' : ''}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
+                                                                {label}
                                                             </td>
                                                             {periodRows.map((row, idx) => (
                                                                 <td key={`${metric}-${idx}`} className="whitespace-nowrap px-4 py-3 text-right text-sm text-tremor-content dark:text-dark-tremor-content">
@@ -602,19 +562,9 @@ export default function FinancialsTab({
                                                     {metricKeys.map((metric) => {
                                                         const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
                                                         const important = isImportantMetric(metric, label, activeSubTab);
-                                                        const formula = getFormulaStatus(metric, activeSubTab, periodRows);
                                                         return (
                                                             <tr key={`mobile-${metric}`} className={cx(important && "bg-amber-50/30 dark:bg-amber-900/10")}>
-                                                                <td className={cx("px-3 py-2 text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong align-top break-words", important && "text-amber-700 dark:text-amber-300 font-semibold")}>
-                                                                    <div className="space-y-1">
-                                                                        <div>{label}</div>
-                                                                        {formula && (
-                                                                            <div className={cx("text-[10px] font-medium", formula.status === true && "text-emerald-600 dark:text-emerald-400", formula.status === false && "text-amber-600 dark:text-amber-400", formula.status === null && "text-slate-500 dark:text-slate-400")}>
-                                                                                {formula.hint}{formula.status === true ? ' • khớp' : formula.status === false ? ' • lệch' : ''}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
+                                                                <td className={cx("px-3 py-2 text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong align-top break-words", important && "text-amber-700 dark:text-amber-300 font-semibold")}>{label}</td>
                                                                 <td className="px-3 py-2 text-right text-xs text-tremor-content dark:text-dark-tremor-content align-top break-all">{formatCell(mobileRow?.[metric])}</td>
                                                             </tr>
                                                         );
