@@ -2142,10 +2142,18 @@ class StockDataProvider:
         symbol = symbol.upper()
         now = datetime.now()
         
-        # 0. Check short-term cache (30 seconds)
+        # 0. Check short-term cache.
+        # Keep this very short during trading so first-load price does not stay stale.
         if symbol in self._price_cache:
             data, timestamp = self._price_cache[symbol]
-            if (now - timestamp).total_seconds() < 15:
+            try:
+                from backend.data_sources.vci import VCIClient
+                in_trading = bool(VCIClient._is_trading_hours())
+                ws_live = getattr(VCIClient, "_prices_source", "") == "SOCKET_IO"
+                max_age_seconds = 1 if ws_live and in_trading else (2 if in_trading else 30)
+            except Exception:
+                max_age_seconds = 2
+            if (now - timestamp).total_seconds() < max_age_seconds:
                 logger.debug(f"✓ Returning CACHED price for {symbol}")
                 return data
 

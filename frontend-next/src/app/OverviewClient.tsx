@@ -86,7 +86,7 @@ export default function OverviewClient({
 
     // State for gold prices
     const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
-    const [goldLoading, setGoldLoading] = useState(false);
+    const [goldLoading] = useState(false);
     const [goldUpdatedAt, setGoldUpdatedAt] = useState<string>(initialGoldUpdated || new Date().toISOString());
     const [goldSource, setGoldSource] = useState<string>('Phú Quý');
     const { watchlist } = useWatchlist();
@@ -230,14 +230,16 @@ export default function OverviewClient({
         }
     }, [initialGainers, initialLosers, loadMovers]);
 
-    // Periodic refresh for movers (every 60 s during trading hours)
+    // Periodic refresh for movers with realtime cadence.
     useEffect(() => {
         if (!isTradingHours()) return;
         const interval = setInterval(() => {
             loadMovers();
-        }, 60000);
+        }, PRICE_SYNC_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [loadMovers]);
+
+    const initialIndicesLength = initialIndices?.length ?? 0;
 
     // Realtime indices via internal websocket; fallback polling only when WS is down
     useEffect(() => {
@@ -275,7 +277,7 @@ export default function OverviewClient({
             unsubscribe();
             stopFallback();
         };
-    }, [loadIndices, initialIndices?.length ?? 0, mapMarketDataToIndices]);
+    }, [loadIndices, initialIndicesLength, mapMarketDataToIndices]);
 
     // Auto refresh gold every 60 seconds
     useEffect(() => {

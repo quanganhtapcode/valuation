@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
+import { useState, useEffect, useTransition, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { formatNumber, formatDate, formatPercentChange, fetchStockPeers } from '@/lib/api';
+import { formatNumber, formatPercentChange, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
 import { useWatchlist } from '@/lib/watchlistContext';
 import { RiStarFill, RiStarLine } from '@remixicon/react';
@@ -73,14 +73,6 @@ interface FinancialData {
     debtToEquity?: number;
 }
 
-interface FinancialReportItem {
-    "Năm"?: number;
-    "Kỳ"?: number;
-    year?: number;
-    quarter?: number;
-    [key: string]: any;
-}
-
 export default function StockDetailPage() {
     const params = useParams();
     const symbol = (params.symbol as string)?.toUpperCase() || '';
@@ -98,8 +90,6 @@ export default function StockDetailPage() {
     const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['overview']));
     const [, startTransition] = useTransition();
     const [financialPeriod, setFinancialPeriod] = useState<'quarter' | 'year'>('quarter');
-    const [financialReport, setFinancialReport] = useState<FinancialReportItem[]>([]);
-    const [ratioData, setRatioData] = useState<any[]>([]);
 
     // New Pre-fetched States
     // const [prefetchedValuation, setPrefetchedValuation] = useState<any>(null); // Removed
@@ -371,13 +361,11 @@ export default function StockDetailPage() {
         setHistoricalData(filtered);
     }, [timeRange, fullHistoryData]);
 
-    const isUp = priceData ? priceData.change >= 0 : true;
-
     // Watchlist Logic (via global context — syncs across sidebar)
     const { toggle: toggleWatchlist, isWatched } = useWatchlist();
     const isWatchlisted = isWatched(symbol);
 
-    // Polling Price every 5 seconds
+    // Polling price with backend cadence (3s during trading)
     useEffect(() => {
         if (!symbol) return;
 
@@ -424,7 +412,7 @@ export default function StockDetailPage() {
                     }
                 })
                 .catch(err => console.error("Polling error", err));
-        }, 10000);
+        }, PRICE_SYNC_INTERVAL_MS);
 
         return () => clearInterval(interval);
     }, [symbol]);
@@ -456,6 +444,7 @@ export default function StockDetailPage() {
             <div className={styles.stockHeaderCompact}>
                 <div className={styles.identityCompact}>
                     <div className={styles.logoWrapper} style={{ width: '56px', height: '56px', backgroundColor: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={siteConfig.stockLogoUrl(symbol)}
                             alt={symbol}
