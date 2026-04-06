@@ -18,6 +18,9 @@ interface FinancialsTabProps {
 
 type ReportType = 'income' | 'balance' | 'cashflow' | 'note' | 'ratio';
 type StatementWindow = '4' | '8' | '12' | 'all';
+type MetricMeta = { label: string; parent?: string | null; level?: number | null };
+const PLUS_ICON_URL = 'https://trading.vietcap.com.vn/vietcap-iq/assets/images/plus-grid2e52f954fdf3abbd8683.svg';
+const MINUS_ICON_URL = 'https://trading.vietcap.com.vn/vietcap-iq/assets/images/minus-grid0cc75a8b4abe6c3b23c9.svg';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -159,7 +162,50 @@ function isImportantMetric(metric: string, label: string, tab: ReportType): bool
     if (tab === 'cashflow') {
         if (['cfa1', 'cfa20', 'cfa30'].includes(m)) return true;
     }
+    if (tab === 'balance') {
+        if ([
+            'tài sản ngắn hạn', 'tiền và tương đương tiền', 'đầu tư ngắn hạn', 'các khoản phải thu',
+            'hàng tồn kho', 'tài sản lưu động khác', 'tài sản dài hạn', 'phải thu dài hạn',
+            'tài sản cố định', 'gtcl tscđ hữu hình', 'gtcl tài sản thuê tài chính', 'gtcl tài sản cố định vô hình',
+            'giá trị ròng tài sản đầu tư', 'tài sản dở dang dài hạn', 'đầu tư dài hạn', 'tài sản dài hạn khác',
+            'tổng cộng tài sản', 'nợ phải trả', 'nợ ngắn hạn', 'nợ dài hạn', 'vốn chủ sở hữu',
+            'vốn và các quỹ', 'vốn ngân sách nhà nước và quỹ khác', 'lợi ích của cổ đông thiểu số', 'tổng cộng nguồn vốn',
+        ].includes(l)) return true;
+    }
     return /doanh thu|lợi nhuận|revenue|profit|cash flow|dòng tiền/.test(l);
+}
+
+function metricCodeSortKey(metric: string): [number, number, string] {
+    const m = metric.toLowerCase().match(/^([a-z]+)(\d+)$/);
+    if (!m) return [99, Number.MAX_SAFE_INTEGER, metric];
+    const prefix = m[1];
+    const num = Number(m[2]);
+    const prefixOrder: Record<string, number> = {
+        isa: 1, isb: 2,
+        bsa: 3, bsb: 4,
+        cfa: 5, cfb: 6,
+        noa: 7, nob: 8, noc: 9,
+    };
+    return [prefixOrder[prefix] ?? 98, num, metric];
+}
+
+function getSortedMetricKeys(tab: ReportType, metricKeys: string[]): string[] {
+    if (tab === 'balance') {
+        return [...metricKeys].sort((a, b) => {
+            const ka = metricCodeSortKey(a);
+            const kb = metricCodeSortKey(b);
+            if (ka[0] !== kb[0]) return ka[0] - kb[0];
+            if (ka[1] !== kb[1]) return ka[1] - kb[1];
+            return ka[2].localeCompare(kb[2]);
+        });
+    }
+    return [...metricKeys].sort((a, b) => {
+        const ka = metricCodeSortKey(a);
+        const kb = metricCodeSortKey(b);
+        if (ka[0] !== kb[0]) return ka[0] - kb[0];
+        if (ka[1] !== kb[1]) return ka[1] - kb[1];
+        return ka[2].localeCompare(kb[2]);
+    });
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -191,8 +237,15 @@ export default function FinancialsTab({
         cashflow: {},
         note: {},
     });
+    const [metricMetaMaps, setMetricMetaMaps] = useState<Record<'income' | 'balance' | 'cashflow' | 'note', Record<string, MetricMeta>>>({
+        income: {},
+        balance: {},
+        cashflow: {},
+        note: {},
+    });
     const [statementWindow, setStatementWindow] = useState<StatementWindow>('4');
     const [mobilePeriodIndex, setMobilePeriodIndex] = useState(0);
+    const [collapsedRows, setCollapsedRows] = useState<Set<string>>(new Set());
     const isInitialMount = useRef(true);
 
     const BANK_SYMBOLS = new Set(['VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB','TPB','LPB','MSB','OCB','EIB','ABB','NAB','PGB','VAB','VIB','SSB','BAB','KLB','BVB','KBS','SGB','NVB']);
@@ -285,6 +338,7 @@ export default function FinancialsTab({
                     note: unwrap(note),
                     ratio: unwrap(ratio),
                 });
+                setCollapsedRows(new Set());
             })
             .finally(() => {
                 if (!controller.signal.aborted) setReportLoading(false);
@@ -301,15 +355,36 @@ export default function FinancialsTab({
             fetch(`/api/financial-report-metrics/${symbol}?type=note`, { signal: controller.signal }).then(r => r.json()),
         ]).then(([income, balance, cashflow, note]) => {
             if (controller.signal.aborted) return;
-            const unwrap = (res: PromiseSettledResult<any>) => {
+            const unwrapLabels = (res: PromiseSettledResult<any>) => {
                 if (res.status !== 'fulfilled') return {};
                 return (res.value?.field_map ?? {}) as Record<string, string>;
             };
+            const unwrapMeta = (res: PromiseSettledResult<any>) => {
+                if (res.status !== 'fulfilled') return {};
+                const data = Array.isArray(res.value?.data) ? res.value.data : [];
+                const out: Record<string, MetricMeta> = {};
+                for (const row of data) {
+                    const field = String(row?.field || '').toLowerCase().trim();
+                    if (!field) continue;
+                    out[field] = {
+                        label: String(row?.label || '').trim() || field.toUpperCase(),
+                        parent: row?.parent ? String(row.parent).toLowerCase().trim() : null,
+                        level: row?.level ?? null,
+                    };
+                }
+                return out;
+            };
             setMetricMaps({
-                income: unwrap(income),
-                balance: unwrap(balance),
-                cashflow: unwrap(cashflow),
-                note: unwrap(note),
+                income: unwrapLabels(income),
+                balance: unwrapLabels(balance),
+                cashflow: unwrapLabels(cashflow),
+                note: unwrapLabels(note),
+            });
+            setMetricMetaMaps({
+                income: unwrapMeta(income),
+                balance: unwrapMeta(balance),
+                cashflow: unwrapMeta(cashflow),
+                note: unwrapMeta(note),
             });
         });
         return () => controller.abort();
@@ -492,11 +567,46 @@ export default function FinancialsTab({
                                         : activeSubTab === 'balance'
                                             ? metricMaps.balance
                                             : activeSubTab === 'cashflow'
-                                                ? metricMaps.cashflow
-                                                : metricMaps.note;
+                                            ? metricMaps.cashflow
+                                            : metricMaps.note;
+                                    const currentMeta = activeSubTab === 'income'
+                                        ? metricMetaMaps.income
+                                        : activeSubTab === 'balance'
+                                            ? metricMetaMaps.balance
+                                            : activeSubTab === 'cashflow'
+                                                ? metricMetaMaps.cashflow
+                                                : metricMetaMaps.note;
                                     if (!periodRows.length || !metricKeys.length) {
                                         return <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">No data.</div>;
                                     }
+                                    const orderedMetricKeys = getSortedMetricKeys(activeSubTab, metricKeys);
+                                    const childrenMap = new Map<string, string[]>();
+                                    for (const key of orderedMetricKeys) {
+                                        const parent = currentMeta[key.toLowerCase()]?.parent?.toLowerCase();
+                                        if (!parent) continue;
+                                        if (!childrenMap.has(parent)) childrenMap.set(parent, []);
+                                        childrenMap.get(parent)!.push(key);
+                                    }
+                                    const hasCollapsedAncestor = (metric: string): boolean => {
+                                        let cursor = currentMeta[metric.toLowerCase()]?.parent?.toLowerCase();
+                                        while (cursor) {
+                                            if (collapsedRows.has(cursor)) return true;
+                                            cursor = currentMeta[cursor]?.parent?.toLowerCase();
+                                        }
+                                        return false;
+                                    };
+                                    const displayMetricKeys = orderedMetricKeys.filter((metric) => !hasCollapsedAncestor(metric));
+                                    const parentSumStatus = (metric: string, row: Record<string, any>): boolean | null => {
+                                        const children = childrenMap.get(metric.toLowerCase()) || [];
+                                        if (!children.length) return null;
+                                        const parentVal = Number(row[metric]);
+                                        if (!Number.isFinite(parentVal)) return null;
+                                        const childVals = children.map((k) => Number(row[k]));
+                                        if (childVals.some((v) => !Number.isFinite(v))) return null;
+                                        const sum = childVals.reduce((a, b) => a + b, 0);
+                                        const tolerance = Math.max(1, Math.abs(parentVal), Math.abs(sum)) * 1e-6;
+                                        return Math.abs(parentVal - sum) <= tolerance;
+                                    };
                                     const safeMobileIndex = Math.min(mobilePeriodIndex, Math.max(0, periodRows.length - 1));
                                     const mobileRow = periodRows[safeMobileIndex];
                                     return (
@@ -529,14 +639,43 @@ export default function FinancialsTab({
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                                    {metricKeys.map((metric) => (
+                                                    {displayMetricKeys.map((metric) => (
                                                         (() => {
                                                             const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
                                                             const important = isImportantMetric(metric, label, activeSubTab);
+                                                            const level = Number(currentMeta[metric.toLowerCase()]?.level ?? 0);
+                                                            const hasChildren = (childrenMap.get(metric.toLowerCase()) || []).length > 0;
+                                                            const isCollapsed = collapsedRows.has(metric.toLowerCase());
+                                                            const relation = parentSumStatus(metric, periodRows[0] || {});
                                                             return (
                                                         <tr key={metric} className={cx("hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors", important && "bg-amber-50/30 dark:bg-amber-900/10")}>
                                                             <td className={cx("sticky left-0 z-[1] min-w-[260px] bg-white px-4 py-3 text-sm font-medium text-tremor-content-strong dark:bg-gray-950 dark:text-dark-tremor-content-strong", important && "text-amber-700 dark:text-amber-300 font-semibold")}>
-                                                                {label}
+                                                                <div className="flex items-center gap-1.5" style={{ paddingLeft: `${Math.max(0, level - 1) * 12}px` }}>
+                                                                    {hasChildren ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const key = metric.toLowerCase();
+                                                                                setCollapsedRows((prev) => {
+                                                                                    const next = new Set(prev);
+                                                                                    if (next.has(key)) next.delete(key);
+                                                                                    else next.add(key);
+                                                                                    return next;
+                                                                                });
+                                                                            }}
+                                                                            className="inline-flex h-4 w-4 items-center justify-center rounded border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+                                                                            aria-label={isCollapsed ? 'Expand row' : 'Collapse row'}
+                                                                        >
+                                                                            <img src={isCollapsed ? PLUS_ICON_URL : MINUS_ICON_URL} alt="" className="h-2.5 w-2.5" />
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span className="inline-block w-4" />
+                                                                    )}
+                                                                    <span>{label}</span>
+                                                                    {relation !== null && (
+                                                                        <span className={cx("ml-1 inline-block h-1.5 w-1.5 rounded-full", relation ? "bg-emerald-500" : "bg-amber-500")} />
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                             {periodRows.map((row, idx) => (
                                                                 <td key={`${metric}-${idx}`} className="whitespace-nowrap px-4 py-3 text-right text-sm text-tremor-content dark:text-dark-tremor-content">
@@ -559,12 +698,43 @@ export default function FinancialsTab({
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                                    {metricKeys.map((metric) => {
+                                                    {displayMetricKeys.map((metric) => {
                                                         const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
                                                         const important = isImportantMetric(metric, label, activeSubTab);
+                                                        const level = Number(currentMeta[metric.toLowerCase()]?.level ?? 0);
+                                                        const hasChildren = (childrenMap.get(metric.toLowerCase()) || []).length > 0;
+                                                        const isCollapsed = collapsedRows.has(metric.toLowerCase());
+                                                        const relation = parentSumStatus(metric, mobileRow || {});
                                                         return (
                                                             <tr key={`mobile-${metric}`} className={cx(important && "bg-amber-50/30 dark:bg-amber-900/10")}>
-                                                                <td className={cx("px-3 py-2 text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong align-top break-words", important && "text-amber-700 dark:text-amber-300 font-semibold")}>{label}</td>
+                                                                <td className={cx("px-3 py-2 text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong align-top break-words", important && "text-amber-700 dark:text-amber-300 font-semibold")}>
+                                                                    <div className="flex items-center gap-1.5" style={{ paddingLeft: `${Math.max(0, level - 1) * 10}px` }}>
+                                                                        {hasChildren ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const key = metric.toLowerCase();
+                                                                                    setCollapsedRows((prev) => {
+                                                                                        const next = new Set(prev);
+                                                                                        if (next.has(key)) next.delete(key);
+                                                                                        else next.add(key);
+                                                                                        return next;
+                                                                                    });
+                                                                                }}
+                                                                                className="inline-flex h-4 w-4 items-center justify-center rounded border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+                                                                                aria-label={isCollapsed ? 'Expand row' : 'Collapse row'}
+                                                                            >
+                                                                                <img src={isCollapsed ? PLUS_ICON_URL : MINUS_ICON_URL} alt="" className="h-2.5 w-2.5" />
+                                                                            </button>
+                                                                        ) : (
+                                                                            <span className="inline-block w-4" />
+                                                                        )}
+                                                                        <span>{label}</span>
+                                                                        {relation !== null && (
+                                                                            <span className={cx("ml-1 inline-block h-1.5 w-1.5 rounded-full", relation ? "bg-emerald-500" : "bg-amber-500")} />
+                                                                        )}
+                                                                    </div>
+                                                                </td>
                                                                 <td className="px-3 py-2 text-right text-xs text-tremor-content dark:text-dark-tremor-content align-top break-all">{formatCell(mobileRow?.[metric])}</td>
                                                             </tr>
                                                         );
