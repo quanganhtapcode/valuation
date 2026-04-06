@@ -178,7 +178,7 @@ def register(stock_bp: Blueprint) -> None:
         """
         Return financial statements for a symbol.
         Query params:
-          type   = income | balance | cashflow | ratio  (default: income)
+          type   = income | balance | cashflow | note | ratio  (default: income)
           period = quarter | year                       (default: quarter)
           limit  = number of periods                    (default: 8)
         """
@@ -204,19 +204,21 @@ def register(stock_bp: Blueprint) -> None:
             "balance": "balance_sheet",
             "cashflow": "cash_flow_statement",
             "ratio": "financial_ratios",
+            "note": None,
         }
         table = table_map.get(report_type)
-        if not table:
+        if report_type not in table_map:
             return jsonify({"error": f"Unknown report type '{report_type}'"}), 400
 
         # Prefer VCI financial-statement SQLite for statement tabs.
         # Returns rows keyed by VCI field codes (e.g. isa1/bsa1/cfa1).
-        if report_type in ("income", "balance", "cashflow"):
+        if report_type in ("income", "balance", "cashflow", "note"):
             fs_db_path = resolve_vci_financial_statement_db_path()
             section_map = {
                 "income": "INCOME_STATEMENT",
                 "balance": "BALANCE_SHEET",
                 "cashflow": "CASH_FLOW",
+                "note": "NOTE",
             }
             section = section_map[report_type]
             if fs_db_path and os.path.exists(fs_db_path):
@@ -260,6 +262,9 @@ def register(stock_bp: Blueprint) -> None:
                     conn.close()
                 except Exception as exc:
                     logger.warning(f"VCI FS DB read failed for {clean_symbol}: {exc}")
+
+        if report_type == "note":
+            return jsonify([])
 
         try:
             conn = sqlite3.connect(db_path)
