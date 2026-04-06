@@ -16,7 +16,7 @@ interface FinancialsTabProps {
     isLoading?: boolean;
 }
 
-type ReportType = 'income' | 'balance' | 'cashflow' | 'ratio';
+type ReportType = 'income' | 'balance' | 'cashflow' | 'note' | 'ratio';
 type StatementWindow = '4' | '8' | '12' | 'all';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -150,6 +150,18 @@ function formatMetricLabel(key: string): string {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function isImportantMetric(metric: string, label: string, tab: ReportType): boolean {
+    const m = metric.toLowerCase();
+    const l = label.toLowerCase();
+    if (tab === 'income') {
+        if (['isa1', 'isa3', 'isa5', 'isa16', 'isa20', 'isa22'].includes(m)) return true;
+    }
+    if (tab === 'cashflow') {
+        if (['cfa1', 'cfa20', 'cfa30'].includes(m)) return true;
+    }
+    return /doanh thu|lợi nhuận|revenue|profit|cash flow|dòng tiền/.test(l);
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FinancialsTab({
@@ -164,20 +176,23 @@ export default function FinancialsTab({
     const [overviewData, setOverviewData] = useState<any>(initialOverviewData || null);
     const [loading, setLoading] = useState<boolean>(!initialChartData && !isParentLoading);
     const [bankingHistory, setBankingHistory] = useState<any[]>([]);
-    const [activeSubTab, setActiveSubTab] = useState<'ratio' | 'income' | 'balance' | 'cashflow'>('ratio');
+    const [activeSubTab, setActiveSubTab] = useState<'ratio' | 'income' | 'balance' | 'cashflow' | 'note'>('ratio');
     const [reportLoading, setReportLoading] = useState(false);
     const [reportData, setReportData] = useState<Record<ReportType, Record<string, any>[]>>({
         income: [],
         balance: [],
         cashflow: [],
+        note: [],
         ratio: [],
     });
-    const [metricMaps, setMetricMaps] = useState<Record<'income' | 'balance' | 'cashflow', Record<string, string>>>({
+    const [metricMaps, setMetricMaps] = useState<Record<'income' | 'balance' | 'cashflow' | 'note', Record<string, string>>>({
         income: {},
         balance: {},
         cashflow: {},
+        note: {},
     });
     const [statementWindow, setStatementWindow] = useState<StatementWindow>('4');
+    const [mobilePeriodIndex, setMobilePeriodIndex] = useState(0);
     const isInitialMount = useRef(true);
 
     const BANK_SYMBOLS = new Set(['VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB','TPB','LPB','MSB','OCB','EIB','ABB','NAB','PGB','VAB','VIB','SSB','BAB','KLB','BVB','KBS','SGB','NVB']);
@@ -251,9 +266,10 @@ export default function FinancialsTab({
             fetch(`/api/financial-report/${symbol}?type=income&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=balance&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=cashflow&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=note&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=ratio&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
         ])
-            .then(([income, balance, cashflow, ratio]) => {
+            .then(([income, balance, cashflow, note, ratio]) => {
                 if (controller.signal.aborted) return;
                 const unwrap = (res: PromiseSettledResult<any>) => {
                     if (res.status !== 'fulfilled') return [];
@@ -266,6 +282,7 @@ export default function FinancialsTab({
                     income: unwrap(income),
                     balance: unwrap(balance),
                     cashflow: unwrap(cashflow),
+                    note: unwrap(note),
                     ratio: unwrap(ratio),
                 });
             })
@@ -281,7 +298,8 @@ export default function FinancialsTab({
             fetch(`/api/financial-report-metrics/${symbol}?type=income`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report-metrics/${symbol}?type=balance`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report-metrics/${symbol}?type=cashflow`, { signal: controller.signal }).then(r => r.json()),
-        ]).then(([income, balance, cashflow]) => {
+            fetch(`/api/financial-report-metrics/${symbol}?type=note`, { signal: controller.signal }).then(r => r.json()),
+        ]).then(([income, balance, cashflow, note]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
                 if (res.status !== 'fulfilled') return {};
@@ -291,6 +309,7 @@ export default function FinancialsTab({
                 income: unwrap(income),
                 balance: unwrap(balance),
                 cashflow: unwrap(cashflow),
+                note: unwrap(note),
             });
         });
         return () => controller.abort();
@@ -398,13 +417,15 @@ export default function FinancialsTab({
                                 { id: 'income', label: 'Income Statement' },
                                 { id: 'balance', label: 'Balance Sheet' },
                                 { id: 'cashflow', label: 'Cash Flow' },
+                                { id: 'note', label: 'Note' },
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
                                     type="button"
                                     onClick={() => {
-                                        setActiveSubTab(tab.id as 'ratio' | 'income' | 'balance' | 'cashflow');
+                                        setActiveSubTab(tab.id as 'ratio' | 'income' | 'balance' | 'cashflow' | 'note');
                                         setStatementWindow('4');
+                                        setMobilePeriodIndex(0);
                                     }}
                                     className={cx(
                                         'rounded-tremor-small border border-tremor-border px-3 py-1.5 text-sm font-medium transition-colors dark:border-dark-tremor-border',
@@ -422,8 +443,9 @@ export default function FinancialsTab({
                             <select
                                 value={activeSubTab}
                                 onChange={(e) => {
-                                    setActiveSubTab(e.target.value as 'ratio' | 'income' | 'balance' | 'cashflow');
+                                    setActiveSubTab(e.target.value as 'ratio' | 'income' | 'balance' | 'cashflow' | 'note');
                                     setStatementWindow('4');
+                                    setMobilePeriodIndex(0);
                                 }}
                                 className="w-full rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong md:hidden"
                             >
@@ -431,11 +453,15 @@ export default function FinancialsTab({
                                 <option value="income">Income Statement</option>
                                 <option value="balance">Balance Sheet</option>
                                 <option value="cashflow">Cash Flow</option>
+                                <option value="note">Note</option>
                             </select>
 
                             <select
                                 value={statementWindow}
-                                onChange={(e) => setStatementWindow(e.target.value as StatementWindow)}
+                                onChange={(e) => {
+                                    setStatementWindow(e.target.value as StatementWindow);
+                                    setMobilePeriodIndex(0);
+                                }}
                                 disabled={activeSubTab === 'ratio'}
                                 className="w-full rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong md:w-auto"
                             >
@@ -465,17 +491,35 @@ export default function FinancialsTab({
                                         ? metricMaps.income
                                         : activeSubTab === 'balance'
                                             ? metricMaps.balance
-                                            : metricMaps.cashflow;
+                                            : activeSubTab === 'cashflow'
+                                                ? metricMaps.cashflow
+                                                : metricMaps.note;
                                     if (!periodRows.length || !metricKeys.length) {
                                         return <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">No data.</div>;
                                     }
+                                    const safeMobileIndex = Math.min(mobilePeriodIndex, Math.max(0, periodRows.length - 1));
+                                    const mobileRow = periodRows[safeMobileIndex];
                                     return (
-                                        <div className="w-full overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                                        <>
+                                        <div className="p-3 md:hidden">
+                                            <select
+                                                value={String(safeMobileIndex)}
+                                                onChange={(e) => setMobilePeriodIndex(Number(e.target.value))}
+                                                className="w-full rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong"
+                                            >
+                                                {periodRows.map((row, idx) => (
+                                                    <option key={`mobile-period-${idx}`} value={String(idx)}>
+                                                        {renderPeriod(row)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="hidden md:block w-full overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                                             <table className="min-w-full w-max border-collapse text-sm">
                                                 <thead className="bg-gray-50/50 dark:bg-gray-900/50">
                                                     <tr>
                                                         <th className="sticky left-0 z-10 min-w-[260px] border-b border-tremor-border bg-gray-50/50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:bg-gray-900/50 dark:text-dark-tremor-content">
-                                                            {activeSubTab === 'income' ? 'Income Statement' : activeSubTab === 'balance' ? 'Balance Sheet' : 'Cash Flow'}
+                                                            {activeSubTab === 'income' ? 'Income Statement' : activeSubTab === 'balance' ? 'Balance Sheet' : activeSubTab === 'cashflow' ? 'Cash Flow' : 'Note'}
                                                         </th>
                                                         {periodRows.map((row, idx) => (
                                                             <th key={`${renderPeriod(row)}-${idx}`} className="whitespace-nowrap border-b border-tremor-border px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">
@@ -486,9 +530,13 @@ export default function FinancialsTab({
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                                                     {metricKeys.map((metric) => (
-                                                        <tr key={metric} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
-                                                            <td className="sticky left-0 z-[1] min-w-[260px] bg-white px-4 py-3 text-sm font-medium text-tremor-content-strong dark:bg-gray-950 dark:text-dark-tremor-content-strong">
-                                                                {currentMap[metric.toLowerCase()] || formatMetricLabel(metric)}
+                                                        (() => {
+                                                            const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
+                                                            const important = isImportantMetric(metric, label, activeSubTab);
+                                                            return (
+                                                        <tr key={metric} className={cx("hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors", important && "bg-amber-50/30 dark:bg-amber-900/10")}>
+                                                            <td className={cx("sticky left-0 z-[1] min-w-[260px] bg-white px-4 py-3 text-sm font-medium text-tremor-content-strong dark:bg-gray-950 dark:text-dark-tremor-content-strong", important && "text-amber-700 dark:text-amber-300 font-semibold")}>
+                                                                {label}
                                                             </td>
                                                             {periodRows.map((row, idx) => (
                                                                 <td key={`${metric}-${idx}`} className="whitespace-nowrap px-4 py-3 text-right text-sm text-tremor-content dark:text-dark-tremor-content">
@@ -496,10 +544,35 @@ export default function FinancialsTab({
                                                                 </td>
                                                             ))}
                                                         </tr>
+                                                            );
+                                                        })()
                                                     ))}
                                                 </tbody>
                                             </table>
                                         </div>
+                                        <div className="md:hidden w-full overflow-hidden px-0">
+                                            <table className="w-full border-collapse text-sm">
+                                                <thead className="bg-gray-50/50 dark:bg-gray-900/50">
+                                                    <tr>
+                                                        <th className="w-[58%] border-b border-tremor-border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">Metric</th>
+                                                        <th className="border-b border-tremor-border px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">{renderPeriod(mobileRow)}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                                    {metricKeys.map((metric) => {
+                                                        const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
+                                                        const important = isImportantMetric(metric, label, activeSubTab);
+                                                        return (
+                                                            <tr key={`mobile-${metric}`} className={cx(important && "bg-amber-50/30 dark:bg-amber-900/10")}>
+                                                                <td className={cx("px-3 py-2 text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong align-top break-words", important && "text-amber-700 dark:text-amber-300 font-semibold")}>{label}</td>
+                                                                <td className="px-3 py-2 text-right text-xs text-tremor-content dark:text-dark-tremor-content align-top break-all">{formatCell(mobileRow?.[metric])}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        </>
                                     );
                                 })()
                             )}
