@@ -136,6 +136,13 @@ function formatCell(value: unknown): string {
     return String(value);
 }
 
+function isZeroLike(value: unknown): boolean {
+    if (value === null || value === undefined || value === '') return true;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return false;
+    return Math.abs(n) < 1e-12;
+}
+
 function formatMetricLabel(key: string): string {
     if (!key) return '';
     if (/^[a-z]{3}\d+$/i.test(key)) return key.toUpperCase(); // isa1/bsa1/cfa1/noc1
@@ -529,7 +536,9 @@ export default function FinancialsTab({
                                     const periodRows = statementWindow === 'all'
                                         ? sortedPeriodRows
                                         : sortedPeriodRows.slice(0, Number(statementWindow));
-                                    const metricKeys = pickColumns(periodRows);
+                                    const metricKeys = pickColumns(periodRows).filter((metric) =>
+                                        !periodRows.every((row) => isZeroLike(row[metric]))
+                                    );
                                     const currentMap = activeSubTab === 'income'
                                         ? metricMaps.income
                                         : activeSubTab === 'balance'
