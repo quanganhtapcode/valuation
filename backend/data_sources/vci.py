@@ -10,6 +10,8 @@ import time
 import threading
 import os
 import random
+import json
+import struct
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 
@@ -37,6 +39,8 @@ class VCIClient:
     # Cache for bulk prices (stores the full data object for each symbol)
     _price_cache = {}
     _last_cache_update = 0
+    _prices_source: str = 'EMPTY'
+    _prices_ws_last_update: float = 0
     _CACHE_TTL = 7 # Allow slightly longer TTL for background refresh
 
     # WebSocket push clients — queues that receive diffs after each poll
@@ -51,6 +55,7 @@ class VCIClient:
     
     # Background refresh state
     _refresh_thread_started = False
+    _prices_ws_thread_started = False
     _indices_thread_started = False
     _indices_ws_thread_started = False
     _lock = threading.Lock()
@@ -63,6 +68,7 @@ class VCIClient:
     _INDEX_REST_POLL_IDLE_SECONDS = max(1.0, float(os.getenv("VCI_INDEX_REST_POLL_IDLE_SECONDS", "3")))
     _INDEX_REST_POLL_JITTER_SECONDS = max(0.0, float(os.getenv("VCI_INDEX_REST_POLL_JITTER_SECONDS", "0.6")))
     _INDEX_RECENT_WS_SECONDS = max(1.0, float(os.getenv("VCI_INDEX_RECENT_WS_SECONDS", "2.5")))
+    _PRICE_RECENT_WS_SECONDS = max(1.0, float(os.getenv("VCI_PRICE_RECENT_WS_SECONDS", "2.5")))
 
     _INDEX_WS_CONNECT_TIMEOUT_SECONDS = max(3.0, float(os.getenv("VCI_INDEX_WS_CONNECT_TIMEOUT_SECONDS", "8")))
     _INDEX_WS_BACKOFF_MIN_SECONDS = max(1.0, float(os.getenv("VCI_INDEX_WS_BACKOFF_MIN_SECONDS", "2")))
@@ -71,6 +77,326 @@ class VCIClient:
         float(os.getenv("VCI_INDEX_WS_BACKOFF_MAX_SECONDS", "60")),
     )
     _INDEX_WS_BACKOFF_JITTER_SECONDS = max(0.0, float(os.getenv("VCI_INDEX_WS_BACKOFF_JITTER_SECONDS", "0.8")))
+    _PRICE_WS_CONNECT_TIMEOUT_SECONDS = max(3.0, float(os.getenv("VCI_PRICE_WS_CONNECT_TIMEOUT_SECONDS", "8")))
+    _PRICE_WS_BACKOFF_MIN_SECONDS = max(1.0, float(os.getenv("VCI_PRICE_WS_BACKOFF_MIN_SECONDS", "2")))
+    _PRICE_WS_BACKOFF_MAX_SECONDS = max(
+        _PRICE_WS_BACKOFF_MIN_SECONDS,
+        float(os.getenv("VCI_PRICE_WS_BACKOFF_MAX_SECONDS", "60")),
+    )
+    _PRICE_WS_BACKOFF_JITTER_SECONDS = max(0.0, float(os.getenv("VCI_PRICE_WS_BACKOFF_JITTER_SECONDS", "0.8")))
+
+    @classmethod
+    def _to_float(cls, value: Any, default: float = 0.0) -> float:
+        try:
+            return float(value)
+        except Exception:
+            return default
+
+    @classmethod
+    def _normalize_price_item(cls, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if not isinstance(item, dict):
+            return None
+
+        symbol = (
+            item.get('s')
+            or item.get('symbol')
+            or item.get('Symbol')
+            or item.get('ticker')
+            or item.get('Ticker')
+            or item.get('code')
+            or item.get('Code')
+        )
+        if not symbol:
+            return None
+
+        symbol_u = str(symbol).upper()
+        if len(symbol_u) > 8:
+            return None
+
+        out = dict(item)
+        out['s'] = symbol_u
+
+        numeric_keys = (
+            'cei', 'flo', 'ref', 'c', 'mv', 'h', 'l',
+            'frbv', 'frsv', 'frcrr', 'vo', 'va', 'tv',
+            'op', 'avg', 'avgp', 'ch', 'chp',
+            'bp1', 'bp2', 'bp3', 'bv1', 'bv2', 'bv3',
+            'ap1', 'ap2', 'ap3', 'av1', 'av2', 'av3',
+            'ptv', 'pta',
+        )
+        for k in numeric_keys:
+            if k in out and out.get(k) is not None:
+                out[k] = cls._to_float(out.get(k))
+
+        return out
+
+    @classmethod
+    def _extract_price_items_from_payload(cls, payload: Any) -> List[Dict[str, Any]]:
+        candidates: List[Dict[str, Any]] = []
+
+        def collect(node: Any):
+            if isinstance(node, list):
+                for x in node:
+                    collect(x)
+                return
+
+            if isinstance(node, dict):
+                normalized = cls._normalize_price_item(node)
+                if normalized:
+                    candidates.append(normalized)
+
+                for key in ('data', 'Data', 'payload', 'Payload', 'items', 'Items', 'result', 'Result', 'content'):
+                    if key in node:
+                        collect(node.get(key))
+
+        collect(payload)
+
+        by_symbol: Dict[str, Dict[str, Any]] = {}
+        for item in candidates:
+            by_symbol[str(item.get('s')).upper()] = item
+        return list(by_symbol.values())
+
+    @classmethod
+    def _read_varint(cls, buf: bytes, offset: int) -> tuple[int, int]:
+        value = 0
+        shift = 0
+        i = offset
+        while i < len(buf):
+            b = buf[i]
+            i += 1
+            value |= (b & 0x7F) << shift
+            if (b & 0x80) == 0:
+                return value, i
+            shift += 7
+        raise ValueError("Unexpected EOF while reading varint")
+
+    @classmethod
+    def _parse_protobuf_fields(cls, buf: bytes) -> List[tuple[int, int, Any]]:
+        fields: List[tuple[int, int, Any]] = []
+        i = 0
+        while i < len(buf):
+            key, i = cls._read_varint(buf, i)
+            field_no = key >> 3
+            wire_type = key & 0x7
+
+            if wire_type == 0:  # varint
+                val, i = cls._read_varint(buf, i)
+                fields.append((field_no, wire_type, val))
+            elif wire_type == 1:  # fixed64
+                if i + 8 > len(buf):
+                    break
+                raw = buf[i:i + 8]
+                i += 8
+                fields.append((field_no, wire_type, struct.unpack("<d", raw)[0]))
+            elif wire_type == 2:  # length-delimited
+                ln, i = cls._read_varint(buf, i)
+                raw = buf[i:i + ln]
+                i += ln
+                fields.append((field_no, wire_type, raw))
+            elif wire_type == 5:  # fixed32
+                if i + 4 > len(buf):
+                    break
+                raw = buf[i:i + 4]
+                i += 4
+                fields.append((field_no, wire_type, struct.unpack("<f", raw)[0]))
+            else:
+                break
+        return fields
+
+    @classmethod
+    def _decode_ws_bid_ask_binary(cls, payload: bytes) -> Optional[Dict[str, Any]]:
+        fields = cls._parse_protobuf_fields(payload)
+        if not fields:
+            return None
+
+        update: Dict[str, Any] = {}
+        bids: List[tuple[float, float]] = []
+        asks: List[tuple[float, float]] = []
+
+        for field_no, wire_type, value in fields:
+            if wire_type != 2:
+                continue
+            raw: bytes = value
+            if field_no == 2:
+                try:
+                    update["co"] = raw.decode("utf-8")
+                except Exception:
+                    pass
+            elif field_no == 3:
+                try:
+                    update["s"] = raw.decode("utf-8").upper()
+                except Exception:
+                    pass
+            elif field_no in (4, 5):
+                pair_fields = cls._parse_protobuf_fields(raw)
+                price = None
+                volume = None
+                for nested_no, nested_wire, nested_val in pair_fields:
+                    if nested_wire != 1:
+                        continue
+                    if nested_no == 1:
+                        price = cls._to_float(nested_val)
+                    elif nested_no == 2:
+                        volume = cls._to_float(nested_val)
+                if price is not None and volume is not None:
+                    if field_no == 4:
+                        bids.append((price, volume))
+                    else:
+                        asks.append((price, volume))
+            elif field_no == 6:
+                try:
+                    update["trsttc"] = raw.decode("utf-8")
+                except Exception:
+                    pass
+
+        if not update.get("s"):
+            return None
+
+        for idx in range(3):
+            bp, bv = bids[idx] if idx < len(bids) else (0.0, 0.0)
+            ap, av = asks[idx] if idx < len(asks) else (0.0, 0.0)
+            update[f"bp{idx + 1}"] = bp
+            update[f"bv{idx + 1}"] = bv
+            update[f"ap{idx + 1}"] = ap
+            update[f"av{idx + 1}"] = av
+
+        return cls._normalize_price_item(update)
+
+    @classmethod
+    def _decode_ws_match_price_binary(cls, payload: bytes) -> Optional[Dict[str, Any]]:
+        fields = cls._parse_protobuf_fields(payload)
+        if not fields:
+            return None
+
+        update: Dict[str, Any] = {}
+        for field_no, wire_type, value in fields:
+            if field_no == 2 and wire_type == 2:
+                try:
+                    update["co"] = value.decode("utf-8")
+                except Exception:
+                    pass
+            elif field_no == 3 and wire_type == 2:
+                try:
+                    update["s"] = value.decode("utf-8").upper()
+                except Exception:
+                    pass
+            elif field_no == 4 and wire_type == 1:
+                update["c"] = cls._to_float(value)
+            elif field_no == 5 and wire_type == 1:
+                update["mv"] = cls._to_float(value)
+            elif field_no == 6 and wire_type == 1:
+                update["h"] = cls._to_float(value)
+            elif field_no == 7 and wire_type == 1:
+                update["l"] = cls._to_float(value)
+            elif field_no == 10 and wire_type == 1:
+                # REST "va" is in million VND; WS field is VND.
+                update["va"] = cls._to_float(value) / 1_000_000.0
+            elif field_no == 11 and wire_type == 1:
+                update["pta"] = cls._to_float(value)
+            elif field_no == 12 and wire_type == 2:
+                try:
+                    update["trsttc"] = value.decode("utf-8")
+                except Exception:
+                    pass
+            elif field_no == 13 and wire_type == 1:
+                update["ref"] = cls._to_float(value)
+            elif field_no == 14 and wire_type == 1:
+                update["cei"] = cls._to_float(value)
+            elif field_no == 15 and wire_type == 1:
+                update["flo"] = cls._to_float(value)
+            elif field_no == 16 and wire_type == 1:
+                update["vo"] = cls._to_float(value)
+            elif field_no == 17 and wire_type == 1:
+                update["avgp"] = cls._to_float(value)
+            elif field_no == 18 and wire_type == 2:
+                try:
+                    update["matchPriceTime"] = value.decode("utf-8")
+                except Exception:
+                    pass
+            elif field_no == 19 and wire_type == 1:
+                update["op"] = cls._to_float(value)
+            elif field_no == 20 and wire_type == 1:
+                update["frbv"] = cls._to_float(value)
+            elif field_no == 21 and wire_type == 1:
+                update["frsv"] = cls._to_float(value)
+
+        if not update.get("s"):
+            return None
+        return cls._normalize_price_item(update)
+
+    @classmethod
+    def _get_stock_subscription_symbols(cls) -> List[str]:
+        symbols: List[str] = []
+
+        # Prefer current cache to avoid extra network calls.
+        if cls._price_cache:
+            symbols = [str(sym).upper() for sym in cls._price_cache.keys() if sym]
+            if symbols:
+                return symbols
+
+        # Fallback: warm symbols list from REST groups.
+        groups = ['HOSE', 'HNX', 'UPCOM']
+        combined: Dict[str, Dict[str, Any]] = {}
+        for group in groups:
+            try:
+                combined.update(cls._fetch_group_prices(group))
+            except Exception:
+                continue
+        return [str(sym).upper() for sym in combined.keys() if sym]
+
+    @classmethod
+    def _broadcast_price_updates(cls, changed: Dict[str, Dict[str, Any]]) -> None:
+        if not changed or not cls._ws_clients:
+            return
+        import queue as _queue
+        with cls._lock:
+            dead = set()
+            for q in cls._ws_clients:
+                try:
+                    q.put_nowait(changed)
+                except _queue.Full:
+                    pass
+                except Exception:
+                    dead.add(q)
+            cls._ws_clients -= dead
+
+    @classmethod
+    def _apply_price_updates(cls, updates: Dict[str, Dict[str, Any]], source: str, replace: bool = False) -> None:
+        if not updates:
+            return
+
+        old_cache = cls._price_cache
+        if replace:
+            new_cache = dict(updates)
+            merged_updates = updates
+        else:
+            new_cache = dict(old_cache)
+            merged_updates: Dict[str, Dict[str, Any]] = {}
+            for sym, item in updates.items():
+                merged = dict(old_cache.get(sym) or {})
+                merged.update(item or {})
+                merged_updates[sym] = merged
+            new_cache.update(merged_updates)
+
+        changed: Dict[str, Dict[str, Any]] = {}
+        for sym, item in merged_updates.items():
+            old = old_cache.get(sym)
+            if old is None:
+                changed[sym] = item
+                continue
+            for key in ('c', 'vo', 'bp1', 'bp2', 'bp3', 'ap1', 'ap2', 'ap3', 'bv1', 'bv2', 'bv3', 'av1', 'av2', 'av3'):
+                if old.get(key) != item.get(key):
+                    changed[sym] = item
+                    break
+
+        cls._price_cache = new_cache
+        now = time.time()
+        cls._last_cache_update = now
+        cls._prices_source = source
+        if source == 'SOCKET_IO':
+            cls._prices_ws_last_update = now
+
+        cls._broadcast_price_updates(changed)
 
     @classmethod
     def _normalize_index_item(cls, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -201,23 +527,181 @@ class VCIClient:
 
     @classmethod
     def _background_refresh_loop(cls):
-        """Infinite loop: poll VCI every 3s during trading hours, idle otherwise."""
+        """Fallback loop: use REST when socket data is stale or unavailable."""
         print(">>> [VCI] Starting background price refresh thread...", flush=True)
-        # Blocking warm-up so cache is ready before first HTTP request arrives
+        # Blocking warm-up so cache is ready before first HTTP request arrives.
         try:
             cls.update_bulk_cache()
         except Exception as e:
             logger.error(f"[VCI] Initial warm-up failed: {e}")
+
         while True:
             if not cls._is_trading_hours():
-                # Outside trading hours — sleep 60s, no VCI ping needed
                 time.sleep(60)
                 continue
+
+            # WS is primary source. Skip REST if WS updated recently.
+            if cls._prices_ws_last_update > 0 and (time.time() - cls._prices_ws_last_update) < cls._PRICE_RECENT_WS_SECONDS:
+                time.sleep(1)
+                continue
+
             try:
                 cls.update_bulk_cache()
             except Exception as e:
                 logger.error(f"[VCI] Background price refresh error: {e}")
             time.sleep(3)
+
+    @classmethod
+    def _prices_ws_loop(cls):
+        """Socket.IO listener for Vietcap realtime domestic stock prices."""
+        if socketio is None:
+            logger.info("[VCI] python-socketio not installed; skip WS prices stream.")
+            return
+
+        reconnect_delay = cls._PRICE_WS_BACKOFF_MIN_SECONDS
+        while True:
+            sio = None
+            try:
+                sio = socketio.Client(reconnection=True, logger=False, engineio_logger=False)
+
+                def _consume(payload: Any):
+                    try:
+                        if isinstance(payload, (bytes, bytearray)):
+                            return
+                        if isinstance(payload, str):
+                            payload = json.loads(payload)
+                        items = cls._extract_price_items_from_payload(payload)
+                        if not items:
+                            return
+                        updates = {str(it.get('s')).upper(): it for it in items if it.get('s')}
+                        cls._apply_price_updates(updates, source='SOCKET_IO', replace=False)
+                    except Exception:
+                        return
+
+                def _consume_match_price(payload: Any):
+                    try:
+                        if isinstance(payload, (bytes, bytearray)):
+                            decoded = cls._decode_ws_match_price_binary(bytes(payload))
+                            if decoded and decoded.get("s"):
+                                cls._apply_price_updates({str(decoded["s"]).upper(): decoded}, source='SOCKET_IO', replace=False)
+                            return
+                        _consume(payload)
+                    except Exception:
+                        return
+
+                def _consume_bid_ask(payload: Any):
+                    try:
+                        if isinstance(payload, (bytes, bytearray)):
+                            decoded = cls._decode_ws_bid_ask_binary(bytes(payload))
+                            if decoded and decoded.get("s"):
+                                cls._apply_price_updates({str(decoded["s"]).upper(): decoded}, source='SOCKET_IO', replace=False)
+                            return
+                        _consume(payload)
+                    except Exception:
+                        return
+
+                subscribe_payloads = [
+                    {'group': 'HOSE'},
+                    {'group': 'HNX'},
+                    {'group': 'UPCOM'},
+                    {'group': ['HOSE', 'HNX', 'UPCOM']},
+                    {'groups': ['HOSE', 'HNX', 'UPCOM']},
+                    {'boards': ['HOSE', 'HNX', 'UPCOM']},
+                    {'board': ['HOSE', 'HNX', 'UPCOM']},
+                ]
+
+                @sio.event
+                def connect():
+                    nonlocal reconnect_delay
+                    logger.info("[VCI] Connected to Vietcap Socket.IO for stock prices.")
+                    reconnect_delay = cls._PRICE_WS_BACKOFF_MIN_SECONDS
+
+                    # Keep these initial emits aligned with browser flow seen in HAR.
+                    try:
+                        sio.emit('market-status', '[{"type":"all"}]')
+                        sio.emit('app-config', '[{"type":"all"}]')
+                    except Exception:
+                        pass
+
+                    try:
+                        sio.emit('w-match-price', '{"symbols":[]}')
+                        sio.emit('w-bid-ask', '{"symbols":[]}')
+                        sio.emit('put-through', '{"symbols":[]}')
+                    except Exception:
+                        pass
+
+                    symbols = cls._get_stock_subscription_symbols()
+                    if symbols:
+                        payload_str = json.dumps({'symbols': symbols}, separators=(',', ':'))
+                        try:
+                            sio.emit('w-match-price', payload_str)
+                            sio.emit('w-bid-ask', payload_str)
+                            sio.emit('put-through', payload_str)
+                        except Exception:
+                            pass
+
+                    # Compatibility fallback emits.
+                    for event_name in ('subscribe', 'sub', 'join', 'reg', 'register', 'watch', 'priceboard', 'prices'):
+                        for payload in subscribe_payloads:
+                            try:
+                                sio.emit(event_name, payload)
+                            except Exception:
+                                continue
+
+                @sio.event
+                def connect_error(data):
+                    logger.warning(f"[VCI] Prices Socket.IO connect_error: {data}")
+
+                @sio.event
+                def disconnect():
+                    logger.warning("[VCI] Prices Socket.IO disconnected.")
+
+                sio.on('w-match-price', handler=_consume_match_price)
+                sio.on('w-bid-ask', handler=_consume_bid_ask)
+                sio.on('put-through', handler=_consume)
+                for event_name in (
+                    'global-price',
+                    'message',
+                    'price',
+                    'prices',
+                    'ticker',
+                    'tickers',
+                    'stock',
+                    'stocks',
+                    'board',
+                    'priceboard',
+                    'data',
+                    'update',
+                ):
+                    sio.on(event_name, handler=_consume)
+
+                sio.connect(
+                    cls.SOCKET_BASE_URL,
+                    transports=['websocket'],
+                    socketio_path=cls.SOCKET_PATH,
+                    wait_timeout=cls._PRICE_WS_CONNECT_TIMEOUT_SECONDS,
+                    headers={
+                        'Origin': 'https://trading.vietcap.com.vn',
+                        'Referer': 'https://trading.vietcap.com.vn/',
+                        'User-Agent': cls.HEADERS.get('User-Agent', ''),
+                    },
+                )
+                sio.wait()
+            except Exception as exc:
+                logger.warning(f"[VCI] Socket.IO prices loop error: {exc}")
+            finally:
+                try:
+                    if sio is not None:
+                        sio.disconnect()
+                except Exception:
+                    pass
+
+            sleep_seconds = min(
+                cls._PRICE_WS_BACKOFF_MAX_SECONDS,
+                reconnect_delay + random.uniform(0, cls._PRICE_WS_BACKOFF_JITTER_SECONDS),
+            )
+            time.sleep(sleep_seconds)
+            reconnect_delay = min(cls._PRICE_WS_BACKOFF_MAX_SECONDS, reconnect_delay * 2)
 
     @classmethod
     def _indices_refresh_loop(cls):
@@ -377,6 +861,11 @@ class VCIClient:
         if not cls._refresh_thread_started:
             with cls._lock:
                 if not cls._refresh_thread_started:
+                    if socketio is not None and not cls._prices_ws_thread_started:
+                        ws_thread = threading.Thread(target=cls._prices_ws_loop, daemon=True)
+                        ws_thread.start()
+                        cls._prices_ws_thread_started = True
+                        print(">>> [VCI] Prices Socket.IO thread spawned.", flush=True)
                     thread = threading.Thread(target=cls._background_refresh_loop, daemon=True)
                     thread.start()
                     cls._refresh_thread_started = True
@@ -443,7 +932,13 @@ class VCIClient:
             response = cls._session.post(url, json={"group": group}, timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                return { item['s']: item for item in data if 's' in item }
+                out: Dict[str, Dict[str, Any]] = {}
+                for item in data:
+                    normalized = cls._normalize_price_item(item)
+                    if not normalized:
+                        continue
+                    out[str(normalized['s']).upper()] = normalized
+                return out
         except Exception as e:
             logger.error(f"Failed to fetch group {group}: {e}")
         return {}
@@ -455,9 +950,8 @@ class VCIClient:
 
     @classmethod
     def update_bulk_cache(cls):
-        """Poll VCI for all exchanges, update RAM cache, broadcast diffs to WS clients."""
+        """Poll REST fallback for all exchanges and merge into RAM cache."""
         from concurrent.futures import ThreadPoolExecutor
-        import queue as _queue
         groups = ['HOSE', 'HNX', 'UPCOM']
         new_cache = {}
 
@@ -468,30 +962,7 @@ class VCIClient:
 
         if not new_cache:
             return
-
-        # Compute diff: symbols whose price changed since last poll
-        old_cache = cls._price_cache
-        changed = {}
-        for sym, item in new_cache.items():
-            old = old_cache.get(sym)
-            if old is None or old.get('c') != item.get('c') or old.get('vo') != item.get('vo'):
-                changed[sym] = item
-
-        cls._price_cache = new_cache
-        cls._last_cache_update = time.time()
-
-        # Push diffs to registered WS clients
-        if changed and cls._ws_clients:
-            with cls._lock:
-                dead = set()
-                for q in cls._ws_clients:
-                    try:
-                        q.put_nowait(changed)
-                    except _queue.Full:
-                        pass
-                    except Exception:
-                        dead.add(q)
-                cls._ws_clients -= dead
+        cls._apply_price_updates(new_cache, source='REST', replace=True)
 
     @classmethod
     def register_ws_client(cls) -> 'queue.Queue':

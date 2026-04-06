@@ -249,11 +249,30 @@ def _handle_prices_ws(ws):
     """Internal WS stream for frontend: pushes real-time price updates."""
     logger.info("WS client connected: /ws/market/prices")
 
+    def _orderbook_from_raw(d):
+        return {
+            'bid': [
+                {'price': float(d.get('bp1') or 0), 'volume': float(d.get('bv1') or 0)},
+                {'price': float(d.get('bp2') or 0), 'volume': float(d.get('bv2') or 0)},
+                {'price': float(d.get('bp3') or 0), 'volume': float(d.get('bv3') or 0)},
+            ],
+            'ask': [
+                {'price': float(d.get('ap1') or 0), 'volume': float(d.get('av1') or 0)},
+                {'price': float(d.get('ap2') or 0), 'volume': float(d.get('av2') or 0)},
+                {'price': float(d.get('ap3') or 0), 'volume': float(d.get('av3') or 0)},
+            ],
+        }
+
     # Send full price snapshot on initial connect
     try:
         current_prices = VCIClient.get_all_prices()
         init_data = {
-            sym: {'c': d.get('c'), 'ref': d.get('ref'), 'vo': d.get('vo', 0)}
+            sym: {
+                'c': d.get('c'),
+                'ref': d.get('ref'),
+                'vo': d.get('vo', 0),
+                'orderbook': _orderbook_from_raw(d),
+            }
             for sym, d in current_prices.items()
             if d.get('c') and d.get('ref')
         }
@@ -268,7 +287,12 @@ def _handle_prices_ws(ws):
                 updates = q.get(timeout=5)
                 if updates:
                     formatted = {
-                        sym: {'c': d.get('c'), 'ref': d.get('ref'), 'vo': float(d.get('vo', 0))}
+                        sym: {
+                            'c': d.get('c'),
+                            'ref': d.get('ref'),
+                            'vo': float(d.get('vo', 0)),
+                            'orderbook': _orderbook_from_raw(d),
+                        }
                         for sym, d in updates.items()
                     }
                     ws.send(json.dumps({'type': 'prices_update', 'data': formatted}, ensure_ascii=False))
