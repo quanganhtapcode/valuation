@@ -17,6 +17,7 @@ interface FinancialsTabProps {
 }
 
 type ReportType = 'income' | 'balance' | 'cashflow' | 'ratio';
+type StatementWindow = '4' | '8' | '12' | 'all';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -170,7 +171,7 @@ export default function FinancialsTab({
         balance: {},
         cashflow: {},
     });
-    const reportScrollRef = useRef<HTMLDivElement>(null);
+    const [statementWindow, setStatementWindow] = useState<StatementWindow>('4');
     const periodInitRef = useRef(false);
     const isInitialMount = useRef(true);
 
@@ -248,10 +249,10 @@ export default function FinancialsTab({
         const controller = new AbortController();
         queueMicrotask(() => setReportLoading(true));
         Promise.allSettled([
-            fetch(`/api/financial-report/${symbol}?type=income&period=${effectivePeriod}&limit=12`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/financial-report/${symbol}?type=balance&period=${effectivePeriod}&limit=12`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/financial-report/${symbol}?type=cashflow&period=${effectivePeriod}&limit=12`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/financial-report/${symbol}?type=ratio&period=${effectivePeriod}&limit=12`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=income&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=balance&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=cashflow&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=ratio&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
         ])
             .then(([income, balance, cashflow, ratio]) => {
                 if (controller.signal.aborted) return;
@@ -296,16 +297,40 @@ export default function FinancialsTab({
         return () => controller.abort();
     }, [symbol]);
 
-    useEffect(() => {
+    const handleDownloadStatementCsv = () => {
         if (activeSubTab === 'ratio') return;
-        if (reportLoading) return;
-        const el = reportScrollRef.current;
-        if (!el) return;
-        requestAnimationFrame(() => {
-            // Show latest periods by default; user can scroll left to older periods.
-            el.scrollLeft = el.scrollWidth;
+        const rows = reportData[activeSubTab] || [];
+        const sorted = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
+        const visibleRows =
+            statementWindow === 'all' ? sorted : sorted.slice(0, Number(statementWindow));
+        const metricKeys = pickColumns(visibleRows);
+        if (!visibleRows.length || !metricKeys.length) return;
+
+        const currentMap = activeSubTab === 'income'
+            ? metricMaps.income
+            : activeSubTab === 'balance'
+                ? metricMaps.balance
+                : metricMaps.cashflow;
+
+        const header = ['Metric', ...visibleRows.map((row) => renderPeriod(row))].join(',');
+        const body = metricKeys.map((metric) => {
+            const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
+            const values = visibleRows.map((row) => {
+                const value = formatCell(row[metric]).replaceAll(',', '');
+                return `"${value}"`;
+            });
+            return [`"${label}"`, ...values].join(',');
         });
-    }, [activeSubTab, reportLoading, reportData]);
+        const csvContent = '\uFEFF' + [header, ...body].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${symbol}_${activeSubTab}_${effectivePeriod}_${statementWindow}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     // ── data helpers ──────────────────────────────────────────────────────────
 
@@ -409,37 +434,101 @@ export default function FinancialsTab({
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
-                        {[
-                            { id: 'ratio', label: 'Ratios' },
-                            { id: 'income', label: 'Income Statement' },
-                            { id: 'balance', label: 'Balance Sheet' },
-                            { id: 'cashflow', label: 'Cash Flow' },
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                onClick={() => setActiveSubTab(tab.id as 'ratio' | 'income' | 'balance' | 'cashflow')}
-                                className={cx(
-                                    'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                                    activeSubTab === tab.id
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
-                                )}
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-tremor-border bg-white p-2 shadow-sm dark:border-dark-tremor-border dark:bg-gray-950">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {[
+                                { id: 'ratio', label: 'Ratios' },
+                                { id: 'income', label: 'Income Statement' },
+                                { id: 'balance', label: 'Balance Sheet' },
+                                { id: 'cashflow', label: 'Cash Flow' },
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setActiveSubTab(tab.id as 'ratio' | 'income' | 'balance' | 'cashflow');
+                                        setStatementWindow('4');
+                                    }}
+                                    className={cx(
+                                        'rounded-tremor-small border border-tremor-border px-3 py-1.5 text-sm font-medium transition-colors dark:border-dark-tremor-border',
+                                        activeSubTab === tab.id
+                                            ? 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand'
+                                            : 'bg-white text-tremor-content-strong hover:bg-tremor-background-muted dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong hover:dark:bg-gray-900'
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-0">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        _setPeriod?.('year');
+                                        setStatementWindow('4');
+                                    }}
+                                    className={cx(
+                                        'rounded-l-tremor-small border border-tremor-border px-3 py-1.5 text-sm font-medium -mr-px dark:border-dark-tremor-border',
+                                        effectivePeriod === 'year'
+                                            ? 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand'
+                                            : 'bg-white text-tremor-content-strong hover:bg-tremor-background-muted dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong hover:dark:bg-gray-900'
+                                    )}
+                                >
+                                    Annual
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        _setPeriod?.('quarter');
+                                        setStatementWindow('4');
+                                    }}
+                                    className={cx(
+                                        'rounded-r-tremor-small border border-tremor-border px-3 py-1.5 text-sm font-medium dark:border-dark-tremor-border',
+                                        effectivePeriod === 'quarter'
+                                            ? 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand'
+                                            : 'bg-white text-tremor-content-strong hover:bg-tremor-background-muted dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong hover:dark:bg-gray-900'
+                                    )}
+                                >
+                                    Quarterly
+                                </button>
+                            </div>
+
+                            <select
+                                value={statementWindow}
+                                onChange={(e) => setStatementWindow(e.target.value as StatementWindow)}
+                                disabled={activeSubTab === 'ratio'}
+                                className="rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong"
                             >
-                                {tab.label}
+                                <option value="4">4 kỳ gần nhất</option>
+                                <option value="8">8 kỳ</option>
+                                <option value="12">12 kỳ</option>
+                                <option value="all">Tất cả</option>
+                            </select>
+
+                            <button
+                                type="button"
+                                onClick={handleDownloadStatementCsv}
+                                disabled={activeSubTab === 'ratio'}
+                                className="inline-flex items-center justify-center gap-2 rounded-tremor-small border border-tremor-border bg-white px-3 py-2 text-sm font-medium text-tremor-content-strong shadow-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-tremor-background-muted dark:border-dark-tremor-border dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong"
+                            >
+                                <span>Download CSV</span>
                             </button>
-                        ))}
+                        </div>
                     </div>
 
                     {activeSubTab !== 'ratio' && (
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <div className="rounded-xl border border-tremor-border bg-white p-0 shadow-sm dark:border-dark-tremor-border dark:bg-gray-950">
                             {reportLoading ? (
-                                <div className="text-sm text-slate-500 dark:text-slate-400">Loading report...</div>
+                                <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">Loading report...</div>
                             ) : (
                                 (() => {
                                     const rawRows = reportData[activeSubTab] || [];
-                                    const periodRows = [...rawRows].sort((a, b) => periodSortKey(a) - periodSortKey(b));
+                                    const sortedPeriodRows = [...rawRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
+                                    const periodRows = statementWindow === 'all'
+                                        ? sortedPeriodRows
+                                        : sortedPeriodRows.slice(0, Number(statementWindow));
                                     const metricKeys = pickColumns(periodRows);
                                     const currentMap = activeSubTab === 'income'
                                         ? metricMaps.income
@@ -447,31 +536,31 @@ export default function FinancialsTab({
                                             ? metricMaps.balance
                                             : metricMaps.cashflow;
                                     if (!periodRows.length || !metricKeys.length) {
-                                        return <div className="text-sm text-slate-500 dark:text-slate-400">No data.</div>;
+                                        return <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">No data.</div>;
                                     }
                                     return (
-                                        <div className="overflow-auto max-w-[960px]" ref={reportScrollRef}>
-                                            <table className="text-sm" style={{ minWidth: `${280 + periodRows.length * 170}px` }}>
-                                                <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
+                                        <div className="w-full overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                                            <table className="min-w-full w-max border-collapse text-sm">
+                                                <thead className="bg-gray-50/50 dark:bg-gray-900/50">
                                                     <tr>
-                                                        <th className="sticky left-0 z-10 min-w-[280px] px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800">
+                                                        <th className="sticky left-0 z-10 min-w-[260px] border-b border-tremor-border bg-gray-50/50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:bg-gray-900/50 dark:text-dark-tremor-content">
                                                             {activeSubTab === 'income' ? 'Income Statement' : activeSubTab === 'balance' ? 'Balance Sheet' : 'Cash Flow'}
                                                         </th>
                                                         {periodRows.map((row, idx) => (
-                                                            <th key={`${renderPeriod(row)}-${idx}`} className="min-w-[170px] px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200">
+                                                            <th key={`${renderPeriod(row)}-${idx}`} className="whitespace-nowrap border-b border-tremor-border px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">
                                                                 {renderPeriod(row)}
                                                             </th>
                                                         ))}
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                                                     {metricKeys.map((metric) => (
-                                                        <tr key={metric}>
-                                                            <td className="sticky left-0 z-[1] min-w-[280px] px-3 py-2 font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900">
+                                                        <tr key={metric} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
+                                                            <td className="sticky left-0 z-[1] min-w-[260px] bg-white px-4 py-3 text-sm font-medium text-tremor-content-strong dark:bg-gray-950 dark:text-dark-tremor-content-strong">
                                                                 {currentMap[metric.toLowerCase()] || formatMetricLabel(metric)}
                                                             </td>
                                                             {periodRows.map((row, idx) => (
-                                                                <td key={`${metric}-${idx}`} className="min-w-[170px] px-3 py-2 text-right text-slate-600 dark:text-slate-300">
+                                                                <td key={`${metric}-${idx}`} className="whitespace-nowrap px-4 py-3 text-right text-sm text-tremor-content dark:text-dark-tremor-content">
                                                                     {formatCell(row[metric])}
                                                                 </td>
                                                             ))}
