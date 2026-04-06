@@ -571,6 +571,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--retry", type=int, default=3, help="HTTP retries per request.")
     parser.add_argument("--timeout", type=int, default=20, help="HTTP timeout seconds.")
     parser.add_argument("--mapping-symbol", default="FPT", help="Symbol used to fetch metrics mapping.")
+    parser.add_argument(
+        "--mapping-symbols",
+        default="",
+        help="Comma-separated symbols to merge metrics mapping from (e.g. FPT,TCB).",
+    )
     parser.add_argument("--out-dir", default="", help="Output folder. Default: <repo>/vci_financial_statement_data")
     parser.add_argument("--db-path", default="", help="SQLite DB path. Default: <out-dir>/vci_financial_statements.sqlite")
     parser.add_argument(
@@ -583,7 +588,7 @@ def _parse_args() -> argparse.Namespace:
         default="",
         help="Symbols snapshot JSON path. Default: <out-dir>/symbols_search_bar.json",
     )
-    parser.add_argument("--test-only", action="store_true", help="Fetch only mapping-symbol (ignores list).")
+    parser.add_argument("--test-only", action="store_true", help="Fetch only mapping symbol(s) (ignores list).")
     return parser.parse_args()
 
 
@@ -601,7 +606,26 @@ def main() -> int:
     ensure_schema(conn)
     fetched_at = dt.datetime.now(dt.timezone.utc).isoformat()
 
-    metrics = _fetch_metrics(opener, args.mapping_symbol.upper())
+    mapping_symbols = [
+        s.strip().upper()
+        for s in (args.mapping_symbols or args.mapping_symbol or "FPT").split(",")
+        if s.strip()
+    ]
+    merged_metrics: dict[str, dict[str, dict[str, Any]]] = {s: {} for s in SECTIONS}
+    for sym in mapping_symbols:
+        m = _fetch_metrics(opener, sym)
+        for section, rows in m.items():
+            if section not in merged_metrics:
+                continue
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                field = str(row.get("field") or "").strip().lower()
+                if not field:
+                    continue
+                merged_metrics[section][field] = row
+    metrics = {section: list(fields.values()) for section, fields in merged_metrics.items()}
+
     fields_by_section = upsert_metrics(conn, metrics, fetched_at)
     mapping_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info("Mapping saved: %s", mapping_path)
@@ -615,8 +639,8 @@ def main() -> int:
         symbols, symbol_meta = _collect_symbols(opener, args.universe, floors)
 
     if args.test_only:
-        symbols = [args.mapping_symbol.upper()]
-        symbol_meta = [{"code": args.mapping_symbol.upper()}]
+        symbols = mapping_symbols
+        symbol_meta = [{"code": s} for s in mapping_symbols]
 
     if args.limit and args.limit > 0:
         symbols = symbols[: args.limit]

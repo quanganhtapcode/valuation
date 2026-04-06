@@ -37,6 +37,17 @@ logger = logging.getLogger(__name__)
 _cache: dict = {}
 _CACHE_TTL = 600  # 10 min
 
+# Fallback labels for fields that exist in statement values but are not exposed
+# with titleVi/titleEn by VCI metrics endpoint for some bank/off-balance codes.
+_FALLBACK_METRIC_LABELS: dict[str, str] = {
+    "bsb126": "Bảo lãnh (Bảo lãnh vay vốn + Bảo lãnh khác)",
+    "bsb157": "Bảo lãnh (Bảo lãnh vay vốn + Bảo lãnh khác)",
+    "bsb179": "Cam kết giao dịch hối đoái (Mua + Bán ngoại tệ)",
+    "bsb132": "Chỉ tiêu ngoại bảng (VCI chưa công bố title)",
+    "cfb46": "CFB46 (VCI chưa công bố title)",
+    "cfb47": "CFB47 (VCI chưa công bố title)",
+}
+
 
 def _cache_get(key):
     entry = _cache.get(key)
@@ -357,6 +368,8 @@ def register(stock_bp: Blueprint) -> None:
                     or str(r["name"] or "").strip()
                     or field.upper()
                 )
+                if label.upper() == field.upper():
+                    label = _FALLBACK_METRIC_LABELS.get(field, label)
                 data.append({"field": field, "label": label})
                 field_map[field] = label
 
