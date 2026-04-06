@@ -20,6 +20,7 @@ import gzip
 import json
 import logging
 import random
+import re
 import sqlite3
 import threading
 import time
@@ -43,6 +44,7 @@ SEARCH_BAR_URL = "https://iq.vietcap.com.vn/api/iq-insight-service/v2/company/se
 V1_COMPANY_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1/company"
 DEVICE_ID = "".join(f"{random.randrange(256):02x}" for _ in range(12))
 HTTP_LOCK = threading.Lock()
+FIELD_CODE_RE = re.compile(r"^[a-z]{3}\d+$", re.IGNORECASE)
 
 
 def _headers() -> dict[str, str]:
@@ -424,11 +426,33 @@ def upsert_symbol_statements(
                     )
                     period_rows += 1
 
-                    fields = fields_by_section.get(section) or set()
+                    row_key_map: dict[str, str] = {
+                        k.lower(): k for k in row.keys() if isinstance(k, str)
+                    }
+                    dynamic_fields = {
+                        key for key in row_key_map.keys() if FIELD_CODE_RE.fullmatch(key)
+                    }
+
+                    # Some symbols (especially NOTE of banks) can have extra field codes
+                    # not present in metrics fetched from the mapping symbol. Persist them.
+                    fields = fields_by_section.setdefault(section, set())
+                    missing_fields = dynamic_fields - fields
+                    for mf in missing_fields:
+                        conn.execute(
+                            """
+                            INSERT OR IGNORE INTO statement_metrics(
+                              section, field, name, fetched_at
+                            ) VALUES (?, ?, ?, ?)
+                            """,
+                            (section, mf, mf.upper(), fetched_at),
+                        )
+                    fields.update(dynamic_fields)
+
                     for field in fields:
-                        if field not in row:
+                        raw_key = row_key_map.get(field)
+                        if not raw_key:
                             continue
-                        fv = _to_float(row.get(field))
+                        fv = _to_float(row.get(raw_key))
                         conn.execute(
                             """
                             INSERT OR REPLACE INTO statement_values(
