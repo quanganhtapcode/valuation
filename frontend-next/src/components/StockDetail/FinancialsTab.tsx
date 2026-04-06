@@ -155,7 +155,6 @@ function formatMetricLabel(key: string): string {
 export default function FinancialsTab({
     symbol,
     period,
-    setPeriod: _setPeriod,
     initialChartData,
     initialOverviewData,
     isLoading: isParentLoading = false,
@@ -179,18 +178,11 @@ export default function FinancialsTab({
         cashflow: {},
     });
     const [statementWindow, setStatementWindow] = useState<StatementWindow>('4');
-    const periodInitRef = useRef(false);
     const isInitialMount = useRef(true);
 
     const BANK_SYMBOLS = new Set(['VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB','TPB','LPB','MSB','OCB','EIB','ABB','NAB','PGB','VAB','VIB','SSB','BAB','KLB','BVB','KBS','SGB','NVB']);
     const nimValue = overviewData?.nim ?? overviewData?.net_interest_margin ?? null;
     const isBank = nimValue !== null && nimValue !== undefined ? Number(nimValue) > 0 : BANK_SYMBOLS.has(symbol);
-
-    useEffect(() => {
-        if (periodInitRef.current) return;
-        periodInitRef.current = true;
-        if (_setPeriod && period !== 'year') _setPeriod('year');
-    }, [period, _setPeriod]);
 
     useEffect(() => {
         if (initialChartData && effectivePeriod === 'quarter') {
@@ -304,41 +296,6 @@ export default function FinancialsTab({
         return () => controller.abort();
     }, [symbol]);
 
-    const handleDownloadStatementCsv = () => {
-        if (activeSubTab === 'ratio') return;
-        const rows = reportData[activeSubTab] || [];
-        const sorted = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
-        const visibleRows =
-            statementWindow === 'all' ? sorted : sorted.slice(0, Number(statementWindow));
-        const metricKeys = pickColumns(visibleRows);
-        if (!visibleRows.length || !metricKeys.length) return;
-
-        const currentMap = activeSubTab === 'income'
-            ? metricMaps.income
-            : activeSubTab === 'balance'
-                ? metricMaps.balance
-                : metricMaps.cashflow;
-
-        const header = ['Metric', ...visibleRows.map((row) => renderPeriod(row))].join(',');
-        const body = metricKeys.map((metric) => {
-            const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
-            const values = visibleRows.map((row) => {
-                const value = formatCell(row[metric]).replaceAll(',', '');
-                return `"${value}"`;
-            });
-            return [`"${label}"`, ...values].join(',');
-        });
-        const csvContent = '\uFEFF' + [header, ...body].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `${symbol}_${activeSubTab}_${effectivePeriod}_${statementWindow}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
     // ── data helpers ──────────────────────────────────────────────────────────
 
     // Fallback: use overviewData.history (from /api/stock SQLite) when VCI chart fetch failed
@@ -433,16 +390,9 @@ export default function FinancialsTab({
                     <span style={{ fontSize: '12px' }}>Loading data...</span>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <div className="mb-1">
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Financials</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            Income Statement, Balance Sheet, Cash Flow and Ratios
-                        </p>
-                    </div>
-
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-tremor-border bg-white p-2 shadow-sm dark:border-dark-tremor-border dark:bg-gray-950">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="hidden items-center gap-2 md:flex">
                             {[
                                 { id: 'ratio', label: 'Ratios' },
                                 { id: 'income', label: 'Income Statement' },
@@ -468,60 +418,32 @@ export default function FinancialsTab({
                             ))}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex items-center gap-0">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        _setPeriod?.('year');
-                                        setStatementWindow('4');
-                                    }}
-                                    className={cx(
-                                        'rounded-l-tremor-small border border-tremor-border px-3 py-1.5 text-sm font-medium -mr-px dark:border-dark-tremor-border',
-                                        effectivePeriod === 'year'
-                                            ? 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand'
-                                            : 'bg-white text-tremor-content-strong hover:bg-tremor-background-muted dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong hover:dark:bg-gray-900'
-                                    )}
-                                >
-                                    Annual
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        _setPeriod?.('quarter');
-                                        setStatementWindow('4');
-                                    }}
-                                    className={cx(
-                                        'rounded-r-tremor-small border border-tremor-border px-3 py-1.5 text-sm font-medium dark:border-dark-tremor-border',
-                                        effectivePeriod === 'quarter'
-                                            ? 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand'
-                                            : 'bg-white text-tremor-content-strong hover:bg-tremor-background-muted dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong hover:dark:bg-gray-900'
-                                    )}
-                                >
-                                    Quarterly
-                                </button>
-                            </div>
+                        <div className="flex flex-1 flex-wrap items-center gap-2 md:flex-none md:justify-end">
+                            <select
+                                value={activeSubTab}
+                                onChange={(e) => {
+                                    setActiveSubTab(e.target.value as 'ratio' | 'income' | 'balance' | 'cashflow');
+                                    setStatementWindow('4');
+                                }}
+                                className="w-full rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong md:hidden"
+                            >
+                                <option value="ratio">Ratios</option>
+                                <option value="income">Income Statement</option>
+                                <option value="balance">Balance Sheet</option>
+                                <option value="cashflow">Cash Flow</option>
+                            </select>
 
                             <select
                                 value={statementWindow}
                                 onChange={(e) => setStatementWindow(e.target.value as StatementWindow)}
                                 disabled={activeSubTab === 'ratio'}
-                                className="rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong"
+                                className="w-full rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong md:w-auto"
                             >
                                 <option value="4">4 kỳ gần nhất</option>
                                 <option value="8">8 kỳ</option>
                                 <option value="12">12 kỳ</option>
                                 <option value="all">Tất cả</option>
                             </select>
-
-                            <button
-                                type="button"
-                                onClick={handleDownloadStatementCsv}
-                                disabled={activeSubTab === 'ratio'}
-                                className="inline-flex items-center justify-center gap-2 rounded-tremor-small border border-tremor-border bg-white px-3 py-2 text-sm font-medium text-tremor-content-strong shadow-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-tremor-background-muted dark:border-dark-tremor-border dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong"
-                            >
-                                <span>Download CSV</span>
-                            </button>
                         </div>
                     </div>
 
