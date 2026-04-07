@@ -21,6 +21,200 @@ type StatementWindow = '4' | '8' | '12' | 'all';
 type MetricMeta = { label: string; parent?: string | null; level?: number | null };
 const PLUS_ICON_URL = 'https://trading.vietcap.com.vn/vietcap-iq/assets/images/plus-grid2e52f954fdf3abbd8683.svg';
 const MINUS_ICON_URL = 'https://trading.vietcap.com.vn/vietcap-iq/assets/images/minus-grid0cc75a8b4abe6c3b23c9.svg';
+const NORMAL_INCOME_LABEL_ORDER = [
+    'Doanh thu bán hàng và cung cấp dịch vụ',
+    'Các khoản giảm trừ doanh thu',
+    'Doanh thu thuần',
+    'Giá vốn hàng bán',
+    'Lợi nhuận gộp',
+    'Doanh thu hoạt động tài chính',
+    'Chi phí tài chính',
+    'Chi phí lãi vay',
+    'Lãi/(lỗ) từ công ty liên doanh (từ năm 2015)',
+    'Chi phí bán hàng',
+    'Chi phí quản lý doanh nghiệp',
+    'Lãi/(lỗ) từ hoạt động kinh doanh',
+    'Thu nhập khác, ròng',
+    'Thu nhập khác',
+    'Chi phí khác',
+    'Lãi/(lỗ) từ công ty liên doanh',
+    'Lãi/(lỗ) trước thuế',
+    'Chi phí thuế thu nhập doanh nghiệp',
+    'Thuế thu nhập doanh nghiệp - hiện thời',
+    'Thuế thu nhập doanh nghiệp - hoãn lại',
+    'Lãi/(lỗ) thuần sau thuế',
+    'Lợi ích của cổ đông thiểu số',
+    'Lợi nhuận của Cổ đông của Công ty mẹ',
+    'Lãi cơ bản trên cổ phiếu (VND)',
+    'Lãi trên cổ phiếu pha loãng (VND)',
+] as const;
+const NORMAL_CASHFLOW_LABEL_ORDER = [
+    'Lợi nhuận/(lỗ) trước thuế',
+    'Khấu hao TSCĐ và BĐSĐT',
+    'Phân bổ lợi thế thương mại',
+    'Chi phí dự phòng',
+    'Lãi/lỗ chênh lệch tỷ giá hối đoái do đánh giá lại các khoản mục tiền tệ có gốc ngoại tệ',
+    'Lãi/(lỗ) từ thanh lý tài sản cố định',
+    '(Lãi)/lỗ từ hoạt động đầu tư',
+    'Chi phí lãi vay',
+    'Thu lãi và cổ tức',
+    'Các khoản điều chỉnh khác',
+    'Lưu chuyển tiền tệ ròng từ các hoạt động sản xuất kinh doanh',
+    'Lợi nhuận/(lỗ) từ hoạt động kinh doanh trước những thay đổi vốn lưu động',
+    '(Tăng)/giảm các khoản phải thu',
+    '(Tăng)/giảm hàng tồn kho',
+    'Tăng/(giảm) các khoản phải trả',
+    '(Tăng)/giảm chi phí trả trước',
+    '(Tăng)/giảm chứng khoán kinh doanh',
+    'Tiền lãi vay đã trả',
+    'Thuế thu nhập doanh nghiệp đã nộp',
+    'Tiền thu khác từ hoạt động kinh doanh',
+    'Tiền chi khác cho hoạt động kinh doanh',
+    'Lưu chuyển tiền thuần từ hoạt động đầu tư',
+    'Tiền chi để mua sắm, xây dựng TSCĐ và các tài sản dài hạn khác',
+    'Tiền thu từ thanh lý, nhượng bán TSCĐ và các tài sản dài hạn khác',
+    'Tiền chi cho vay, mua các công cụ nợ của đơn vị khác',
+    'Tiền thu hồi cho vay, bán lại các công cụ nợ của đơn vị khác',
+    'Tiền chi đầu tư góp vốn vào đơn vị khác',
+    'Tiền thu hồi đầu tư góp vốn vào đơn vị khác',
+    'Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia',
+    'Lưu chuyển tiền thuần từ hoạt động tài chính',
+    'Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu',
+    'Tiền chi trả vốn góp cho các chủ sở hữu, mua lại cổ phiếu của doanh nghiệp đã phát hành',
+    'Tiền thu được các khoản đi vay',
+    'Tiền trả nợ gốc vay',
+    'Tiền trả nợ gốc thuê tài chính',
+    'Cổ tức, lợi nhuận đã trả cho chủ sở hữu',
+    'Tiền lãi đã nhận',
+    'Lưu chuyển tiền thuần trong kỳ',
+    'Tiền và tương đương tiền đầu kỳ',
+    'Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ',
+    'Tiền và tương đương tiền cuối kỳ',
+] as const;
+const NORMAL_BALANCE_LABEL_ORDER = [
+    'TÀI SẢN NGẮN HẠN',
+    'Tiền và tương đương tiền',
+    'Tiền',
+    'Các khoản tương đương tiền',
+    'Đầu tư ngắn hạn',
+    'Dự phòng giảm giá',
+    'Đầu tư nắm giữ đến ngày đáo hạn',
+    'Các khoản phải thu',
+    'Phải thu khách hàng',
+    'Trả trước người bán',
+    'Phải thu nội bộ',
+    'Phải thu hợp đồng xây dựng đang thực hiện',
+    'Phải thu cho vay ngắn hạn',
+    'Phải thu khác',
+    'Dự phòng nợ khó đòi',
+    'Tài sản thiếu cần xử lý',
+    'Hàng tồn kho, ròng',
+    'Hàng tồn kho',
+    'Dự phòng giảm giá hàng tồn kho',
+    'Tài sản lưu động khác',
+    'Chi phí trả trước ngắn hạn',
+    'Thuế GTGT được khấu trừ',
+    'Phải thu thuế khác',
+    'Giao dịch mua bán lại trái phiếu Chính phủ',
+    'TÀI SẢN DÀI HẠN',
+    'Phải thu dài hạn',
+    'Phải thu khách hàng dài hạn',
+    'Trả trước người bán dài hạn',
+    'Vốn kinh doanh ở các đơn vị trực thuộc',
+    'Phải thu nội bộ dài hạn',
+    'Phải thu cho vay dài hạn',
+    'Phải thu dài hạn khác',
+    'Dự phòng phải thu dài hạn',
+    'Tài sản cố định',
+    'GTCL TSCĐ hữu hình',
+    'Nguyên giá TSCĐ hữu hình',
+    'Khấu hao lũy kế TSCĐ hữu hình',
+    'GTCL tài sản thuê tài chính',
+    'Nguyên giá tài sản thuê tài chính',
+    'Khấu hao lũy kế tài sản thuê tài chính',
+    'GTCL tài sản cố định vô hình',
+    'Nguyên giá TSCĐ vô hình',
+    'Khấu hao lũy kế TSCĐ vô hình',
+    'Xây dựng cơ bản đang dang dở (trước 2015)',
+    'Giá trị ròng tài sản đầu tư',
+    'Nguyên giá tài sản đầu tư',
+    'Khấu hao lũy kế tài sản đầu tư',
+    'Tài sản dở dang dài hạn',
+    'Chi phí sản xuất, kinh doanh dở dang dài hạn',
+    'Xây dựng cơ bản đang dở dang',
+    'Đầu tư dài hạn',
+    'Đầu tư vào các công ty con',
+    'Đầu tư vào các công ty liên kết',
+    'Đầu tư dài hạn khác',
+    'Dự phòng giảm giá đầu tư dài hạn',
+    'Lợi thế thương mại (trước 2015)',
+    'Tài sản dài hạn khác',
+    'Trả trước dài hạn',
+    'Thuế thu nhập hoãn lại',
+    'Thiết bị, vật tư, phụ tùng thay thế dài hạn',
+    'Các tài sản dài hạn khác',
+    'Lợi thế thương mại',
+    'TỔNG CỘNG TÀI SẢN',
+    'NỢ PHẢI TRẢ',
+    'Nợ ngắn hạn',
+    'Phải trả người bán',
+    'Người mua trả tiền trước',
+    'Thuế và các khoản phải trả Nhà nước',
+    'Phải trả người lao động',
+    'Chi phí phải trả',
+    'Phải trả nội bộ',
+    'Phải trả về xây dựng cơ bản',
+    'Doanh thu chưa thực hiện ngắn hạn',
+    'Phải trả khác',
+    'Vay ngắn hạn',
+    'Dự phòng các khoản phải trả ngắn hạn',
+    'Quỹ khen thưởng, phúc lợi',
+    'Quỹ bình ổn giá',
+    'Giao dịch mua bán lại trái phiếu chính phủ',
+    'Nợ dài hạn',
+    'Phải trả nhà cung cấp dài hạn',
+    'Người mua trả tiền trước dài hạn',
+    'Chi phí phải trả dài hạn',
+    'Phải trả nội bộ về vốn kinh doanh',
+    'Phải trả nội bộ dài hạn',
+    'Doanh thu chưa thực hiện',
+    'Phải trả dài hạn khác',
+    'Vay dài hạn',
+    'Trái phiếu chuyển đổi',
+    'Cổ phiếu ưu đãi',
+    'Dự phòng trợ cấp thôi việc',
+    'Dự phòng các khoản nợ dài hạn',
+    'Quỹ phát triển khoa học công nghệ',
+    'Vốn chủ sở hữu',
+    'Vốn và các quỹ',
+    'Vốn góp',
+    'Cổ phiếu phổ thông',
+    'Thặng dư vốn cổ phần',
+    'Quyền chọn chuyển đổi trái phiếu',
+    'Vốn khác',
+    'Cổ phiếu quỹ',
+    'Chênh lệch đánh giá lại tài sản',
+    'Chênh lệch tỷ giá',
+    'Quỹ đầu tư và phát triển',
+    'Quỹ hỗ trợ sắp xếp doanh nghiệp',
+    'Quỹ dự phòng tài chính',
+    'Quỹ khác',
+    'Lãi chưa phân phối',
+    'LNST chưa phân phối lũy kế đến cuối kỳ trước',
+    'LNST chưa phân phối kỳ này',
+    'Lợi ích cổ đông không kiểm soát',
+    'Vốn Ngân sách nhà nước và quỹ khác',
+    'Quỹ khen thưởng, phúc lợi (trước 2010)',
+    'Vốn ngân sách nhà nước và quỹ khác',
+    'Nguồn kinh phí đã hình thành TSCĐ',
+    'Lợi ích của cổ đông thiểu số',
+    'Tổng cộng nguồn vốn',
+] as const;
+const NORMAL_TEMPLATE_LABELS: Partial<Record<ReportType, readonly string[]>> = {
+    income: NORMAL_INCOME_LABEL_ORDER,
+    balance: NORMAL_BALANCE_LABEL_ORDER,
+    cashflow: NORMAL_CASHFLOW_LABEL_ORDER,
+};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -153,6 +347,32 @@ function formatMetricLabel(key: string): string {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function foldText(value: string): string {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function isFinancialStock(overviewData: any, isBank: boolean): boolean {
+    if (isBank) return true;
+    const candidates = [
+        overviewData?.industry,
+        overviewData?.sector,
+        overviewData?.icb_name1,
+        overviewData?.icb_name2,
+        overviewData?.icb_name3,
+        overviewData?.icb_name4,
+        overviewData?.company_type,
+        overviewData?.type,
+    ].filter(Boolean).map((v) => foldText(String(v)));
+    if (!candidates.length) return false;
+    const financialHints = ['ngan hang', 'chung khoan', 'bao hiem', 'tai chinh', 'bank', 'securities', 'insurance', 'financial'];
+    return candidates.some((text) => financialHints.some((hint) => text.includes(hint)));
+}
+
 function isImportantMetric(metric: string, label: string, tab: ReportType): boolean {
     const m = metric.toLowerCase();
     const l = label.toLowerCase();
@@ -208,6 +428,39 @@ function getSortedMetricKeys(tab: ReportType, metricKeys: string[]): string[] {
     });
 }
 
+function getNormalTemplateMetricKeys(
+    tab: ReportType,
+    metricKeys: string[],
+    metricMap: Record<string, string>,
+    applyTemplate: boolean,
+): string[] | null {
+    if (!applyTemplate) return null;
+    const labelOrder = NORMAL_TEMPLATE_LABELS[tab];
+    if (!labelOrder || !labelOrder.length) return null;
+
+    const buckets = new Map<string, string[]>();
+    for (const key of metricKeys) {
+        const label = metricMap[key.toLowerCase()] || formatMetricLabel(key);
+        const normalized = foldText(label);
+        const list = buckets.get(normalized) || [];
+        list.push(key);
+        buckets.set(normalized, list);
+    }
+
+    const out: string[] = [];
+    const used = new Set<string>();
+    for (const label of labelOrder) {
+        const normalized = foldText(label);
+        const bucket = buckets.get(normalized);
+        if (!bucket || !bucket.length) continue;
+        const key = bucket.shift();
+        if (!key || used.has(key)) continue;
+        out.push(key);
+        used.add(key);
+    }
+    return out.length ? out : null;
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FinancialsTab({
@@ -251,6 +504,7 @@ export default function FinancialsTab({
     const BANK_SYMBOLS = new Set(['VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB','TPB','LPB','MSB','OCB','EIB','ABB','NAB','PGB','VAB','VIB','SSB','BAB','KLB','BVB','KBS','SGB','NVB']);
     const nimValue = overviewData?.nim ?? overviewData?.net_interest_margin ?? null;
     const isBank = nimValue !== null && nimValue !== undefined ? Number(nimValue) > 0 : BANK_SYMBOLS.has(symbol);
+    const isNormalStock = !isFinancialStock(overviewData, isBank);
 
     useEffect(() => {
         if (initialChartData && effectivePeriod === 'quarter') {
@@ -579,7 +833,9 @@ export default function FinancialsTab({
                                     if (!periodRows.length || !metricKeys.length) {
                                         return <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">No data.</div>;
                                     }
-                                    const orderedMetricKeys = getSortedMetricKeys(activeSubTab, metricKeys);
+                                    const orderedMetricKeys =
+                                        getNormalTemplateMetricKeys(activeSubTab, metricKeys, currentMap, isNormalStock)
+                                        ?? getSortedMetricKeys(activeSubTab, metricKeys);
                                     const childrenMap = new Map<string, string[]>();
                                     for (const key of orderedMetricKeys) {
                                         const parent = currentMeta[key.toLowerCase()]?.parent?.toLowerCase();
