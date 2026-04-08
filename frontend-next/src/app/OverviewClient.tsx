@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import IndexCard from '@/components/IndexCard';
 import PEChart from '@/components/PEChart';
 import NewsSection from '@/components/NewsSection';
@@ -25,6 +25,8 @@ import {
     PEChartData
 } from '@/lib/api';
 import styles from './page.module.css';
+
+const MOVERS_REFRESH_INTERVAL_MS = 30000;
 
 // Static placeholders — card slots reserved before data arrives
 const PLACEHOLDER_INDICES: { id: string; name: string }[] = Object.entries(INDEX_MAP).map(([, info]) => ({
@@ -58,6 +60,25 @@ interface OverviewClientProps {
     initialPEData: PEChartData[];
 }
 
+function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
+    if (a === b) return true;
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+        const x = a[i];
+        const y = b[i];
+        if (!x || !y) return false;
+        if (
+            x.Symbol !== y.Symbol ||
+            Number(x.CurrentPrice || 0) !== Number(y.CurrentPrice || 0) ||
+            Number(x.ChangePricePercent || 0) !== Number(y.ChangePricePercent || 0) ||
+            Number(x.Value || 0) !== Number(y.Value || 0)
+        ) {
+            return false;
+        }
+    }
+    return true;
+}
+
 export default function OverviewClient({
     initialIndices,
     initialNews,
@@ -82,7 +103,7 @@ export default function OverviewClient({
     // State for top movers
     const [gainers, setGainers] = useState<TopMoverItem[]>(initialGainers);
     const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
-    const [moversLoading, setMoversLoading] = useState(false);
+    const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
 
     // State for gold prices
     const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
@@ -90,6 +111,7 @@ export default function OverviewClient({
     const [goldUpdatedAt, setGoldUpdatedAt] = useState<string>(initialGoldUpdated || new Date().toISOString());
     const [goldSource, setGoldSource] = useState<string>('Phú Quý');
     const { watchlist } = useWatchlist();
+    const moversInFlightRef = useRef(false);
 
     const mapMarketDataToIndices = useCallback((marketData: Record<string, MarketIndexData>) => {
         const results = Object.entries(INDEX_MAP)
@@ -182,20 +204,24 @@ export default function OverviewClient({
     }, [watchlist]);
 
     const loadMovers = useCallback(async () => {
+        if (moversInFlightRef.current) return;
+        const coldStart = gainers.length === 0 && losers.length === 0;
         try {
-            setMoversLoading(true);
+            moversInFlightRef.current = true;
+            if (coldStart) setMoversLoading(true);
             const [up, down] = await Promise.all([
                 fetchTopMovers('UP'),
                 fetchTopMovers('DOWN'),
             ]);
-            setGainers(up);
-            setLosers(down);
+            setGainers(prev => (sameMovers(prev, up) ? prev : up));
+            setLosers(prev => (sameMovers(prev, down) ? prev : down));
         } catch (error) {
             console.error('Error loading top movers:', error);
         } finally {
-            setMoversLoading(false);
+            moversInFlightRef.current = false;
+            if (coldStart) setMoversLoading(false);
         }
-    }, []);
+    }, [gainers.length, losers.length]);
 
     useEffect(() => {
         if (!initialGoldPrices || initialGoldPrices.length === 0) {
@@ -230,12 +256,12 @@ export default function OverviewClient({
         }
     }, [initialGainers, initialLosers, loadMovers]);
 
-    // Periodic refresh for movers with realtime cadence.
+    // Periodic refresh for movers from API snapshot (30s cadence).
     useEffect(() => {
-        if (!isTradingHours()) return;
         const interval = setInterval(() => {
+            if (document.visibilityState !== 'visible') return;
             loadMovers();
-        }, PRICE_SYNC_INTERVAL_MS);
+        }, MOVERS_REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [loadMovers]);
 

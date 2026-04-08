@@ -516,10 +516,10 @@ def api_market_index_history():
 
 @market_bp.route('/top-movers')
 def api_market_top_movers():
-    """VCI Top 10 stocks (UP/DOWN) for HSX from realtime RAM + SQLite names."""
+    """VCI Top 10 stocks (UP/DOWN) for HSX from screening SQLite snapshot."""
     move_type = request.args.get("type", "UP")
-    cache_key = f"top_movers_vci_hsx_{move_type}_realtime"
-    top_movers_ttl = max(1, int(os.getenv("TOP_MOVERS_CACHE_SECONDS", "3")))
+    cache_key = f"top_movers_vci_hsx_{move_type}_sqlite"
+    top_movers_ttl = max(1, int(os.getenv("TOP_MOVERS_CACHE_SECONDS", "30")))
 
     def fetch_top_movers():
         return top_movers_from_screener_sqlite(db_path=_get_screener_db(), move_type=move_type, exchange="HSX", limit=10)
@@ -528,7 +528,7 @@ def api_market_top_movers():
         data, is_cached = _cache_func(cache_key, top_movers_ttl, fetch_top_movers)
         response = jsonify(data)
         response.headers['X-Cache'] = 'HIT' if is_cached else 'MISS'
-        response.headers['X-Source'] = 'VCI_RAM+SQLITE'
+        response.headers['X-Source'] = 'VCI_SQLITE'
         response.headers['X-DB'] = 'fetch_sqlite/vci_screening.sqlite'
         return response
     except Exception as e:

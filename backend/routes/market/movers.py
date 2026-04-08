@@ -15,14 +15,14 @@ from .paths import screener_db_path
 
 
 logger = logging.getLogger(__name__)
-_TOP_MOVERS_CACHE_SECONDS = max(1, int(os.getenv("TOP_MOVERS_CACHE_SECONDS", "3")))
+_TOP_MOVERS_CACHE_SECONDS = max(1, int(os.getenv("TOP_MOVERS_CACHE_SECONDS", "30")))
 
 
 def register(market_bp: Blueprint) -> None:
     @market_bp.route("/top-movers")
     def api_market_top_movers():
         move_type = request.args.get("type", "UP")
-        cache_key = f"top_movers_vci_hsx_{move_type}_realtime"
+        cache_key = f"top_movers_vci_hsx_{move_type}_sqlite"
 
         def fetch_top_movers():
             return top_movers_from_screener_sqlite(db_path=screener_db_path(), move_type=move_type, exchange="HSX", limit=10)
@@ -31,7 +31,7 @@ def register(market_bp: Blueprint) -> None:
             data, is_cached = cache_func()(cache_key, _TOP_MOVERS_CACHE_SECONDS, fetch_top_movers)
             resp = jsonify(data)
             resp.headers["X-Cache"] = "HIT" if is_cached else "MISS"
-            resp.headers["X-Source"] = "VCI_RAM+SQLITE"
+            resp.headers["X-Source"] = "VCI_SQLITE"
             resp.headers["X-DB"] = "fetch_sqlite/vci_screening.sqlite"
             return resp
         except Exception as e:
