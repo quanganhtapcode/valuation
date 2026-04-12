@@ -159,52 +159,6 @@ def _batch_previous_quantities(
     return result
 
 
-def _select_snapshot_date(
-    conn: sqlite3.Connection,
-    table: str,
-    symbol: str,
-    min_rows_for_complete: int,
-    max_candidates: int = 12,
-) -> tuple[str | None, str | None, int, int]:
-    """Return best snapshot date for holders data.
-
-    Strategy:
-    - Inspect latest N snapshot dates by recency.
-    - Prefer the newest date whose row count >= min_rows_for_complete.
-    - Fall back to strict latest date if none meets threshold.
-    """
-    if table not in ('shareholders', 'officers'):
-        return None, None, 0, 0
-
-    try:
-        rows = conn.execute(
-            f"""
-            SELECT update_date, COUNT(*) AS c
-            FROM {table}
-            WHERE symbol = ?
-              AND update_date IS NOT NULL
-            GROUP BY update_date
-            ORDER BY update_date DESC
-            LIMIT ?
-            """,
-            (symbol, max_candidates),
-        ).fetchall() or []
-        if not rows:
-            return None, None, 0, 0
-
-        latest_date = rows[0]['update_date']
-        latest_count = int(rows[0]['c'] or 0)
-
-        for row in rows:
-            c = int(row['c'] or 0)
-            if c >= int(min_rows_for_complete):
-                return row['update_date'], latest_date, c, latest_count
-
-        return latest_date, latest_date, latest_count, latest_count
-    except Exception:
-        return None, None, 0, 0
-
-
 def _to_json_number(value, default: float = 0.0) -> float:
     try:
         if value is None:

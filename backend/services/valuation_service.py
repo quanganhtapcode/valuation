@@ -3,8 +3,14 @@ import threading
 import time
 import logging
 from typing import Dict, Any, Optional
-from backend.db_path import resolve_vci_screening_db_path
+from backend.db_path import resolve_vci_screening_db_path, resolve_vci_stats_financial_db_path
 from backend.data_sources.financial_repository import FinancialRepository
+from backend.services.vci_financial_adapter import (
+    has_vci_financial_db,
+    load_eps_history_yearly as vci_load_eps_history,
+    load_latest_net_income as vci_load_latest_net_income,
+    load_latest_financial_components as vci_load_financial_components,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +170,36 @@ class IndustryPsCache:
 _industry_ps_cache = IndustryPsCache(ttl_seconds=3600)
 
 
+def _load_stats_financial_row(symbol: str) -> dict | None:
+    """Load TTM ratios for a single symbol from vci_stats_financial.sqlite.
+
+    Returns dict with keys: pe, pb, ps, roe, shares, market_cap — or None if not found.
+    """
+    sf_path = resolve_vci_stats_financial_db_path()
+    conn = sqlite3.connect(sf_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT pe, pb, ps, roe, shares, market_cap FROM stats_financial WHERE UPPER(ticker) = ?",
+            (symbol.upper(),),
+        ).fetchone()
+        return dict(row) if row else None
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+
 class ScreeningIndustryComparablesCache:
+    """Cache of (symbol, pe, pb) tuples for an ICB industry group.
+
+    Peers are identified via vci_screening.icbCodeLv2 and their PE/PB come
+    from vci_stats_financial.stats_financial (updated daily, ~1500 stocks).
+    The old approach read ttmPe/ttmPb from vci_screening directly, but those
+    columns were never populated because the sync step failed due to a SQLite
+    lock race between cron jobs.
+    """
+
     def __init__(self, ttl_seconds: int = 3600):
         self._ttl_seconds = ttl_seconds
         self._lock = threading.Lock()
@@ -182,29 +217,36 @@ class ScreeningIndustryComparablesCache:
             if entry and (now - entry.created_at) < self._ttl_seconds:
                 return entry.rows
 
+            sf_path = resolve_vci_stats_financial_db_path()
+            rows: list[tuple[str, float, float]] = []
             conn = sqlite3.connect(screening_db_path)
             conn.row_factory = sqlite3.Row
-            cur = conn.cursor()
-            # Keep rows that have either PE or PB so each metric can use the widest sample.
-            cur.execute(
-                """
-                SELECT ticker, ttmPe, ttmPb
-                FROM screening_data
-                WHERE icbCodeLv2 = ?
-                  AND (ttmPe IS NOT NULL OR ttmPb IS NOT NULL)
-                """,
-                (icb_code_lv2,),
-            )
-            rows: list[tuple[str, float, float]] = []
-            for r in cur.fetchall() or []:
-                rows.append(
-                    (
-                        str(r['ticker']).upper(),
-                        _to_float(r['ttmPe']),
-                        _to_float(r['ttmPb']),
-                    )
+            try:
+                conn.execute(f"ATTACH DATABASE '{sf_path}' AS sf")
+                cur = conn.execute(
+                    """
+                    SELECT s.ticker, sf.pe, sf.pb
+                    FROM screening_data s
+                    JOIN sf.stats_financial sf ON UPPER(sf.ticker) = UPPER(s.ticker)
+                    WHERE s.icbCodeLv2 = ?
+                      AND (sf.pe IS NOT NULL OR sf.pb IS NOT NULL)
+                    """,
+                    (icb_code_lv2,),
                 )
-            conn.close()
+                for r in cur.fetchall() or []:
+                    rows.append((
+                        str(r['ticker']).upper(),
+                        _to_float(r['pe']),
+                        _to_float(r['pb']),
+                    ))
+            except Exception:
+                rows = []
+            finally:
+                try:
+                    conn.execute("DETACH DATABASE sf")
+                except Exception:
+                    pass
+                conn.close()
 
             self._cache[icb_code_lv2] = _IndustryCacheEntry(now, rows)
             return rows
@@ -214,9 +256,23 @@ _screening_industry_cache = ScreeningIndustryComparablesCache(ttl_seconds=3600)
 
 
 def _load_eps_history_yearly(db_path: str, symbol: str, limit: int = 10) -> list[dict]:
-    symbol = symbol.upper()
-    limit = max(1, min(int(limit), 20))
+    """EPS history from annual income statements.
 
+    Priority: VCI financial statement DB → stocks_optimized.db fallback.
+    """
+    symbol = symbol.upper()
+
+    # Try VCI financial statement DB first
+    if has_vci_financial_db():
+        try:
+            result = vci_load_eps_history(symbol, limit=limit)
+            if result:
+                return result
+        except Exception as exc:
+            logger.debug(f"VCI EPS history failed for {symbol}, falling back: {exc}")
+
+    # Fallback to stocks_optimized.db
+    limit = max(1, min(int(limit), 20))
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -270,7 +326,19 @@ def _load_eps_history_yearly(db_path: str, symbol: str, limit: int = 10) -> list
 
 
 def _load_latest_net_income(db_path: str, symbol: str) -> tuple[float, str]:
+    """Return (net_income, source) — priority: VCI FS DB → stocks_optimized.db fallback."""
     symbol = symbol.upper()
+
+    # Try VCI financial statement DB first
+    if has_vci_financial_db():
+        try:
+            val, source = vci_load_latest_net_income(symbol)
+            if val > 0:
+                return val, source
+        except Exception as exc:
+            logger.debug(f"VCI net_income failed for {symbol}, falling back: {exc}")
+
+    # Fallback to stocks_optimized.db
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -308,7 +376,32 @@ def _load_latest_net_income(db_path: str, symbol: str) -> tuple[float, str]:
 
 
 def _load_latest_financial_components(db_path: str, symbol: str) -> dict:
+    """Return income + cash flow components for FCFE calculation.
+
+    Priority: VCI financial statement DB → stocks_optimized.db fallback.
+    """
     symbol = symbol.upper()
+
+    # Try VCI financial statement DB first
+    if has_vci_financial_db():
+        try:
+            result = vci_load_financial_components(symbol)
+            if result['net_income'] > 0 or result['depreciation'] > 0:
+                # Add derived fields
+                dr = result['increase_decrease_receivables']
+                di = result['increase_decrease_inventory']
+                dp = result['increase_decrease_payables']
+                result['delta_working_capital'] = dr + di - dp
+                capex_out = abs(result['purchase_purchase_fixed_assets'])
+                result['capex_purchase_outflow'] = capex_out
+                result['capex_net'] = max(0.0, capex_out - max(0.0, result['proceeds_disposal_fixed_assets']))
+                result['net_borrowing'] = result['proceeds_borrowings'] + result['repayments_borrowings']
+                result.setdefault('source', 'vci_fs.income_statement + cash_flow (latest period)')
+                return result
+        except Exception as exc:
+            logger.debug(f"VCI financial components failed for {symbol}, falling back: {exc}")
+
+    # Fallback to stocks_optimized.db
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -409,42 +502,53 @@ def _load_latest_financial_components(db_path: str, symbol: str) -> dict:
 
 
 def _load_screening_peer_details(screening_db_path: str, icb_code_lv2: str, symbol: str) -> list[dict]:
+    """Load peer details for stocks in the same ICB industry group.
+
+    PE/PB/ROE come from vci_stats_financial.sqlite (updated daily).
+    Market cap and sector labels come from vci_screening.sqlite.
+    """
     symbol = symbol.upper()
     icb_code_lv2 = str(icb_code_lv2)
 
+    sf_path = resolve_vci_stats_financial_db_path()
     conn = sqlite3.connect(screening_db_path)
     conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
+    peers: list[dict] = []
     try:
-        rows = cur.execute(
+        conn.execute(f"ATTACH DATABASE '{sf_path}' AS sf")
+        rows = conn.execute(
             """
-            SELECT ticker, ttmPe, ttmPb, ttmRoe, marketCap, viSector, enSector
-            FROM screening_data
-            WHERE icbCodeLv2 = ?
-              AND UPPER(ticker) != ?
+            SELECT s.ticker, s.marketCap, s.viSector, s.enSector,
+                   sf.pe, sf.pb, sf.roe
+            FROM screening_data s
+            LEFT JOIN sf.stats_financial sf ON UPPER(sf.ticker) = UPPER(s.ticker)
+            WHERE s.icbCodeLv2 = ?
+              AND UPPER(s.ticker) != ?
             ORDER BY
-              CASE WHEN marketCap IS NULL THEN 1 ELSE 0 END,
-              marketCap DESC,
-              ticker ASC
+              CASE WHEN s.marketCap IS NULL THEN 1 ELSE 0 END,
+              s.marketCap DESC,
+              s.ticker ASC
             """,
             (icb_code_lv2, symbol),
         ).fetchall() or []
-    finally:
-        conn.close()
-
-    peers: list[dict] = []
-    for r in rows:
-        sym = str(r['ticker']).upper()
-        peers.append(
-            {
+        for r in rows:
+            sym = str(r['ticker']).upper()
+            peers.append({
                 'symbol': sym,
-                'pe': _to_float(r['ttmPe']),
-                'pb': _to_float(r['ttmPb']),
-                'roe': _to_float(r['ttmRoe']),
+                'pe': _to_float(r['pe']),
+                'pb': _to_float(r['pb']),
+                'roe': _to_float(r['roe']) * 100.0 if 0 < abs(_to_float(r['roe'])) <= 1 else _to_float(r['roe']),
                 'market_cap': _to_float(r['marketCap']),
                 'sector': (r['viSector'] or r['enSector'] or ''),
-            }
-        )
+            })
+    except Exception:
+        peers = []
+    finally:
+        try:
+            conn.execute("DETACH DATABASE sf")
+        except Exception:
+            pass
+        conn.close()
     return peers
 
 
@@ -895,21 +999,6 @@ def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: f
         (symbol,),
     ).fetchone()
 
-    snap = None
-    try:
-        snap = cur.execute(
-            """
-            SELECT eps_ttm, eps, bvps, pe, pb
-            FROM ratio_snap
-            WHERE symbol = ?
-            ORDER BY year_report DESC, length_report DESC
-            LIMIT 1
-            """,
-            (symbol,),
-        ).fetchone()
-    except Exception:
-        snap = None
-
     # P/S and share count from ratio_wide (latest available quarter or annual)
     ratio_wide_row = None
     try:
@@ -939,10 +1028,9 @@ def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: f
     try:
         screening_conn = sqlite3.connect(screening_db_path)
         screening_conn.row_factory = sqlite3.Row
-        screening_cur = screening_conn.cursor()
-        screening_row = screening_cur.execute(
+        screening_row = screening_conn.execute(
             """
-            SELECT ticker, icbCodeLv2, viSector, enSector, ttmPe, ttmPb, ttmRoe, marketPrice
+            SELECT ticker, icbCodeLv2, viSector, enSector, marketPrice
             FROM screening_data
             WHERE UPPER(ticker) = ?
             LIMIT 1
@@ -953,70 +1041,61 @@ def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: f
     except Exception:
         screening_row = None
 
+    # vci_stats_financial: freshest TTM ratios (pe, pb, ps, roe, shares)
+    sf_row = _load_stats_financial_row(symbol)
+    sf_pe = _to_float(sf_row['pe']) if sf_row else 0.0
+    sf_pb = _to_float(sf_row['pb']) if sf_row else 0.0
+    sf_ps = _to_float(sf_row['ps']) if sf_row else 0.0
+    sf_roe = _to_float(sf_row['roe']) if sf_row else 0.0
+    sf_shares = _to_float(sf_row['shares']) if sf_row else 0.0
+
+    screening_market_price = _to_float(screening_row['marketPrice']) if screening_row else 0.0
+
     current_price = _to_float(current_price_override) if current_price_override and current_price_override > 0 else _to_float(ov['current_price'])
     current_price_source = 'request.currentPrice' if current_price_override and current_price_override > 0 else 'sqlite.overview.current_price'
-
-    eps = 0.0
-    bvps = 0.0
-    eps_source = 'missing'
-    bvps_source = 'missing'
-
-    ov_eps_ttm = _to_float(ov['eps_ttm'])
-    ov_bvps = _to_float(ov['bvps'])
-    ov_pe = _to_float(ov['pe'])
-    ov_pb = _to_float(ov['pb'])
-
-    screening_keys = set(screening_row.keys()) if screening_row else set()
-    screening_pe = _to_float(screening_row['ttmPe']) if screening_row and 'ttmPe' in screening_keys else 0.0
-    screening_pb = _to_float(screening_row['ttmPb']) if screening_row and 'ttmPb' in screening_keys else 0.0
-    screening_roe = _to_float(screening_row['ttmRoe']) if screening_row and 'ttmRoe' in screening_keys else 0.0
-    screening_market_price = _to_float(screening_row['marketPrice']) if screening_row and 'marketPrice' in screening_keys else 0.0
-    # Normalize ROE: VCI screener returns decimal form (0.15 = 15%), overview returns percentage (15.0)
-    if 0 < abs(screening_roe) <= 1:
-        screening_roe = screening_roe * 100.0
 
     # Use VCI marketPrice as current_price fallback (updated every 5-15 min)
     if not (current_price and current_price > 0) and screening_market_price > 0:
         current_price = screening_market_price
         current_price_source = 'vci_screening.marketPrice'
 
-    snap_eps_ttm = _to_float(snap['eps_ttm']) if snap and 'eps_ttm' in snap.keys() else 0.0
-    snap_eps = _to_float(snap['eps']) if snap and 'eps' in snap.keys() else 0.0
-    snap_bvps = _to_float(snap['bvps']) if snap and 'bvps' in snap.keys() else 0.0
+    ov_eps_ttm = _to_float(ov['eps_ttm'])
+    ov_bvps = _to_float(ov['bvps'])
+    ov_pe = _to_float(ov['pe'])
+    ov_pb = _to_float(ov['pb'])
 
-    # EPS priority: VCI-derived (most current) → vietnam_stocks.db (daily pipeline)
-    # VCI screening ttmPe with live marketPrice gives the freshest TTM EPS estimate.
-    vci_eps = (screening_market_price / screening_pe) if (screening_market_price > 0 and screening_pe > 0) else 0.0
-    if vci_eps > 0:
-        eps = vci_eps
-        eps_source = 'vci_screening: marketPrice / ttmPe'
-    elif snap_eps_ttm > 0:
-        eps = snap_eps_ttm
-        eps_source = 'sqlite.ratio_snap.eps_ttm'
+    eps = 0.0
+    bvps = 0.0
+    eps_source = 'missing'
+    bvps_source = 'missing'
+
+    # EPS priority: vci_stats_financial (marketPrice/pe) → overview.eps_ttm → fallback
+    sf_eps = (screening_market_price / sf_pe) if (screening_market_price > 0 and sf_pe > 0) else 0.0
+    if sf_eps > 0:
+        eps = sf_eps
+        eps_source = 'vci_stats_financial: marketPrice / pe'
     elif ov_eps_ttm > 0:
         eps = ov_eps_ttm
         eps_source = 'sqlite.overview.eps_ttm'
-    elif snap_eps > 0:
-        eps = snap_eps
-        eps_source = 'sqlite.ratio_snap.eps'
     elif current_price > 0 and ov_pe > 0:
         eps = current_price / ov_pe
         eps_source = 'derived: current_price / overview.pe'
 
-    # BVPS priority: VCI-derived (most current) → vietnam_stocks.db (daily pipeline)
-    vci_bvps = (screening_market_price / screening_pb) if (screening_market_price > 0 and screening_pb > 0) else 0.0
-    if vci_bvps > 0:
-        bvps = vci_bvps
-        bvps_source = 'vci_screening: marketPrice / ttmPb'
-    elif snap_bvps > 0:
-        bvps = snap_bvps
-        bvps_source = 'sqlite.ratio_snap.bvps'
+    # BVPS priority: vci_stats_financial (marketPrice/pb) → overview.bvps → fallback
+    sf_bvps = (screening_market_price / sf_pb) if (screening_market_price > 0 and sf_pb > 0) else 0.0
+    if sf_bvps > 0:
+        bvps = sf_bvps
+        bvps_source = 'vci_stats_financial: marketPrice / pb'
     elif ov_bvps > 0:
         bvps = ov_bvps
         bvps_source = 'sqlite.overview.bvps'
     elif current_price > 0 and ov_pb > 0:
         bvps = current_price / ov_pb
         bvps_source = 'derived: current_price / overview.pb'
+
+    # Normalize sf_roe: VCI returns decimal (0.15 = 15%)
+    if 0 < abs(sf_roe) <= 1:
+        sf_roe = sf_roe * 100.0
 
     screening_industry_key = None
     screening_industry_name = None
@@ -1027,9 +1106,21 @@ def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: f
             screening_industry_key = None
         screening_industry_name = screening_row['viSector'] or screening_row['enSector']
 
-    ps_company = _to_float(ratio_wide_row['ps']) if ratio_wide_row and ratio_wide_row['ps'] else 0.0
+    # shares_outstanding: vci_stats_financial.shares → ratio_wide.outstanding_share
+    outstanding_share = 0.0
+    if sf_shares > 0:
+        outstanding_share = sf_shares
+    elif ratio_wide_row and ratio_wide_row['outstanding_share']:
+        outstanding_share = _to_float(ratio_wide_row['outstanding_share'])
+
+    # P/S: vci_stats_financial.ps → ratio_wide.ps
+    ps_company = 0.0
+    if sf_ps > 0:
+        ps_company = sf_ps
+    elif ratio_wide_row and ratio_wide_row['ps']:
+        ps_company = _to_float(ratio_wide_row['ps'])
+
     market_cap_raw = _to_float(ratio_wide_row['market_cap']) if ratio_wide_row and ratio_wide_row['market_cap'] else 0.0
-    outstanding_share = _to_float(ratio_wide_row['outstanding_share']) if ratio_wide_row and ratio_wide_row['outstanding_share'] else 0.0
     net_income_ttm, net_income_source = _load_latest_net_income(db_path, symbol)
     financial_components = _load_latest_financial_components(db_path, symbol)
     if net_income_ttm <= 0 and eps > 0 and outstanding_share > 0:
@@ -1058,10 +1149,8 @@ def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: f
         'net_income_source': net_income_source,
         'cashflow_components': financial_components,
         'eps_history_yearly': eps_history_yearly,
-        # VCI screening metrics (most current, updated every 5-15 min)
-        'screening_pe': float(screening_pe),
-        'screening_pb': float(screening_pb),
-        'screening_roe': float(screening_roe),
+        # vci_stats_financial TTM ratios (updated daily)
+        'screening_roe': float(sf_roe),
     }
 
 
