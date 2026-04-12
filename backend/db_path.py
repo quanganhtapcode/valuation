@@ -261,6 +261,10 @@ def resolve_vci_financial_statement_db_path(explicit_path: Optional[str] = None)
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
+    # Wide-format SQLite (preferred — fetched by fetch_vci_financial_statement_hose_hnx.py)
+    candidates.append(root / "fetch_sqlite" / "vci_financial_statement_hose_hnx.sqlite")
+    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_financial_statement_hose_hnx.sqlite"))
+    # Legacy long-format SQLite
     candidates.append(root / "vci_financial_statement_data" / "hose_only" / "vci_financial_statements.sqlite")
     candidates.append(root / "vci_financial_statement_data" / "vci_financial_statements.sqlite")
     candidates.append(Path("/var/www/valuation/vci_financial_statement_data/hose_only/vci_financial_statements.sqlite"))

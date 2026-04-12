@@ -7,6 +7,8 @@ import { LineChart, type CustomTooltipProps as TremorCustomTooltipProps } from '
 import { cx } from '@/lib/utils';
 
 
+type DisplayMode = 'annual' | 'quarterly' | 'ttm';
+
 interface FinancialsTabProps {
     symbol: string;
     period?: 'quarter' | 'year';
@@ -14,13 +16,118 @@ interface FinancialsTabProps {
     initialChartData?: HistoricalChartData | null;
     initialOverviewData?: StockApiData | null;
     isLoading?: boolean;
+    onDownloadExcel?: () => void;
 }
 
-type ReportType = 'income' | 'balance' | 'cashflow' | 'note' | 'ratio';
+type ReportType = 'income' | 'balance' | 'cashflow' | 'note' | 'ratio' | 'equity' | 'key_stats';
+type GrowthType = 'qoq' | 'yoy';
 type StatementWindow = '4' | '8' | '12' | 'all';
 type MetricMeta = { label: string; parent?: string | null; level?: number | null };
 const PLUS_ICON_URL = 'https://trading.vietcap.com.vn/vietcap-iq/assets/images/plus-grid2e52f954fdf3abbd8683.svg';
 const MINUS_ICON_URL = 'https://trading.vietcap.com.vn/vietcap-iq/assets/images/minus-grid0cc75a8b4abe6c3b23c9.svg';
+const NORMAL_INCOME_PRESET = [
+    ['total_revenues', 'Total Revenues'],
+    ['cost_of_sales', 'Cost of Sales'],
+    ['gross_profit', 'Gross Profit'],
+    ['sga_expenses', 'Selling, General & Administrative Expenses'],
+    ['rnd_expenses', 'Research & Development Expenses'],
+    ['operating_profit', 'Operating Profit'],
+    ['interest_and_investment_income', 'Interest and Investment Income'],
+    ['non_operating_income', 'Non-Operating Income'],
+    ['total_non_operating_income', 'Total Non-Operating Income'],
+    ['income_before_tax', 'Income Before Provision for Income Taxes'],
+    ['provision_income_taxes', 'Provision for Income Taxes'],
+    ['consolidated_net_income', 'Consolidated Net Income'],
+    ['minority_interest_net_income', 'Net Income Attributable to Minority Interests and Other'],
+    ['common_shareholders_net_income', 'Net Income Attributable to Common Shareholders'],
+    ['basic_eps', 'Basic EPS'],
+    ['diluted_eps', 'Diluted EPS'],
+    ['basic_weighted_avg_shares', 'Basic Weighted Average Shares Outstanding'],
+    ['diluted_weighted_avg_shares', 'Diluted Weighted Average Shares Outstanding'],
+    ['section_margins', 'Margins'],
+    ['gross_margin', 'Gross Margin'],
+    ['operating_margin', 'Operating Margin'],
+    ['ebitda_margin', 'EBITDA Margin'],
+    ['net_profit_margin', 'Net Profit Margin'],
+    ['pre_tax_profit_margin', 'Pre-Tax Profit Margin'],
+    ['effective_tax_rate', 'Effective Tax Rate'],
+] as const;
+const NORMAL_INCOME_PRESET_ORDER = NORMAL_INCOME_PRESET.map(([key]) => key);
+const NORMAL_INCOME_PRESET_LABELS: Record<string, string> = Object.fromEntries(NORMAL_INCOME_PRESET);
+const NORMAL_INCOME_PERCENT_KEYS = new Set<string>([
+    'gross_margin',
+    'operating_margin',
+    'ebitda_margin',
+    'net_profit_margin',
+    'pre_tax_profit_margin',
+    'effective_tax_rate',
+]);
+const NORMAL_INCOME_SECTION_KEYS = new Set<string>(['section_margins']);
+const EQUITY_PRESET = [
+    ['section_assets', 'Assets'],
+    ['cash_and_cash_equivalents', 'Cash and Cash Equivalents'],
+    ['short_term_investments', 'Short-Term Investments'],
+    ['total_cash_and_cash_equivalents', 'Total Cash and Cash Equivalents'],
+    ['accounts_receivable', 'Accounts Receivable'],
+    ['total_trade_receivables', 'Total Trade Receivables'],
+    ['other_current_assets', 'Other Current Assets'],
+    ['total_current_assets', 'Total Current Assets'],
+    ['net_property_plant_equipment', 'Net Property, Plant & Equipment'],
+    ['other_long_term_assets', 'Other Long-Term Assets'],
+    ['total_assets', 'Total Assets'],
+    ['section_liabilities', 'Liabilities'],
+    ['accounts_payable', 'Accounts Payable'],
+    ['accrued_expenses', 'Accrued Expenses'],
+    ['current_portion_of_leases', 'Current Portion of Leases'],
+    ['unearned_revenue', 'Unearned Revenue'],
+    ['total_current_liabilities', 'Total Current Liabilities'],
+    ['leases', 'Leases'],
+    ['other_long_term_liabilities', 'Other Long-Term Liabilities'],
+    ['total_long_term_liabilities', 'Total Long-Term Liabilities'],
+    ['total_liabilities', 'Total Liabilities'],
+    ['section_equity', 'Equity'],
+    ['common_stock', 'Common Stock'],
+    ['additional_paid_in_capital', 'Additional Paid-in Capital'],
+    ['accumulated_other_comprehensive_income', 'Accumulated Other Comprehensive Income'],
+    ['retained_earnings', 'Retained Earnings'],
+    ['total_common_shareholders_equity', "Total Common Shareholders' Equity"],
+    ['minority_interests_and_other', 'Minority Interests and Other'],
+    ['total_shareholders_equity', "Total Shareholders' Equity"],
+    ['total_liabilities_and_shareholders_equity', "Total Liabilities and Shareholders' Equity"],
+] as const;
+const EQUITY_PRESET_ORDER = EQUITY_PRESET.map(([key]) => key);
+const EQUITY_PRESET_LABELS: Record<string, string> = Object.fromEntries(EQUITY_PRESET);
+const EQUITY_SECTION_KEYS = new Set<string>(['section_assets', 'section_liabilities', 'section_equity']);
+const CASHFLOW_PRESET = [
+    ['section_operating', 'Operating Activities'],
+    ['net_income', 'Net Income'],
+    ['depreciation_amortization', 'Depreciation & Amortization'],
+    ['share_based_compensation', 'Share-Based Compensation Expense'],
+    ['other_adjustments', 'Other Adjustments'],
+    ['changes_trade_receivables', 'Changes in Trade Receivables'],
+    ['changes_accounts_payable', 'Changes in Accounts Payable'],
+    ['changes_accrued_expenses', 'Changes in Accrued Expenses'],
+    ['changes_unearned_revenue', 'Changes in Unearned Revenue'],
+    ['changes_other_operating', 'Changes in Other Operating Activities'],
+    ['cash_from_operating', 'Cash from Operating Activities'],
+    ['section_investing', 'Investing Activities'],
+    ['capital_expenditure', 'Capital Expenditure'],
+    ['purchases_investments', 'Purchases of Investments'],
+    ['proceeds_sale_investments', 'Proceeds from Sale of Investments'],
+    ['other_investing', 'Other Investing Activities'],
+    ['cash_from_investing', 'Cash from Investing Activities'],
+    ['section_financing', 'Financing Activities'],
+    ['issuance_common_shares', 'Issuance of Common Shares'],
+    ['repurchases_common_shares', 'Repurchases of Common Shares'],
+    ['net_issuance_common_shares', 'Net Issuance / (Repurchases) of Common Shares'],
+    ['other_financing', 'Other Financing Activities'],
+    ['cash_from_financing', 'Cash from Financing Activities'],
+    ['fx_effect_cash', 'Effect of Exchange Rate Changes on Cash and Cash Equivalents'],
+    ['increase_decrease_cash', 'Increase / (Decrease) in Cash, Cash Equivalents and Restricted Cash'],
+] as const;
+const CASHFLOW_PRESET_ORDER = CASHFLOW_PRESET.map(([key]) => key);
+const CASHFLOW_PRESET_LABELS: Record<string, string> = Object.fromEntries(CASHFLOW_PRESET);
+const CASHFLOW_SECTION_KEYS = new Set<string>(['section_operating', 'section_investing', 'section_financing']);
 const NORMAL_INCOME_LABEL_ORDER = [
     'Doanh thu bán hàng và cung cấp dịch vụ',
     'Các khoản giảm trừ doanh thu',
@@ -333,6 +440,16 @@ function formatCell(value: unknown): string {
     return String(value);
 }
 
+function formatStatementCell(metric: string, value: unknown, options?: { percentKeys?: Set<string> }): string {
+    if (options?.percentKeys?.has(metric)) {
+        if (value === null || value === undefined || value === '') return '-';
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '-';
+        return `${n.toFixed(2)}%`;
+    }
+    return formatCell(value);
+}
+
 function isZeroLike(value: unknown): boolean {
     if (value === null || value === undefined || value === '') return true;
     const n = Number(value);
@@ -461,21 +578,676 @@ function getNormalTemplateMetricKeys(
     return out.length ? out : null;
 }
 
+function toFiniteNumber(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+}
+
+function firstFiniteNumber(...values: unknown[]): number | null {
+    for (const value of values) {
+        const n = toFiniteNumber(value);
+        if (n !== null) return n;
+    }
+    return null;
+}
+
+function ratioAsPercent(numerator: unknown, denominator: unknown): number | null {
+    const num = toFiniteNumber(numerator);
+    const den = toFiniteNumber(denominator);
+    if (num === null || den === null || Math.abs(den) < 1e-12) return null;
+    return (num / den) * 100;
+}
+
+function firstByLabel(
+    row: Record<string, any>,
+    metricMap: Record<string, string>,
+    patterns: string[],
+): number | null {
+    const normalizedPatterns = patterns.map(foldText);
+    for (const [metric, rawLabel] of Object.entries(metricMap || {})) {
+        const label = foldText(rawLabel || '');
+        if (!label) continue;
+        if (!normalizedPatterns.some((p) => label === p || label.includes(p))) continue;
+        const n = toFiniteNumber(row?.[metric]);
+        if (n !== null) return n;
+    }
+    return null;
+}
+
+function buildNormalIncomePresetRows(
+    incomeRows: Record<string, any>[],
+    ratioRows: Record<string, any>[],
+): Record<string, any>[] {
+    const ratioByPeriod = new Map<string, Record<string, any>>();
+    for (const row of ratioRows || []) {
+        const year = row?.year ?? row?.year_report ?? row?.yearReport ?? '';
+        const quarter = row?.quarter ?? row?.quarter_report ?? row?.quarterReport ?? 0;
+        ratioByPeriod.set(`${year}-${quarter}`, row || {});
+    }
+
+    return (incomeRows || []).map((row) => {
+        const year = row?.year ?? row?.year_report ?? row?.yearReport ?? '';
+        const quarter = row?.quarter ?? row?.quarter_report ?? row?.quarterReport ?? 0;
+        const ratio = ratioByPeriod.get(`${year}-${quarter}`) || {};
+        const totalRevenues = firstFiniteNumber(row?.isa3, row?.isa1);
+        const operatingProfit = firstFiniteNumber(row?.isa11);
+        const ebitdaBillions = firstFiniteNumber(ratio?.ebitda_billions);
+        const ebitdaValue = ebitdaBillions !== null ? ebitdaBillions * 1_000_000_000 : null;
+        return {
+            ...row,
+            total_revenues: totalRevenues,
+            cost_of_sales: firstFiniteNumber(row?.isa4),
+            gross_profit: firstFiniteNumber(row?.isa5),
+            sga_expenses: firstFiniteNumber(row?.isa9) !== null && firstFiniteNumber(row?.isa10) !== null
+                ? Number(row?.isa9) + Number(row?.isa10)
+                : firstFiniteNumber(row?.isa9, row?.isa10),
+            rnd_expenses: null,
+            operating_profit: operatingProfit,
+            interest_and_investment_income: firstFiniteNumber(row?.isa6),
+            non_operating_income: firstFiniteNumber(row?.isa12),
+            total_non_operating_income: firstFiniteNumber(row?.isa14),
+            income_before_tax: firstFiniteNumber(row?.isa16),
+            provision_income_taxes: firstFiniteNumber(row?.isa19, row?.isa17),
+            consolidated_net_income: firstFiniteNumber(row?.isa20),
+            minority_interest_net_income: firstFiniteNumber(row?.isa21),
+            common_shareholders_net_income: firstFiniteNumber(row?.isa22),
+            basic_eps: firstFiniteNumber(row?.isa23),
+            diluted_eps: firstFiniteNumber(row?.isa24),
+            basic_weighted_avg_shares: firstFiniteNumber(ratio?.shares_outstanding_millions),
+            diluted_weighted_avg_shares: firstFiniteNumber(ratio?.shares_outstanding_millions),
+            section_margins: null,
+            gross_margin: firstFiniteNumber(ratio?.gross_margin) !== null
+                ? Number(ratio.gross_margin) * 100
+                : ratioAsPercent(row?.isa5, totalRevenues),
+            operating_margin: ratioAsPercent(operatingProfit, totalRevenues),
+            ebitda_margin: ratioAsPercent(ebitdaValue, totalRevenues),
+            net_profit_margin: firstFiniteNumber(ratio?.net_profit_margin) !== null
+                ? Number(ratio.net_profit_margin) * 100
+                : ratioAsPercent(row?.isa20, totalRevenues),
+            pre_tax_profit_margin: ratioAsPercent(row?.isa16, totalRevenues),
+            effective_tax_rate: ratioAsPercent(
+                Math.abs(Number(firstFiniteNumber(row?.isa19, row?.isa17) ?? 0)),
+                row?.isa16,
+            ),
+        };
+    });
+}
+
+function buildEquityPresetRows(
+    balanceRows: Record<string, any>[],
+    balanceMap: Record<string, string>,
+): Record<string, any>[] {
+    return (balanceRows || []).map((row) => {
+        const cashAndEquivalents = firstByLabel(row, balanceMap, ['tiền và tương đương tiền']);
+        const shortTermInvestments = firstByLabel(row, balanceMap, ['đầu tư ngắn hạn']);
+        const equityAoci = (
+            firstByLabel(row, balanceMap, ['chênh lệch đánh giá lại tài sản']) ?? 0
+        ) + (
+            firstByLabel(row, balanceMap, ['chênh lệch tỷ giá']) ?? 0
+        );
+        return {
+            ...row,
+            section_assets: null,
+            cash_and_cash_equivalents: cashAndEquivalents,
+            short_term_investments: shortTermInvestments,
+            total_cash_and_cash_equivalents:
+                cashAndEquivalents !== null && shortTermInvestments !== null
+                    ? cashAndEquivalents + shortTermInvestments
+                    : firstFiniteNumber(cashAndEquivalents, shortTermInvestments),
+            accounts_receivable: firstByLabel(row, balanceMap, ['phải thu khách hàng']),
+            total_trade_receivables: firstByLabel(row, balanceMap, ['các khoản phải thu']),
+            other_current_assets: firstByLabel(row, balanceMap, ['tài sản lưu động khác']),
+            total_current_assets: firstByLabel(row, balanceMap, ['tài sản ngắn hạn']),
+            net_property_plant_equipment: firstByLabel(row, balanceMap, ['gtcl tscđ hữu hình']),
+            other_long_term_assets: firstByLabel(row, balanceMap, ['tài sản dài hạn khác']),
+            total_assets: firstByLabel(row, balanceMap, ['tổng cộng tài sản']),
+            section_liabilities: null,
+            accounts_payable: firstByLabel(row, balanceMap, ['phải trả người bán']),
+            accrued_expenses: firstByLabel(row, balanceMap, ['chi phí phải trả']),
+            current_portion_of_leases: null,
+            unearned_revenue: firstByLabel(row, balanceMap, ['doanh thu chưa thực hiện ngắn hạn', 'doanh thu chưa thực hiện']),
+            total_current_liabilities: firstByLabel(row, balanceMap, ['nợ ngắn hạn']),
+            leases: null,
+            other_long_term_liabilities: firstByLabel(row, balanceMap, ['phải trả dài hạn khác']),
+            total_long_term_liabilities: firstByLabel(row, balanceMap, ['nợ dài hạn']),
+            total_liabilities: firstByLabel(row, balanceMap, ['nợ phải trả']),
+            section_equity: null,
+            common_stock: firstByLabel(row, balanceMap, ['cổ phiếu phổ thông', 'vốn góp']),
+            additional_paid_in_capital: firstByLabel(row, balanceMap, ['thặng dư vốn cổ phần']),
+            accumulated_other_comprehensive_income: Math.abs(equityAoci) > 1e-12 ? equityAoci : null,
+            retained_earnings: firstByLabel(row, balanceMap, ['lãi chưa phân phối']),
+            total_common_shareholders_equity: firstByLabel(row, balanceMap, ['vốn và các quỹ', 'vốn chủ sở hữu']),
+            minority_interests_and_other: firstByLabel(row, balanceMap, ['lợi ích cổ đông không kiểm soát', 'lợi ích của cổ đông thiểu số']),
+            total_shareholders_equity: firstByLabel(row, balanceMap, ['vốn chủ sở hữu']),
+            total_liabilities_and_shareholders_equity: firstByLabel(row, balanceMap, ['tổng cộng nguồn vốn']),
+        };
+    });
+}
+
+function buildCashflowPresetRows(
+    cashflowRows: Record<string, any>[],
+    incomeRows: Record<string, any>[],
+): Record<string, any>[] {
+    const incomeByPeriod = new Map<string, Record<string, any>>();
+    for (const row of incomeRows || []) {
+        const year = row?.year ?? row?.year_report ?? row?.yearReport ?? '';
+        const quarter = row?.quarter ?? row?.quarter_report ?? row?.quarterReport ?? 0;
+        incomeByPeriod.set(`${year}-${quarter}`, row || {});
+    }
+
+    return (cashflowRows || []).map((row) => {
+        const year = row?.year ?? row?.year_report ?? row?.yearReport ?? '';
+        const quarter = row?.quarter ?? row?.quarter_report ?? row?.quarterReport ?? 0;
+        const income = incomeByPeriod.get(`${year}-${quarter}`) || {};
+        const issuance = firstFiniteNumber(row?.cfa27);
+        const repurchases = firstFiniteNumber(row?.cfa28);
+        const purchasesInvestments = (firstFiniteNumber(row?.cfa21) ?? 0) + (firstFiniteNumber(row?.cfa23) ?? 0);
+        const proceedsInvestments = (firstFiniteNumber(row?.cfa22) ?? 0) + (firstFiniteNumber(row?.cfa24) ?? 0);
+        const otherFinancing =
+            (firstFiniteNumber(row?.cfa29) ?? 0) +
+            (firstFiniteNumber(row?.cfa30) ?? 0) +
+            (firstFiniteNumber(row?.cfa31) ?? 0) +
+            (firstFiniteNumber(row?.cfa32) ?? 0) +
+            (firstFiniteNumber(row?.cfa33) ?? 0);
+        return {
+            ...row,
+            section_operating: null,
+            net_income: firstFiniteNumber(income?.isa20),
+            depreciation_amortization: firstFiniteNumber(row?.cfa2),
+            share_based_compensation: null,
+            other_adjustments: firstFiniteNumber(row?.cfa104),
+            changes_trade_receivables: firstFiniteNumber(row?.cfa10),
+            changes_accounts_payable: firstFiniteNumber(row?.cfa12),
+            changes_accrued_expenses: null,
+            changes_unearned_revenue: null,
+            changes_other_operating: firstFiniteNumber(row?.cfa13, row?.cfa105),
+            cash_from_operating: firstFiniteNumber(row?.cfa18),
+            section_investing: null,
+            capital_expenditure: firstFiniteNumber(row?.cfa19),
+            purchases_investments: Math.abs(purchasesInvestments) > 1e-12 ? purchasesInvestments : null,
+            proceeds_sale_investments: Math.abs(proceedsInvestments) > 1e-12 ? proceedsInvestments : null,
+            other_investing: firstFiniteNumber(row?.cfa25),
+            cash_from_investing: firstFiniteNumber(row?.cfa26),
+            section_financing: null,
+            issuance_common_shares: issuance,
+            repurchases_common_shares: repurchases,
+            net_issuance_common_shares:
+                issuance !== null || repurchases !== null
+                    ? (issuance ?? 0) + (repurchases ?? 0)
+                    : null,
+            other_financing: Math.abs(otherFinancing) > 1e-12 ? otherFinancing : null,
+            cash_from_financing: firstFiniteNumber(row?.cfa34),
+            fx_effect_cash: firstFiniteNumber(row?.cfa37),
+            increase_decrease_cash: firstFiniteNumber(row?.cfa35, row?.cfa34),
+        };
+    });
+}
+
+// ── compact number formatter ──────────────────────────────────────────────────
+
+function formatCompact(value: number | null | undefined, isEps = false): string {
+    if (value === null || value === undefined || !Number.isFinite(value as number)) return '-';
+    const n = value as number;
+    if (isEps) return formatNumber(Math.round(n));
+    const abs = Math.abs(n);
+    if (abs >= 1e12) return `${formatNumber(n / 1e12, { maximumFractionDigits: 2 })}T`;
+    if (abs >= 1e9) return `${formatNumber(n / 1e9, { maximumFractionDigits: 1 })}B`;
+    if (abs >= 1e6) return `${formatNumber(n / 1e6, { maximumFractionDigits: 1 })}M`;
+    return formatNumber(n, { maximumFractionDigits: 0 });
+}
+
+function fmtGrowth(pct: number | null): { text: string; cls: string } {
+    if (pct === null || !Number.isFinite(pct)) return { text: '-', cls: 'text-tremor-content dark:text-dark-tremor-content' };
+    const sign = pct >= 0 ? '+' : '';
+    return {
+        text: `${sign}${pct.toFixed(1)}%`,
+        cls: pct >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400',
+    };
+}
+
+function fmtMargin(pct: number | null): { text: string; cls: string } {
+    if (pct === null || !Number.isFinite(pct)) return { text: '-', cls: 'text-tremor-content dark:text-dark-tremor-content' };
+    return {
+        text: `${pct.toFixed(1)}%`,
+        cls: 'text-tremor-content dark:text-dark-tremor-content',
+    };
+}
+
+// ── TTM helper ────────────────────────────────────────────────────────────────
+
+// Fields that should be SUMMED for TTM (income statement and cash flow)
+const IS_SUM_FIELDS = new Set([
+    'isa1','isa2','isa3','isa4','isa5','isa6','isa7','isa8','isa9','isa10',
+    'isa11','isa12','isa13','isa14','isa15','isa16','isa17','isa18','isa19',
+    'isa20','isa21','isa22','isa23','isa24',
+    'isb25','isb26','isb27','isb28','isb29','isb30','isb31','isb32','isb33','isb34','isb35','isb36','isb37','isb38','isb39','isb40',
+]);
+const CF_SUM_FIELDS = new Set([
+    'cfa1','cfa2','cfa3','cfa4','cfa5','cfa6','cfa7','cfa8','cfa9','cfa10',
+    'cfa11','cfa12','cfa13','cfa14','cfa15','cfa16','cfa17','cfa18','cfa19',
+    'cfa20','cfa21','cfa22','cfa23','cfa24','cfa25','cfa26','cfa27','cfa28',
+    'cfa29','cfa30','cfa31','cfa32','cfa33','cfa34','cfa35','cfa36','cfa37',
+]);
+
+function computeTTMRow(
+    quarterlyRows: Record<string, any>[],
+    sumFields: Set<string>,
+): Record<string, any> {
+    // Take up to 4 most recent quarters
+    const sorted = [...quarterlyRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
+    const last4 = sorted.slice(0, 4);
+    if (!last4.length) return { year: 'TTM', quarter: 0 };
+
+    const result: Record<string, any> = { year: 'TTM', quarter: 0 };
+    // Collect all field keys
+    const allKeys = new Set<string>();
+    for (const r of last4) Object.keys(r).forEach(k => allKeys.add(k));
+
+    for (const key of allKeys) {
+        if (key === 'year' || key === 'quarter' || key === 'year_report' || key === 'quarter_report') continue;
+        if (sumFields.has(key)) {
+            let sum = 0;
+            let hasAny = false;
+            for (const r of last4) {
+                const v = toFiniteNumber(r[key]);
+                if (v !== null) { sum += v; hasAny = true; }
+            }
+            result[key] = hasAny ? sum : null;
+        } else {
+            // Non-sum fields: use latest non-null value
+            result[key] = last4.find(r => r[key] !== null && r[key] !== undefined)?.[key] ?? null;
+        }
+    }
+    return result;
+}
+
+// ── Key Stats Table ───────────────────────────────────────────────────────────
+
+interface KeyStatRow {
+    key: string;
+    label: string;
+    kind: 'section' | 'value' | 'growth' | 'margin' | 'separator';
+    bold?: boolean;
+    values?: (number | null)[];
+    growths?: (number | null)[];
+    margins?: (number | null)[];
+    isEps?: boolean;
+}
+
+function buildKeyStatsRows(
+    incomePeriods: Record<string, any>[],
+    balanceByPeriod: Map<string, Record<string, any>>,
+    cfByPeriod: Map<string, Record<string, any>>,
+    marketCap: number | null,
+    growthType: GrowthType,
+    allIncomeRows: Record<string, any>[],
+): { periods: string[]; rows: KeyStatRow[] } {
+    const pkFn = (r: Record<string, any>) => {
+        const y = r?.year ?? r?.year_report ?? '';
+        const q = r?.quarter ?? r?.quarter_report ?? 0;
+        return `${y}-${q}`;
+    };
+
+    const getComparison = (idx: number): Record<string, any> | null => {
+        if (growthType === 'qoq') return incomePeriods[idx + 1] ?? null;
+        const cur = incomePeriods[idx];
+        const curY = cur?.year ?? cur?.year_report;
+        const curQ = cur?.quarter ?? cur?.quarter_report ?? 0;
+        return allIncomeRows.find(r => {
+            const y = r?.year ?? r?.year_report;
+            const q = r?.quarter ?? r?.quarter_report ?? 0;
+            return y === curY - 1 && q === curQ;
+        }) ?? null;
+    };
+
+    const growthPct = (cur: number | null, prior: number | null): number | null => {
+        if (cur === null || prior === null || !Number.isFinite(cur) || !Number.isFinite(prior)) return null;
+        if (Math.abs(prior) < 1e-12) return null;
+        return ((cur - prior) / Math.abs(prior)) * 100;
+    };
+    const marginPct = (num: number | null, denom: number | null): number | null => {
+        if (num === null || denom === null || !Number.isFinite(num) || !Number.isFinite(denom)) return null;
+        if (Math.abs(denom) < 1e-12) return null;
+        return (num / denom) * 100;
+    };
+
+    const n = incomePeriods.length;
+    const periods = incomePeriods.map(r => renderPeriod(r));
+
+    // Per-period metric arrays
+    const mcArr: (number | null)[] = Array(n).fill(null);
+    const cashArr: (number | null)[] = Array(n).fill(null);
+    const debtArr: (number | null)[] = Array(n).fill(null);
+    const evArr: (number | null)[] = Array(n).fill(null);
+    const revArr: (number | null)[] = Array(n).fill(null);
+    const gpArr: (number | null)[] = Array(n).fill(null);
+    const ebitdaArr: (number | null)[] = Array(n).fill(null);
+    const niArr: (number | null)[] = Array(n).fill(null);
+    const epsArr: (number | null)[] = Array(n).fill(null);
+    const ocfArr: (number | null)[] = Array(n).fill(null);
+    const capexArr: (number | null)[] = Array(n).fill(null);
+    const fcfArr: (number | null)[] = Array(n).fill(null);
+
+    for (let i = 0; i < n; i++) {
+        const row = incomePeriods[i];
+        const pKey = pkFn(row);
+        const bal = balanceByPeriod.get(pKey) ?? {};
+        const cf = cfByPeriod.get(pKey) ?? {};
+
+        const rev = firstFiniteNumber(row?.isa3, row?.isa1);
+        const gp = firstFiniteNumber(row?.isa5);
+        const opProfit = firstFiniteNumber(row?.isa11);
+        const da = firstFiniteNumber(cf?.cfa2);
+        const ebitda = opProfit !== null ? (da !== null ? opProfit + da : opProfit) : null;
+        const ni = firstFiniteNumber(row?.isa22, row?.isa20);
+        const eps = firstFiniteNumber(row?.isa24, row?.isa23);
+        const ocf = firstFiniteNumber(cf?.cfa18);
+        const capex = firstFiniteNumber(cf?.cfa19);
+        const fcf = ocf !== null && capex !== null ? ocf + capex : ocf ?? null;
+        const cash = firstFiniteNumber(bal?.bsa2);
+        const stDebt = firstFiniteNumber(bal?.bsa56) ?? 0;
+        const ltDebt = firstFiniteNumber(bal?.bsa71) ?? 0;
+        const debt = stDebt + ltDebt;
+        const mc = i === 0 ? marketCap : null;
+        const ev = mc !== null ? mc - (cash ?? 0) + debt : null;
+
+        mcArr[i] = mc;
+        cashArr[i] = cash;
+        debtArr[i] = debt > 0 ? debt : null;
+        evArr[i] = ev;
+        revArr[i] = rev;
+        gpArr[i] = gp;
+        ebitdaArr[i] = ebitda;
+        niArr[i] = ni;
+        epsArr[i] = eps;
+        ocfArr[i] = ocf;
+        capexArr[i] = capex;
+        fcfArr[i] = fcf;
+    }
+
+    const revGrowth = revArr.map((v, i) => growthPct(v, getComparison(i) ? firstFiniteNumber(getComparison(i)?.isa3, getComparison(i)?.isa1) : null));
+    const epsGrowth = epsArr.map((v, i) => {
+        const cmp = getComparison(i);
+        return growthPct(v, cmp ? firstFiniteNumber(cmp?.isa24, cmp?.isa23) : null);
+    });
+    const gpMargin = gpArr.map((v, i) => marginPct(v, revArr[i]));
+    const ebitdaMargin = ebitdaArr.map((v, i) => marginPct(v, revArr[i]));
+    const niMargin = niArr.map((v, i) => marginPct(v, revArr[i]));
+
+    const rows: KeyStatRow[] = [
+        { key: 'sect_ev', label: 'Enterprise Value', kind: 'section' },
+        { key: 'market_cap', label: 'Market Cap', kind: 'value', values: mcArr },
+        { key: 'cash', label: '(-) Cash & Equivalents', kind: 'value', values: cashArr },
+        { key: 'debt', label: '(+) Total Debt', kind: 'value', values: debtArr },
+        { key: 'ev', label: 'Enterprise Value', kind: 'value', bold: true, values: evArr },
+        { key: 'sep1', label: '', kind: 'separator' },
+        { key: 'sect_income', label: 'Income Statement', kind: 'section' },
+        { key: 'revenue', label: 'Revenue', kind: 'value', values: revArr },
+        { key: 'revenue_growth', label: `Revenue % Growth (${growthType.toUpperCase()})`, kind: 'growth', growths: revGrowth },
+        { key: 'gross_profit', label: 'Gross Profit', kind: 'value', values: gpArr },
+        { key: 'gross_margin', label: 'Gross Profit % Margin', kind: 'margin', margins: gpMargin },
+        { key: 'ebitda', label: 'EBITDA', kind: 'value', values: ebitdaArr },
+        { key: 'ebitda_margin', label: 'EBITDA % Margin', kind: 'margin', margins: ebitdaMargin },
+        { key: 'net_income', label: 'Net Income', kind: 'value', values: niArr },
+        { key: 'net_margin', label: 'Net Income % Margin', kind: 'margin', margins: niMargin },
+        { key: 'diluted_eps', label: 'Diluted EPS', kind: 'value', isEps: true, values: epsArr },
+        { key: 'eps_growth', label: `Diluted EPS % Growth (${growthType.toUpperCase()})`, kind: 'growth', growths: epsGrowth },
+        { key: 'sep2', label: '', kind: 'separator' },
+        { key: 'sect_cf', label: 'Cash Flow', kind: 'section' },
+        { key: 'ocf', label: 'Operating Cash Flow', kind: 'value', values: ocfArr },
+        { key: 'capex', label: 'CapEx', kind: 'value', values: capexArr },
+        { key: 'fcf', label: 'Free Cash Flow', kind: 'value', bold: true, values: fcfArr },
+    ];
+
+    return { periods, rows };
+}
+
+function KeyStatsTable({
+    incomeRows,
+    balanceRows,
+    cashflowRows,
+    overviewData,
+    displayMode,
+    growthType,
+    setGrowthType,
+    statementWindow,
+    reportLoading,
+}: {
+    incomeRows: Record<string, any>[];
+    balanceRows: Record<string, any>[];
+    cashflowRows: Record<string, any>[];
+    overviewData: any;
+    displayMode: DisplayMode;
+    growthType: GrowthType;
+    setGrowthType: (g: GrowthType) => void;
+    statementWindow: StatementWindow;
+    reportLoading: boolean;
+}) {
+    if (reportLoading) {
+        return <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">Loading data...</div>;
+    }
+
+    const allIncome = [...incomeRows].sort((a, b) => periodSortKey(a) - periodSortKey(b)); // asc for YoY lookup
+    const sortedIncome = [...incomeRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
+    const sortedBalance = [...balanceRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
+    const sortedCF = [...cashflowRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
+
+    // For TTM: build a single synthetic row
+    let incomePeriods: Record<string, any>[];
+    if (displayMode === 'ttm') {
+        const ttmRow = computeTTMRow(sortedIncome, IS_SUM_FIELDS);
+        incomePeriods = [ttmRow];
+    } else {
+        const maxPeriods = statementWindow === 'all' ? 999 : Number(statementWindow);
+        incomePeriods = sortedIncome.slice(0, maxPeriods);
+    }
+
+    if (!incomePeriods.length) {
+        return <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">No data available.</div>;
+    }
+
+    const balByPeriod = new Map<string, Record<string, any>>();
+    for (const r of sortedBalance) {
+        const y = r?.year ?? r?.year_report ?? '';
+        const q = r?.quarter ?? r?.quarter_report ?? 0;
+        balByPeriod.set(`${y}-${q}`, r);
+    }
+    const cfByPeriod = new Map<string, Record<string, any>>();
+    for (const r of sortedCF) {
+        const y = r?.year ?? r?.year_report ?? '';
+        const q = r?.quarter ?? r?.quarter_report ?? 0;
+        cfByPeriod.set(`${y}-${q}`, r);
+    }
+
+    const marketCap = toFiniteNumber(overviewData?.market_cap);
+    const { periods, rows } = buildKeyStatsRows(incomePeriods, balByPeriod, cfByPeriod, marketCap, growthType, allIncome);
+
+    return (
+        <div>
+            {/* Growth type toggle */}
+            <div className="flex items-center gap-2 border-b border-tremor-border px-4 py-2 dark:border-dark-tremor-border">
+                <span className="text-xs text-tremor-content dark:text-dark-tremor-content">% Growth:</span>
+                {(['yoy', 'qoq'] as GrowthType[]).map(g => (
+                    <button
+                        key={g}
+                        type="button"
+                        onClick={() => setGrowthType(g)}
+                        className={cx(
+                            'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                            growthType === g
+                                ? 'bg-tremor-brand text-white dark:bg-dark-tremor-brand'
+                                : 'bg-gray-100 text-tremor-content hover:bg-gray-200 dark:bg-gray-800 dark:text-dark-tremor-content dark:hover:bg-gray-700',
+                        )}
+                    >
+                        {g.toUpperCase()}
+                    </button>
+                ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <table className="min-w-full w-max border-collapse text-sm">
+                    <thead className="bg-gray-50/50 dark:bg-gray-900/50">
+                        <tr>
+                            <th className="sticky left-0 z-10 min-w-[260px] border-b border-tremor-border bg-gray-50/50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:bg-gray-900/50 dark:text-dark-tremor-content">
+                                Metric
+                            </th>
+                            {periods.map((p, i) => (
+                                <th key={i} className="whitespace-nowrap border-b border-tremor-border px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">
+                                    {p}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {rows.map((row) => {
+                            if (row.kind === 'separator') {
+                                return (
+                                    <tr key={row.key}>
+                                        <td colSpan={periods.length + 1} className="h-2 bg-gray-50/50 dark:bg-gray-900/50 border-none p-0" />
+                                    </tr>
+                                );
+                            }
+                            if (row.kind === 'section') {
+                                return (
+                                    <tr key={row.key} className="bg-gray-100/70 dark:bg-gray-800/50">
+                                        <td colSpan={periods.length + 1} className="sticky left-0 z-[1] bg-gray-100/70 dark:bg-gray-800/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                            {row.label}
+                                        </td>
+                                    </tr>
+                                );
+                            }
+                            if (row.kind === 'growth') {
+                                return (
+                                    <tr key={row.key} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50">
+                                        <td className="sticky left-0 z-[1] bg-white dark:bg-gray-950 min-w-[260px] px-4 py-2 text-xs italic text-tremor-content dark:text-dark-tremor-content pl-8">
+                                            {row.label}
+                                        </td>
+                                        {(row.growths ?? []).map((g, i) => {
+                                            const { text, cls } = fmtGrowth(g);
+                                            return (
+                                                <td key={i} className={cx('whitespace-nowrap px-4 py-2 text-right text-xs font-medium', cls)}>
+                                                    {text}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                );
+                            }
+                            if (row.kind === 'margin') {
+                                return (
+                                    <tr key={row.key} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50">
+                                        <td className="sticky left-0 z-[1] bg-white dark:bg-gray-950 min-w-[260px] px-4 py-2 text-xs italic text-tremor-content dark:text-dark-tremor-content pl-8">
+                                            {row.label}
+                                        </td>
+                                        {(row.margins ?? []).map((m, i) => {
+                                            const { text, cls } = fmtMargin(m);
+                                            return (
+                                                <td key={i} className={cx('whitespace-nowrap px-4 py-2 text-right text-xs', cls)}>
+                                                    {text}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                );
+                            }
+                            // value row
+                            return (
+                                <tr key={row.key} className={cx('hover:bg-gray-50/50 dark:hover:bg-gray-900/50', row.bold && 'bg-amber-50/30 dark:bg-amber-900/10')}>
+                                    <td className={cx(
+                                        'sticky left-0 z-[1] min-w-[260px] bg-white px-4 py-2.5 text-sm dark:bg-gray-950',
+                                        row.bold ? 'font-semibold text-amber-700 dark:text-amber-300' : 'font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong',
+                                    )}>
+                                        {row.label}
+                                    </td>
+                                    {(row.values ?? []).map((v, i) => (
+                                        <td key={i} className={cx(
+                                            'whitespace-nowrap px-4 py-2.5 text-right text-sm text-tremor-content dark:text-dark-tremor-content',
+                                            row.bold && 'font-semibold',
+                                        )}>
+                                            {formatCompact(v, row.isEps)}
+                                        </td>
+                                    ))}
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Mobile: single-period view */}
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+                {rows.filter(r => r.kind !== 'separator').map((row) => {
+                    const v0 = row.values?.[0];
+                    const g0 = row.growths?.[0];
+                    const m0 = row.margins?.[0];
+                    if (row.kind === 'section') {
+                        return (
+                            <div key={row.key} className="bg-gray-100/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-tremor-content-strong dark:bg-gray-800/50 dark:text-dark-tremor-content-strong">
+                                {row.label}
+                            </div>
+                        );
+                    }
+                    if (row.kind === 'growth') {
+                        const { text, cls } = fmtGrowth(g0 ?? null);
+                        return (
+                            <div key={row.key} className="flex items-center justify-between px-4 py-2">
+                                <span className="text-xs italic text-tremor-content dark:text-dark-tremor-content">{row.label}</span>
+                                <span className={cx('text-xs font-medium', cls)}>{text}</span>
+                            </div>
+                        );
+                    }
+                    if (row.kind === 'margin') {
+                        const { text, cls } = fmtMargin(m0 ?? null);
+                        return (
+                            <div key={row.key} className="flex items-center justify-between px-4 py-2">
+                                <span className="text-xs italic text-tremor-content dark:text-dark-tremor-content">{row.label}</span>
+                                <span className={cx('text-xs', cls)}>{text}</span>
+                            </div>
+                        );
+                    }
+                    return (
+                        <div key={row.key} className={cx('flex items-center justify-between px-4 py-2.5', row.bold && 'bg-amber-50/30 dark:bg-amber-900/10')}>
+                            <span className={cx('text-sm', row.bold ? 'font-semibold text-amber-700 dark:text-amber-300' : 'font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong')}>
+                                {row.label}
+                            </span>
+                            <span className={cx('text-sm text-tremor-content dark:text-dark-tremor-content', row.bold && 'font-semibold')}>
+                                {periods[0] && <span className="mr-1 text-xs text-tremor-content/60">{periods[0]}</span>}
+                                {formatCompact(v0 ?? null, row.isEps)}
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function FinancialsTab({
     symbol,
     period,
+    setPeriod,
     initialChartData,
     initialOverviewData,
     isLoading: isParentLoading = false,
+    onDownloadExcel,
 }: FinancialsTabProps) {
-    const effectivePeriod: 'quarter' | 'year' = period ?? 'year';
+    const [displayMode, setDisplayMode] = useState<DisplayMode>('quarterly');
+    const effectivePeriod: 'quarter' | 'year' = displayMode === 'annual' ? 'year' : 'quarter';
+
+    // Sync effectivePeriod back to parent when displayMode changes
+    React.useEffect(() => {
+        setPeriod?.(effectivePeriod);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [effectivePeriod]);
     const [chartData, setChartData] = useState<HistoricalChartData | null>(() => parseChartResponse(initialChartData) || null);
     const [overviewData, setOverviewData] = useState<any>(initialOverviewData || null);
     const [loading, setLoading] = useState<boolean>(!initialChartData && !isParentLoading);
     const [bankingHistory, setBankingHistory] = useState<any[]>([]);
-    const [activeSubTab, setActiveSubTab] = useState<'ratio' | 'income' | 'balance' | 'cashflow' | 'note'>('ratio');
+    const [activeSubTab, setActiveSubTab] = useState<ReportType>('key_stats');
     const [reportLoading, setReportLoading] = useState(false);
     const [reportData, setReportData] = useState<Record<ReportType, Record<string, any>[]>>({
         income: [],
@@ -483,6 +1255,8 @@ export default function FinancialsTab({
         cashflow: [],
         note: [],
         ratio: [],
+        equity: [],
+        key_stats: [],
     });
     const [metricMaps, setMetricMaps] = useState<Record<'income' | 'balance' | 'cashflow' | 'note', Record<string, string>>>({
         income: {},
@@ -497,6 +1271,7 @@ export default function FinancialsTab({
         note: {},
     });
     const [statementWindow, setStatementWindow] = useState<StatementWindow>('4');
+    const [growthType, setGrowthType] = useState<GrowthType>('yoy');
     const [mobilePeriodIndex, setMobilePeriodIndex] = useState(0);
     const [collapsedRows, setCollapsedRows] = useState<Set<string>>(new Set());
     const isInitialMount = useRef(true);
@@ -573,7 +1348,7 @@ export default function FinancialsTab({
             fetch(`/api/financial-report/${symbol}?type=income&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=balance&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=cashflow&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/financial-report/${symbol}?type=note&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/financial-report/${symbol}?type=note&period=${effectivePeriod}&limit=20`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=ratio&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
         ])
             .then(([income, balance, cashflow, note, ratio]) => {
@@ -591,6 +1366,8 @@ export default function FinancialsTab({
                     cashflow: unwrap(cashflow),
                     note: unwrap(note),
                     ratio: unwrap(ratio),
+                    equity: [],
+                    key_stats: [],
                 });
                 setCollapsedRows(new Set());
             })
@@ -609,9 +1386,10 @@ export default function FinancialsTab({
             fetch(`/api/financial-report-metrics/${symbol}?type=note`, { signal: controller.signal }).then(r => r.json()),
         ]).then(([income, balance, cashflow, note]) => {
             if (controller.signal.aborted) return;
-            const unwrapLabels = (res: PromiseSettledResult<any>) => {
+            const unwrapLabels = (res: PromiseSettledResult<any>, preferEn = false) => {
                 if (res.status !== 'fulfilled') return {};
-                return (res.value?.field_map ?? {}) as Record<string, string>;
+                const key = preferEn ? 'field_map_en' : 'field_map';
+                return ((res.value?.[key] ?? res.value?.field_map) ?? {}) as Record<string, string>;
             };
             const unwrapMeta = (res: PromiseSettledResult<any>) => {
                 if (res.status !== 'fulfilled') return {};
@@ -630,7 +1408,7 @@ export default function FinancialsTab({
             };
             setMetricMaps({
                 income: unwrapLabels(income),
-                balance: unwrapLabels(balance),
+                balance: unwrapLabels(balance, true),   // use English labels for balance sheet raw view
                 cashflow: unwrapLabels(cashflow),
                 note: unwrapLabels(note),
             });
@@ -739,87 +1517,180 @@ export default function FinancialsTab({
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-tremor-border bg-white p-2 shadow-sm dark:border-dark-tremor-border dark:bg-gray-950">
-                        <div className="hidden items-center gap-2 md:flex">
-                            {[
-                                { id: 'ratio', label: 'Ratios' },
-                                { id: 'income', label: 'Income Statement' },
-                                { id: 'balance', label: 'Balance Sheet' },
-                                { id: 'cashflow', label: 'Cash Flow' },
-                                { id: 'note', label: 'Note' },
-                            ].map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    type="button"
-                                    onClick={() => {
-                                        setActiveSubTab(tab.id as 'ratio' | 'income' | 'balance' | 'cashflow' | 'note');
-                                        setStatementWindow('4');
-                                        setMobilePeriodIndex(0);
-                                    }}
-                                    className={cx(
-                                        'rounded-tremor-small border border-tremor-border px-3 py-1.5 text-sm font-medium transition-colors dark:border-dark-tremor-border',
-                                        activeSubTab === tab.id
-                                            ? 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand'
-                                            : 'bg-white text-tremor-content-strong hover:bg-tremor-background-muted dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong hover:dark:bg-gray-900'
-                                    )}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
+                    {/* ── Perplexity-style unified tab bar ────────────────────── */}
+                    <div className="rounded-xl border border-tremor-border bg-white shadow-sm dark:border-dark-tremor-border dark:bg-gray-950">
+                        <div className="flex items-center justify-between gap-2 overflow-x-auto px-2 py-1.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                            {/* Sub-tabs */}
+                            <div className="flex shrink-0 items-center gap-0.5">
+                                {[
+                                    { id: 'key_stats', label: 'Key Stats' },
+                                    { id: 'ratio', label: 'Ratios' },
+                                    { id: 'income', label: 'Income' },
+                                    { id: 'balance', label: 'Balance Sheet' },
+                                    { id: 'equity', label: 'Equity' },
+                                    { id: 'cashflow', label: 'Cash Flow' },
+                                    { id: 'note', label: 'Note' },
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setActiveSubTab(tab.id as ReportType);
+                                            setStatementWindow('4');
+                                            setMobilePeriodIndex(0);
+                                        }}
+                                        className={cx(
+                                            'whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                                            activeSubTab === tab.id
+                                                ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white'
+                                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800/60 dark:hover:text-gray-200'
+                                        )}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Right controls: period + window + export */}
+                            <div className="ml-auto flex shrink-0 items-center gap-2">
+                                {/* Period segmented control */}
+                                <div className="flex items-center rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-900">
+                                    {(['annual', 'quarterly', 'ttm'] as DisplayMode[]).map((m) => (
+                                        <button
+                                            key={m}
+                                            type="button"
+                                            onClick={() => setDisplayMode(m)}
+                                            className={cx(
+                                                'rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors',
+                                                displayMode === m
+                                                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                                            )}
+                                        >
+                                            {m === 'ttm' ? 'TTM' : m === 'annual' ? 'Annual' : 'Quarterly'}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Window selector (hidden for ratio/key_stats) */}
+                                {activeSubTab !== 'ratio' && (
+                                    <select
+                                        value={statementWindow}
+                                        onChange={(e) => {
+                                            setStatementWindow(e.target.value as StatementWindow);
+                                            setMobilePeriodIndex(0);
+                                        }}
+                                        className="hidden rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 md:block"
+                                    >
+                                        <option value="4">4 periods</option>
+                                        <option value="8">8 periods</option>
+                                        <option value="12">12 periods</option>
+                                        <option value="all">All</option>
+                                    </select>
+                                )}
+
+                                {/* Export button */}
+                                {onDownloadExcel && (
+                                    <button
+                                        type="button"
+                                        onClick={onDownloadExcel}
+                                        title="Export Excel"
+                                        className="hidden items-center justify-center rounded-md border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 md:flex"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="7 10 12 15 17 10" />
+                                            <line x1="12" y1="15" x2="12" y2="3" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="flex flex-1 flex-wrap items-center gap-2 md:flex-none md:justify-end">
+                        {/* Mobile tab select (visible on small screens) */}
+                        <div className="border-t border-gray-100 px-2 pb-1.5 dark:border-gray-800 md:hidden">
                             <select
                                 value={activeSubTab}
                                 onChange={(e) => {
-                                    setActiveSubTab(e.target.value as 'ratio' | 'income' | 'balance' | 'cashflow' | 'note');
+                                    setActiveSubTab(e.target.value as ReportType);
                                     setStatementWindow('4');
                                     setMobilePeriodIndex(0);
                                 }}
-                                className="w-full rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong md:hidden"
+                                className="w-full rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
                             >
+                                <option value="key_stats">Key Stats</option>
                                 <option value="ratio">Ratios</option>
                                 <option value="income">Income Statement</option>
                                 <option value="balance">Balance Sheet</option>
+                                <option value="equity">Equity</option>
                                 <option value="cashflow">Cash Flow</option>
                                 <option value="note">Note</option>
-                            </select>
-
-                            <select
-                                value={statementWindow}
-                                onChange={(e) => {
-                                    setStatementWindow(e.target.value as StatementWindow);
-                                    setMobilePeriodIndex(0);
-                                }}
-                                disabled={activeSubTab === 'ratio'}
-                                className="w-full rounded-tremor-small border border-tremor-border bg-white px-2.5 py-2 text-sm text-tremor-content-strong disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong md:w-auto"
-                            >
-                                <option value="4">4 kỳ gần nhất</option>
-                                <option value="8">8 kỳ</option>
-                                <option value="12">12 kỳ</option>
-                                <option value="all">Tất cả</option>
                             </select>
                         </div>
                     </div>
 
-                    {activeSubTab !== 'ratio' && (
+                    {activeSubTab === 'key_stats' && (
+                        <div className="rounded-xl border border-tremor-border bg-white p-0 shadow-sm dark:border-dark-tremor-border dark:bg-gray-950 overflow-hidden">
+                            <KeyStatsTable
+                                incomeRows={reportData.income}
+                                balanceRows={reportData.balance}
+                                cashflowRows={reportData.cashflow}
+                                overviewData={overviewData}
+                                displayMode={displayMode}
+                                growthType={growthType}
+                                setGrowthType={setGrowthType}
+                                statementWindow={statementWindow}
+                                reportLoading={reportLoading}
+                            />
+                        </div>
+                    )}
+
+                    {activeSubTab !== 'ratio' && activeSubTab !== 'key_stats' && (
                         <div className="rounded-xl border border-tremor-border bg-white p-0 shadow-sm dark:border-dark-tremor-border dark:bg-gray-950">
                             {reportLoading ? (
                                 <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">Loading report...</div>
                             ) : (
                                 (() => {
-                                    const rawRows = reportData[activeSubTab] || [];
-                                    const sortedPeriodRows = [...rawRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
+                                    // For TTM mode: synthesize a single TTM row
+                                    const isTTM = displayMode === 'ttm';
+                                    const getBaseRows = (type: ReportType) => {
+                                        const rows = reportData[type] || [];
+                                        if (!isTTM) return rows;
+                                        const sumFields = type === 'cashflow' ? CF_SUM_FIELDS : IS_SUM_FIELDS;
+                                        return [computeTTMRow(rows, sumFields)];
+                                    };
+                                    const rawRows = isTTM ? getBaseRows(activeSubTab) : (reportData[activeSubTab] || []);
+                                    const isNormalIncomePreset = activeSubTab === 'income' && isNormalStock;
+                                    const isEquityPreset = activeSubTab === 'equity';
+                                    const isCashflowPreset = activeSubTab === 'cashflow' && isNormalStock;
+                                    const baseIncome = isTTM ? getBaseRows('income') : (reportData.income || []);
+                                    const baseCashflow = isTTM ? getBaseRows('cashflow') : (reportData.cashflow || []);
+                                    const statementRows = isNormalIncomePreset
+                                        ? buildNormalIncomePresetRows(baseIncome, reportData.ratio || [])
+                                        : isEquityPreset
+                                            ? buildEquityPresetRows(reportData.balance || [], metricMaps.balance || {})
+                                        : isCashflowPreset
+                                            ? buildCashflowPresetRows(baseCashflow, baseIncome)
+                                        : rawRows;
+                                    const sortedPeriodRows = [...statementRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
                                     const periodRows = statementWindow === 'all'
                                         ? sortedPeriodRows
                                         : sortedPeriodRows.slice(0, Number(statementWindow));
-                                    const metricKeys = pickColumns(periodRows).filter((metric) =>
-                                        !periodRows.every((row) => isZeroLike(row[metric]))
-                                    );
+                                    const metricKeys = isNormalIncomePreset
+                                        ? NORMAL_INCOME_PRESET_ORDER
+                                        : isEquityPreset
+                                            ? EQUITY_PRESET_ORDER
+                                        : isCashflowPreset
+                                            ? CASHFLOW_PRESET_ORDER
+                                        : pickColumns(periodRows).filter((metric) =>
+                                            !periodRows.every((row) => isZeroLike(row[metric]))
+                                        );
                                     const currentMap = activeSubTab === 'income'
                                         ? metricMaps.income
                                         : activeSubTab === 'balance'
                                             ? metricMaps.balance
+                                            : activeSubTab === 'equity'
+                                                ? metricMaps.balance
                                             : activeSubTab === 'cashflow'
                                             ? metricMaps.cashflow
                                             : metricMaps.note;
@@ -827,6 +1698,8 @@ export default function FinancialsTab({
                                         ? metricMetaMaps.income
                                         : activeSubTab === 'balance'
                                             ? metricMetaMaps.balance
+                                            : activeSubTab === 'equity'
+                                                ? metricMetaMaps.balance
                                             : activeSubTab === 'cashflow'
                                                 ? metricMetaMaps.cashflow
                                                 : metricMetaMaps.note;
@@ -834,7 +1707,14 @@ export default function FinancialsTab({
                                         return <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">No data.</div>;
                                     }
                                     const orderedMetricKeys =
-                                        getNormalTemplateMetricKeys(activeSubTab, metricKeys, currentMap, isNormalStock)
+                                        (isNormalIncomePreset
+                                            ? NORMAL_INCOME_PRESET_ORDER
+                                            : isEquityPreset
+                                                ? EQUITY_PRESET_ORDER
+                                            : isCashflowPreset
+                                                ? CASHFLOW_PRESET_ORDER
+                                            : null)
+                                        ?? getNormalTemplateMetricKeys(activeSubTab, metricKeys, currentMap, isNormalStock)
                                         ?? getSortedMetricKeys(activeSubTab, metricKeys);
                                     const childrenMap = new Map<string, string[]>();
                                     for (const key of orderedMetricKeys) {
@@ -885,7 +1765,7 @@ export default function FinancialsTab({
                                                 <thead className="bg-gray-50/50 dark:bg-gray-900/50">
                                                     <tr>
                                                         <th className="sticky left-0 z-10 min-w-[260px] border-b border-tremor-border bg-gray-50/50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:bg-gray-900/50 dark:text-dark-tremor-content">
-                                                            {activeSubTab === 'income' ? 'Income Statement' : activeSubTab === 'balance' ? 'Balance Sheet' : activeSubTab === 'cashflow' ? 'Cash Flow' : 'Note'}
+                                                            {activeSubTab === 'income' ? 'Income Statement' : activeSubTab === 'balance' ? 'Balance Sheet' : activeSubTab === 'equity' ? 'Equity' : activeSubTab === 'cashflow' ? 'Cash Flow' : 'Note'}
                                                         </th>
                                                         {periodRows.map((row, idx) => (
                                                             <th key={`${renderPeriod(row)}-${idx}`} className="whitespace-nowrap border-b border-tremor-border px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">
@@ -898,16 +1778,33 @@ export default function FinancialsTab({
                                                     {displayMetricKeys.map((metric) => (
                                                         (() => {
                                                             const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
-                                                            const important = isImportantMetric(metric, label, activeSubTab);
+                                                            const isSectionRow = (isEquityPreset && EQUITY_SECTION_KEYS.has(metric)) || (isNormalIncomePreset && NORMAL_INCOME_SECTION_KEYS.has(metric));
+                                                            const isCashflowSectionRow = isCashflowPreset && CASHFLOW_SECTION_KEYS.has(metric);
+                                                            const equityLabel = isEquityPreset ? EQUITY_PRESET_LABELS[metric] : null;
+                                                            const cashflowLabel = isCashflowPreset ? CASHFLOW_PRESET_LABELS[metric] : null;
+                                                            const displayLabel = (isNormalIncomePreset ? NORMAL_INCOME_PRESET_LABELS[metric] : null) || label;
+                                                            const finalLabel = cashflowLabel || equityLabel || displayLabel;
+                                                            const important = isSectionRow || isCashflowSectionRow || isImportantMetric(metric, finalLabel, activeSubTab);
                                                             const level = Number(currentMeta[metric.toLowerCase()]?.level ?? 0);
                                                             const hasChildren = (childrenMap.get(metric.toLowerCase()) || []).length > 0;
                                                             const isCollapsed = collapsedRows.has(metric.toLowerCase());
                                                             const relation = parentSumStatus(metric, periodRows[0] || {});
+                                                            const isAnySection = isSectionRow || isCashflowSectionRow;
                                                             return (
-                                                        <tr key={metric} className={cx("hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors", important && "bg-amber-50/30 dark:bg-amber-900/10")}>
-                                                            <td className={cx("sticky left-0 z-[1] min-w-[260px] bg-white px-4 py-3 text-sm font-medium text-tremor-content-strong dark:bg-gray-950 dark:text-dark-tremor-content-strong", important && "text-amber-700 dark:text-amber-300 font-semibold")}>
+                                                        <tr key={metric} className={cx(
+                                                            "transition-colors",
+                                                            isAnySection
+                                                                ? "bg-gray-100/70 dark:bg-gray-800/50"
+                                                                : cx("hover:bg-gray-50/50 dark:hover:bg-gray-900/50", important && "bg-amber-50/30 dark:bg-amber-900/10")
+                                                        )}>
+                                                            <td className={cx(
+                                                                "sticky left-0 z-[1] min-w-[260px] px-4 py-3 text-sm font-medium dark:text-dark-tremor-content-strong",
+                                                                isAnySection
+                                                                    ? "bg-gray-100/70 dark:bg-gray-800/50 text-tremor-content-strong dark:text-dark-tremor-content-strong font-semibold uppercase tracking-wide text-xs"
+                                                                    : cx("bg-white dark:bg-gray-950 text-tremor-content-strong", important && "text-amber-700 dark:text-amber-300 font-semibold")
+                                                            )}>
                                                                 <div className="flex items-center gap-1.5" style={{ paddingLeft: `${Math.max(0, level - 1) * 12}px` }}>
-                                                                    {hasChildren ? (
+                                                                    {!isAnySection && hasChildren ? (
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
@@ -925,17 +1822,19 @@ export default function FinancialsTab({
                                                                             <img src={isCollapsed ? PLUS_ICON_URL : MINUS_ICON_URL} alt="" className="h-2.5 w-2.5" />
                                                                         </button>
                                                                     ) : (
-                                                                        <span className="inline-block w-4" />
+                                                                        !isAnySection && <span className="inline-block w-4" />
                                                                     )}
-                                                                    <span>{label}</span>
+                                                                    <span>{finalLabel}</span>
                                                                     {relation !== null && (
                                                                         <span className={cx("ml-1 inline-block h-1.5 w-1.5 rounded-full", relation ? "bg-emerald-500" : "bg-amber-500")} />
                                                                     )}
                                                                 </div>
                                                             </td>
                                                             {periodRows.map((row, idx) => (
-                                                                <td key={`${metric}-${idx}`} className="whitespace-nowrap px-4 py-3 text-right text-sm text-tremor-content dark:text-dark-tremor-content">
-                                                                    {formatCell(row[metric])}
+                                                                <td key={`${metric}-${idx}`} className={cx("whitespace-nowrap px-4 py-3 text-right text-sm text-tremor-content dark:text-dark-tremor-content", isAnySection && "bg-gray-100/70 dark:bg-gray-800/50")}>
+                                                                    {isAnySection ? '' : formatStatementCell(metric, row[metric], {
+                                                                        percentKeys: isNormalIncomePreset ? NORMAL_INCOME_PERCENT_KEYS : undefined,
+                                                                    })}
                                                                 </td>
                                                             ))}
                                                         </tr>
@@ -956,16 +1855,32 @@ export default function FinancialsTab({
                                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                                                     {displayMetricKeys.map((metric) => {
                                                         const label = currentMap[metric.toLowerCase()] || formatMetricLabel(metric);
-                                                        const important = isImportantMetric(metric, label, activeSubTab);
+                                                        const isSectionRow = (isEquityPreset && EQUITY_SECTION_KEYS.has(metric)) || (isNormalIncomePreset && NORMAL_INCOME_SECTION_KEYS.has(metric));
+                                                        const isCashflowSectionRow = isCashflowPreset && CASHFLOW_SECTION_KEYS.has(metric);
+                                                        const equityLabel = isEquityPreset ? EQUITY_PRESET_LABELS[metric] : null;
+                                                        const cashflowLabel = isCashflowPreset ? CASHFLOW_PRESET_LABELS[metric] : null;
+                                                        const displayLabel = (isNormalIncomePreset ? NORMAL_INCOME_PRESET_LABELS[metric] : null) || label;
+                                                        const finalLabel = cashflowLabel || equityLabel || displayLabel;
+                                                        const important = isSectionRow || isCashflowSectionRow || isImportantMetric(metric, finalLabel, activeSubTab);
                                                         const level = Number(currentMeta[metric.toLowerCase()]?.level ?? 0);
                                                         const hasChildren = (childrenMap.get(metric.toLowerCase()) || []).length > 0;
                                                         const isCollapsed = collapsedRows.has(metric.toLowerCase());
                                                         const relation = parentSumStatus(metric, mobileRow || {});
+                                                        const isAnySection = isSectionRow || isCashflowSectionRow;
                                                         return (
-                                                            <tr key={`mobile-${metric}`} className={cx(important && "bg-amber-50/30 dark:bg-amber-900/10")}>
-                                                                <td className={cx("px-3 py-2 text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong align-top break-words", important && "text-amber-700 dark:text-amber-300 font-semibold")}>
+                                                            <tr key={`mobile-${metric}`} className={cx(
+                                                                isAnySection
+                                                                    ? "bg-gray-100/70 dark:bg-gray-800/50"
+                                                                    : cx(important && "bg-amber-50/30 dark:bg-amber-900/10")
+                                                            )}>
+                                                                <td className={cx(
+                                                                    "px-3 py-2 text-xs align-top break-words",
+                                                                    isAnySection
+                                                                        ? "text-tremor-content-strong dark:text-dark-tremor-content-strong font-semibold uppercase tracking-wide"
+                                                                        : cx("text-tremor-content-strong dark:text-dark-tremor-content-strong", important && "text-amber-700 dark:text-amber-300 font-semibold")
+                                                                )}>
                                                                     <div className="flex items-center gap-1.5" style={{ paddingLeft: `${Math.max(0, level - 1) * 10}px` }}>
-                                                                        {hasChildren ? (
+                                                                        {!isAnySection && hasChildren ? (
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => {
@@ -983,15 +1898,19 @@ export default function FinancialsTab({
                                                                                 <img src={isCollapsed ? PLUS_ICON_URL : MINUS_ICON_URL} alt="" className="h-2.5 w-2.5" />
                                                                             </button>
                                                                         ) : (
-                                                                            <span className="inline-block w-4" />
+                                                                            !isAnySection && <span className="inline-block w-4" />
                                                                         )}
-                                                                        <span>{label}</span>
+                                                                        <span>{finalLabel}</span>
                                                                         {relation !== null && (
                                                                             <span className={cx("ml-1 inline-block h-1.5 w-1.5 rounded-full", relation ? "bg-emerald-500" : "bg-amber-500")} />
                                                                         )}
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-3 py-2 text-right text-xs text-tremor-content dark:text-dark-tremor-content align-top break-all">{formatCell(mobileRow?.[metric])}</td>
+                                                                <td className="px-3 py-2 text-right text-xs text-tremor-content dark:text-dark-tremor-content align-top break-all">
+                                                                    {isAnySection ? '' : formatStatementCell(metric, mobileRow?.[metric], {
+                                                                        percentKeys: isNormalIncomePreset ? NORMAL_INCOME_PERCENT_KEYS : undefined,
+                                                                    })}
+                                                                </td>
                                                             </tr>
                                                         );
                                                     })}
