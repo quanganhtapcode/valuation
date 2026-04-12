@@ -185,7 +185,7 @@ def _default_company_db_path() -> Path:
 
 
 def _default_db_path() -> Path:
-    return Path(__file__).resolve().parent / "vci_financial_statement_hose_hnx.sqlite"
+    return Path(__file__).resolve().parent / "vci_financials.sqlite"
 
 
 def _default_metrics_json_path() -> Path:

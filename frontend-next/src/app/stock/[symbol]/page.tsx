@@ -79,25 +79,21 @@ export default function StockDetailPage() {
 
     const [stockInfo, setStockInfo] = useState<StockInfo | null>(null);
     const [priceData, setPriceData] = useState<PriceData | null>(null);
-    const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
     const [financials, setFinancials] = useState<FinancialData | null>(null);
+    const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
     const [timeRange, setTimeRange] = useState<'3M' | '6M' | '1Y' | '3Y' | '5Y'>('3M');
-    const [isLoading, setIsLoading] = useState(true);
-
-    const [error, setError] = useState<string | null>(null);
     const [isDescExpanded, setIsDescExpanded] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news'>('overview');
     const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['overview']));
     const [, startTransition] = useTransition();
     const [financialPeriod, setFinancialPeriod] = useState<'quarter' | 'year'>('quarter');
-
-    // New Pre-fetched States
-    // const [prefetchedValuation, setPrefetchedValuation] = useState<any>(null); // Removed
-    // const [prefetchedChartData, setPrefetchedChartData] = useState<any>(null); // For FinancialsTab // Removed
-    // const [prefetchedPeers, setPrefetchedPeers] = useState<any>(null); // For AnalysisTab // Removed
-    const [rawOverviewData, setRawOverviewData] = useState<StockApiData | null>(null);
-    const [prefetchedChartData, setPrefetchedChartData] = useState<any>(null); // Shared between FinancialsTab & AnalysisTab
+    const [prefetchedChartData, setPrefetchedChartData] = useState<any>(null);
     const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+    const [rawOverviewData, setRawOverviewData] = useState<StockApiData | null>(null);
+    const [news, setNews] = useState<any[]>([]);
+    const [epsHistory, setEpsHistory] = useState<Array<{ year: number; eps: number }>>([]);
 
     const handleTabChange = useCallback((nextTab: 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news') => {
         if (nextTab === activeTab) return;
@@ -235,6 +231,26 @@ export default function StockDetailPage() {
 
                 // Render Header immediately with DB data
                 setIsLoading(false);
+
+                // PHASE 2: Fetch news and EPS history in parallel
+                Promise.all([
+                    fetch(`/api/stock/news/${symbol}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                ]).then(([newsData]) => {
+                    // Set news data
+                    if (Array.isArray(newsData)) {
+                        setNews(newsData.slice(0, 6));
+                    }
+                });
+
+                // Fetch EPS history from valuation endpoint
+                fetch(`/api/valuation/${symbol}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .then(data => {
+                        if (data?.result?.inputs?.eps_history_yearly) {
+                            setEpsHistory(data.result.inputs.eps_history_yearly);
+                        }
+                    })
+                    .catch(() => {});
 
                 // PHASE 2: Apply real-time price when available
                 const priceRes = await realtimePricePromise;
@@ -543,6 +559,8 @@ export default function StockDetailPage() {
                         setIsDescExpanded={setIsDescExpanded}
                         historicalData={historicalData}
                         isLoading={isChartLoading}
+                        news={news}
+                        epsHistory={epsHistory}
                     />
                 </div>
 

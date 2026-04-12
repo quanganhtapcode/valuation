@@ -1,14 +1,25 @@
 import React, { useMemo } from 'react';
-import { formatNumber, formatDate } from '@/lib/api';
+import { formatNumber } from '@/lib/api';
 import styles from '../../app/stock/[symbol]/page.module.css';
-import { BarChart, Card, LineChart } from '@tremor/react';
+import { BarChart, LineChart } from '@tremor/react';
 
 function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
 }
 
-function formatDateRange(days: number) {
+function formatDateRange(_days: number) {
     return ''; // Return empty initially, tooltips are secondary
+}
+
+function formatRelativeTime(dateStr: string): string {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr.slice(0, 10);
+    const diff = Math.floor((Date.now() - date.getTime()) / 86400000);
+    if (diff === 0) return 'Hôm nay';
+    if (diff === 1) return 'Hôm qua';
+    if (diff < 7) return `${diff} ngày trước`;
+    return date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' });
 }
 
 interface StockInfo {
@@ -63,6 +74,35 @@ interface HistoricalData {
     volume: number;
 }
 
+interface NewsItem {
+    id?: string;
+    title?: string;
+    Title?: string;
+    url?: string;
+    Link?: string;
+    news_source_link?: string;
+    image_url?: string;
+    ImageThumb?: string;
+    news_image_url?: string;
+    update_date?: string;
+    PublishDate?: string;
+    publish_date?: string;
+    source?: string;
+    Source?: string;
+    news_from_name?: string;
+    sentiment?: string;
+    Sentiment?: string;
+    score?: number;
+    Score?: number;
+    ticker?: string;
+    Symbol?: string;
+}
+
+interface EpsHistoryItem {
+    year: number;
+    eps: number;
+}
+
 interface OverviewTabProps {
     symbol: string;
     stockInfo: StockInfo | null;
@@ -74,10 +114,12 @@ interface OverviewTabProps {
     isDescExpanded: boolean;
     setIsDescExpanded: (v: boolean) => void;
     isLoading: boolean;
+    news?: NewsItem[];
+    epsHistory?: EpsHistoryItem[];
 }
 
 export default function OverviewTab({
-    symbol,
+    symbol: _symbol,
     stockInfo,
     priceData,
     financials,
@@ -86,11 +128,10 @@ export default function OverviewTab({
     setTimeRange,
     isDescExpanded,
     setIsDescExpanded,
-    isLoading
+    isLoading,
+    news = [],
+    epsHistory = [],
 }: OverviewTabProps) {
-    const isUp = priceData ? priceData.change >= 0 : true;
-    const priceColor = isUp ? styles.positive : styles.negative;
-
     // Prepare chart data for Tremor
     const chartData = useMemo(() => {
         if (!historicalData || historicalData.length === 0) return [];
@@ -319,6 +360,76 @@ export default function OverviewTab({
                     </div>
                 </section>
 
+                {/* News Section */}
+                {news && news.length > 0 && (
+                    <section className={`${styles.section} ${styles.sectionNews}`}>
+                        <div className={styles.sectionHeader}>
+                            <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                Tin tức
+                            </h3>
+                        </div>
+                        <div className={styles.newsGrid}>
+                            {news.slice(0, 6).map((item, index) => {
+                                const title = item.title || item.Title || '';
+                                const url = item.url || item.Link || item.news_source_link || '#';
+                                const imageUrl = item.image_url || item.ImageThumb || item.news_image_url || '';
+                                const date = item.update_date || item.PublishDate || item.publish_date || '';
+                                const source = item.source || item.Source || item.news_from_name || '';
+                                const sentiment = item.sentiment || item.Sentiment || '';
+                                const score = item.score || item.Score;
+
+                                return (
+                                    <a
+                                        key={item.id || index}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={styles.newsCard}
+                                    >
+                                        {imageUrl && (
+                                            <div className={styles.newsImageWrapper}>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={title}
+                                                    className={styles.newsImage}
+                                                    onError={(e) => {
+                                                        const target = e.target as HTMLImageElement;
+                                                        target.style.display = 'none';
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                        <div className={styles.newsContent}>
+                                            <h4 className={styles.newsCardTitle}>{title}</h4>
+                                            <div className={styles.newsCardMeta}>
+                                                {source && (
+                                                    <span className={styles.newsSource}>{source}</span>
+                                                )}
+                                                {date && (
+                                                    <span className={styles.newsDate}>{formatRelativeTime(date)}</span>
+                                                )}
+                                            </div>
+                                            {sentiment && (
+                                                <div className={styles.newsSentiment}>
+                                                    <span className={`${styles.sentimentBadge} ${
+                                                        sentiment.toLowerCase().includes('pos') || (score !== undefined && score > 0.15)
+                                                            ? styles.sentimentPositive
+                                                            : sentiment.toLowerCase().includes('neg') || (score !== undefined && score < -0.15)
+                                                            ? styles.sentimentNegative
+                                                            : styles.sentimentNeutral
+                                                    }`}>
+                                                        {sentiment}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
 
             </div>
 
@@ -460,6 +571,47 @@ export default function OverviewTab({
                         <p className="text-[11px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle mt-3 italic text-center">
                             * Data from most recent quarter
                         </p>
+                    </section>
+                )}
+
+                {/* EPS History Section */}
+                {epsHistory && epsHistory.length >= 2 && (
+                    <section className={`${styles.section} ${styles.sectionEpsHistory}`}>
+                        <div className={styles.sectionHeader}>
+                            <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                Lịch sử EPS
+                            </h3>
+                        </div>
+                        <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content mb-4">
+                            Thu nhập trên mỗi cổ phiếu (VND) — {epsHistory[0].year}–{epsHistory[epsHistory.length - 1].year}
+                        </p>
+                        <div className={styles.epsHistoryBars}>
+                            {(() => {
+                                const maxEps = Math.max(...epsHistory.map(h => Math.abs(h.eps)));
+                                if (maxEps <= 0) return null;
+                                
+                                return epsHistory.map(h => {
+                                    const barPct = Math.max(4, (Math.abs(h.eps) / maxEps) * 100);
+                                    const isPositive = h.eps >= 0;
+                                    return (
+                                        <div key={h.year} className={styles.epsHistoryItem}>
+                                            <div className={styles.epsHistoryBarWrapper}>
+                                                <div
+                                                    className={`${styles.epsHistoryBar} ${isPositive ? styles.epsPositive : styles.epsNegative}`}
+                                                    style={{ height: `${barPct}%` }}
+                                                    title={`${h.year}: ${Math.round(h.eps).toLocaleString('vi-VN')} VND`}
+                                                />
+                                            </div>
+                                            <span className={styles.epsHistoryYear}>{String(h.year).slice(2)}</span>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-[11px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                            <span>Cao nhất: <span className="font-semibold">{Math.round(Math.max(...epsHistory.map(h => h.eps))).toLocaleString('vi-VN')} ₫</span></span>
+                            <span>Gần nhất: <span className="font-semibold">{Math.round(epsHistory[epsHistory.length - 1].eps).toLocaleString('vi-VN')} ₫</span></span>
+                        </div>
                     </section>
                 )}
             </aside>
