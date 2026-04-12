@@ -68,31 +68,32 @@ function isBankStock(symbol: string, overviewData: any): boolean {
 // ── Key Metrics Config ────────────────────────────────────────────────────────
 
 const NORMAL_KEY_METRICS = [
-    { key: 'revenue', label: 'Doanh thu', fields: ['total_revenues', 'isa1'] },
-    { key: 'gross_profit', label: 'Lợi nhuận gộp', fields: ['gross_profit', 'isa5'] },
-    { key: 'operating_profit', label: 'Lợi nhuận HĐKD', fields: ['operating_profit', 'isa9'] },
-    { key: 'net_income', label: 'Lợi nhuận ròng', fields: ['consolidated_net_income', 'isa22'] },
-    { key: 'eps', label: 'EPS (VND)', fields: ['basic_eps', 'isa23'] },
-    { key: 'pe', label: 'P/E', fields: ['pe', 'ttmPe'] },
-    { key: 'pb', label: 'P/B', fields: ['pb', 'ttmPb'] },
-    { key: 'roe', label: 'ROE', fields: ['roe', 'ttmRoe'], isPct: true },
+    { key: 'pe', label: 'P/E', fields: ['pe'], isPct: false },
+    { key: 'pb', label: 'P/B', fields: ['pb'], isPct: false },
+    { key: 'eps', label: 'EPS', fields: ['eps'], isPct: false },
+    { key: 'roe', label: 'ROE', fields: ['roe'], isPct: true },
     { key: 'roa', label: 'ROA', fields: ['roa'], isPct: true },
-    { key: 'net_margin', label: 'Biên LN ròng', fields: ['net_profit_margin', 'netMargin'], isPct: true },
+    { key: 'net_margin', label: 'Biên LN ròng', fields: ['net_profit_margin'], isPct: true },
+    { key: 'pre_tax_margin', label: 'Biên LN trước thuế', fields: ['pre_tax_margin'], isPct: true },
+    { key: 'debt_to_equity', label: 'D/E', fields: ['debt_to_equity'], isPct: false },
+    { key: 'ebit_margin', label: 'Biên EBIT', fields: ['ebit_margin'], isPct: true },
+    { key: 'revenue_growth', label: 'Tăng trưởng DT', fields: ['revenue_growth_yoy'], isPct: true },
 ];
 
 const BANK_KEY_METRICS = [
-    { key: 'net_interest_income', label: 'Thu nhập lãi thuần', fields: ['net_interest_income'] },
-    { key: 'non_interest_income', label: 'Thu nhập ngoài lãi', fields: ['non_interest_income'] },
-    { key: 'pre_tax_profit', label: 'Lợi nhuận trước thuế', fields: ['income_before_tax', 'isa16'] },
-    { key: 'net_income', label: 'Lợi nhuận ròng', fields: ['consolidated_net_income', 'isa22'] },
-    { key: 'eps', label: 'EPS (VND)', fields: ['basic_eps', 'isa23'] },
+    { key: 'pe', label: 'P/E', fields: ['pe'], isPct: false },
+    { key: 'pb', label: 'P/B', fields: ['pb'], isPct: false },
+    { key: 'eps', label: 'EPS', fields: ['eps'], isPct: false },
     { key: 'nim', label: 'NIM', fields: ['nim', 'net_interest_margin'], isPct: true },
     { key: 'cir', label: 'CIR', fields: ['cir'], isPct: true },
-    { key: 'roe', label: 'ROE', fields: ['roe', 'ttmRoe'], isPct: true },
-    { key: 'roa', label: 'ROA', fields: ['roa'], isPct: true },
+    { key: 'casa', label: 'CASA', fields: ['casa', 'casa_ratio'], isPct: true },
     { key: 'npl', label: 'NPL', fields: ['npl'], isPct: true },
-    { key: 'casa', label: 'CASA', fields: ['casa_ratio'], isPct: true },
+    { key: 'roe', label: 'ROE', fields: ['roe'], isPct: true },
+    { key: 'roa', label: 'ROA', fields: ['roa'], isPct: true },
     { key: 'car', label: 'CAR', fields: ['car'], isPct: true },
+    { key: 'ldr', label: 'LDR', fields: ['ldr'], isPct: true },
+    { key: 'net_margin', label: 'Biên LN ròng', fields: ['net_profit_margin'], isPct: true },
+    { key: 'debt_to_equity', label: 'D/E', fields: ['debt_to_equity'], isPct: false },
 ];
 
 // Key metrics for Cash Flow (only important items)
@@ -369,12 +370,18 @@ export default function FinancialsTab({
                                     </TableHead>
                                     <TableBody>
                                         <TableRow>
-                                            <TableCell className="font-medium">Giá trị gần nhất</TableCell>
+                                            <TableCell className="font-medium">Giá trị TTM</TableCell>
                                             {(isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).map(m => {
-                                                const rows = m.key === 'pe' || m.key === 'pb' || m.key === 'roe' || m.key === 'roa' || m.key === 'nim' || m.key === 'cir' || m.key === 'npl' || m.key === 'casa' || m.key === 'car' || m.key === 'net_margin'
-                                                    ? (reportData.ratio.length > 0 ? reportData.ratio : [overviewData])
-                                                    : reportData.income.length > 0 ? reportData.income : [];
-                                                const val = getMetricValue(m, 0, rows);
+                                                // Use overviewData directly (sourced from /api/stock/ which has vci_stats_financial TTM data)
+                                                const src = overviewData || {};
+                                                let val: number | null = null;
+                                                for (const field of m.fields) {
+                                                    const v = src[field];
+                                                    if (v !== null && v !== undefined && !Number.isNaN(Number(v))) {
+                                                        val = Number(v);
+                                                        break;
+                                                    }
+                                                }
                                                 return (
                                                     <TableCell key={m.key} className="text-right font-semibold">
                                                         {m.isPct ? fmtPct(val) : fmt(val)}
@@ -386,13 +393,19 @@ export default function FinancialsTab({
                                 </Table>
                             </div>
 
-                            {/* Mobile: 2-column grid cards */}
+                            {/* Mobile: 3-column grid cards */}
                             <div className="md:hidden grid grid-cols-3 gap-2">
                                 {(isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).map(m => {
-                                    const rows = m.key === 'pe' || m.key === 'pb' || m.key === 'roe' || m.key === 'roa' || m.key === 'nim' || m.key === 'cir' || m.key === 'npl' || m.key === 'casa' || m.key === 'car' || m.key === 'net_margin'
-                                        ? (reportData.ratio.length > 0 ? reportData.ratio : [overviewData])
-                                        : reportData.income.length > 0 ? reportData.income : [];
-                                    const val = getMetricValue(m, 0, rows);
+                                    // Use overviewData directly (vci_stats_financial TTM data)
+                                    const src = overviewData || {};
+                                    let val: number | null = null;
+                                    for (const field of m.fields) {
+                                        const v = src[field];
+                                        if (v !== null && v !== undefined && !Number.isNaN(Number(v))) {
+                                            val = Number(v);
+                                            break;
+                                        }
+                                    }
                                     return (
                                         <div key={m.key} className="rounded-xl border border-tremor-border bg-gradient-to-b from-white to-tremor-background-muted p-2.5 text-center dark:border-dark-tremor-border dark:from-gray-900 dark:to-dark-tremor-background-muted shadow-sm">
                                             <div className="text-[9px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle font-semibold uppercase tracking-wider truncate" title={m.label}>
