@@ -95,6 +95,26 @@ const BANK_KEY_METRICS = [
     { key: 'car', label: 'CAR', fields: ['car'], isPct: true },
 ];
 
+// Key metrics for Cash Flow (only important items)
+const CASHFLOW_KEY_METRICS = [
+    { key: 'cfa1', label: 'LN trước thuế' },
+    { key: 'cfa18', label: 'Lưu chuyển tiền từ HĐKD' },
+    { key: 'cfa19', label: 'Tiền mua sắm TSCĐ' },
+    { key: 'cfa26', label: 'Lưu chuyển tiền từ HĐĐT' },
+    { key: 'cfa34', label: 'Lưu chuyển tiền từ HĐTC' },
+    { key: 'cfa35', label: 'Lưu chuyển tiền thuần trong kỳ' },
+    { key: 'cfa38', label: 'Tiền và tương đương tiền cuối kỳ' },
+];
+
+// Key metrics for Note (only important items)
+const NOTE_KEY_METRICS = [
+    { key: 'noc1', label: 'Thuế TNDN phải nộp' },
+    { key: 'noc2', label: 'Chi phí lãi vay' },
+    { key: 'noc3', label: 'Khấu hao TSCĐ' },
+    { key: 'noc4', label: 'Chi phí nhân viên' },
+    { key: 'noc5', label: 'Doanh thu bán hàng' },
+];
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function FinancialsTab({
@@ -498,6 +518,7 @@ export default function FinancialsTab({
                             windowSize={windowSize}
                             isBank={isBank}
                             fieldLabels={fieldLabels}
+                            tabType={activeSubTab as 'income' | 'balance' | 'cashflow' | 'note'}
                         />
                     )}
                 </Card>
@@ -508,7 +529,13 @@ export default function FinancialsTab({
 
 // ── Report Table Sub-component ────────────────────────────────────────────────
 
-function ReportTable({ rows, windowSize, isBank, fieldLabels }: { rows: any[]; windowSize: number; isBank: boolean; fieldLabels?: Record<string, string> }) {
+function ReportTable({ rows, windowSize, isBank, fieldLabels, tabType }: {
+    rows: any[];
+    windowSize: number;
+    isBank: boolean;
+    fieldLabels?: Record<string, string>;
+    tabType?: 'income' | 'balance' | 'cashflow' | 'note';
+}) {
     if (!rows || rows.length === 0) {
         return <Text className="text-center py-8 text-tremor-content-subtle">Không có dữ liệu</Text>;
     }
@@ -526,8 +553,12 @@ function ReportTable({ rows, windowSize, isBank, fieldLabels }: { rows: any[]; w
         });
     });
 
+    // For cashflow and note, use predefined key metrics on mobile
+    const keyMetrics = tabType === 'cashflow' ? CASHFLOW_KEY_METRICS :
+                       tabType === 'note' ? NOTE_KEY_METRICS : null;
+
     // For bank stocks, prioritize bank-specific metrics
-    const displayKeys = significantKeys.slice(0, isBank ? 25 : 30); // Limit columns
+    const displayKeys = significantKeys.slice(0, isBank ? 25 : 30);
 
     const formatLabel = (key: string): string => {
         // Try field label map first (isa1 → "Doanh thu bán hàng...")
@@ -544,8 +575,9 @@ function ReportTable({ rows, windowSize, isBank, fieldLabels }: { rows: any[]; w
             k.includes('growth') || k.includes('turnover');
     };
 
-    return (
-        <div className="overflow-x-auto">
+    // Desktop: full horizontal table
+    const DesktopTable = (
+        <div className="hidden md:block overflow-x-auto">
             <Table>
                 <TableHead>
                     <TableRow>
@@ -584,5 +616,28 @@ function ReportTable({ rows, windowSize, isBank, fieldLabels }: { rows: any[]; w
                 </TableBody>
             </Table>
         </div>
+    );
+
+    // Mobile: vertical cards with key metrics only
+    const MobileCards = keyMetrics ? (
+        <div className="md:hidden space-y-2">
+            {keyMetrics.map(metric => {
+                const v = rows[0] ? Number(rows[0][metric.key]) : null;
+                if (!v || Number.isNaN(v) || Math.abs(v) < 0.01) return null;
+                return (
+                    <div key={metric.key} className="flex items-center justify-between rounded-lg border border-tremor-border bg-tremor-background-muted p-3 dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted">
+                        <span className="text-sm font-medium text-tremor-content dark:text-dark-tremor-content">{metric.label}</span>
+                        <span className="text-lg font-bold text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">{fmt(v)}</span>
+                    </div>
+                );
+            })}
+        </div>
+    ) : null;
+
+    return (
+        <>
+            {DesktopTable}
+            {MobileCards}
+        </>
     );
 }
