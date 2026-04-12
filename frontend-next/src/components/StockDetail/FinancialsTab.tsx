@@ -104,7 +104,7 @@ export default function FinancialsTab({
     isLoading: parentLoading = false,
     onDownloadExcel,
 }: FinancialsTabProps) {
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [reportLoading, setReportLoading] = useState(false);
     const [activeSubTab, setActiveSubTab] = useState<ReportType>('key_stats');
     const [displayMode, setDisplayMode] = useState<DisplayMode>('annual');
