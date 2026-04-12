@@ -580,26 +580,22 @@ export default function OverviewTab({
                     <section className={`${styles.section} ${styles.sectionEpsHistory}`}>
                         <div className={styles.sectionHeader}>
                             <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                Lịch sử EPS
+                                EPS
                             </h3>
                         </div>
-                        <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content mb-4">
-                            Thu nhập trên mỗi cổ phiếu (VND) — {epsHistory[0].year}–{epsHistory[epsHistory.length - 1].year}
-                        </p>
-                        <div className={styles.epsHistoryBars}>
+                        <div className="flex items-end gap-2 h-20 mt-2">
                             {(() => {
                                 const maxEps = Math.max(...epsHistory.map(h => Math.abs(h.eps)));
                                 if (maxEps <= 0) return null;
-                                
+
                                 return epsHistory.map(h => {
-                                    const barPct = Math.max(4, (Math.abs(h.eps) / maxEps) * 100);
+                                    const barPct = Math.max(8, (Math.abs(h.eps) / maxEps) * 100);
                                     const isPositive = h.eps >= 0;
                                     return (
-                                        <div key={h.year} className={styles.epsHistoryItem}>
-                                            <div className={styles.epsHistoryBarWrapper}>
+                                        <div key={h.year} className="flex-1 flex flex-col items-center gap-1">
+                                            <div className="w-full flex items-end justify-center" style={{ height: `${barPct}%` }}>
                                                 <div
-                                                    className={`${styles.epsHistoryBar} ${isPositive ? styles.epsPositive : styles.epsNegative}`}
-                                                    style={{ height: `${barPct}%` }}
+                                                    className={`w-2 h-2 rounded-full transition-all ${isPositive ? 'bg-blue-500' : 'bg-red-500'}`}
                                                     title={`${h.year}: ${Math.round(h.eps).toLocaleString('vi-VN')} VND`}
                                                 />
                                             </div>
@@ -609,7 +605,7 @@ export default function OverviewTab({
                                 });
                             })()}
                         </div>
-                        <div className="mt-3 flex items-center justify-between text-[11px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                        <div className="mt-2 flex items-center justify-between text-[10px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
                             <span>Cao nhất: <span className="font-semibold">{Math.round(Math.max(...epsHistory.map(h => h.eps))).toLocaleString('vi-VN')} ₫</span></span>
                             <span>Gần nhất: <span className="font-semibold">{Math.round(epsHistory[epsHistory.length - 1].eps).toLocaleString('vi-VN')} ₫</span></span>
                         </div>
