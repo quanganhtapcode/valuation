@@ -1535,8 +1535,8 @@ export default function FinancialsTab({
 
                             {/* Right controls: period + window + export */}
                             <div className="ml-auto flex shrink-0 items-center gap-2">
-                                {/* Period segmented control */}
-                                <div className="flex items-center rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-900">
+                                {/* Period segmented control (desktop only) */}
+                                <div className="hidden md:flex items-center rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-900">
                                     {(['annual', 'quarterly', 'ttm'] as DisplayMode[]).map((m) => (
                                         <button
                                             key={m}
@@ -1589,25 +1589,39 @@ export default function FinancialsTab({
                             </div>
                         </div>
 
-                        {/* Mobile tab select (visible on small screens) */}
+                        {/* Mobile controls: period + sub-tabs (visible on small screens) */}
                         <div className="border-t border-gray-100 px-2 pb-1.5 dark:border-gray-800 md:hidden">
-                            <select
-                                value={activeSubTab}
-                                onChange={(e) => {
-                                    setActiveSubTab(e.target.value as ReportType);
-                                    setStatementWindow('4');
-                                    setMobilePeriodIndex(0);
-                                }}
-                                className="w-full rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-                            >
-                                <option value="key_stats">Key Stats</option>
-                                <option value="ratio">Ratios</option>
-                                <option value="income">Income Statement</option>
-                                <option value="balance">Balance Sheet</option>
-                                <option value="equity">Equity</option>
-                                <option value="cashflow">Cash Flow</option>
-                                <option value="note">Note</option>
-                            </select>
+                            <div className="flex gap-2">
+                                {/* Mobile period dropdown */}
+                                <select
+                                    value={displayMode}
+                                    onChange={(e) => setDisplayMode(e.target.value as DisplayMode)}
+                                    className="flex-1 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                >
+                                    <option value="annual">Annual</option>
+                                    <option value="quarterly">Quarterly</option>
+                                    <option value="ttm">TTM</option>
+                                </select>
+
+                                {/* Mobile sub-tabs dropdown */}
+                                <select
+                                    value={activeSubTab}
+                                    onChange={(e) => {
+                                        setActiveSubTab(e.target.value as ReportType);
+                                        setStatementWindow('4');
+                                        setMobilePeriodIndex(0);
+                                    }}
+                                    className="flex-1 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                >
+                                    <option value="key_stats">Key Stats</option>
+                                    <option value="ratio">Ratios</option>
+                                    <option value="income">Income Statement</option>
+                                    <option value="balance">Balance Sheet</option>
+                                    <option value="equity">Equity</option>
+                                    <option value="cashflow">Cash Flow</option>
+                                    <option value="note">Note</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
