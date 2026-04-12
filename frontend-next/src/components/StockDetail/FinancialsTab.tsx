@@ -386,19 +386,19 @@ export default function FinancialsTab({
                                 </Table>
                             </div>
 
-                            {/* Mobile: vertical cards */}
-                            <div className="md:hidden grid grid-cols-2 gap-2">
+                            {/* Mobile: 2-column grid cards */}
+                            <div className="md:hidden grid grid-cols-3 gap-2">
                                 {(isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).map(m => {
                                     const rows = m.key === 'pe' || m.key === 'pb' || m.key === 'roe' || m.key === 'roa' || m.key === 'nim' || m.key === 'cir' || m.key === 'npl' || m.key === 'casa' || m.key === 'car' || m.key === 'net_margin'
                                         ? (reportData.ratio.length > 0 ? reportData.ratio : [overviewData])
                                         : reportData.income.length > 0 ? reportData.income : [];
                                     const val = getMetricValue(m, 0, rows);
                                     return (
-                                        <div key={m.key} className="rounded-lg border border-tremor-border bg-tremor-background-muted p-3 dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted">
-                                            <div className="text-[11px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle font-medium uppercase tracking-wide">
+                                        <div key={m.key} className="rounded-xl border border-tremor-border bg-gradient-to-b from-white to-tremor-background-muted p-2.5 text-center dark:border-dark-tremor-border dark:from-gray-900 dark:to-dark-tremor-background-muted shadow-sm">
+                                            <div className="text-[9px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle font-semibold uppercase tracking-wider truncate" title={m.label}>
                                                 {m.label}
                                             </div>
-                                            <div className="mt-1 text-lg font-bold text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">
+                                            <div className="mt-0.5 text-base font-extrabold text-tremor-brand dark:text-dark-tremor-brand">
                                                 {m.isPct ? fmtPct(val) : fmt(val)}
                                             </div>
                                         </div>
@@ -464,8 +464,8 @@ export default function FinancialsTab({
                                 </Table>
                             </div>
 
-                            {/* Mobile: vertical cards */}
-                            <div className="md:hidden space-y-2">
+                            {/* Mobile: vertical card list */}
+                            <div className="md:hidden space-y-1.5">
                                 {Object.entries({
                                     roe: 'ROE',
                                     roa: 'ROA',
@@ -486,9 +486,9 @@ export default function FinancialsTab({
                                     const displayVal = (!v || Number.isNaN(v) || v === 0) ? '-' : (isPct ? fmtPct(v) : fmt(v, 2));
 
                                     return (
-                                        <div key={key} className="flex items-center justify-between rounded-lg border border-tremor-border bg-tremor-background-muted p-3 dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted">
+                                        <div key={key} className="flex items-center justify-between rounded-xl border border-tremor-border bg-gradient-to-r from-white to-tremor-background-muted/50 px-3 py-2 dark:border-dark-tremor-border dark:from-gray-900 dark:to-dark-tremor-background-muted/50 shadow-sm">
                                             <span className="text-sm font-medium text-tremor-content dark:text-dark-tremor-content">{label}</span>
-                                            <span className="text-lg font-bold text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">{displayVal}</span>
+                                            <span className="text-base font-extrabold text-tremor-brand dark:text-dark-tremor-brand">{displayVal}</span>
                                         </div>
                                     );
                                 })}
@@ -575,7 +575,7 @@ function ReportTable({ rows, windowSize, isBank, fieldLabels, tabType }: {
             k.includes('growth') || k.includes('turnover');
     };
 
-    // Desktop: full horizontal table
+    // Desktop: full horizontal table with all periods
     const DesktopTable = (
         <div className="hidden md:block overflow-x-auto">
             <Table>
@@ -599,7 +599,7 @@ function ReportTable({ rows, windowSize, isBank, fieldLabels, tabType }: {
 
                         return (
                             <TableRow key={key}>
-                                <TableCell className="sticky left-0 bg-white dark:bg-gray-900 z-10 font-medium text-sm">
+                                <TableCell className="sticky left-0 bg-white dark:bg-gray-900 z-10 font-medium text-sm break-words" style={{ minWidth: '180px', maxWidth: '250px' }}>
                                     {formatLabel(key)}
                                 </TableCell>
                                 {rows.slice(0, windowSize).map((row, i) => {
@@ -618,21 +618,57 @@ function ReportTable({ rows, windowSize, isBank, fieldLabels, tabType }: {
         </div>
     );
 
-    // Mobile: vertical cards with key metrics only
+    // Mobile: show only latest period (index 0), scroll horizontally for other periods
+    const latestRow = rows[0] || {};
+
     const MobileCards = keyMetrics ? (
-        <div className="md:hidden space-y-2">
+        <div className="md:hidden space-y-1.5">
             {keyMetrics.map(metric => {
-                const v = rows[0] ? Number(rows[0][metric.key]) : null;
+                const v = latestRow ? Number(latestRow[metric.key]) : null;
                 if (!v || Number.isNaN(v) || Math.abs(v) < 0.01) return null;
                 return (
-                    <div key={metric.key} className="flex items-center justify-between rounded-lg border border-tremor-border bg-tremor-background-muted p-3 dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted">
-                        <span className="text-sm font-medium text-tremor-content dark:text-dark-tremor-content">{metric.label}</span>
-                        <span className="text-lg font-bold text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">{fmt(v)}</span>
+                    <div key={metric.key} className="flex items-center justify-between rounded-xl border border-tremor-border bg-gradient-to-r from-white to-tremor-background-muted/50 px-3 py-2 dark:border-dark-tremor-border dark:from-gray-900 dark:to-dark-tremor-background-muted/50 shadow-sm">
+                        <span className="text-sm font-medium text-tremor-content dark:text-dark-tremor-content break-words flex-1 mr-2">{metric.label}</span>
+                        <span className="text-base font-extrabold text-tremor-brand dark:text-dark-tremor-brand shrink-0">{fmt(v)}</span>
                     </div>
                 );
             })}
         </div>
-    ) : null;
+    ) : (
+        <div className="md:hidden overflow-x-auto">
+            <Table>
+                <TableHead>
+                    <TableRow>
+                        <TableHeaderCell className="sticky left-0 bg-white dark:bg-gray-900 z-10 min-w-[180px] max-w-[250px] break-words">Chỉ tiêu</TableHeaderCell>
+                        <TableHeaderCell className="text-right">{renderPeriod(latestRow)}</TableHeaderCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {displayKeys.map(key => {
+                        const hasAnyValue = rows.some(row => {
+                            const v = Number(row[key]);
+                            return !Number.isNaN(v) && Math.abs(v) > 0.01;
+                        });
+                        if (!hasAnyValue) return null;
+
+                        const isPct = isPercentKey(key);
+                        const v = Number(latestRow[key]);
+
+                        return (
+                            <TableRow key={key}>
+                                <TableCell className="sticky left-0 bg-white dark:bg-gray-900 z-10 font-medium text-sm break-words" style={{ minWidth: '180px', maxWidth: '250px' }}>
+                                    {formatLabel(key)}
+                                </TableCell>
+                                <TableCell className="text-right text-sm font-semibold">
+                                    {Number.isNaN(v) || Math.abs(v) < 0.01 ? '-' : (isPct ? fmtPct(v) : fmt(v))}
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
+                </TableBody>
+            </Table>
+        </div>
+    );
 
     return (
         <>
