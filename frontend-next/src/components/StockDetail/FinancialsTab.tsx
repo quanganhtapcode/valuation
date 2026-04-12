@@ -134,13 +134,16 @@ export default function FinancialsTab({
             fetch(`/api/financial-report-metrics/${symbol}?type=cashflow`).then(r => r.json()),
         ]).then(([incomeMeta, balanceMeta, cashflowMeta]) => {
             const unwrap = (res: PromiseSettledResult<any>) => {
-                if (res.status !== 'fulfilled') return {};
-                return res.value?.field_map_en || res.value?.field_map || {};
+                if (res.status !== 'fulfilled' || !res.value) return {};
+                // API returns {data: [...], field_map: {isa1: '...'}, field_map_en: {...}}
+                // Prefer Vietnamese labels (field_map), fallback to English (field_map_en)
+                return res.value.field_map || res.value.field_map_en || {};
             };
             const labels: Record<string, string> = {};
             Object.assign(labels, unwrap(incomeMeta), unwrap(balanceMeta), unwrap(cashflowMeta));
+            console.log('[FinancialsTab] Field labels loaded:', Object.keys(labels).length, 'mappings');
             setFieldLabels(labels);
-        }).catch(() => {});
+        }).catch(err => console.error('[FinancialsTab] Failed to load field labels:', err));
     }, [symbol]);
 
     // Fetch financial reports
@@ -332,35 +335,57 @@ export default function FinancialsTab({
                             <div className="spinner" />
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableHeaderCell>Chỉ số</TableHeaderCell>
-                                        {(isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).map(m => (
-                                            <TableHeaderCell key={m.key} className="text-right">{m.label}</TableHeaderCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {/* Show latest period + growth */}
-                                    <TableRow>
-                                        <TableCell className="font-medium">Giá trị gần nhất</TableCell>
-                                        {(isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).map(m => {
-                                            const rows = m.key === 'pe' || m.key === 'pb' || m.key === 'roe' || m.key === 'roa' || m.key === 'nim' || m.key === 'cir' || m.key === 'npl' || m.key === 'casa' || m.key === 'car' || m.key === 'net_margin'
-                                                ? (reportData.ratio.length > 0 ? reportData.ratio : [overviewData])
-                                                : reportData.income.length > 0 ? reportData.income : [];
-                                            const val = getMetricValue(m, 0, rows);
-                                            return (
-                                                <TableCell key={m.key} className="text-right font-semibold">
-                                                    {m.isPct ? fmtPct(val) : fmt(val)}
-                                                </TableCell>
-                                            );
-                                        })}
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </div>
+                        <>
+                            {/* Desktop: horizontal table */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <Table>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableHeaderCell>Chỉ số</TableHeaderCell>
+                                            {(isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).map(m => (
+                                                <TableHeaderCell key={m.key} className="text-right">{m.label}</TableHeaderCell>
+                                            ))}
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        <TableRow>
+                                            <TableCell className="font-medium">Giá trị gần nhất</TableCell>
+                                            {(isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).map(m => {
+                                                const rows = m.key === 'pe' || m.key === 'pb' || m.key === 'roe' || m.key === 'roa' || m.key === 'nim' || m.key === 'cir' || m.key === 'npl' || m.key === 'casa' || m.key === 'car' || m.key === 'net_margin'
+                                                    ? (reportData.ratio.length > 0 ? reportData.ratio : [overviewData])
+                                                    : reportData.income.length > 0 ? reportData.income : [];
+                                                const val = getMetricValue(m, 0, rows);
+                                                return (
+                                                    <TableCell key={m.key} className="text-right font-semibold">
+                                                        {m.isPct ? fmtPct(val) : fmt(val)}
+                                                    </TableCell>
+                                                );
+                                            })}
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* Mobile: vertical cards */}
+                            <div className="md:hidden grid grid-cols-2 gap-2">
+                                {(isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).map(m => {
+                                    const rows = m.key === 'pe' || m.key === 'pb' || m.key === 'roe' || m.key === 'roa' || m.key === 'nim' || m.key === 'cir' || m.key === 'npl' || m.key === 'casa' || m.key === 'car' || m.key === 'net_margin'
+                                        ? (reportData.ratio.length > 0 ? reportData.ratio : [overviewData])
+                                        : reportData.income.length > 0 ? reportData.income : [];
+                                    const val = getMetricValue(m, 0, rows);
+                                    return (
+                                        <div key={m.key} className="rounded-lg border border-tremor-border bg-tremor-background-muted p-3 dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted">
+                                            <div className="text-[11px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle font-medium uppercase tracking-wide">
+                                                {m.label}
+                                            </div>
+                                            <div className="mt-1 text-lg font-bold text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">
+                                                {m.isPct ? fmtPct(val) : fmt(val)}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
                     )}
                 </Card>
             )}
@@ -375,47 +400,80 @@ export default function FinancialsTab({
                             <div className="spinner" />
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableHeaderCell>Chỉ số</TableHeaderCell>
-                                        {reportData.ratio.slice(0, windowSize).map((row, i) => (
-                                            <TableHeaderCell key={i} className="text-right">{renderPeriod(row)}</TableHeaderCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {Object.entries({
-                                        roe: 'ROE',
-                                        roa: 'ROA',
-                                        price_to_earnings: 'P/E',
-                                        price_to_book: 'P/B',
-                                        net_profit_margin: 'Biên LN ròng',
-                                        gross_margin: 'Biên LN gộp',
-                                        ebit_margin: 'Biên EBIT',
-                                        debt_to_equity: 'D/E',
-                                        current_ratio: 'Current Ratio',
-                                        quick_ratio: 'Quick Ratio',
-                                        asset_turnover: 'Vòng quay TS',
-                                        inventory_turnover: 'Vòng quay HTK',
-                                    }).map(([key, label]) => (
-                                        <TableRow key={key}>
-                                            <TableCell className="font-medium">{label}</TableCell>
-                                            {reportData.ratio.slice(0, windowSize).map((row, i) => {
-                                                const v = Number(row[key]);
-                                                const isPct = ['roe', 'roa', 'net_profit_margin', 'gross_margin', 'ebit_margin'].includes(key);
-                                                return (
-                                                    <TableCell key={i} className="text-right font-semibold">
-                                                        {Number.isNaN(v) || v === 0 ? '-' : (isPct ? fmtPct(v) : fmt(v, 2))}
-                                                    </TableCell>
-                                                );
-                                            })}
+                        <>
+                            {/* Desktop: horizontal table */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <Table>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableHeaderCell>Chỉ số</TableHeaderCell>
+                                            {reportData.ratio.slice(0, windowSize).map((row, i) => (
+                                                <TableHeaderCell key={i} className="text-right">{renderPeriod(row)}</TableHeaderCell>
+                                            ))}
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                    </TableHead>
+                                    <TableBody>
+                                        {Object.entries({
+                                            roe: 'ROE',
+                                            roa: 'ROA',
+                                            price_to_earnings: 'P/E',
+                                            price_to_book: 'P/B',
+                                            net_profit_margin: 'Biên LN ròng',
+                                            gross_margin: 'Biên LN gộp',
+                                            ebit_margin: 'Biên EBIT',
+                                            debt_to_equity: 'D/E',
+                                            current_ratio: 'Current Ratio',
+                                            quick_ratio: 'Quick Ratio',
+                                            asset_turnover: 'Vòng quay TS',
+                                            inventory_turnover: 'Vòng quay HTK',
+                                        }).map(([key, label]) => (
+                                            <TableRow key={key}>
+                                                <TableCell className="font-medium">{label}</TableCell>
+                                                {reportData.ratio.slice(0, windowSize).map((row, i) => {
+                                                    const v = Number(row[key]);
+                                                    const isPct = ['roe', 'roa', 'net_profit_margin', 'gross_margin', 'ebit_margin'].includes(key);
+                                                    return (
+                                                        <TableCell key={i} className="text-right font-semibold">
+                                                            {Number.isNaN(v) || v === 0 ? '-' : (isPct ? fmtPct(v) : fmt(v, 2))}
+                                                        </TableCell>
+                                                    );
+                                                })}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* Mobile: vertical cards */}
+                            <div className="md:hidden space-y-2">
+                                {Object.entries({
+                                    roe: 'ROE',
+                                    roa: 'ROA',
+                                    price_to_earnings: 'P/E',
+                                    price_to_book: 'P/B',
+                                    net_profit_margin: 'Biên LN ròng',
+                                    gross_margin: 'Biên LN gộp',
+                                    ebit_margin: 'Biên EBIT',
+                                    debt_to_equity: 'D/E',
+                                    current_ratio: 'Current Ratio',
+                                    quick_ratio: 'Quick Ratio',
+                                    asset_turnover: 'Vòng quay TS',
+                                    inventory_turnover: 'Vòng quay HTK',
+                                }).map(([key, label]) => {
+                                    const latestRow = reportData.ratio[0];
+                                    const v = latestRow ? Number(latestRow[key]) : null;
+                                    const isPct = ['roe', 'roa', 'net_profit_margin', 'gross_margin', 'ebit_margin'].includes(key);
+                                    const displayVal = (!v || Number.isNaN(v) || v === 0) ? '-' : (isPct ? fmtPct(v) : fmt(v, 2));
+
+                                    return (
+                                        <div key={key} className="flex items-center justify-between rounded-lg border border-tremor-border bg-tremor-background-muted p-3 dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted">
+                                            <span className="text-sm font-medium text-tremor-content dark:text-dark-tremor-content">{label}</span>
+                                            <span className="text-lg font-bold text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">{displayVal}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
                     )}
                 </Card>
             )}
