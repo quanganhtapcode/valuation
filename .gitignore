@@ -1,7 +1,8 @@
-# Secrets
+# Secrets & local config
 .env
 .env.local
 .telegram_uptime.env
+.claude/
 
 # Databases (never commit — too large, contain live data)
 *.db
@@ -46,3 +47,7 @@ Thumbs.db
 
 # Temp / upload artifacts
 *.upload
+*.har
+# UUID-named temp uploads (e.g. {GUID}.png from Claude)
+{[0-9A-Fa-f]*}.png
+{[0-9A-Fa-f]*}.jpg

@@ -1,0 +1,18 @@
+[Unit]
+Description=VietCap Excel Updater Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/valuation
+Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/var/www/valuation/.env
+ExecStart=/var/www/valuation/.venv/bin/python3 /var/www/valuation/update_excel_data.py --listen
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
