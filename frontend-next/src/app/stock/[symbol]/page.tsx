@@ -233,7 +233,7 @@ export default function StockDetailPage() {
                 setIsLoading(false);
 
                 // PHASE 2: Fetch news and EPS history in parallel
-                fetch(`/api/stock/news/${symbol}`)
+                fetch(`/api/news/${symbol}`)
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         console.log('[News API] Response:', res);
