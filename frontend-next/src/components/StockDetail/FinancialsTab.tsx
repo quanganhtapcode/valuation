@@ -5,7 +5,7 @@ import { formatNumber } from '@/lib/api';
 import { Card, Title, Text, Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from '@tremor/react';
 import { cx } from '@/lib/utils';
 
-type DisplayMode = 'annual' | 'quarterly' | 'ttm';
+type DisplayMode = 'annual' | 'quarterly';
 type ReportType = 'key_stats' | 'ratio' | 'income' | 'balance' | 'cashflow' | 'note';
 type StatementWindow = '4' | '8' | '12' | 'all';
 
@@ -230,7 +230,7 @@ export default function FinancialsTab({
                     <div className="hidden md:flex ml-auto items-center gap-2">
                         {/* Period selector */}
                         <div className="flex items-center rounded-md border border-tremor-border bg-tremor-background-muted p-0.5 dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted">
-                            {(['annual', 'quarterly', 'ttm'] as DisplayMode[]).map(m => (
+                            {(['annual', 'quarterly'] as DisplayMode[]).map(m => (
                                 <button
                                     key={m}
                                     onClick={() => setDisplayMode(m)}
@@ -241,7 +241,7 @@ export default function FinancialsTab({
                                             : 'text-tremor-content-subtle hover:text-tremor-content dark:text-dark-tremor-content-subtle'
                                     )}
                                 >
-                                    {m === 'ttm' ? 'TTM' : m === 'annual' ? 'Năm' : 'Quý'}
+                                    {m === 'annual' ? 'Năm' : 'Quý'}
                                 </button>
                             ))}
                         </div>
@@ -277,24 +277,48 @@ export default function FinancialsTab({
                     </div>
                 </div>
 
-                {/* Mobile dropdowns */}
-                <div className="mt-3 flex gap-2 md:hidden">
+                {/* Mobile dropdowns - single sticky row */}
+                <div className="sticky top-0 z-10 mt-3 flex gap-1.5 md:hidden bg-white dark:bg-gray-950 pb-1.5 -mx-1 px-1">
                     <select
                         value={activeSubTab}
                         onChange={e => { setActiveSubTab(e.target.value as ReportType); setStatementWindow('4'); }}
-                        className="flex-1 rounded-md border border-tremor-border bg-tremor-background-muted px-2.5 py-1.5 text-sm text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
+                        className="flex-1 min-w-0 rounded-md border border-tremor-border bg-tremor-background-muted px-2 py-1.5 text-xs text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
                     >
                         {TABS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                     <select
                         value={displayMode}
                         onChange={e => setDisplayMode(e.target.value as DisplayMode)}
-                        className="flex-1 rounded-md border border-tremor-border bg-tremor-background-muted px-2.5 py-1.5 text-sm text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
+                        className="w-16 shrink-0 rounded-md border border-tremor-border bg-tremor-background-muted px-2 py-1.5 text-xs text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
                     >
                         <option value="annual">Năm</option>
                         <option value="quarterly">Quý</option>
-                        <option value="ttm">TTM</option>
                     </select>
+                    {activeSubTab !== 'ratio' && activeSubTab !== 'key_stats' && (
+                        <select
+                            value={statementWindow}
+                            onChange={e => setStatementWindow(e.target.value as StatementWindow)}
+                            className="w-14 shrink-0 rounded-md border border-tremor-border bg-tremor-background-muted px-1.5 py-1.5 text-xs text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
+                        >
+                            <option value="4">4</option>
+                            <option value="8">8</option>
+                            <option value="12">12</option>
+                            <option value="all">All</option>
+                        </select>
+                    )}
+                    {onDownloadExcel && (
+                        <button
+                            onClick={onDownloadExcel}
+                            title="Export Excel"
+                            className="shrink-0 flex items-center justify-center rounded-md border border-tremor-border bg-tremor-background-muted p-1.5 text-tremor-content-subtle dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content-subtle"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                        </button>
+                    )}
                 </div>
             </Card>
 
