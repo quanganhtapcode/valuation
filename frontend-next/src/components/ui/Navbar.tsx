@@ -5,11 +5,9 @@ import useScroll from "@/lib/use-scroll"
 import { cx, focusInput } from "@/lib/utils"
 import {
     RiArrowDownSLine,
-    RiBarChartBoxLine,
     RiBuilding2Line,
     RiCalendarEventLine,
     RiCloseLine,
-    RiExchangeDollarLine,
     RiFilterLine,
     RiGlobalLine,
     RiLineChartLine,
@@ -356,6 +354,7 @@ export function Navbar() {
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div className="shrink-0 relative w-8 h-8 rounded-lg bg-white border border-gray-100 dark:border-gray-800 flex items-center justify-center p-1 group-hover:border-blue-200 transition-colors shadow-sm overflow-hidden">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img
                                                                 src={siteConfig.stockLogoUrl(result.symbol)}
                                                                 alt={result.symbol}

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Card } from '@tremor/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -52,8 +53,8 @@ function TrendIcon({ direction, alt }: { direction: Direction; alt: string }) {
     const icon = vietcapArrowUrls(direction);
     return (
         <span className="inline-flex items-center mr-0.5">
-            <img src={icon.light} alt={alt} className="block dark:hidden size-3" loading="lazy" decoding="async" />
-            <img src={icon.dark} alt={alt} className="hidden dark:block size-3" loading="lazy" decoding="async" />
+            <Image src={icon.light} alt={alt} width={12} height={12} className="block dark:hidden size-3" unoptimized />
+            <Image src={icon.dark} alt={alt} width={12} height={12} className="hidden dark:block size-3" unoptimized />
         </span>
     );
 }

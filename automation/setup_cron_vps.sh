@@ -12,11 +12,13 @@ CRON_PRICE_HISTORY="30 11 * * * cd /var/www/valuation && .venv/bin/python -m bac
 CRON_TELEGRAM="*/30 * * * * /var/www/valuation/scripts/telegram_uptime_report.sh /var/www/valuation/.telegram_uptime.env >> /var/www/valuation/telegram_uptime.log 2>&1"
 CRON_VALUATION="30 18 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name valuation --db fetch_sqlite/vci_valuation.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 --command \".venv/bin/python fetch_sqlite/fetch_vci_valuation.py --db fetch_sqlite/vci_valuation.sqlite\" >> fetch_sqlite/cron_valuation.log 2>&1"
 CRON_FOREIGN="*/2 9-15 * * 1-5 cd /var/www/valuation && bash automation/vci_safe_run.sh --name foreign --db fetch_sqlite/vci_foreign.sqlite --retries 2 --retry-sleep 12 --drop-total-pct 0.40 --keep-ratio 0.60 --command \".venv/bin/python fetch_sqlite/fetch_vci_foreign.py --db fetch_sqlite/vci_foreign.sqlite\" >> fetch_sqlite/cron_foreign.log 2>&1"
+# Every 2 weeks on Sunday 02:00 (ISO week parity gate)
+CRON_COMPANY="0 2 * * 0 cd /var/www/valuation && [ \$((10#\$(date +\\%V) % 2)) -eq 0 ] && bash automation/vci_safe_run.sh --name company --db fetch_sqlite/vci_company.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.20 --keep-ratio 0.80 --command \".venv/bin/python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite\" >> fetch_sqlite/cron_vci_company.log 2>&1"
 
 (crontab -l 2>/dev/null \
-  | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history(\.py)?|backend\.updater\.update_price_history|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py|automation/vci_safe_run\.sh" \
+  | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history(\.py)?|backend\.updater\.update_price_history|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py|fetch_vci_company\.py|automation/vci_safe_run\.sh" \
   | tr -d '\r'; \
-  printf '%s\n' "$CRON_SCREENER" "$CRON_STATS_FINANCIAL" "$CRON_SHAREHOLDERS" "$CRON_NEWS" "$CRON_STANDOUTS" "$CRON_RATIO_DAILY" "$CRON_PRICE_HISTORY" "$CRON_TELEGRAM" "$CRON_VALUATION" "$CRON_FOREIGN" \
+  printf '%s\n' "$CRON_SCREENER" "$CRON_STATS_FINANCIAL" "$CRON_SHAREHOLDERS" "$CRON_NEWS" "$CRON_STANDOUTS" "$CRON_RATIO_DAILY" "$CRON_PRICE_HISTORY" "$CRON_TELEGRAM" "$CRON_VALUATION" "$CRON_FOREIGN" "$CRON_COMPANY" \
 ) | crontab -
 
 echo "Cron jobs installed successfully."

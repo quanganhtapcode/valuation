@@ -143,15 +143,6 @@ function downloadCsv(filename: string, rows: PricePoint[]) {
     URL.revokeObjectURL(url);
 }
 
-function downloadFACsv(filename: string, headers: string[], rows: (string | number)[][]) {
-    const body = rows.map(r => r.join(',')).join('\n');
-    const blob  = new Blob([`${headers.join(',')}\n${body}`], { type: 'text/csv;charset=utf-8;' });
-    const url   = URL.createObjectURL(blob);
-    const a     = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
-}
-
 function CsvButton({ onClick }: { onClick: () => void }) {
     return (
         <button onClick={onClick} title="Tải CSV"
@@ -174,7 +165,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
         try {
             const res = await fetch(API.MACRO_HISTORY(item.symbol, d));
             if (res.ok) setPoints(await res.json());
-        } catch (_) {}
+        } catch { /* ignore */ }
         finally { setLoading(false); }
     }, [item.symbol]);
 
@@ -500,13 +491,6 @@ function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; ba
         : ind.frequency?.includes('quý') || ind.frequency?.includes('Quý') ? 12
         : 4;
 
-    const slug = ind.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    const handleDownload = () => downloadFACsv(
-        `${slug}.csv`,
-        ['Date', `${ind.name} (${ind.unit})`],
-        ind.data.map(p => [p.date, p.value]),
-    );
-
     return (
         <Card className="p-5">
             <div className="flex items-start justify-between mb-1">
@@ -562,12 +546,6 @@ function TradeChart({ exp, imp, bal }: { exp: FAIndicator; imp: FAIndicator; bal
     const tradeYAxisWidth = calcYAxisWidth(
         combined.flatMap(p => [p['Xuất khẩu'], p['Nhập khẩu']]),
         tradeFmt,
-    );
-
-    const handleDownload = () => downloadFACsv(
-        'trade_exports_imports.csv',
-        ['Date', 'Exports_BillionUSD', 'Imports_BillionUSD', 'Balance_BillionUSD'],
-        exp.data.map(p => [p.date, p.value, impMap.get(p.date) ?? '', (p.value - (impMap.get(p.date) ?? 0)).toFixed(2)]),
     );
 
     return (
@@ -712,15 +690,15 @@ export default function MacroPage() {
 
     const loadRates    = useCallback(async () => {
         try { const r = await fetch(API.MACRO_RATES);    if (r.ok) setRates(await r.json()); }
-        catch (_) {} finally { setRL(false); }
+        catch { /* ignore */ } finally { setRL(false); }
     }, []);
     const loadEconomic = useCallback(async () => {
         try { const r = await fetch(API.MACRO_ECONOMIC); if (r.ok) setEconomic(await r.json()); }
-        catch (_) {} finally { setEL(false); }
+        catch { /* ignore */ } finally { setEL(false); }
     }, []);
     const loadFaData   = useCallback(async () => {
         try { const r = await fetch(API.MACRO_FIREANT()); if (r.ok) setFaData(await r.json()); }
-        catch (_) {} finally { setFaL(false); }
+        catch { /* ignore */ } finally { setFaL(false); }
     }, []);
 
     useEffect(() => {

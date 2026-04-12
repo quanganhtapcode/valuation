@@ -370,8 +370,6 @@ export class ReportGenerator {
         const sharesOutstanding = rawSharesOutstanding > 0 && rawSharesOutstanding < 1_000_000
             ? rawSharesOutstanding * 1_000_000
             : rawSharesOutstanding;
-        const revenuePerShare = toNumber(valuationResults?.inputs?.rev_per_share, 0);
-
         set(I.currentPrice, 'Current Market Price (VND)', cp, '#,##0', 'Live price');
         set(I.eps, 'EPS TTM (VND)', eps, '#,##0', 'Trailing 12-month EPS');
         set(I.bvps, 'BVPS (VND)', bvps, '#,##0', 'Latest quarterly BVPS');
@@ -1155,7 +1153,6 @@ export class ReportGenerator {
         sectionHeader(sheet, r, '  INTRINSIC VALUE BY MODEL', 6);
         r++;
 
-        const tableHeaderRow = r;
         ['Valuation Model', 'Intrinsic Value (VND)', 'Weight (%)', 'Weighted Contribution (VND)', 'Upside / Downside'].forEach((h, ci) => {
             const c = sheet.getCell(r, ci + 1);
             c.value = h;
@@ -1239,7 +1236,6 @@ export class ReportGenerator {
             ? ((snapshotWeightedAverage - snapshotCurrentPrice) / snapshotCurrentPrice)
             : 0;
 
-        const modelRowStart = r;
         snapshotModels.forEach((m, idx) => {
             sheet.getCell(r, 1).value = m.name;
 
@@ -1344,6 +1340,7 @@ export class ReportGenerator {
      * Must mirror the exact row increments in buildDCFSheet.
      * Verified: intrinsicRow = 42 for both FCFE and FCFF (10-year model).
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private computeDCFIntrinsicRow(_type: 'FCFE' | 'FCFF'): number {
         let r = 5;
         r += 1;      // component header row r++ → 6

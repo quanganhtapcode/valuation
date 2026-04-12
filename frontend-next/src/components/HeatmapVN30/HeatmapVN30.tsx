@@ -83,7 +83,7 @@ function changeColor(pct: number): string {
   return '#8bd071';               // Green Strong
 }
 
-function textColor(pct: number): string {
+function textColor(_pct: number): string {
   // Use dark text for better visibility on pastel backgrounds
   return '#0f172a';
 }
@@ -94,7 +94,6 @@ function sectorTextColor(pct: number): string {
   return '#64748b';
 }
 
-const H = 600;
 const SECTOR_PAD = 4;   // slightly more breathing room
 const STOCK_GAP = 1.5;  // clearer separation
 const LABEL_H = 20;     // balanced header height
@@ -177,7 +176,7 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
           }
         }
       },
-      onData: (updates: Record<string, any>, type: string) => {
+      onData: (updates: Record<string, any>, _type: string) => {
         if (!isMounted) return;
         setData(prev => {
           if (!prev) return prev;
@@ -409,6 +408,7 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
                   {/* Icon | Symbol | Name row */}
                   <foreignObject x={tx + 12} y={ty + 34} width={24} height={24}>
                     <div className="flex items-center justify-center w-6 h-6 rounded bg-slate-50 border border-slate-100 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={`https://vietcap-documents.s3.ap-southeast-1.amazonaws.com/sentiment/logo/${hover.ticker}.jpeg`}
                         alt="" className="w-full h-full object-contain" />
                     </div>

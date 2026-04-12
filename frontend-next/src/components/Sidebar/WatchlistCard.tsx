@@ -39,6 +39,7 @@ function StockLogo({ symbol }: { symbol: string }) {
     return (
         <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white dark:bg-gray-800 border border-tremor-border dark:border-dark-tremor-border overflow-hidden flex items-center justify-center">
             {!errored ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                     src={siteConfig.stockLogoUrl(symbol)}
                     alt={symbol}
@@ -80,6 +81,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
     }, [modalOpen]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (watchlist.length === 0) { setItems([]); return; }
 
         enrichWithMeta(watchlist).then(metas => {
@@ -114,10 +116,11 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                 .catch(() => setItems(prev => prev.map(i => i.symbol === symbol ? { ...i, loading: false } : i)));
         });
         return () => controllers.forEach(c => c.abort());
-    }, [watchlist, enrichWithMeta, externalPrices]);
+    }, [watchlist, enrichWithMeta, externalPrices, useExternalOnly]);
 
     useEffect(() => {
         if (watchlist.length === 0 || Object.keys(externalPrices).length === 0) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setItems(prev => prev.map(item => {
             const snap = externalPrices[item.symbol];
             if (!snap) return item;

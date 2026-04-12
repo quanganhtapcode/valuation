@@ -115,6 +115,10 @@ calc_metrics() {
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM valuation_history;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN (pe IS NOT NULL OR pb IS NOT NULL) THEN 1 ELSE 0 END) FROM valuation_history;")"
       ;;
+    vci_company.sqlite)
+      total="$(sql_scalar "$db" "SELECT COUNT(*) FROM companies;")"
+      quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN (icb_code4 IS NOT NULL AND TRIM(icb_code4) <> '' AND logo_url IS NOT NULL AND TRIM(logo_url) <> '') THEN 1 ELSE 0 END) FROM companies;")"
+      ;;
     *)
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';")"
       quality="$total"

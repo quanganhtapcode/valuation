@@ -9,6 +9,7 @@ export default function useScroll(threshold: number) {
 
     useEffect(() => {
         window.addEventListener("scroll", onScroll)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         onScroll()
         return () => window.removeEventListener("scroll", onScroll)
     }, [onScroll])

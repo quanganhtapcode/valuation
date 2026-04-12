@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react'; // useCallback used by MarketList
+import Image from 'next/image';
+import { memo, useState, useCallback } from 'react'; // useCallback used by MarketList
 import {
     Card,
 } from '@tremor/react';
@@ -14,7 +15,24 @@ interface MarketPulseProps {
     isLoading?: boolean;
 }
 
-const LOGO_BASE_URL = '/logos/';
+function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
+    if (a === b) return true;
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+        const x = a[i];
+        const y = b[i];
+        if (!x || !y) return false;
+        if (
+            x.Symbol !== y.Symbol ||
+            Number(x.CurrentPrice || 0) !== Number(y.CurrentPrice || 0) ||
+            Number(x.ChangePricePercent || 0) !== Number(y.ChangePricePercent || 0) ||
+            Number(x.Value || 0) !== Number(y.Value || 0)
+        ) {
+            return false;
+        }
+    }
+    return true;
+}
 
 type Direction = 'up' | 'unchanged' | 'down';
 
@@ -42,13 +60,13 @@ function TrendIcon({ direction, alt }: { direction: Direction; alt: string }) {
     const icon = vietcapArrowUrls(direction);
     return (
         <span className="inline-flex items-center">
-            <img src={icon.light} alt={alt} className="block dark:hidden size-3.5" loading="lazy" decoding="async" />
-            <img src={icon.dark} alt={alt} className="hidden dark:block size-3.5" loading="lazy" decoding="async" />
+            <Image src={icon.light} alt={alt} width={14} height={14} className="block dark:hidden size-3.5" unoptimized />
+            <Image src={icon.dark} alt={alt} width={14} height={14} className="hidden dark:block size-3.5" unoptimized />
         </span>
     );
 }
 
-export default function MarketPulse({
+function MarketPulse({
     gainers,
     losers,
     isLoading
@@ -69,6 +87,14 @@ export default function MarketPulse({
         </Card>
     );
 }
+
+export default memo(
+    MarketPulse,
+    (prev, next) =>
+        prev.isLoading === next.isLoading &&
+        sameMovers(prev.gainers, next.gainers) &&
+        sameMovers(prev.losers, next.losers),
+);
 
 function MarketList({
     items1,
@@ -141,6 +167,7 @@ function MarketList({
                                 >
                                     <div className="flex items-center gap-3 overflow-hidden flex-1 mr-2">
                                         <div className="shrink-0 relative w-9 h-9 rounded-lg bg-white border border-gray-100 dark:border-gray-700 dark:bg-gray-800 flex items-center justify-center p-1.5 shadow-sm group-hover:border-blue-200 transition-colors overflow-hidden">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={siteConfig.stockLogoUrl(item.Symbol)}
                                                 alt={item.Symbol}

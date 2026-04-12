@@ -13,9 +13,15 @@ import queue
 import threading
 import time
 import zlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Set
 
+import requests as http_requests
 import websocket  # websocket-client
+try:
+    from curl_cffi import requests as curl_requests
+except Exception:  # pragma: no cover - optional dependency fallback
+    curl_requests = None
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +35,7 @@ FF_HEADERS = {
     ),
     "Referer": "https://www.forexfactory.com/",
 }
+FF_IMPERSONATE = "chrome124"
 
 CHANNELS = [
     # Forex pairs
@@ -43,9 +50,48 @@ CHANNELS = [
     "Gold/USD", "Silver/USD", "WTI/USD", "Brent/USD", "BTC/USD", "ETH/USD",
 ]
 
+_YAHOO_SYMBOLS = {
+    "EUR/USD": "EURUSD=X",
+    "GBP/USD": "GBPUSD=X",
+    "USD/JPY": "USDJPY=X",
+    "AUD/USD": "AUDUSD=X",
+    "USD/CHF": "USDCHF=X",
+    "USD/CAD": "USDCAD=X",
+    "NZD/USD": "NZDUSD=X",
+    "Nikkei225/USD": "^N225",
+    "ASX/USD": "^AXJO",
+    "DAX/USD": "^GDAXI",
+    "FTSE100/USD": "^FTSE",
+    "CAC/USD": "^FCHI",
+    "STOXX50/USD": "^STOXX50E",
+    "SPX/USD": "^GSPC",
+    "NDX/USD": "^NDX",
+    "Dow/USD": "^DJI",
+    "VIX/USD": "^VIX",
+    "DXY/USD": "DX-Y.NYB",
+    "US2000/USD": "^RUT",
+    "Gold/USD": "GC=F",
+    "Silver/USD": "SI=F",
+    "WTI/USD": "CL=F",
+    "Brent/USD": "BZ=F",
+    "BTC/USD": "BTC-USD",
+    "ETH/USD": "ETH-USD",
+}
+_YAHOO_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json",
+}
+_YAHOO_STALE_AFTER_SEC = 45
+_YAHOO_POLL_SEC = 15
+
 # ── In-memory price cache ─────────────────────────────────────────────────────
 _prices: Dict[str, Dict[str, float]] = {}
 _prices_lock = threading.Lock()
+_last_ff_update_ts = 0.0
+_fallback_active = False
 
 # Browser WS queues
 _clients: Set[queue.Queue] = set()
@@ -89,6 +135,73 @@ def _broadcast(update: dict) -> None:
         _clients.difference_update(dead)
 
 
+def _short_error(error: Any, limit: int = 320) -> str:
+    text = str(error)
+    if len(text) > limit:
+        return f"{text[:limit]}... (truncated)"
+    return text
+
+
+def _fetch_yahoo_quote(sym: str) -> dict | None:
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=1d"
+        resp = http_requests.get(url, timeout=7, headers=_YAHOO_HEADERS)
+        if resp.status_code != 200:
+            return None
+        result = ((resp.json().get("chart") or {}).get("result") or [None])[0] or {}
+        meta = result.get("meta") or {}
+        price = float(meta.get("regularMarketPrice") or 0)
+        prev = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
+        if price <= 0 or prev <= 0:
+            return None
+        return {
+            "price": price,
+            "dayOpen": prev,
+            "changePercent": ((price - prev) / prev) * 100,
+        }
+    except Exception:
+        return None
+
+
+def _run_yahoo_fallback() -> None:
+    global _fallback_active
+    while True:
+        with _prices_lock:
+            last_primary_age = time.time() - _last_ff_update_ts if _last_ff_update_ts > 0 else float("inf")
+            use_fallback = last_primary_age >= _YAHOO_STALE_AFTER_SEC
+
+        if not use_fallback:
+            if _fallback_active:
+                _fallback_active = False
+                logger.info("[FF] primary stream recovered, fallback disabled")
+            time.sleep(2)
+            continue
+
+        updates = 0
+        with ThreadPoolExecutor(max_workers=len(_YAHOO_SYMBOLS)) as pool:
+            futures = {pool.submit(_fetch_yahoo_quote, sym): ch for ch, sym in _YAHOO_SYMBOLS.items()}
+            for future in as_completed(futures):
+                snap = future.result()
+                if not snap:
+                    continue
+                channel = futures[future]
+                should_broadcast = False
+                with _prices_lock:
+                    prev = _prices.get(channel)
+                    if not prev or float(prev.get("price") or 0) != float(snap["price"]):
+                        _prices[channel] = snap
+                        should_broadcast = True
+                if should_broadcast:
+                    updates += 1
+                    _broadcast({"channel": channel, **snap, "source": "yahoo_fallback"})
+
+        if updates > 0:
+            if not _fallback_active:
+                logger.warning("[FF] no primary updates; using Yahoo fallback")
+            _fallback_active = True
+        time.sleep(_YAHOO_POLL_SEC)
+
+
 def _run_ws() -> None:
     backoff = 3
 
@@ -101,6 +214,7 @@ def _run_ws() -> None:
             return decompressor.decompress(payload).decode("utf-8")
 
         def _handle_text(text: str) -> None:
+            global _last_ff_update_ts, _fallback_active
             try:
                 msg = json.loads(text)
             except Exception:
@@ -114,52 +228,100 @@ def _run_ws() -> None:
                 if snap is None:
                     return
                 _prices[name] = snap
-            _broadcast({"channel": name, **snap})
+                _last_ff_update_ts = time.time()
+            if _fallback_active:
+                _fallback_active = False
+                logger.info("[FF] primary stream recovered, fallback disabled")
+            _broadcast({"channel": name, **snap, "source": "forexfactory"})
 
-        def on_open(ws: websocket.WebSocketApp) -> None:
+        def on_open() -> None:
             nonlocal backoff
             logger.info("[FF] connected, subscribing %d channels", len(CHANNELS))
             backoff = 3
-            for ch in CHANNELS:
-                ws.send(json.dumps({"type": "subscribe", "channel": ch}))
-                ws.send(json.dumps({"type": "subscribe", "channel": f"{ch}.partial"}))
-
-        def on_message(ws: websocket.WebSocketApp, msg: Any) -> None:
-            if isinstance(msg, bytes):
-                if len(msg) <= 10:
-                    return  # skip short frames (ping etc.)
-                try:
-                    _handle_text(_decompress(msg))
-                except Exception as exc:
-                    logger.debug("[FF] decompress error: %s", exc)
-            elif isinstance(msg, str):
-                msg = msg.strip()
-                if msg == "ping":
-                    try:
-                        ws.send("pong")
-                    except Exception:
-                        pass
-                elif msg:
-                    _handle_text(msg)
-
-        def on_error(ws: websocket.WebSocketApp, error: Any) -> None:
-            logger.warning("[FF] error: %s", error)
-
-        def on_close(ws: websocket.WebSocketApp, code: Any, reason: Any) -> None:
-            logger.info("[FF] closed %s %s", code, reason)
 
         try:
-            ws_app = websocket.WebSocketApp(
-                FF_WS_URL,
-                on_open=on_open,
-                on_message=on_message,
-                on_error=on_error,
-                on_close=on_close,
-                header=FF_HEADERS,
-            )
-            ws_app.run_forever(skip_utf8_validation=True, ping_interval=0)
+            if curl_requests is not None:
+                with curl_requests.Session() as session:
+                    session.get("https://www.forexfactory.com", impersonate=FF_IMPERSONATE, timeout=20)
+                    ws = session.ws_connect(
+                        FF_WS_URL,
+                        headers=FF_HEADERS,
+                        impersonate=FF_IMPERSONATE,
+                        timeout=25,
+                    )
+                    on_open()
+                    for ch in CHANNELS:
+                        ws.send(json.dumps({"type": "subscribe", "channel": ch}))
+                        ws.send(json.dumps({"type": "subscribe", "channel": f"{ch}.partial"}))
+
+                    while True:
+                        packet = ws.recv()
+                        if packet is None:
+                            break
+                        msg, _flags = packet if isinstance(packet, tuple) else (packet, None)
+                        if isinstance(msg, (bytes, bytearray)):
+                            raw = bytes(msg).strip()
+                            if raw == b"ping":
+                                ws.send(b"pong")
+                                continue
+                            if len(raw) <= 2:
+                                continue
+                            try:
+                                _handle_text(_decompress(bytes(msg)))
+                            except Exception as exc:
+                                logger.debug("[FF] decompress error: %s", exc)
+                        else:
+                            text = str(msg).strip()
+                            if text == "ping":
+                                ws.send("pong")
+                            elif text:
+                                _handle_text(text)
+                    try:
+                        ws.close()
+                    except Exception:
+                        pass
+            else:
+                def on_open_legacy(ws_app: websocket.WebSocketApp) -> None:
+                    on_open()
+                    for ch in CHANNELS:
+                        ws_app.send(json.dumps({"type": "subscribe", "channel": ch}))
+                        ws_app.send(json.dumps({"type": "subscribe", "channel": f"{ch}.partial"}))
+
+                def on_message_legacy(ws_app: websocket.WebSocketApp, msg: Any) -> None:
+                    if isinstance(msg, bytes):
+                        if len(msg) <= 10:
+                            return  # skip short frames (ping etc.)
+                        try:
+                            _handle_text(_decompress(msg))
+                        except Exception as exc:
+                            logger.debug("[FF] decompress error: %s", exc)
+                    elif isinstance(msg, str):
+                        msg = msg.strip()
+                        if msg == "ping":
+                            try:
+                                ws_app.send("pong")
+                            except Exception:
+                                pass
+                        elif msg:
+                            _handle_text(msg)
+
+                def on_error_legacy(ws_app: websocket.WebSocketApp, error: Any) -> None:
+                    logger.warning("[FF] error: %s", _short_error(error))
+
+                def on_close_legacy(ws_app: websocket.WebSocketApp, code: Any, reason: Any) -> None:
+                    logger.info("[FF] closed %s %s", code, reason)
+
+                ws_app = websocket.WebSocketApp(
+                    FF_WS_URL,
+                    on_open=on_open_legacy,
+                    on_message=on_message_legacy,
+                    on_error=on_error_legacy,
+                    on_close=on_close_legacy,
+                    header=FF_HEADERS,
+                )
+                ws_app.run_forever(skip_utf8_validation=True, ping_interval=0)
         except Exception as exc:
-            logger.warning("[FF] run_forever crashed: %s", exc)
+            logger.warning("[FF] run_forever crashed: %s", _short_error(exc))
 
         time.sleep(backoff)
         backoff = min(backoff * 2, 60)
@@ -174,10 +336,12 @@ def ensure_started() -> None:
     with _start_lock:
         if _started:
             return
-        t = threading.Thread(target=_run_ws, daemon=True, name="ff-ws")
-        t.start()
+        t_primary = threading.Thread(target=_run_ws, daemon=True, name="ff-ws")
+        t_fallback = threading.Thread(target=_run_yahoo_fallback, daemon=True, name="ff-yahoo-fallback")
+        t_primary.start()
+        t_fallback.start()
         _started = True
-        logger.info("[FF] background thread started")
+        logger.info("[FF] background threads started")
 
 
 def get_prices() -> Dict[str, Dict[str, float]]:

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Card } from '@tremor/react';
 import { cx } from '@/lib/utils';
 import React, { useState, useEffect } from 'react';
@@ -49,16 +50,10 @@ function BreadthIcon({ direction, alt }: { direction: BreadthDirection; alt: str
     const icon = breadthIconUrls(direction);
     return (
         <span className="inline-flex items-center mr-1">
-            <img src={icon.light} alt={alt} className="block dark:hidden w-3 h-3" loading="lazy" decoding="async" />
-            <img src={icon.dark} alt={alt} className="hidden dark:block w-3 h-3" loading="lazy" decoding="async" />
+            <Image src={icon.light} alt={alt} width={12} height={12} className="block dark:hidden w-3 h-3" unoptimized />
+            <Image src={icon.dark} alt={alt} width={12} height={12} className="hidden dark:block w-3 h-3" unoptimized />
         </span>
     );
-}
-
-function formatShares(n: number): string {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + ' Tr';
-    if (n >= 1_000) return (n / 1_000).toFixed(0) + ' N';
-    return n.toString();
 }
 
 function formatValue(n: number): string {
@@ -75,7 +70,7 @@ export default React.memo(function IndexCard({
     value,
     change,
     percentChange,
-    chartData = [],
+    chartData: _chartData = [],
     advances = 0,
     declines = 0,
     noChanges = 0,

@@ -84,7 +84,7 @@ const VNTooltip = ({ active, payload }: any) => {
     );
 };
 
-const RatioTooltip = ({ active, payload, stats, label: _label }: any) => {
+const RatioTooltip = ({ active, payload, stats }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0]?.payload;
     const val: number = d?.value;

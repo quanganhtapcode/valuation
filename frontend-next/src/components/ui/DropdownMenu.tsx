@@ -77,7 +77,7 @@ const DropdownMenuItem = React.forwardRef<
     React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitives.Item> & {
         shortcut?: string
     }
->(({ className, shortcut, ...props }, ref) => (
+>(({ className, shortcut: _shortcut, ...props }, ref) => (
     <DropdownMenuPrimitives.Item
         ref={ref}
         className={cx(

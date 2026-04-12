@@ -222,8 +222,12 @@ class PriceHistoryUpdater:
                     if not result:
                         return {'symbol': symbol, 'success': False, 'error': 'No data', 'inserted': 0}
 
-                    records = result.get('data') if isinstance(result, dict) else []
-                    if not isinstance(records, list):
+                    raw = result.get('data') if isinstance(result, dict) else []
+                    if isinstance(raw, dict):
+                        records = raw.get('content', [])
+                    elif isinstance(raw, list):
+                        records = raw
+                    else:
                         records = []
 
                     new_records = []

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 download_tracker = defaultdict(list)
 DOWNLOAD_LIMIT = 20  # Max downloads per IP per window
 DOWNLOAD_WINDOW = 3600  # 1 hour window (in seconds)
+PRESIGNED_URL_EXPIRES_SECONDS = int(os.getenv("R2_PRESIGNED_EXPIRES_SECONDS", "900"))
 
 def rate_limit_download(f):
     """Decorator to implement rate limiting for downloads"""
@@ -67,8 +68,11 @@ def api_stock_excel_url(symbol):
         # 1. Try R2 First for optimized direct download
         r2_client = get_r2_client()
         if r2_client.is_configured:
-            # Generate 15-minute presigned URL
-            presigned_result = r2_client.get_presigned_url(clean_symbol, expires_in=900)
+            # Generate presigned URL
+            presigned_result = r2_client.get_presigned_url(
+                clean_symbol,
+                expires_in=PRESIGNED_URL_EXPIRES_SECONDS,
+            )
             
             if presigned_result.get('success'):
                 # Return the Cloudflare CDN url directly!
@@ -97,7 +101,7 @@ def download_financial_data(ticker):
     """Download financial statement Excel file for a specific ticker
     
     Storage: Cloudflare R2 (with local fallback)
-    Security: Pre-signed URLs with 15-minute expiration
+    Security: Pre-signed URLs with configurable expiration (default 15 minutes)
     
     Rate limits:
     - Maximum 20 downloads per IP per hour
@@ -138,7 +142,10 @@ def download_financial_data(ticker):
 
             # Redirect to pre-signed URL (user downloads directly from R2 CDN)
             # CORS is configured on R2 bucket to allow valuation.quanganh.org
-            presigned_result = r2_client.get_presigned_url(ticker, expires_in=60)  # 15 minutes
+            presigned_result = r2_client.get_presigned_url(
+                ticker,
+                expires_in=PRESIGNED_URL_EXPIRES_SECONDS,
+            )
             
             if presigned_result['success']:
                 logger.info(f"R2 redirect for {ticker} to {client_ip}")

@@ -132,6 +132,7 @@ export default function OverviewTab({
     news = [],
     epsHistory = [],
 }: OverviewTabProps) {
+    console.log('[OverviewTab] Props - news:', news?.length, 'items, epsHistory:', epsHistory?.length, 'items');
     // Prepare chart data for Tremor
     const chartData = useMemo(() => {
         if (!historicalData || historicalData.length === 0) return [];

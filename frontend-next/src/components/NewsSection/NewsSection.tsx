@@ -131,6 +131,7 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                             <div className="flex items-start gap-3">
                                 {image ? (
                                     <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src={image}
                                             alt=""

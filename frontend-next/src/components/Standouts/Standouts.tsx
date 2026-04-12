@@ -3,7 +3,7 @@
 import React from 'react';
 import { Card, Title } from '@tremor/react';
 import { cx } from '@/lib/utils';
-import { RiFlashlightLine, RiArrowRightUpLine } from '@remixicon/react';
+import { RiFlashlightLine } from '@remixicon/react';
 import Link from 'next/link';
 
 interface StandoutsProps {
@@ -93,6 +93,7 @@ export default function Standouts({ data, isLoading }: StandoutsProps) {
                                 <div className="flex items-start gap-3 mb-3">
                                     {/* Logo / Badge */}
                                     {hasLogo ? (
+                                        /* eslint-disable-next-line @next/next/no-img-element */
                                         <img
                                             src={stock.logo}
                                             alt={stock.ticker}

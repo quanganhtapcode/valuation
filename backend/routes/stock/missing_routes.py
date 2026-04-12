@@ -270,7 +270,7 @@ def register(stock_bp: Blueprint) -> None:
                         if rows:
                             data: list[dict] = []
                             for r in rows:
-                                rd = dict(r)
+                                rd = {k: r[k] for k in r.keys()}
                                 out: dict = {
                                     "year": rd.get("year_report"),
                                     "quarter": rd.get("quarter_report", 0),

@@ -5,8 +5,6 @@ import { NewsItem, formatRelativeTime } from '@/lib/api';
 import styles from './page.module.css';
 import { siteConfig } from '@/app/siteConfig';
 
-const LOGO_BASE_URL = '/logos/';
-
 export default function NewsPage() {
     const [news, setNews] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -92,6 +90,7 @@ export default function NewsPage() {
                                 {/* Thumbnail */}
                                 {img && (
                                     <div className={styles.thumbnail}>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src={img}
                                             alt={title}
@@ -119,6 +118,7 @@ export default function NewsPage() {
                                                     window.location.href = `/stock/${symbol}`;
                                                 }}
                                             >
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
                                                     src={siteConfig.stockLogoUrl(symbol)}
                                                     alt={symbol}
