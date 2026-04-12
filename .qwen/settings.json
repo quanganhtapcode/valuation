@@ -14,7 +14,8 @@
       "Bash(systemctl *)",
       "Bash(xargs *)",
       "Bash(sleep *)",
-      "Bash(echo *)"
+      "Bash(echo *)",
+      "Bash(cp *)"
     ]
   },
   "$version": 3
