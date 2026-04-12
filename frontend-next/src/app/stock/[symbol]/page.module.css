@@ -961,7 +961,7 @@
 .epsHistoryYear {
     font-size: 9px;
     color: var(--color-text-subtle);
-    tabular-nums;
+    font-variant-numeric: tabular-nums;
     font-weight: 500;
 }
 
