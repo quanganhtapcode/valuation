@@ -233,21 +233,35 @@ export default function StockDetailPage() {
                 setIsLoading(false);
 
                 // PHASE 2: Fetch news and EPS history in parallel
-                Promise.all([
-                    fetch(`/api/stock/news/${symbol}`).then(r => r.ok ? r.json() : []).catch(() => []),
-                ]).then(([newsData]) => {
-                    // Set news data
-                    if (Array.isArray(newsData)) {
-                        setNews(newsData.slice(0, 6));
-                    }
-                });
-
-                // Fetch EPS history from valuation endpoint
-                fetch(`/api/valuation/${symbol}`)
+                fetch(`/api/stock/news/${symbol}`)
                     .then(r => r.ok ? r.json() : null)
-                    .then(data => {
-                        if (data?.result?.inputs?.eps_history_yearly) {
-                            setEpsHistory(data.result.inputs.eps_history_yearly);
+                    .then(res => {
+                        // API returns {success: true, data: [...]}
+                        const newsData = res?.data || res;
+                        if (Array.isArray(newsData)) {
+                            setNews(newsData.slice(0, 6));
+                        }
+                    })
+                    .catch(() => {});
+
+                // Fetch EPS history from income statement SQLite
+                fetch(`/api/financial-report/${symbol}?type=income&period=year&limit=10`)
+                    .then(r => r.ok ? r.json() : null)
+                    .then(res => {
+                        const rows = res?.data || res;
+                        if (Array.isArray(rows) && rows.length > 0) {
+                            // Extract EPS (isa23 = basic EPS) from income statement
+                            const epsHistory = rows
+                                .filter((row: any) => row.isa23 !== null && row.isa23 !== undefined)
+                                .map((row: any) => ({
+                                    year: row.year || row.year_report || 0,
+                                    eps: Number(row.isa23) || 0,
+                                }))
+                                .filter((item: any) => item.eps > 0)
+                                .sort((a: any, b: any) => a.year - b.year);
+                            if (epsHistory.length > 0) {
+                                setEpsHistory(epsHistory);
+                            }
                         }
                     })
                     .catch(() => {});
