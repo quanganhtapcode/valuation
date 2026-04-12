@@ -109,6 +109,7 @@ function NewsCard({ item }: { item: any }) {
       {/* Thumbnail */}
       <div className="flex-shrink-0 w-[88px] h-[64px] rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
         {img && !imgErr ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={img} alt="" className="w-full h-full object-cover" onError={() => setImgErr(true)} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

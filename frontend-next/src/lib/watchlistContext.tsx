@@ -23,6 +23,7 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         try {
             const saved = JSON.parse(localStorage.getItem('watchlist') || '[]');
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             if (Array.isArray(saved)) setWatchlist(saved);
         } catch { /* ignore corrupt data */ }
     }, []);

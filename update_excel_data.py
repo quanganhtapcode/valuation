@@ -41,7 +41,8 @@ TELEGRAM_ENV_FILE = os.path.join(BASE_DIR, ".telegram_uptime.env")
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Performance / schedule config
-MAX_WORKERS = int(os.getenv("EXCEL_MAX_WORKERS", "10"))
+DEFAULT_MAX_WORKERS = max(2, min(4, os.cpu_count() or 2))
+MAX_WORKERS = int(os.getenv("EXCEL_MAX_WORKERS", str(DEFAULT_MAX_WORKERS)))
 REQUEST_TIMEOUT = int(os.getenv("EXCEL_REQUEST_TIMEOUT", "15"))
 MAX_RETRIES = int(os.getenv("EXCEL_MAX_RETRIES", "3"))
 KEEP_LOCAL_BACKUP = os.getenv("EXCEL_KEEP_LOCAL_BACKUP", "false").lower() == "true"
@@ -140,6 +141,14 @@ def send_telegram_message(
     return payload.get("result") or {}
 
 
+def answer_callback_query(bot_token: str, callback_query_id: str, text: str = "") -> None:
+    requests.post(
+        f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery",
+        data={"callback_query_id": callback_query_id, "text": text},
+        timeout=10,
+    )
+
+
 def extract_bearer_token(text: str) -> str | None:
     if not text:
         return None
@@ -204,6 +213,31 @@ def wait_for_token_reply(
             if isinstance(update_id, int):
                 next_offset = max(next_offset, update_id + 1)
 
+            # Handle inline button click (callback_query)
+            callback = update.get("callback_query")
+            if isinstance(callback, dict) and not prompted_for_paste:
+                cb_chat_id = str(((callback.get("message") or {}).get("chat") or {}).get("id", ""))
+                cb_data = str(callback.get("data") or "")
+                cb_id = str(callback.get("id") or "")
+                print(f"[TG] callback_query: chat={cb_chat_id} data={cb_data!r} id={cb_id}")
+                if cb_chat_id == str(chat_id) and cb_data == "send_token":
+                    try:
+                        answer_callback_query(bot_token, cb_id, "✅ Vui lòng dán token vào chat")
+                    except Exception as exc:
+                        print(f"[TG] answerCallbackQuery failed (non-fatal): {exc}")
+                    try:
+                        send_telegram_message(
+                            bot_token,
+                            chat_id,
+                            "👇 Dán Bearer token VCI vào đây:",
+                            reply_markup={"force_reply": True, "input_field_placeholder": "eyJ0eXAiOiJKV1QiLCJhbGciOi..."},
+                        )
+                        print("[TG] ForceReply prompt sent OK")
+                    except Exception as exc:
+                        print(f"[TG] ForceReply send FAILED: {exc}")
+                    prompted_for_paste = True
+                    continue
+
             message = update.get("message") or update.get("edited_message")
             if not isinstance(message, dict):
                 continue
@@ -217,22 +251,6 @@ def wait_for_token_reply(
                 continue
 
             text = str(message.get("text") or "")
-            if text.strip().lower() == TELEGRAM_TOKEN_BUTTON_TEXT.lower() and not prompted_for_paste:
-                send_telegram_message(
-                    bot_token,
-                    chat_id,
-                    (
-                        "✅ Đã nhận yêu cầu gửi token.\n"
-                        "Vui lòng dán token ở tin nhắn kế tiếp theo 1 trong 3 dạng:\n"
-                        "1) Bearer <token>\n"
-                        "2) /token <token>\n"
-                        "3) <token>"
-                    ),
-                    reply_to_message_id=message.get("message_id") if isinstance(message.get("message_id"), int) else None,
-                )
-                prompted_for_paste = True
-                continue
-
             token = extract_bearer_token(text)
             if token:
                 message_id = message.get("message_id")
@@ -255,22 +273,15 @@ def obtain_bearer_token(state: dict[str, Any], force_request: bool = False) -> s
 
     sent_at = int(time.time())
     msg = (
-        "🔐 Weekly Excel update cần Bearer token VCI.\n"
-        "Bước 1: bấm nút '🔑 Gửi bearer token'.\n"
-        "Bước 2: dán token ở tin nhắn kế tiếp.\n"
-        "Dạng hợp lệ:\n"
-        "- Bearer <token>\n"
-        "- /token <token>\n"
-        "- <token>\n"
-        f"⏳ Script sẽ chờ tối đa {TOKEN_WAIT_MINUTES} phút."
+        "🔐 *Weekly Excel Update — VietCap*\n\n"
+        "Cần Bearer token để tải Excel tài chính cho ~1730 mã.\n\n"
+        "👇 Bấm nút bên dưới rồi dán token vào chat.\n"
+        f"⏳ Chờ tối đa {TOKEN_WAIT_MINUTES} phút."
     )
-    token_reply_keyboard = {
-        "keyboard": [[{"text": TELEGRAM_TOKEN_BUTTON_TEXT}]],
-        "resize_keyboard": True,
-        "one_time_keyboard": True,
-        "input_field_placeholder": "Dán Bearer token VCI tại đây",
+    inline_keyboard = {
+        "inline_keyboard": [[{"text": "🔑 Gửi Bearer Token", "callback_data": "send_token"}]],
     }
-    send_telegram_message(bot_token, chat_id, msg, reply_markup=token_reply_keyboard)
+    send_telegram_message(bot_token, chat_id, msg, reply_markup=inline_keyboard)
     state["last_token_prompt_at"] = utc_iso()
     save_state(state)
     print("✓ Sent Telegram token request")
@@ -621,6 +632,139 @@ def run_update_with_notifications(
     return rc
 
 
+def listen_mode() -> int:
+    """Run forever: whenever a bearer token is sent to Telegram, trigger the update job."""
+    bot_token, chat_id = get_telegram_config()
+    if not bot_token or not chat_id:
+        print("❌ Missing TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID")
+        return 1
+
+    print("👂 Listen mode started — paste a bearer token in Telegram anytime to trigger update.")
+    send_telegram_message(
+        bot_token,
+        chat_id,
+        "👂 Excel updater đang chờ lệnh.\nPaste bearer token VCI vào đây bất kỳ lúc nào để bắt đầu cập nhật.",
+    )
+
+    offset = 0
+    job_running = False
+
+    while True:
+        try:
+            resp = requests.get(
+                f"https://api.telegram.org/bot{bot_token}/getUpdates",
+                params={"timeout": 30, "offset": offset},
+                timeout=35,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            if not data.get("ok"):
+                print(f"[TG] getUpdates error: {data}")
+                time.sleep(5)
+                continue
+
+            for update in data.get("result", []):
+                update_id = update.get("update_id")
+                if isinstance(update_id, int):
+                    offset = max(offset, update_id + 1)
+
+                message = update.get("message") or update.get("edited_message")
+                if not isinstance(message, dict):
+                    continue
+
+                msg_chat_id = str((message.get("chat") or {}).get("id", ""))
+                if msg_chat_id != str(chat_id):
+                    continue
+
+                text = str(message.get("text") or "")
+                normalized_text = text.strip().lower()
+
+                # /status command
+                if normalized_text == "/status":
+                    state = load_state()
+                    last_ok = state.get("last_success_at", "chưa có")
+                    last_count = state.get("last_success_count", 0)
+                    status = "🔄 Đang chạy" if job_running else "💤 Chờ token"
+                    send_telegram_message(
+                        bot_token, chat_id,
+                        f"📊 Trạng thái: {status}\n✅ Lần chạy cuối: {last_ok}\n📁 Files upload: {last_count}",
+                    )
+                    continue
+
+                if normalized_text in {"/update", "bearer update"}:
+                    send_telegram_message(
+                        bot_token,
+                        chat_id,
+                        (
+                            "⚠️ Bạn chưa gửi token.\n"
+                            "Vui lòng gửi theo mẫu: Bearer <token>\n"
+                            "hoặc /token <token> để bắt đầu cập nhật."
+                        ),
+                    )
+                    continue
+
+                token = extract_bearer_token(text)
+                if not token:
+                    if normalized_text.startswith("bearer "):
+                        send_telegram_message(
+                            bot_token,
+                            chat_id,
+                            "⚠️ Bearer token không hợp lệ hoặc quá ngắn. Vui lòng gửi đầy đủ token.",
+                        )
+                    continue
+
+                if job_running:
+                    send_telegram_message(bot_token, chat_id, "⏳ Job đang chạy, vui lòng chờ xong rồi gửi token mới.")
+                    continue
+
+                # Got a token — run job in background thread
+                print(f"[TG] Token received, starting job...")
+                job_running = True
+                state = load_state()
+
+                def run_job(tkn: str, st: dict) -> None:
+                    global job_running
+                    try:
+                        print("[JOB] Validating token...", flush=True)
+                        is_valid, detail = validate_bearer_token(tkn)
+                        print(f"[JOB] Validation result: {is_valid} — {detail}", flush=True)
+                        if not is_valid:
+                            send_telegram_message(
+                                bot_token, chat_id,
+                                f"❌ Token không hợp lệ: {detail}\nVui lòng gửi token mới.",
+                            )
+                            return
+                        send_telegram_message(
+                            bot_token, chat_id,
+                            f"✅ Token hợp lệ ({detail})\n🚀 Bắt đầu cập nhật Excel...",
+                        )
+                        run_update_with_notifications(
+                            bearer_token=tkn,
+                            state=st,
+                            bot_token=bot_token,
+                            chat_id=chat_id,
+                        )
+                    except Exception as exc:
+                        print(f"[JOB] Exception: {exc}", flush=True)
+                        try:
+                            send_telegram_message(bot_token, chat_id, f"❌ Lỗi job: {exc}")
+                        except Exception:
+                            pass
+                    finally:
+                        job_running = False
+                        print("[JOB] Done.", flush=True)
+
+                t = threading.Thread(target=run_job, args=(token, state), daemon=True)
+                t.start()
+
+        except KeyboardInterrupt:
+            print("\n👋 Listen mode stopped.")
+            return 0
+        except Exception as exc:
+            print(f"[TG] Error in listen loop: {exc}")
+            time.sleep(10)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly VietCap Excel updater")
     parser.add_argument("--force-run", action="store_true", help="Run immediately, ignore 7-day interval")
@@ -634,7 +778,15 @@ def main() -> int:
         default="",
         help="Direct bearer token (highest priority; useful for manual runs)",
     )
+    parser.add_argument(
+        "--listen",
+        action="store_true",
+        help="Run forever: trigger update whenever a bearer token is sent to Telegram",
+    )
     args = parser.parse_args()
+
+    if args.listen:
+        return listen_mode()
 
     state = load_state()
     if not is_due(state, force_run=args.force_run):

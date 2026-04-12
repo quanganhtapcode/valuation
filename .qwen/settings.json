@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 *)",
+      "Bash(python3 *)",
+      "Bash(ls *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ]
+  },
+  "$version": 3
+}

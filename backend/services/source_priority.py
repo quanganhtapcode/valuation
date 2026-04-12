@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 VCI_METRICS_SOURCE = "vci_screening.sqlite"
 VCI_STATS_FINANCIAL_SOURCE = "vci_stats_financial.sqlite"
 VCI_RATIO_DAILY_SOURCE = "vci_ratio_daily.sqlite"
-SOURCE_PRIORITY_LABEL = "vci_ratio_daily -> vci_stats_financial -> vci_screening -> vietnam_stocks -> vnstock"
+SOURCE_PRIORITY_LABEL = "vci_ratio_daily -> vci_stats_financial -> vci_screening -> stocks_optimized -> vnstock"
 
 _LOCAL_CACHE_NAMESPACE = "source_priority"
 _LOCAL_CACHE_TTL_SECONDS = 600
@@ -550,7 +550,7 @@ def apply_source_priority(
     out = dict(data)
     out.setdefault("source_priority", SOURCE_PRIORITY_LABEL)
 
-    # Remove self-calculated PE/PB from overview (vietnam_stocks.db) — use VCI sources only
+    # Remove self-calculated PE/PB from overview (stocks_optimized.db) — use VCI sources only
     out["pe"] = None
     out["pb"] = None
     out["pe_ratio"] = None
@@ -613,7 +613,7 @@ def apply_peer_source_priority(
     out = dict(peer)
     out["source_priority"] = SOURCE_PRIORITY_LABEL
 
-    # Remove self-calculated PE/PB from overview (vietnam_stocks.db) — use VCI sources only
+    # Remove self-calculated PE/PB from overview (stocks_optimized.db) — use VCI sources only
     out["pe"] = None
     out["pb"] = None
 

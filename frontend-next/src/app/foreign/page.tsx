@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
     BarList,
     Card,
@@ -41,21 +40,6 @@ function fmtBillionVi(val: number) {
 
 function fmtMillionVi(val: number) {
     return `${(val / 1e6).toFixed(1)} triệu`;
-}
-
-function StockDot({ symbol }: { symbol: string }) {
-    return (
-        <div className="w-6 h-6 rounded bg-white border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden shrink-0">
-            <img
-                src={siteConfig.stockLogoUrl(symbol)}
-                alt={symbol}
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                }}
-            />
-        </div>
-    );
 }
 
 function toCumulative(points: ForeignVolumePoint[]) {
@@ -203,6 +187,7 @@ function TopBarChart({
         href: `/stock/${item.Symbol}`,
         icon: () => (
             <div className="w-5 h-5 rounded bg-white border border-slate-200 dark:border-slate-600 flex items-center justify-center overflow-hidden shrink-0 mr-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={siteConfig.stockLogoUrl(item.Symbol)}
                     alt={item.Symbol}
@@ -302,6 +287,7 @@ export default function ForeignPage() {
     }, []);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadAll();
         const timer = setInterval(loadAll, REFRESH_MS);
         return () => clearInterval(timer);

@@ -236,19 +236,26 @@ export default function StockDetailPage() {
                 fetch(`/api/stock/news/${symbol}`)
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
+                        console.log('[News API] Response:', res);
                         // API returns {success: true, data: [...]}
                         const newsData = res?.data || res;
-                        if (Array.isArray(newsData)) {
+                        console.log('[News API] Extracted data:', newsData, 'isArray:', Array.isArray(newsData));
+                        if (Array.isArray(newsData) && newsData.length > 0) {
                             setNews(newsData.slice(0, 6));
+                            console.log('[News API] Set news:', newsData.slice(0, 6).length, 'items');
+                        } else {
+                            console.warn('[News API] No news data or invalid format');
                         }
                     })
-                    .catch(() => {});
+                    .catch(err => console.error('[News API] Error:', err));
 
                 // Fetch EPS history from income statement SQLite
                 fetch(`/api/financial-report/${symbol}?type=income&period=year&limit=10`)
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
+                        console.log('[EPS API] Response:', res);
                         const rows = res?.data || res;
+                        console.log('[EPS API] Rows:', Array.isArray(rows) ? rows.length : 'not array');
                         if (Array.isArray(rows) && rows.length > 0) {
                             // Extract EPS (isa23 = basic EPS) from income statement
                             const epsHistory = rows
@@ -259,12 +266,14 @@ export default function StockDetailPage() {
                                 }))
                                 .filter((item: any) => item.eps > 0)
                                 .sort((a: any, b: any) => a.year - b.year);
+                            console.log('[EPS API] Extracted EPS history:', epsHistory);
                             if (epsHistory.length > 0) {
                                 setEpsHistory(epsHistory);
+                                console.log('[EPS API] Set EPS history:', epsHistory.length, 'items');
                             }
                         }
                     })
-                    .catch(() => {});
+                    .catch(err => console.error('[EPS API] Error:', err));
 
                 // PHASE 2: Apply real-time price when available
                 const priceRes = await realtimePricePromise;

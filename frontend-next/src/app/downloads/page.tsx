@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import JSZip from 'jszip';
 import ExcelJS from 'exceljs';
@@ -284,6 +284,22 @@ function valueToString(value: unknown): string {
     return JSON.stringify(value);
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function flattenObjectWithoutArrays(input: Record<string, unknown>, prefix = ''): FlatRow {
+    const out: FlatRow = {};
+    for (const [key, value] of Object.entries(input)) {
+        const k = prefix ? `${prefix}.${key}` : key;
+        if (Array.isArray(value)) continue;
+        if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') { out[k] = value; continue; }
+        if (isObjectRecord(value)) { Object.assign(out, flattenObjectWithoutArrays(value, k)); continue; }
+        out[k] = String(value);
+    }
+    return out;
+}
+
 function flattenObject(input: Record<string, unknown>, prefix = ''): FlatRow {
     const out: FlatRow = {};
     for (const [key, value] of Object.entries(input)) {
@@ -296,14 +312,75 @@ function flattenObject(input: Record<string, unknown>, prefix = ''): FlatRow {
     return out;
 }
 
+function expandSeriesArrayToRows(items: unknown[]): FlatRow[] | null {
+    if (!items.every(isObjectRecord)) return null;
+    if (!items.every(item => Array.isArray(item.data))) return null;
+
+    const rows: FlatRow[] = [];
+    for (const item of items) {
+        const { data, ...meta } = item;
+        const metaFlat = flattenObject(meta);
+        const points = Array.isArray(data) ? data : [];
+        if (points.length === 0) {
+            rows.push(metaFlat);
+            continue;
+        }
+        for (const point of points) {
+            if (isObjectRecord(point)) {
+                rows.push({ ...metaFlat, ...flattenObject(point) });
+            } else {
+                rows.push({ ...metaFlat, value: valueToString(point) });
+            }
+        }
+    }
+    return rows;
+}
+
+function expandNestedArrayFieldToRows(items: unknown[]): FlatRow[] | null {
+    if (!items.every(isObjectRecord)) return null;
+    const rows: FlatRow[] = [];
+    let hasExpanded = false;
+
+    for (const item of items) {
+        const arrayEntries = Object.entries(item).filter(([, value]) => Array.isArray(value));
+        if (arrayEntries.length !== 1) {
+            rows.push(flattenObject(item));
+            continue;
+        }
+
+        const [arrayKey, nestedItems] = arrayEntries[0] as [string, unknown[]];
+        const baseRow = flattenObjectWithoutArrays(item);
+
+        if (nestedItems.length === 0) {
+            rows.push(baseRow);
+            continue;
+        }
+
+        hasExpanded = true;
+        for (const nested of nestedItems) {
+            if (isObjectRecord(nested)) {
+                rows.push({ ...baseRow, ...flattenObject(nested) });
+            } else {
+                rows.push({ ...baseRow, [arrayKey]: valueToString(nested) });
+            }
+        }
+    }
+
+    return hasExpanded ? rows : null;
+}
+
 function normalizeToRows(payload: unknown): FlatRow[] {
     if (Array.isArray(payload)) {
+        const expanded = expandSeriesArrayToRows(payload);
+        if (expanded) return expanded;
+        const expandedNested = expandNestedArrayFieldToRows(payload);
+        if (expandedNested) return expandedNested;
         return payload.map((item, idx) => {
-            if (item && typeof item === 'object' && !Array.isArray(item)) return flattenObject(item as Record<string, unknown>);
+            if (isObjectRecord(item)) return flattenObject(item);
             return { value: valueToString(item), index: idx };
         });
     }
-    if (payload && typeof payload === 'object') {
+    if (isObjectRecord(payload)) {
         const obj = payload as Record<string, unknown>;
         // Look for main array key
         const arrayKey = DATE_FIELD_CANDIDATES
@@ -311,8 +388,12 @@ function normalizeToRows(payload: unknown): FlatRow[] {
             .find(Boolean)
             || Object.keys(obj).find(k => Array.isArray(obj[k]) && (obj[k] as unknown[]).length > 0);
         if (arrayKey && Array.isArray(obj[arrayKey])) {
+            const expanded = expandSeriesArrayToRows(obj[arrayKey] as unknown[]);
+            if (expanded) return expanded;
+            const expandedNested = expandNestedArrayFieldToRows(obj[arrayKey] as unknown[]);
+            if (expandedNested) return expandedNested;
             return (obj[arrayKey] as unknown[]).map((item, idx) => {
-                if (item && typeof item === 'object' && !Array.isArray(item)) return flattenObject(item as Record<string, unknown>);
+                if (isObjectRecord(item)) return flattenObject(item);
                 return { value: valueToString(item), index: idx };
             });
         }

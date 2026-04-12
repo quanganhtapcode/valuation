@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import OverviewClient from './OverviewClient';
 import {
-  INDEX_MAP,
   NewsItem,
   TopMoverItem,
   GoldPriceItem,

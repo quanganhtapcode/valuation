@@ -57,7 +57,7 @@ const MODEL_META: Record<ModelKey, { nameVi: string; formula: string; tremorColo
     },
     fcff: {
         nameVi: 'Dòng tiền toàn DN',
-        formula: 'FCFE + Interest×(1−t)',
+        formula: 'NI + D&A + Interest×(1−t) − ΔWC − CapEx',
         tremorColor: 'indigo',
     },
     justified_pe: {

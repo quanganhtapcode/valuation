@@ -2,10 +2,10 @@
 /health endpoint — kiểm tra nhanh trạng thái toàn bộ hệ thống.
 
 Checks:
-  - vietnam_stocks.db  : tồn tại, số rows, dữ liệu mới nhất
-  - fetch_sqlite/       : index_history, screening, news, standouts freshness
-  - logs/pipeline.log   : lần chạy cuối + kết quả
-  - systemd timer        : lần trigger cuối / tiếp theo (đọc qua subprocess)
+  - stocks_optimized.db : tồn tại, số rows, dữ liệu mới nhất
+  - fetch_sqlite/        : index_history, screening, news, standouts freshness
+  - logs/pipeline.log    : lần chạy cuối + kết quả
+  - systemd timer         : lần trigger cuối / tiếp theo (đọc qua subprocess)
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]   # project root
 
 
 def _resolve_db() -> Path:
-    """Tìm vietnam_stocks.db theo logic của backend/db_path.py."""
+    """Tìm stocks_optimized.db theo logic của backend/db_path.py."""
     from backend.db_path import resolve_stocks_db_path
     return Path(resolve_stocks_db_path())
 

@@ -24,6 +24,8 @@ const REALTIME_PATH_PREFIXES = [
     'current-price/',
     'price/',
     'batch-price',
+    'stock/excel/',
+    'download/',
     'market/vci-indices',
     'market/top-movers',
     'market/heatmap',

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import {
     Card,
     List,
@@ -28,8 +29,6 @@ interface TopMoversProps {
     maxItems?: number;
 }
 
-const LOGO_BASE_URL = '/logos/';
-
 type Direction = 'up' | 'unchanged' | 'down';
 
 function vietcapArrowUrls(direction: Direction): { light: string; dark: string } {
@@ -56,8 +55,8 @@ function TrendIcon({ direction, alt }: { direction: Direction; alt: string }) {
     const icon = vietcapArrowUrls(direction);
     return (
         <span className="inline-flex items-center">
-            <img src={icon.light} alt={alt} className="block dark:hidden size-3" loading="lazy" decoding="async" />
-            <img src={icon.dark} alt={alt} className="hidden dark:block size-3" loading="lazy" decoding="async" />
+            <Image src={icon.light} alt={alt} width={12} height={12} className="block dark:hidden size-3" unoptimized />
+            <Image src={icon.dark} alt={alt} width={12} height={12} className="hidden dark:block size-3" unoptimized />
         </span>
     );
 }
@@ -105,13 +104,12 @@ export default function TopMovers({
                 ) : items.length > 0 ? (
                     <List className="mt-1">
                         {items.slice(0, maxItems).map((item) => {
-                            const isUp = item.ChangePricePercent >= 0;
-
                             return (
                                 <ListItem key={item.Symbol} className="group border-b border-tremor-border/5 dark:border-dark-tremor-border/5 last:border-0 hover:bg-tremor-background-muted/40 transition-colors px-1 -mx-1">
                                     <Link href={`/stock/${item.Symbol}`} className="flex items-center w-full py-2">
                                         {/* Ticker Logo */}
                                         <div className="relative shrink-0 h-8 w-8 flex items-center justify-center bg-white dark:bg-gray-900 rounded-lg overflow-hidden border border-tremor-border/10 dark:border-dark-tremor-border/10 group-hover:border-tremor-brand/30 transition-colors">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={siteConfig.stockLogoUrl(item.Symbol)}
                                                 alt={item.Symbol}

@@ -110,7 +110,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                                 year: 'numeric',
                                 timeZone: 'Asia/Ho_Chi_Minh'
                             });
-                        } catch (e) {
+                        } catch {
                             return updatedAt;
                         }
                     })()} ({sourceLabel})

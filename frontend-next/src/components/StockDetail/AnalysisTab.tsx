@@ -138,14 +138,16 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
             setMedianPe(toNumberOrNull(initialPeers.medianPe));
             if (peHistory.length > 0) setLoading(false);
         }
-    }, [initialPeers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialPeers, peHistory.length, peers.length]);
 
     useEffect(() => {
         if (initialHistory && peHistory.length === 0) {
             setPeHistory(topeHistory(initialHistory));
             if (peers.length > 0) setLoading(false);
         }
-    }, [initialHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialHistory, peHistory.length, peers.length]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -175,7 +177,8 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
             }
         };
         fetchData();
-    }, [symbol, sector, isLoading, initialHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [symbol, sector, isLoading, initialHistory, peHistory.length, peers, medianPe]);
 
     const metricExtremes = useMemo(() => {
         const metricKeys: MetricKey[] = ['marketCap', 'pe', 'pb', 'roe', 'roa', 'netMargin', 'profitGrowth'];

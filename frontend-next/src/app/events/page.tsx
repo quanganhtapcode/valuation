@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { API } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
@@ -23,10 +24,6 @@ interface EventItem {
 type Category = 'ALL' | EventItem['category'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function toYYYYMMDD(date: Date): string {
-    return date.toISOString().slice(0, 10).replace(/-/g, '');
-}
 
 function toInputValue(date: Date): string {
     return date.toISOString().slice(0, 10); // YYYY-MM-DD for input[type=date]
@@ -87,8 +84,10 @@ function StockLogo({ ticker }: { ticker: string }) {
         </div>
     );
     return (
-        <img src={siteConfig.stockLogoUrl(ticker)} alt={ticker}
+        <Image src={siteConfig.stockLogoUrl(ticker)} alt={ticker}
+            width={28} height={28}
             className="w-7 h-7 rounded-md object-contain bg-white border border-slate-100 dark:border-slate-700 p-0.5"
+            unoptimized
             onError={() => setErr(true)} />
     );
 }
@@ -112,7 +111,7 @@ export default function EventsPage() {
             const res = await fetch(API.MARKET_EVENTS(date));
             if (!res.ok) throw new Error('fetch failed');
             setEvents(await res.json());
-        } catch (_) {
+        } catch {
             setError(true);
             setEvents([]);
         } finally {
