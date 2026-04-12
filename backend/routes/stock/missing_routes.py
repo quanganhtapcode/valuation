@@ -15,11 +15,13 @@ Endpoints added:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sqlite3
 import time as _time
 from datetime import datetime
+from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
@@ -199,7 +201,7 @@ def register(stock_bp: Blueprint) -> None:
 
         report_type = request.args.get("type", "income").lower()
         period = request.args.get("period", "quarter").lower()
-        limit = min(20, max(1, int(request.args.get("limit", 8))))
+        limit = min(60, max(1, int(request.args.get("limit", 8))))
 
         cache_key = f"fin_report_{clean_symbol}_{report_type}_{period}_{limit}"
         cached = _cache_get(cache_key)
@@ -223,20 +225,67 @@ def register(stock_bp: Blueprint) -> None:
 
         # Prefer VCI financial-statement SQLite for statement tabs.
         # Returns rows keyed by VCI field codes (e.g. isa1/bsa1/cfa1).
+        _WIDE_TABLE_MAP = {
+            "income": "income_statement",
+            "balance": "balance_sheet",
+            "cashflow": "cash_flow",
+            "note": "note",
+        }
+        _LONG_SECTION_MAP = {
+            "income": "INCOME_STATEMENT",
+            "balance": "BALANCE_SHEET",
+            "cashflow": "CASH_FLOW",
+            "note": "NOTE",
+        }
+        _WIDE_EXCLUDE_COLS = frozenset({
+            "ticker", "period_kind", "length_report",
+            "public_date", "create_date", "update_date", "fetched_at",
+        })
         if report_type in ("income", "balance", "cashflow", "note"):
             fs_db_path = resolve_vci_financial_statement_db_path()
-            section_map = {
-                "income": "INCOME_STATEMENT",
-                "balance": "BALANCE_SHEET",
-                "cashflow": "CASH_FLOW",
-                "note": "NOTE",
-            }
-            section = section_map[report_type]
             if fs_db_path and os.path.exists(fs_db_path):
                 try:
                     conn = sqlite3.connect(fs_db_path)
                     conn.row_factory = sqlite3.Row
                     period_kind = "YEAR" if period == "year" else "QUARTER"
+
+                    # Detect schema: wide format has per-section tables; long format has statement_values
+                    wide_table = _WIDE_TABLE_MAP.get(report_type)
+                    has_wide = bool(wide_table and conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                        (wide_table,),
+                    ).fetchone())
+
+                    if has_wide:
+                        rows = conn.execute(
+                            f"""
+                            SELECT * FROM {wide_table}
+                            WHERE ticker = ? AND period_kind = ?
+                            ORDER BY year_report DESC, quarter_report DESC
+                            LIMIT ?
+                            """,
+                            (clean_symbol, period_kind, limit),
+                        ).fetchall()
+                        conn.close()
+                        if rows:
+                            data: list[dict] = []
+                            for r in rows:
+                                rd = dict(r)
+                                out: dict = {
+                                    "year": rd.get("year_report"),
+                                    "quarter": rd.get("quarter_report", 0),
+                                }
+                                for k, v in rd.items():
+                                    if k not in _WIDE_EXCLUDE_COLS:
+                                        out[k] = v
+                                data.append(out)
+                            _cache_set(cache_key, data)
+                            return jsonify(data)
+                        _cache_set(cache_key, [])
+                        return jsonify([])
+
+                    # Long format fallback (statement_periods + statement_values)
+                    section = _LONG_SECTION_MAP[report_type]
                     period_rows = conn.execute(
                         """
                         SELECT year_report, quarter_report
@@ -247,9 +296,8 @@ def register(stock_bp: Blueprint) -> None:
                         """,
                         (clean_symbol, section, period_kind, limit),
                     ).fetchall()
-
                     if period_rows:
-                        data: list[dict] = []
+                        data = []
                         for prow in period_rows:
                             y = int(prow["year_report"])
                             q = int(prow["quarter_report"] or 0)
@@ -345,9 +393,55 @@ def register(stock_bp: Blueprint) -> None:
         try:
             conn = sqlite3.connect(fs_db_path)
             conn.row_factory = sqlite3.Row
+
+            # Check if wide-format DB (has no statement_metrics table — use JSON instead)
+            has_metrics_table = bool(conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='statement_metrics'"
+            ).fetchone())
+            conn.close()
+
+            if not has_metrics_table:
+                # Wide-format DB: read from bundled JSON file
+                json_path = Path(fs_db_path).parent / "vci_financial_statement_metrics_hose_hnx.json"
+                if not json_path.exists():
+                    return jsonify({"data": [], "field_map": {}})
+                with open(json_path, encoding="utf-8") as f:
+                    metrics_json: dict = json.load(f)
+                items = metrics_json.get(section, [])
+                data: list[dict] = []
+                field_map: dict[str, str] = {}
+                field_map_en: dict[str, str] = {}
+                for m in items:
+                    field = str(m.get("field", "")).strip().lower()
+                    if not field:
+                        continue
+                    title_vi = str(m.get("titleVi", "") or "").strip()
+                    title_en = str(m.get("titleEn", "") or "").strip()
+                    name = str(m.get("name", "") or "").strip()
+                    label_vi = title_vi or name or field.upper()
+                    label_en = title_en or name or field.upper()
+                    parent_raw = m.get("parent")
+                    parent = str(parent_raw).strip().lower() if parent_raw else None
+                    level = m.get("level")
+                    data.append({
+                        "field": field,
+                        "label": label_vi,
+                        "label_en": label_en,
+                        "parent": parent,
+                        "level": level,
+                    })
+                    field_map[field] = label_vi
+                    field_map_en[field] = label_en
+                result = {"data": data, "field_map": field_map, "field_map_en": field_map_en}
+                _cache_set(cache_key, result)
+                return jsonify(result)
+
+            # Long-format DB: read from statement_metrics table
+            conn = sqlite3.connect(fs_db_path)
+            conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 """
-                SELECT field, title_vi, title_en, name
+                SELECT field, title_vi, title_en, name, parent, level
                 FROM statement_metrics
                 WHERE section = ?
                 ORDER BY field
@@ -356,24 +450,29 @@ def register(stock_bp: Blueprint) -> None:
             ).fetchall()
             conn.close()
 
-            data: list[dict] = []
-            field_map: dict[str, str] = {}
+            data = []
+            field_map = {}
+            field_map_en = {}
             for r in rows:
                 field = str(r["field"] or "").strip().lower()
                 if not field:
                     continue
-                label = (
-                    str(r["title_vi"] or "").strip()
-                    or str(r["title_en"] or "").strip()
-                    or str(r["name"] or "").strip()
-                    or field.upper()
-                )
-                if label.upper() == field.upper():
-                    label = _FALLBACK_METRIC_LABELS.get(field, label)
-                data.append({"field": field, "label": label})
-                field_map[field] = label
+                title_vi = str(r["title_vi"] or "").strip()
+                title_en = str(r["title_en"] or "").strip()
+                name = str(r["name"] or "").strip()
+                label_vi = title_vi or name or field.upper()
+                label_en = title_en or name or field.upper()
+                if label_vi.upper() == field.upper():
+                    label_vi = _FALLBACK_METRIC_LABELS.get(field, label_vi)
+                if label_en.upper() == field.upper():
+                    label_en = _FALLBACK_METRIC_LABELS.get(field, label_en)
+                parent = str(r["parent"] or "").strip().lower() or None
+                level = int(r["level"] or 0) if r["level"] is not None else None
+                data.append({"field": field, "label": label_vi, "label_en": label_en, "parent": parent, "level": level})
+                field_map[field] = label_vi
+                field_map_en[field] = label_en
 
-            result = {"data": data, "field_map": field_map}
+            result = {"data": data, "field_map": field_map, "field_map_en": field_map_en}
             _cache_set(cache_key, result)
             return jsonify(result)
         except Exception as exc:

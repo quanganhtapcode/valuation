@@ -134,20 +134,10 @@ export default function StockDetailPage() {
         });
     }, [activeTab]);
 
-    const handleDownloadExcel = async () => {
-        try {
-            const res = await fetch(`/api/stock/excel/${symbol}`);
-            const data = await res.json();
-            if (data.success && data.url) {
-                window.open(data.url, '_blank');
-            } else {
-                alert('Không tìm thấy file dữ liệu Excel cho mã này.');
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Lỗi tải file.');
-        }
-    };
+    const handleDownloadExcel = useCallback(() => {
+        if (!symbol) return;
+        window.location.assign(`/api/download/${encodeURIComponent(symbol)}?proxy=1`);
+    }, [symbol]);
 
     // 1. Fetch Static Data & Parallel Pre-fetching
     useEffect(() => {
@@ -559,34 +549,6 @@ export default function StockDetailPage() {
                 {/* Financials Tab - Lazy & Persistent */}
                 {visitedTabs.has('financials') && (
                     <div className={activeTab === 'financials' ? 'block' : 'hidden'}>
-                        <div className="mb-4 flex items-center justify-between gap-4">
-                            <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
-                                Financial Reports
-                            </h3>
-                            <div className="flex items-center gap-2">
-                                <Select
-                                    value={financialPeriod}
-                                    onValueChange={(val) => setFinancialPeriod(val as 'quarter' | 'year')}
-                                    className="w-32"
-                                >
-                                    <SelectItem value="quarter">Quarter</SelectItem>
-                                    <SelectItem value="year">Year</SelectItem>
-                                </Select>
-                                <button
-                                    type="button"
-                                    onClick={handleDownloadExcel}
-                                    className="inline-flex items-center justify-center gap-2 rounded-tremor-small border border-tremor-border bg-white px-3 py-2 text-tremor-default font-medium text-tremor-content-strong shadow-sm hover:bg-tremor-background-muted dark:border-dark-tremor-border dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong"
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                        <polyline points="7 10 12 15 17 10" />
-                                        <line x1="12" y1="15" x2="12" y2="3" />
-                                    </svg>
-                                    <span className="hidden sm:inline">Export Excel</span>
-                                    <span className="sm:hidden">Excel</span>
-                                </button>
-                            </div>
-                        </div>
                         <FinancialsTab
                             symbol={symbol}
                             period={financialPeriod}
@@ -594,6 +556,7 @@ export default function StockDetailPage() {
                             initialChartData={prefetchedChartData}
                             initialOverviewData={rawOverviewData}
                             isLoading={isHistoryLoading}
+                            onDownloadExcel={handleDownloadExcel}
                         />
                     </div>
                 )}
