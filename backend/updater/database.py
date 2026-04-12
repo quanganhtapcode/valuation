@@ -95,20 +95,6 @@ CREATE_TABLES_SQL = {
             status TEXT
         )
     ''',
-    'stock_price_history': '''
-        CREATE TABLE IF NOT EXISTS stock_price_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT NOT NULL,
-            time DATE NOT NULL,
-            open REAL,
-            high REAL,
-            low REAL,
-            close REAL,
-            volume INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(symbol, time)
-        )
-    ''',
     'company_overview': '''
         CREATE TABLE IF NOT EXISTS company_overview (
             symbol TEXT PRIMARY KEY,
@@ -134,33 +120,6 @@ CREATE_TABLES_SQL = {
             quantity INTEGER,
             share_own_percent REAL,
             update_date TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (symbol) REFERENCES stocks(ticker)
-        )
-    ''',
-    'officers': '''
-        CREATE TABLE IF NOT EXISTS officers (
-            id TEXT PRIMARY KEY,
-            symbol TEXT,
-            officer_name TEXT,
-            officer_position TEXT,
-            position_short_name TEXT,
-            update_date TEXT,
-            officer_own_percent REAL,
-            quantity INTEGER,
-            status TEXT DEFAULT 'working',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (symbol) REFERENCES stocks(ticker)
-        )
-    ''',
-    'subsidiaries': '''
-        CREATE TABLE IF NOT EXISTS subsidiaries (
-            id TEXT PRIMARY KEY,
-            symbol TEXT,
-            sub_organ_code TEXT,
-            ownership_percent REAL,
-            organ_name TEXT,
-            type TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (symbol) REFERENCES stocks(ticker)
         )
@@ -401,8 +360,6 @@ CREATE_INDEXES_SQL = [
     'CREATE INDEX IF NOT EXISTS idx_stocks_ticker ON stocks(ticker)',
     'CREATE INDEX IF NOT EXISTS idx_stock_exchange_ticker ON stock_exchange(ticker)',
     'CREATE INDEX IF NOT EXISTS idx_stock_exchange_exchange ON stock_exchange(exchange)',
-    'CREATE INDEX IF NOT EXISTS idx_price_history_symbol ON stock_price_history(symbol)',
-    'CREATE INDEX IF NOT EXISTS idx_price_history_time ON stock_price_history(time)',
     'CREATE INDEX IF NOT EXISTS idx_balance_sheet_symbol ON balance_sheet(symbol)',
     'CREATE INDEX IF NOT EXISTS idx_income_statement_symbol ON income_statement(symbol)',
     'CREATE INDEX IF NOT EXISTS idx_cash_flow_symbol ON cash_flow_statement(symbol)',
@@ -427,13 +384,12 @@ DEFAULT_INDICES = [
 
 def get_default_db_path() -> str:
     """Return the resolved database path."""
-    env_path = os.environ.get("VIETNAM_STOCK_DB_PATH")
+    env_path = os.environ.get("VIETNAM_STOCK_DB_PATH") or os.environ.get("STOCKS_DB_PATH")
     if env_path:
         return env_path
-    
-    # Fallback to local file in project root
+
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.path.join(base_dir, "vietnam_stocks.db")
+    return os.path.join(base_dir, "stocks_optimized.db")
 
 # ============================================================================
 # DATABASE CLASS

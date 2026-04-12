@@ -537,43 +537,6 @@ class CompanyUpdater(BaseUpdater):
 
         return count
 
-    def _upsert_officers(self, symbol: str, df: pd.DataFrame) -> int:
-        if df is None or df.empty:
-            return 0
-
-        count = 0
-        for _, row in df.iterrows():
-            name = str(row.get('officer_name') or '').strip()
-            if not name:
-                continue
-
-            update_date = str(row.get('update_date') or '').strip() or datetime.now().strftime('%Y-%m-%d')
-            raw_id = str(row.get('id') or '').strip()
-            rec_id = raw_id or f"{symbol}_of_{name}_{update_date}"
-
-            self.conn.execute(
-                '''
-                INSERT OR REPLACE INTO officers
-                    (id, symbol, officer_name, officer_position, position_short_name, update_date,
-                     officer_own_percent, quantity, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    rec_id,
-                    symbol,
-                    name,
-                    str(row.get('officer_position') or '').strip(),
-                    str(row.get('position_short_name') or '').strip(),
-                    update_date,
-                    self._to_float(row.get('officer_own_percent')),
-                    self._to_int(row.get('quantity')),
-                    'working',
-                ),
-            )
-            count += 1
-
-        return count
-
     def update_overview(self, symbol: str) -> int:
         if not self.vnstock:
             return 0
@@ -612,13 +575,6 @@ class CompanyUpdater(BaseUpdater):
                 changed += self._upsert_shareholders(symbol, sh_df)
             except Exception as sh_exc:
                 logger.warning(f"shareholders update failed for {symbol}: {sh_exc}")
-
-            try:
-                self.limiter.check()
-                of_df = stock.company.officers()
-                changed += self._upsert_officers(symbol, of_df)
-            except Exception as of_exc:
-                logger.warning(f"officers update failed for {symbol}: {of_exc}")
 
             self.conn.commit()
             return 1 if changed > 0 else 0

@@ -25,6 +25,12 @@ type StatementWindow = '4' | '8' | '12' | 'all';
 type MetricMeta = { label: string; parent?: string | null; level?: number | null };
 const PLUS_ICON_URL = 'https://trading.vietcap.com.vn/vietcap-iq/assets/images/plus-grid2e52f954fdf3abbd8683.svg';
 const MINUS_ICON_URL = 'https://trading.vietcap.com.vn/vietcap-iq/assets/images/minus-grid0cc75a8b4abe6c3b23c9.svg';
+
+// Growth type is derived automatically from displayMode:
+//   annual → YoY, quarterly → QoQ, TTM → no growth
+function getGrowthType(mode: DisplayMode): GrowthType {
+    return mode === 'quarterly' ? 'qoq' : 'yoy';
+}
 const NORMAL_INCOME_PRESET = [
     ['total_revenues', 'Total Revenues'],
     ['cost_of_sales', 'Cost of Sales'],
@@ -984,7 +990,7 @@ function buildKeyStatsRows(
         { key: 'sep1', label: '', kind: 'separator' },
         { key: 'sect_income', label: 'Income Statement', kind: 'section' },
         { key: 'revenue', label: 'Revenue', kind: 'value', values: revArr },
-        { key: 'revenue_growth', label: `Revenue % Growth (${growthType.toUpperCase()})`, kind: 'growth', growths: revGrowth },
+        { key: 'revenue_growth', label: 'Revenue % Growth', kind: 'growth', growths: revGrowth },
         { key: 'gross_profit', label: 'Gross Profit', kind: 'value', values: gpArr },
         { key: 'gross_margin', label: 'Gross Profit % Margin', kind: 'margin', margins: gpMargin },
         { key: 'ebitda', label: 'EBITDA', kind: 'value', values: ebitdaArr },
@@ -992,7 +998,7 @@ function buildKeyStatsRows(
         { key: 'net_income', label: 'Net Income', kind: 'value', values: niArr },
         { key: 'net_margin', label: 'Net Income % Margin', kind: 'margin', margins: niMargin },
         { key: 'diluted_eps', label: 'Diluted EPS', kind: 'value', isEps: true, values: epsArr },
-        { key: 'eps_growth', label: `Diluted EPS % Growth (${growthType.toUpperCase()})`, kind: 'growth', growths: epsGrowth },
+        { key: 'eps_growth', label: 'Diluted EPS % Growth', kind: 'growth', growths: epsGrowth },
         { key: 'sep2', label: '', kind: 'separator' },
         { key: 'sect_cf', label: 'Cash Flow', kind: 'section' },
         { key: 'ocf', label: 'Operating Cash Flow', kind: 'value', values: ocfArr },
@@ -1009,8 +1015,6 @@ function KeyStatsTable({
     cashflowRows,
     overviewData,
     displayMode,
-    growthType,
-    setGrowthType,
     statementWindow,
     reportLoading,
 }: {
@@ -1019,8 +1023,6 @@ function KeyStatsTable({
     cashflowRows: Record<string, any>[];
     overviewData: any;
     displayMode: DisplayMode;
-    growthType: GrowthType;
-    setGrowthType: (g: GrowthType) => void;
     statementWindow: StatementWindow;
     reportLoading: boolean;
 }) {
@@ -1028,6 +1030,7 @@ function KeyStatsTable({
         return <div className="p-4 text-sm text-tremor-content dark:text-dark-tremor-content">Loading data...</div>;
     }
 
+    const growthType = getGrowthType(displayMode);
     const allIncome = [...incomeRows].sort((a, b) => periodSortKey(a) - periodSortKey(b)); // asc for YoY lookup
     const sortedIncome = [...incomeRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
     const sortedBalance = [...balanceRows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
@@ -1065,26 +1068,6 @@ function KeyStatsTable({
 
     return (
         <div>
-            {/* Growth type toggle */}
-            <div className="flex items-center gap-2 border-b border-tremor-border px-4 py-2 dark:border-dark-tremor-border">
-                <span className="text-xs text-tremor-content dark:text-dark-tremor-content">% Growth:</span>
-                {(['yoy', 'qoq'] as GrowthType[]).map(g => (
-                    <button
-                        key={g}
-                        type="button"
-                        onClick={() => setGrowthType(g)}
-                        className={cx(
-                            'rounded px-2.5 py-1 text-xs font-medium transition-colors',
-                            growthType === g
-                                ? 'bg-tremor-brand text-white dark:bg-dark-tremor-brand'
-                                : 'bg-gray-100 text-tremor-content hover:bg-gray-200 dark:bg-gray-800 dark:text-dark-tremor-content dark:hover:bg-gray-700',
-                        )}
-                    >
-                        {g.toUpperCase()}
-                    </button>
-                ))}
-            </div>
-
             {/* Desktop table */}
             <div className="hidden md:block w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 <table className="min-w-full w-max border-collapse text-sm">
@@ -1271,7 +1254,6 @@ export default function FinancialsTab({
         note: {},
     });
     const [statementWindow, setStatementWindow] = useState<StatementWindow>('4');
-    const [growthType, setGrowthType] = useState<GrowthType>('yoy');
     const [mobilePeriodIndex, setMobilePeriodIndex] = useState(0);
     const [collapsedRows, setCollapsedRows] = useState<Set<string>>(new Set());
     const isInitialMount = useRef(true);
@@ -1637,8 +1619,6 @@ export default function FinancialsTab({
                                 cashflowRows={reportData.cashflow}
                                 overviewData={overviewData}
                                 displayMode={displayMode}
-                                growthType={growthType}
-                                setGrowthType={setGrowthType}
                                 statementWindow={statementWindow}
                                 reportLoading={reportLoading}
                             />
@@ -1743,6 +1723,47 @@ export default function FinancialsTab({
                                         const tolerance = Math.max(1, Math.abs(parentVal), Math.abs(sum)) * 1e-6;
                                         return Math.abs(parentVal - sum) <= tolerance;
                                     };
+                                    const growthType = getGrowthType(displayMode);
+                                    const showGrowth = displayMode !== 'ttm' && periodRows.length > 1;
+
+                                    // Build comparison index: for each period, find the prior period for growth calc
+                                    const growthForMetric = (metric: string, curIdx: number): number | null => {
+                                        if (!showGrowth) return null;
+                                        const cur = periodRows[curIdx];
+                                        const curY = Number(cur?.year ?? cur?.year_report ?? 0);
+                                        const curQ = Number(cur?.quarter ?? cur?.quarter_report ?? 0);
+
+                                        let priorY: number, priorQ: number;
+                                        if (growthType === 'yoy') {
+                                            priorY = curY - 1;
+                                            priorQ = curQ;
+                                        } else {
+                                            // QoQ: previous quarter
+                                            if (curQ <= 1) { priorY = curY - 1; priorQ = 4; }
+                                            else { priorY = curY; priorQ = curQ - 1; }
+                                        }
+
+                                        const prior = periodRows.find(r => {
+                                            const ry = Number(r?.year ?? r?.year_report ?? 0);
+                                            const rq = Number(r?.quarter ?? r?.quarter_report ?? 0);
+                                            return ry === priorY && rq === priorQ;
+                                        });
+                                        if (!prior) return null;
+                                        const curVal = Number(cur?.[metric]);
+                                        const priorVal = Number(prior?.[metric]);
+                                        if (!Number.isFinite(curVal) || !Number.isFinite(priorVal) || Math.abs(priorVal) < 1e-12) return null;
+                                        return ((curVal - priorVal) / Math.abs(priorVal)) * 100;
+                                    };
+
+                                    const fmtGrowthCell = (pct: number | null): { text: string; cls: string } => {
+                                        if (pct === null || !Number.isFinite(pct)) return { text: '-', cls: 'text-tremor-content dark:text-dark-tremor-content' };
+                                        const sign = pct >= 0 ? '+' : '';
+                                        return {
+                                            text: `${sign}${pct.toFixed(1)}%`,
+                                            cls: pct >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400',
+                                        };
+                                    };
+
                                     const safeMobileIndex = Math.min(mobilePeriodIndex, Math.max(0, periodRows.length - 1));
                                     const mobileRow = periodRows[safeMobileIndex];
                                     return (
@@ -1767,11 +1788,21 @@ export default function FinancialsTab({
                                                         <th className="sticky left-0 z-10 min-w-[260px] border-b border-tremor-border bg-gray-50/50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:bg-gray-900/50 dark:text-dark-tremor-content">
                                                             {activeSubTab === 'income' ? 'Income Statement' : activeSubTab === 'balance' ? 'Balance Sheet' : activeSubTab === 'equity' ? 'Equity' : activeSubTab === 'cashflow' ? 'Cash Flow' : 'Note'}
                                                         </th>
-                                                        {periodRows.map((row, idx) => (
-                                                            <th key={`${renderPeriod(row)}-${idx}`} className="whitespace-nowrap border-b border-tremor-border px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">
-                                                                {renderPeriod(row)}
-                                                            </th>
-                                                        ))}
+                                                        {periodRows.map((row, idx) => {
+                                                            const growth = showGrowth && idx < periodRows.length - 1 ? growthForMetric('__check__', idx) : null;
+                                                            return (
+                                                                <React.Fragment key={`${renderPeriod(row)}-${idx}`}>
+                                                                    <th className="whitespace-nowrap border-b border-tremor-border px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">
+                                                                        {renderPeriod(row)}
+                                                                    </th>
+                                                                    {showGrowth && idx < periodRows.length - 1 && (
+                                                                        <th className="whitespace-nowrap border-b border-tremor-border bg-gray-100/50 px-3 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-tremor-content-subtle dark:border-dark-tremor-border dark:bg-gray-800/50 dark:text-dark-tremor-content-subtle" style={{ minWidth: '72px' }}>
+                                                                            {growthType === 'yoy' ? 'YoY' : 'QoQ'}
+                                                                        </th>
+                                                                    )}
+                                                                </React.Fragment>
+                                                            );
+                                                        })}
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1830,13 +1861,27 @@ export default function FinancialsTab({
                                                                     )}
                                                                 </div>
                                                             </td>
-                                                            {periodRows.map((row, idx) => (
-                                                                <td key={`${metric}-${idx}`} className={cx("whitespace-nowrap px-4 py-3 text-right text-sm text-tremor-content dark:text-dark-tremor-content", isAnySection && "bg-gray-100/70 dark:bg-gray-800/50")}>
-                                                                    {isAnySection ? '' : formatStatementCell(metric, row[metric], {
-                                                                        percentKeys: isNormalIncomePreset ? NORMAL_INCOME_PERCENT_KEYS : undefined,
-                                                                    })}
-                                                                </td>
-                                                            ))}
+                                                            {periodRows.map((row, idx) => {
+                                                                const growthPct = showGrowth ? growthForMetric(metric, idx) : null;
+                                                                const growthInfo = fmtGrowthCell(growthPct);
+                                                                return (
+                                                                    <React.Fragment key={`${metric}-${idx}`}>
+                                                                        <td className={cx("whitespace-nowrap px-4 py-3 text-right text-sm text-tremor-content dark:text-dark-tremor-content", isAnySection && "bg-gray-100/70 dark:bg-gray-800/50")}>
+                                                                            {isAnySection ? '' : formatStatementCell(metric, row[metric], {
+                                                                                percentKeys: isNormalIncomePreset ? NORMAL_INCOME_PERCENT_KEYS : undefined,
+                                                                            })}
+                                                                        </td>
+                                                                        {showGrowth && !isAnySection && (
+                                                                            <td className={cx("whitespace-nowrap px-3 py-3 text-center text-xs font-medium", growthInfo.cls, "bg-gray-50/50 dark:bg-gray-900/30")} style={{ minWidth: '72px' }}>
+                                                                                {growthInfo.text}
+                                                                            </td>
+                                                                        )}
+                                                                        {showGrowth && isAnySection && (
+                                                                            <td className="bg-gray-100/70 dark:bg-gray-800/50" style={{ minWidth: '72px' }} />
+                                                                        )}
+                                                                    </React.Fragment>
+                                                                );
+                                                            })}
                                                         </tr>
                                                             );
                                                         })()
@@ -1844,12 +1889,18 @@ export default function FinancialsTab({
                                                 </tbody>
                                             </table>
                                         </div>
+                                        {/* Mobile: single-period view with growth */}
                                         <div className="md:hidden w-full overflow-hidden px-0">
                                             <table className="w-full border-collapse text-sm">
                                                 <thead className="bg-gray-50/50 dark:bg-gray-900/50">
                                                     <tr>
-                                                        <th className="w-[58%] border-b border-tremor-border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">Metric</th>
+                                                        <th className="w-[50%] border-b border-tremor-border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">Metric</th>
                                                         <th className="border-b border-tremor-border px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-tremor-content dark:border-dark-tremor-border dark:text-dark-tremor-content">{renderPeriod(mobileRow)}</th>
+                                                        {showGrowth && safeMobileIndex < periodRows.length - 1 && (
+                                                            <th className="border-b border-tremor-border bg-gray-100/50 px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-tremor-content-subtle dark:border-dark-tremor-border dark:bg-gray-800/50 dark:text-dark-tremor-content-subtle">
+                                                                {growthType === 'yoy' ? 'YoY' : 'QoQ'}
+                                                            </th>
+                                                        )}
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1867,6 +1918,8 @@ export default function FinancialsTab({
                                                         const isCollapsed = collapsedRows.has(metric.toLowerCase());
                                                         const relation = parentSumStatus(metric, mobileRow || {});
                                                         const isAnySection = isSectionRow || isCashflowSectionRow;
+                                                        const growthPct = showGrowth ? growthForMetric(metric, safeMobileIndex) : null;
+                                                        const growthInfo = fmtGrowthCell(growthPct);
                                                         return (
                                                             <tr key={`mobile-${metric}`} className={cx(
                                                                 isAnySection
@@ -1911,6 +1964,14 @@ export default function FinancialsTab({
                                                                         percentKeys: isNormalIncomePreset ? NORMAL_INCOME_PERCENT_KEYS : undefined,
                                                                     })}
                                                                 </td>
+                                                                {showGrowth && !isAnySection && (
+                                                                    <td className={cx("px-3 py-2 text-center text-xs font-medium align-top", growthInfo.cls, "bg-gray-50/50 dark:bg-gray-900/30")}>
+                                                                        {growthInfo.text}
+                                                                    </td>
+                                                                )}
+                                                                {showGrowth && isAnySection && (
+                                                                    <td className="bg-gray-100/70 dark:bg-gray-800/50 align-top" />
+                                                                )}
                                                             </tr>
                                                         );
                                                     })}

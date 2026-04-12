@@ -8,7 +8,7 @@ Steps (run daily via systemd stock-fetch.timer at 18:00 VN):
   3. Refresh compatibility views (overview, ratio_wide)
   4. Update price history (OHLCV) from VCI API      — daily
 
-DB: Uses VIETNAM_STOCK_DB_PATH env var → falls back to db_updater/vietnam_stocks.db
+DB: Uses STOCKS_DB_PATH env var → falls back to stocks_optimized.db
 """
 
 import os
@@ -20,16 +20,20 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 UPDATER_DIR = BASE_DIR / "backend" / "updater"
 
-# If VIETNAM_STOCK_DB_PATH is not in the environment (i.e. no .env loaded yet),
-# default to the db_updater's own DB so both pipeline and backend share one file.
-if not os.environ.get("VIETNAM_STOCK_DB_PATH"):
-    os.environ["VIETNAM_STOCK_DB_PATH"] = str(BASE_DIR / "vietnam_stocks.db")
+# Resolve DB path: STOCKS_DB_PATH (preferred) → VIETNAM_STOCK_DB_PATH (legacy) → stocks_optimized.db
+_db_path = (
+    os.environ.get("STOCKS_DB_PATH")
+    or os.environ.get("VIETNAM_STOCK_DB_PATH")
+    or str(BASE_DIR / "stocks_optimized.db")
+)
+os.environ["VIETNAM_STOCK_DB_PATH"] = _db_path
+os.environ["STOCKS_DB_PATH"] = _db_path
 
 # Keep BCTC freshness high by default unless explicitly overridden.
 if not os.environ.get("SKIP_IF_UPDATED_WITHIN_DAYS"):
     os.environ["SKIP_IF_UPDATED_WITHIN_DAYS"] = "3"
 
-DB_PATH = os.environ["VIETNAM_STOCK_DB_PATH"]
+DB_PATH = _db_path
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 LOGS_DIR = BASE_DIR / "logs"
@@ -151,7 +155,7 @@ def step_update_financial_reports(symbols: list[str]) -> bool:
 # ── Step 2: Stock list + Company Info (weekly) ────────────────────────────────
 
 def step_update_company_info(symbols: list[str]) -> bool:
-    """Weekly: refresh stocks list + company overview, shareholders, officers."""
+    """Weekly: refresh stocks list + company overview, shareholders."""
     _add_updater_to_path()
     try:
         from backend.updater.pipeline_steps import update_companies
@@ -180,13 +184,10 @@ def step_create_compat_views() -> bool:
         mod = importlib.util.module_from_spec(spec)  # type: ignore
         spec.loader.exec_module(mod)  # type: ignore
         mod.create_views(DB_PATH)
-        try:
-            from backend.updater.valuation_datamart import refresh_valuation_datamart
-
-            rows = refresh_valuation_datamart(DB_PATH)
-            logger.info(f"✅ Finished: valuation_datamart refreshed ({rows} symbols)")
-        except Exception as datamart_ex:
-            logger.warning(f"⚠ valuation_datamart refresh skipped/failed: {datamart_ex}")
+        # Flush WAL so the next connection (batch_valuations) sees the committed data.
+        import sqlite3 as _sqlite3
+        with _sqlite3.connect(DB_PATH) as _c:
+            _c.execute("PRAGMA wal_checkpoint(PASSIVE)")
         logger.info("✅ Finished: Compatibility views refreshed")
         _invalidate_cache_namespaces(
             namespaces=['stock_routes', 'source_priority', 'decorator'],
