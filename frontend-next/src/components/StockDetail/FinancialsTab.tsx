@@ -1502,8 +1502,8 @@ export default function FinancialsTab({
                     {/* ── Perplexity-style unified tab bar ────────────────────── */}
                     <div className="rounded-xl border border-tremor-border bg-white shadow-sm dark:border-dark-tremor-border dark:bg-gray-950">
                         <div className="flex items-center justify-between gap-2 overflow-x-auto px-2 py-1.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                            {/* Sub-tabs */}
-                            <div className="flex shrink-0 items-center gap-0.5">
+                            {/* Sub-tabs (desktop only - hidden on mobile) */}
+                            <div className="hidden md:flex shrink-0 items-center gap-0.5">
                                 {[
                                     { id: 'key_stats', label: 'Key Stats' },
                                     { id: 'ratio', label: 'Ratios' },
@@ -1533,10 +1533,10 @@ export default function FinancialsTab({
                                 ))}
                             </div>
 
-                            {/* Right controls: period + window + export */}
-                            <div className="ml-auto flex shrink-0 items-center gap-2">
-                                {/* Period segmented control (desktop only) */}
-                                <div className="hidden md:flex items-center rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-900">
+                            {/* Right controls: period + window + export (desktop only) */}
+                            <div className="hidden md:flex ml-auto shrink-0 items-center gap-2">
+                                {/* Period segmented control */}
+                                <div className="flex items-center rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-900">
                                     {(['annual', 'quarterly', 'ttm'] as DisplayMode[]).map((m) => (
                                         <button
                                             key={m}
