@@ -39,7 +39,9 @@ function fmt(v: number | null | undefined, decimals = 0): string {
 
 function fmtPct(v: number | null | undefined, decimals = 1): string {
     if (v === null || v === undefined || Number.isNaN(v)) return '-';
-    return `${v.toFixed(decimals)}%`;
+    // Values < 2 are likely decimals (e.g. 0.16 = 16%), multiply by 100
+    const displayValue = Math.abs(v) < 2 ? v * 100 : v;
+    return `${displayValue.toFixed(decimals)}%`;
 }
 
 function renderPeriod(row: Record<string, any>): string {
@@ -111,6 +113,7 @@ export default function FinancialsTab({
     const [statementWindow, setStatementWindow] = useState<StatementWindow>('4');
     const [overviewData, setOverviewData] = useState<any>(null);
     const [reportData, setReportData] = useState({ income: [], balance: [], cashflow: [], note: [], ratio: [] });
+    const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
 
     const effectivePeriod = period || (displayMode === 'annual' ? 'year' : 'quarter');
     const isBank = isBankStock(symbol, overviewData);
@@ -122,6 +125,23 @@ export default function FinancialsTab({
     useEffect(() => {
         if (initialOverviewData) setOverviewData(initialOverviewData);
     }, [initialOverviewData]);
+
+    // Fetch field labels (map field codes → Vietnamese labels)
+    useEffect(() => {
+        Promise.allSettled([
+            fetch(`/api/financial-report-metrics/${symbol}?type=income`).then(r => r.json()),
+            fetch(`/api/financial-report-metrics/${symbol}?type=balance`).then(r => r.json()),
+            fetch(`/api/financial-report-metrics/${symbol}?type=cashflow`).then(r => r.json()),
+        ]).then(([incomeMeta, balanceMeta, cashflowMeta]) => {
+            const unwrap = (res: PromiseSettledResult<any>) => {
+                if (res.status !== 'fulfilled') return {};
+                return res.value?.field_map_en || res.value?.field_map || {};
+            };
+            const labels: Record<string, string> = {};
+            Object.assign(labels, unwrap(incomeMeta), unwrap(balanceMeta), unwrap(cashflowMeta));
+            setFieldLabels(labels);
+        }).catch(() => {});
+    }, [symbol]);
 
     // Fetch financial reports
     useEffect(() => {
@@ -342,12 +362,31 @@ export default function FinancialsTab({
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {['roe', 'roa', 'pe', 'pb', 'net_profit_margin', 'gross_margin', 'operating_margin', 'debt_to_equity', 'current_ratio'].map(key => (
+                                    {Object.entries({
+                                        roe: 'ROE',
+                                        roa: 'ROA',
+                                        price_to_earnings: 'P/E',
+                                        price_to_book: 'P/B',
+                                        net_profit_margin: 'Biên LN ròng',
+                                        gross_margin: 'Biên LN gộp',
+                                        ebit_margin: 'Biên EBIT',
+                                        debt_to_equity: 'D/E',
+                                        current_ratio: 'Current Ratio',
+                                        quick_ratio: 'Quick Ratio',
+                                        asset_turnover: 'Vòng quay TS',
+                                        inventory_turnover: 'Vòng quay HTK',
+                                    }).map(([key, label]) => (
                                         <TableRow key={key}>
-                                            <TableCell className="font-medium">{key.replace(/_/g, ' ').toUpperCase()}</TableCell>
-                                            {reportData.ratio.slice(0, windowSize).map((row, i) => (
-                                                <TableCell key={i} className="text-right">{fmtPct(row[key])}</TableCell>
-                                            ))}
+                                            <TableCell className="font-medium">{label}</TableCell>
+                                            {reportData.ratio.slice(0, windowSize).map((row, i) => {
+                                                const v = Number(row[key]);
+                                                const isPct = ['roe', 'roa', 'net_profit_margin', 'gross_margin', 'ebit_margin'].includes(key);
+                                                return (
+                                                    <TableCell key={i} className="text-right font-semibold">
+                                                        {Number.isNaN(v) || v === 0 ? '-' : (isPct ? fmtPct(v) : fmt(v, 2))}
+                                                    </TableCell>
+                                                );
+                                            })}
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -376,6 +415,7 @@ export default function FinancialsTab({
                             rows={reportData[activeSubTab as keyof typeof reportData] || []}
                             windowSize={windowSize}
                             isBank={isBank}
+                            fieldLabels={fieldLabels}
                         />
                     )}
                 </Card>
@@ -386,7 +426,7 @@ export default function FinancialsTab({
 
 // ── Report Table Sub-component ────────────────────────────────────────────────
 
-function ReportTable({ rows, windowSize, isBank }: { rows: any[]; windowSize: number; isBank: boolean }) {
+function ReportTable({ rows, windowSize, isBank, fieldLabels }: { rows: any[]; windowSize: number; isBank: boolean; fieldLabels?: Record<string, string> }) {
     if (!rows || rows.length === 0) {
         return <Text className="text-center py-8 text-tremor-content-subtle">Không có dữ liệu</Text>;
     }
@@ -407,6 +447,21 @@ function ReportTable({ rows, windowSize, isBank }: { rows: any[]; windowSize: nu
     // For bank stocks, prioritize bank-specific metrics
     const displayKeys = significantKeys.slice(0, isBank ? 25 : 30); // Limit columns
 
+    const formatLabel = (key: string): string => {
+        // Try field label map first (isa1 → "Doanh thu bán hàng...")
+        if (fieldLabels && fieldLabels[key]) return fieldLabels[key];
+        // Fallback: convert snake_case to Title Case
+        return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    };
+
+    const isPercentKey = (key: string): boolean => {
+        const k = key.toLowerCase();
+        return k.includes('margin') || k.includes('roe') || k.includes('roa') ||
+            k.includes('ratio') || k.includes('nim') || k.includes('cir') ||
+            k.includes('npl') || k.includes('casa') || k.includes('car') ||
+            k.includes('growth') || k.includes('turnover');
+    };
+
     return (
         <div className="overflow-x-auto">
             <Table>
@@ -426,14 +481,15 @@ function ReportTable({ rows, windowSize, isBank }: { rows: any[]; windowSize: nu
                         });
                         if (!hasAnyValue) return null;
 
+                        const isPct = isPercentKey(key);
+
                         return (
                             <TableRow key={key}>
                                 <TableCell className="sticky left-0 bg-white dark:bg-gray-900 z-10 font-medium text-sm">
-                                    {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                    {formatLabel(key)}
                                 </TableCell>
                                 {rows.slice(0, windowSize).map((row, i) => {
                                     const v = Number(row[key]);
-                                    const isPct = key.includes('margin') || key.includes('ratio') || key.includes('roe') || key.includes('roa');
                                     return (
                                         <TableCell key={i} className="text-right text-sm">
                                             {Number.isNaN(v) || Math.abs(v) < 0.01 ? '-' : (isPct ? fmtPct(v) : fmt(v))}
