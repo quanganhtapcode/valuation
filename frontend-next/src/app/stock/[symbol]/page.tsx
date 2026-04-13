@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { formatNumber, formatPercentChange, PRICE_SYNC_INTERVAL_MS, subscribePricesStream } from '@/lib/api';
+import { formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
 import { useWatchlist } from '@/lib/watchlistContext';
 import { RiStarFill, RiStarLine } from '@remixicon/react';
@@ -151,12 +151,34 @@ export default function StockDetailPage() {
                     .then(r => r.ok ? r.json() : null)
                     .catch(() => null);
 
-                // PHASE 1: Fast data from DB/cache (ticker info, profile, stock overview)
-                // PHASE 1: Fast data from local cache and summary DB
-                const [tickerData, stockRes] = await Promise.all([
+                // PHASE 1: Fast data from DB/cache — split into focused endpoints
+                //  /api/stock/<symbol>/summary     (~500B): identity + price + key ratios
+                //  /api/stock/<symbol>/profile     (~1.5KB): company description
+                //  /api/stock/<symbol>/ratio-history (~1.5KB): 12-year PE/PB/ROE/ROA series
+                //  /api/stock/<symbol>/ratio-series  (~500B): quarterly arrays for mini-charts
+                const [tickerData, summaryRes, profileRes, ratioHistoryRes, ratioSeriesRes] = await Promise.all([
                     getTickerData(),
-                    fetch(`/api/stock/${symbol}`).then(r => r.ok ? r.json() : null).catch(() => null)
+                    fetch(`/api/stock/${symbol}/summary`).then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch(`/api/stock/${symbol}/profile`).then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch(`/api/stock/${symbol}/ratio-history`).then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch(`/api/stock/${symbol}/ratio-series`).then(r => r.ok ? r.json() : null).catch(() => null),
                 ]);
+
+                // Merge all split responses into one object for backward-compat with components
+                const stockRes = summaryRes && profileRes ? {
+                    ...summaryRes,
+                    ...profileRes,
+                    history: ratioHistoryRes?.history || [],
+                    current_ratio_data: ratioSeriesRes?.current_ratio_data,
+                    quick_ratio_data: ratioSeriesRes?.quick_ratio_data,
+                    ev_ebitda: ratioSeriesRes?.ev_ebitda,
+                    debt_to_equity_adjusted: ratioSeriesRes?.debt_to_equity_adjusted,
+                    cash_ratio: ratioSeriesRes?.cash_ratio,
+                    interest_coverage: ratioSeriesRes?.interest_coverage,
+                    asset_turnover: ratioSeriesRes?.asset_turnover,
+                    inventory_turnover: ratioSeriesRes?.inventory_turnover,
+                    ebit_margin: ratioSeriesRes?.ebit_margin,
+                } : null;
 
                 // --- Process Ticker Info ---
                 let baseInfo: StockInfo = {
@@ -459,58 +481,6 @@ export default function StockDetailPage() {
     // Watchlist Logic (via global context — syncs across sidebar)
     const { toggle: toggleWatchlist, isWatched } = useWatchlist();
     const isWatchlisted = isWatched(symbol);
-
-    // Polling price with backend cadence (3s during trading)
-    useEffect(() => {
-        if (!symbol) return;
-
-        const interval = setInterval(() => {
-            fetch(`/api/current-price/${symbol}`)
-                .then(r => r.ok ? r.json() : null)
-                .then(priceRes => {
-                    if (priceRes && priceRes.success) {
-                        const data = priceRes.data || priceRes;
-                        // Backend normalizes all prices to full VND
-                        const newPrice = data.current_price || data.price || 0;
-
-                        if (newPrice > 0) {
-                            setPriceData(prev => {
-                                if (!prev) return null;
-                                const refPrice = data.ref_price || data.ref || prev.ref;
-
-                                let change = 0;
-                                let changePercent = 0;
-
-                                if (refPrice > 0) {
-                                    change = newPrice - refPrice;
-                                    changePercent = (change / refPrice) * 100;
-                                } else {
-                                    change = data.change || data.price_change || 0;
-                                    changePercent = data.changePercent || data.price_change_percent || 0;
-                                }
-
-                                return {
-                                    ...prev,
-                                    price: newPrice,
-                                    ref: refPrice > 0 ? refPrice : prev.ref,
-                                    change: change,
-                                    changePercent: changePercent,
-                                    ...(data.open > 0 && { open: data.open }),
-                                    ...(data.high > 0 && { high: data.high }),
-                                    ...(data.low > 0 && { low: data.low }),
-                                    ...(data.volume > 0 && { volume: data.volume }),
-                                    ...(data.ceiling > 0 && { ceiling: data.ceiling }),
-                                    ...(data.floor > 0 && { floor: data.floor }),
-                                };
-                            });
-                        }
-                    }
-                })
-                .catch(err => console.error("Polling error", err));
-        }, PRICE_SYNC_INTERVAL_MS);
-
-        return () => clearInterval(interval);
-    }, [symbol]);
 
     if (isLoading) {
         return (
