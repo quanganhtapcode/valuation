@@ -20,7 +20,11 @@
       "Bash(git reset *)",
       "Bash(kill *)",
       "Bash(cat *)",
-      "Bash(npx *)"
+      "Bash(npx *)",
+      "Bash(find *)",
+      "Bash(do)",
+      "Bash(continue)",
+      "Bash(done)"
     ]
   },
   "$version": 3

@@ -16,7 +16,7 @@
 | 10 | `vci_foreign.sqlite` | 0.7MB | VCI API | foreign_net_snapshot, foreign_volume_minute | 17 + 4.6k | daily |
 | 11 | `vci_valuation.sqlite` | ~5MB | VCI API | valuation_data, meta | varies | daily |
 | 12 | `vci_company.sqlite` | ~1MB | VCI API | company_info | ~1500 | weekly |
-| 13 | `vci_ai_standouts.sqlite` | ~2MB | VCI API + AI | standouts, meta | varies | hourly |
+| 13 | *(removed)* `vci_ai_standouts.sqlite` | — | — | — | — | — |
 | 14 | `macro_history.sqlite` | ~2MB | VCI API | macro_indicators, macro_data | varies | weekly |
 | 15 | `fireant_macro.sqlite` | 0.4MB | Fireant API | macro_indicators, macro_data | 96 + 6.7k | weekly |
 | 16 | `index_history.sqlite` | 0.2MB | VCI API | market_index_history | 272 | daily |

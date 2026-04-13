@@ -1,6 +1,6 @@
 # 📊 SQLite Databases — Full Analysis
 
-> Last updated: 2026-04-13 | Total files: **17** | Total size: **~2.5 GB**
+> Last updated: 2026-04-13 | Total files: **16** | Total size: **~2.5 GB**
 
 ---
 
@@ -8,17 +8,18 @@
 
 | Category | Files | Total Size | Purpose |
 |---|---|---|---|
-| **Core DB** | 1 | 836 MB | Master database — all financial statements, stock profiles, valuation datamart |
+| **Core DB** | 1 | 836 MB | Master database — financial statements, stock profiles, valuation datamart |
 | **Price Data** | 1 | 218 MB | Daily OHLCV for all stocks |
 | **Financial Statements (VCI)** | 1 | 132 MB | BCTC wide-format from VCI (balance sheet, income, cash flow, notes) |
 | **Market Screener** | 1 | 2.7 MB | Real-time screener snapshot — price, PE, PB, ROE, sector, market cap |
 | **Financial Ratios** | 2 | 10.1 MB | TTM ratios (current + history) + daily PE/PB tracking |
-| **News & Events** | 3 | 191 MB | Raw news, AI-analyzed news, AI standout stocks |
+| **News & Events** | 2 | 191 MB | Raw news + AI-analyzed news |
 | **Company Info** | 1 | 3.6 MB | Company profiles, organization names |
 | **Market Indices** | 1 | 0.2 MB | VNINDEX, VN30, HNX daily index history |
 | **Foreign Trading** | 1 | 0.8 MB | Foreign buy/sell snapshots + intraday volume |
 | **Macro Economics** | 2 | 1.0 MB | GDP, CPI, M2, interest rates from VCI + Fireant |
 | **Valuation Cache** | 2 | 1.5 MB | Cached DCF results + VNINDEX valuation chart history |
+| **Shareholders** | 1 | 5.1 MB | Shareholder lists per company |
 
 ---
 
@@ -53,7 +54,7 @@
 **Empty tables** (reserved for future use): `industries`, `stock_exchange`, `stock_industry`, `update_log`, `stock_price_history`, `subsidiaries`, `events`, `news`, `financial_reports`
 
 **Assessment:**
-- ✅ This is the **backbone** of the system — all DCF calculations depend on it
+- ✅ **Backbone** of the system — all DCF calculations depend on it
 - ✅ ~73k financial statement rows covering ~1,730 stocks × multiple quarters
 - ⚠️ Several tables are empty — may indicate incomplete migration or reserved schema
 - ⚠️ Largest file — consider VACUUM periodically to reclaim space
@@ -126,7 +127,7 @@
 | **Size** | 2.7 MB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI Screener API |
-| **Update** | Every 5 minutes via cron `fetch_vci_screener.py` |
+| **Update** | Every 7 minutes via cron `fetch_vci_screener.py` |
 | **Used by** | `/api/market/screener`, frontend `/screener` page |
 
 **Tables:**
@@ -146,8 +147,8 @@
 - **Other:** `exchange` (HSX/HNX/UPCOM), `stockStrength`, `marketCap`
 
 **Assessment:**
-- ✅ Most frequently updated (every 5 min) — near real-time market snapshot
-- ✅ Used as primary data source for the stock screener frontend
+- ✅ Most frequently updated (every 7 min) — near real-time market snapshot
+- ✅ Primary data source for the stock screener frontend
 - ✅ Small file (2.7 MB) but rich in screening metrics
 - 💡 Source priority fallback: `vci_ratio_daily` → `vci_stats_financial` → `vci_screening`
 
@@ -245,7 +246,7 @@
 | **Size** | 6.5 MB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI API + AI processing |
-| **Update** | Every 5 minutes via cron `fetch_vci_news.py` |
+| **Update** | Every 10 minutes via cron `fetch_vci_news.py` |
 | **Used by** | Frontend news widgets |
 
 **Tables:**
@@ -261,37 +262,14 @@
 
 ---
 
-### 9. `vci_ai_standouts.sqlite` — ⭐ AI Standout Stocks
-
-| Property | Value |
-|---|---|
-| **Size** | 12 KB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | VCI API + AI analysis |
-| **Update** | Every 15 minutes via cron `fetch_vci_standouts.py` |
-| **Used by** | Frontend standout/mover widgets |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `standouts_snapshot` | 1 | Latest snapshot of AI-flagged notable stocks |
-
-**Assessment:**
-- ✅ Tiny file — single snapshot, updated frequently
-- ⚠️ Only 1 row — stores the latest snapshot, no history
-- 💡 Could benefit from keeping historical snapshots for backtesting
-
----
-
-### 10. `vci_company.sqlite` — 🏢 Company Profiles
+### 9. `vci_company.sqlite` — 🏢 Company Profiles
 
 | Property | Value |
 |---|---|
 | **Size** | 3.6 MB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI Company Info API |
-| **Update** | Weekly via `fetch_vci_company.py` |
+| **Update** | Weekly (bi-weekly on Sunday) via `fetch_vci_company.py` |
 | **Used by** | Stock profile display, company details |
 
 **Tables:**
@@ -304,6 +282,30 @@
 **Assessment:**
 - ✅ Covers 2,075 companies — more than listed stocks (includes delisted/OTC)
 - ✅ Small, clean file — fast lookups for company names
+
+---
+
+### 10. `vci_shareholders.sqlite` — 👥 Shareholder Lists
+
+| Property | Value |
+|---|---|
+| **Size** | 5.1 MB |
+| **Location** | `fetch_sqlite/` |
+| **Source** | VCI Shareholders API |
+| **Update** | Daily 13:00 via cron `fetch_vci_shareholders.py` |
+| **Used by** | `/api/stock/[symbol]/shareholders`, Holders tab |
+
+**Tables:**
+
+| Table | Rows | Description |
+|---|---|---|
+| `shareholders` | 27,000+ | Top shareholders per company (quantity, %, type) |
+
+**Columns:** `ticker`, `owner_code`, `owner_name`, `owner_name_en`, `position_name`, `quantity`, `percentage`, `owner_type` (CORPORATE/INDIVIDUAL)
+
+**Assessment:**
+- ✅ Useful for institutional ownership analysis
+- ✅ Clean schema with EN/VN names
 
 ---
 
@@ -333,39 +335,14 @@
 
 ---
 
-### 12. `vci_shareholders.sqlite` — 👥 Shareholder Lists
-
-| Property | Value |
-|---|---|
-| **Size** | 5.1 MB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | VCI Shareholders API |
-| **Update** | Daily 13:00 via cron `fetch_vci_shareholders.py` |
-| **Used by** | `/api/stock/[symbol]/shareholders`, Holders tab |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `shareholders` | 27,000+ | Top shareholders per company (quantity, %, type) |
-| `meta` | — | Last run timestamp |
-
-**Columns:** `ticker`, `owner_code`, `owner_name`, `owner_name_en`, `position_name`, `quantity`, `percentage`, `owner_type` (CORPORATE/INDIVIDUAL)
-
-**Assessment:**
-- ✅ Useful for institutional ownership analysis
-- ✅ Clean schema with EN/VN names
-
----
-
-### 13. `vci_foreign.sqlite` — 🌏 Foreign Trading
+### 12. `vci_foreign.sqlite` — 🌏 Foreign Trading
 
 | Property | Value |
 |---|---|
 | **Size** | 760 KB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI Foreign Trading API |
-| **Update** | Daily via `fetch_vci_foreign.py` |
+| **Update** | Every 2 min during market hours via cron `fetch_vci_foreign.py` |
 | **Used by** | `/api/market/foreign` |
 
 **Tables:**
@@ -382,7 +359,7 @@
 
 ---
 
-### 14. `index_history.sqlite` — 📊 Market Index History
+### 13. `index_history.sqlite` — 📊 Market Index History
 
 | Property | Value |
 |---|---|
@@ -408,7 +385,7 @@
 
 ---
 
-### 15. `macro_history.sqlite` — 📈 VCI Macro Data
+### 14. `macro_history.sqlite` — 📈 VCI Macro Data
 
 | Property | Value |
 |---|---|
@@ -430,7 +407,7 @@
 
 ---
 
-### 16. `fireant_macro.sqlite` — 📉 Fireant Macro Data
+### 15. `fireant_macro.sqlite` — 📉 Fireant Macro Data
 
 | Property | Value |
 |---|---|
@@ -454,7 +431,7 @@
 
 ---
 
-### 17. `valuation_cache.sqlite` — 💾 Valuation Cache
+### 16. `valuation_cache.sqlite` — 💾 Valuation Cache
 
 | Property | Value |
 |---|---|
@@ -482,15 +459,15 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      EXTERNAL APIs                               │
-├──────────────────────┬──────────────────────────────────────────┤
-│  VCI API             │  Fireant API    │  KBS API (vnstock)      │
-│  (vietcap.com.vn)    │  (fireant.vn)   │                        │
-└────┬─────────────────┴────┬────────────┴────────────────────────┘
-     │                      │                     │
-     ▼                      ▼                     ▼
+├──────────────────────┬────────────────────────┬──────────────────┤
+│  VCI API             │  Fireant API           │  KBS (vnstock)   │
+│  (vietcap.com.vn)    │  (fireant.vn)          │                 │
+└────┬─────────────────┴────┬───────────────────┴────────┬────────┘
+     │                      │                            │
+     ▼                      ▼                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              FETCH SCRIPTS (fetch_sqlite/*.py)                    │
-│  Cron jobs: every 5min, hourly, daily, weekly                     │
+│  Cron jobs: every 2min–weekly                                     │
 └────┬────────────────────────────────────────────────────────────┘
      │
      ▼
@@ -517,8 +494,7 @@
 │                                                                  │
 │  NEWS & AI:                                                      │
 │  ├── vci_news_events.sqlite (184 MB)  ← Raw news/events         │
-│  ├── vci_ai_news.sqlite (6.5 MB)  ← AI-analyzed news            │
-│  └── vci_ai_standouts.sqlite (12 KB)  ← AI standout stocks      │
+│  └── vci_ai_news.sqlite (6.5 MB)  ← AI-analyzed news            │
 │                                                                  │
 │  VALUATION:                                                      │
 │  ├── vci_valuation.sqlite (1.4 MB)  ← VNINDEX PE/PB chart       │
@@ -547,20 +523,20 @@
 
 | Frequency | Script(s) | Output File(s) | Cron |
 |---|---|---|---|
+| Every 2 min (market hours) | `fetch_vci_foreign.py` | `vci_foreign.sqlite` | ✅ |
 | Every 5 min | `fetch_vci_screener.py` | `vci_screening.sqlite` | ✅ |
-| Every 5 min | `fetch_vci_news.py` | `vci_ai_news.sqlite` | ✅ |
+| Every 7 min | `fetch_vci_screener.py` (full) | `vci_screening.sqlite` | ✅ |
+| Every 10 min | `fetch_vci_news.py` | `vci_ai_news.sqlite` | ✅ |
 | Every 15 min | `fetch_vci.py` | `index_history.sqlite` | ✅ |
-| Every 15 min | `fetch_vci_standouts.py` | `vci_ai_standouts.sqlite` | ✅ |
 | Every hour | `fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` | ✅ |
 | Daily 11:30 | `update_price_history.py` | `price_history.sqlite` | systemd |
 | Daily 13:00 | `fetch_vci_shareholders.py` | `vci_shareholders.sqlite` | ✅ |
 | Daily 13:30 | `fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` | ✅ |
-| Daily 13:30 | `fetch_vci_foreign.py` | `vci_foreign.sqlite` | ✅ |
 | Daily 18:00 | `run_pipeline.py` | `stocks_optimized.db` | systemd |
 | Daily | `fetch_vci_financial_statement.py` | `vci_financials.sqlite` | ✅ |
 | Daily | `fetch_vci_news.py` (events) | `vci_news_events.sqlite` | ✅ |
 | Daily | `fetch_vci_valuation.py` | `vci_valuation.sqlite` | ✅ |
-| Daily | `fetch_vci_company.py` | `vci_company.sqlite` | ✅ |
+| Weekly (Sun 02:00, bi-weekly) | `fetch_vci_company.py` | `vci_company.sqlite` | ✅ |
 | Weekly | `fetch_macro_history.py` | `macro_history.sqlite` | ✅ |
 | Weekly | `fetch_fireant_macro.py` | `fireant_macro.sqlite` | ✅ |
 | On-demand | `batch_valuations.py` | `valuation_cache.sqlite` | — |
@@ -570,11 +546,11 @@
 When the backend resolves PE/PB ratios, it checks sources in this order:
 
 ```
-1. vci_ratio_daily.sqlite   → Latest daily PE/PB (PRIORITY #1)
-2. vci_stats_financial.sqlite  → TTM ratios from stats API
-3. vci_screening.sqlite     → Screener snapshot TTM PE/PB
-4. stocks_optimized.db      → KBS/vnstock PE/PB
-5. vnstock API (live)       → Fallback if all else fails
+1. vci_ratio_daily.sqlite        → Latest daily PE/PB (PRIORITY #1)
+2. vci_stats_financial.sqlite    → TTM ratios from stats API
+3. vci_screening.sqlite          → Screener snapshot TTM PE/PB
+4. stocks_optimized.db           → KBS/vnstock PE/PB
+5. vnstock API (live)            → Fallback if all else fails
 ```
 
 ## Key Observations & Recommendations
@@ -589,8 +565,7 @@ When the backend resolves PE/PB ratios, it checks sources in this order:
 1. **`vci_news_events.sqlite` (184 MB):** Consider archiving items older than 1 year
 2. **Empty tables in `stocks_optimized.db`:** Clean up or populate: `news`, `events`, `subsidiaries`, `stock_price_history`
 3. **`index_history.sqlite` (272 rows):** Only ~1 year of index data — consider backfilling
-4. **`vci_ai_standouts.sqlite` (1 row):** No history — consider keeping daily snapshots
-5. **Periodic VACUUM:** Run `VACUUM` on large databases quarterly to reclaim space
+4. **Periodic VACUUM:** Run `VACUUM` on large databases quarterly to reclaim space
 
 ### 💡 Optimization Ideas
 - Partition `price_history.sqlite` by year for faster queries
