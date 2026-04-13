@@ -22,6 +22,48 @@ function formatRelativeTime(dateStr: string): string {
     return date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' });
 }
 
+// Source logo mapping
+const SOURCE_LOGOS: Record<string, string> = {
+    'fireant': 'https://fireant.vn/images/favicon/favicon-32x32.png',
+    'vietstock': 'https://vietstock.vn/favicon.ico',
+    'cafef': 'https://cafef.vn/favicon.ico',
+    'tinnhanhchungkhoan': 'https://www.tinnhanhchungkhoan.vn/favicon.ico',
+    'ndh': 'https://ndh.vn/favicon.ico',
+    'vnexpress': 'https://vnexpress.net/favicon.ico',
+    'dantri': 'https://dantri.com.vn/favicon.ico',
+    'vietnamnet': 'https://vietnamnet.vn/favicon.ico',
+    'thanhnien': 'https://thanhnien.vn/favicon.ico',
+    'tuoitre': 'https://tuoitre.vn/favicon.ico',
+    'vneconomy': 'https://vneconomy.vn/favicon.ico',
+    'vietcap': 'https://vietcap.com.vn/favicon.ico',
+    'ssi': 'https://www.ssi.com.vn/favicon.ico',
+    'hsc': 'https://www.hsc.com.vn/favicon.ico',
+    'mbs': 'https://www.mbs.com.vn/favicon.ico',
+    'vps': 'https://www.vps.com.vn/favicon.ico',
+    'tcbs': 'https://www.tcbs.com.vn/favicon.ico',
+};
+
+function SourceBadge({ source }: { source: string }) {
+    const key = source.toLowerCase().trim();
+    const logoUrl = SOURCE_LOGOS[key];
+    if (!logoUrl) return <span className={styles.newsSourceText}>{source}</span>;
+    return (
+        <span className={styles.newsSource}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={logoUrl}
+                alt={source}
+                className={styles.newsSourceLogo}
+                onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                }}
+            />
+            <span className={styles.newsSourceText}>{source}</span>
+        </span>
+    );
+}
+
 interface StockInfo {
     symbol: string;
     companyName: string;
@@ -377,7 +419,21 @@ export default function OverviewTab({
                                 const date = item.update_date || item.PublishDate || item.publish_date || '';
                                 const source = item.source || item.Source || item.news_from_name || '';
                                 const sentiment = item.sentiment || item.Sentiment || '';
-                                const score = item.score || item.Score;
+                                const score = item.score ?? item.Score;
+
+                                // Determine sentiment class
+                                const sentLower = sentiment.toLowerCase();
+                                let badgeClass = styles.sentimentNeutral;
+                                let badgeText = sentiment;
+                                if (sentLower.includes('pos') || (typeof score === 'number' && score > 0)) {
+                                    badgeClass = styles.sentimentPositive;
+                                    badgeText = score != null ? `${sentiment} (${score})` : sentiment;
+                                } else if (sentLower.includes('neg') || (typeof score === 'number' && score < 0)) {
+                                    badgeClass = styles.sentimentNegative;
+                                    badgeText = score != null ? `${sentiment} (${score})` : sentiment;
+                                } else if (typeof score === 'number' && score === 0) {
+                                    badgeText = `Neutral (${score})`;
+                                }
 
                                 return (
                                     <a
@@ -404,23 +460,15 @@ export default function OverviewTab({
                                         <div className={styles.newsContent}>
                                             <h4 className={styles.newsCardTitle}>{title}</h4>
                                             <div className={styles.newsCardMeta}>
-                                                {source && (
-                                                    <span className={styles.newsSource}>{source}</span>
-                                                )}
+                                                {source && <SourceBadge source={source} />}
                                                 {date && (
                                                     <span className={styles.newsDate}>{formatRelativeTime(date)}</span>
                                                 )}
                                             </div>
                                             {sentiment && (
                                                 <div className={styles.newsSentiment}>
-                                                    <span className={`${styles.sentimentBadge} ${
-                                                        sentiment.toLowerCase().includes('pos') || (score !== undefined && score > 0.15)
-                                                            ? styles.sentimentPositive
-                                                            : sentiment.toLowerCase().includes('neg') || (score !== undefined && score < -0.15)
-                                                            ? styles.sentimentNegative
-                                                            : styles.sentimentNeutral
-                                                    }`}>
-                                                        {sentiment}
+                                                    <span className={`${styles.sentimentBadge} ${badgeClass}`}>
+                                                        {badgeText}
                                                     </span>
                                                 </div>
                                             )}
