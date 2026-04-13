@@ -379,25 +379,55 @@ def _load_latest_financial_components(db_path: str, symbol: str) -> dict:
     """Return income + cash flow components for FCFE calculation.
 
     Priority: VCI financial statement DB → stocks_optimized.db fallback.
+    VCI adapter returns raw field codes (isa*, cfa*), we map them here.
     """
     symbol = symbol.upper()
 
     # Try VCI financial statement DB first
     if has_vci_financial_db():
         try:
-            result = vci_load_financial_components(symbol)
-            if result['net_income'] > 0 or result['depreciation'] > 0:
-                # Add derived fields
-                dr = result['increase_decrease_receivables']
-                di = result['increase_decrease_inventory']
-                dp = result['increase_decrease_payables']
-                result['delta_working_capital'] = dr + di - dp
-                capex_out = abs(result['purchase_purchase_fixed_assets'])
-                result['capex_purchase_outflow'] = capex_out
-                result['capex_net'] = max(0.0, capex_out - max(0.0, result['proceeds_disposal_fixed_assets']))
-                result['net_borrowing'] = result['proceeds_borrowings'] + result['repayments_borrowings']
-                result.setdefault('source', 'vci_fs.income_statement + cash_flow (latest period)')
-                return result
+            vci_data = vci_load_financial_components(symbol)
+            if vci_data.get('isa20', 0) > 0 or vci_data.get('cfa2', 0) > 0:
+                # Map raw VCI codes to the expected output format
+                dr = vci_data.get('cfa9', 0.0)
+                di = vci_data.get('cfa10', 0.0)
+                dp = vci_data.get('cfa11', 0.0)
+                pfa = vci_data.get('cfa18', 0.0)
+                pdfa = vci_data.get('cfa19', 0.0)
+                pb = vci_data.get('cfa27', 0.0)
+                rb = vci_data.get('cfa28', 0.0)
+                dep = vci_data.get('cfa2', 0.0)
+
+                net_income = vci_data.get('isa22', 0.0) or vci_data.get('isa20', 0.0)
+                capex_out = abs(pfa)
+
+                return {
+                    'net_income': float(net_income),
+                    'period_year': vci_data.get('period_year'),
+                    'period_quarter': vci_data.get('period_quarter'),
+                    'financial_expense': float(vci_data.get('isa7', 0.0)),
+                    'depreciation_fixed_assets': float(dep),
+                    'depreciation': float(dep),
+                    'increase_decrease_receivables': float(dr),
+                    'increase_decrease_inventory': float(di),
+                    'increase_decrease_payables': float(dp),
+                    'purchase_purchase_fixed_assets': float(pfa),
+                    'proceeds_from_disposal_fixed_assets': float(pdfa),
+                    'proceeds_disposal_fixed_assets': float(pdfa),
+                    'proceeds_from_borrowings': float(pb),
+                    'proceeds_borrowings': float(pb),
+                    'repayments_of_borrowings': float(rb),
+                    'repayments_borrowings': float(rb),
+                    'delta_receivables': float(dr),
+                    'delta_inventory': float(di),
+                    'delta_payables': float(dp),
+                    'delta_working_capital': float(dr + di - dp),
+                    'purchase_fixed_assets_raw': float(pfa),
+                    'capex_purchase_outflow': float(capex_out),
+                    'capex_net': max(0.0, capex_out - max(0.0, abs(pdfa))),
+                    'net_borrowing': float(pb + rb),
+                    'source': 'vci_fs.income_statement + cash_flow (latest period)',
+                }
         except Exception as exc:
             logger.debug(f"VCI financial components failed for {symbol}, falling back: {exc}")
 

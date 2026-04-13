@@ -15,7 +15,12 @@
       "Bash(xargs *)",
       "Bash(sleep *)",
       "Bash(echo *)",
-      "Bash(cp *)"
+      "Bash(cp *)",
+      "Bash(comm *)",
+      "Bash(git reset *)",
+      "Bash(kill *)",
+      "Bash(cat *)",
+      "Bash(npx *)"
     ]
   },
   "$version": 3
