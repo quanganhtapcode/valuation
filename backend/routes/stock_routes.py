@@ -904,7 +904,12 @@ def api_tickers():
 
 @stock_bp.route("/news/<symbol>")
 def api_news(symbol):
-    """Get news for a symbol — SQLite cache first, live VCI API fallback."""
+    """Get news for a symbol — SQLite cache first, live VCI API fallback.
+
+    Returns full items (title, url, image, sentiment, score, source) from
+    the enriched AI news database so the frontend OverviewTab can render
+    thumbnails, links, and sentiment badges.
+    """
     try:
         is_valid, clean_symbol = validate_stock_symbol(symbol)
         if not is_valid:
@@ -916,15 +921,42 @@ def api_news(symbol):
             return jsonify(cached)
 
         items = _feed_from_sqlite(clean_symbol, "news") or _feed_from_live(clean_symbol, "news")
-        # Normalise to legacy shape expected by old frontend callers
-        data = [
-            {
-                "Title":       it.get("newsTitle") or it.get("title") or "",
-                "NewsUrl":     "",
-                "PublishDate": (it.get("publicDate") or "")[:10],
+
+        def _normalize(it):
+            # Prefer modern field names, fallback to legacy
+            title = it.get("news_title") or it.get("newsTitle") or it.get("title") or it.get("Title") or ""
+            url = (
+                it.get("news_source_link") or it.get("newsSourceLink")
+                or it.get("url") or it.get("NewsUrl") or it.get("Link") or ""
+            )
+            image = (
+                it.get("news_image_url") or it.get("newsImageUrl")
+                or it.get("image_url") or it.get("ImageThumb") or ""
+            )
+            source = (
+                it.get("news_from_name") or it.get("newsSource")
+                or it.get("source") or it.get("Source") or it.get("news_from") or ""
+            )
+            date = (
+                it.get("update_date") or it.get("publicDate")
+                or it.get("PublishDate") or it.get("publish_date") or ""
+            )
+            sentiment = it.get("sentiment") or it.get("sentimentLabel") or it.get("Sentiment") or ""
+            score = it.get("score") or it.get("sentimentScore") or it.get("Score")
+            item_id = it.get("id") or it.get("newsId") or ""
+            return {
+                "id": item_id,
+                "title": title, "Title": title,
+                "url": url, "Link": url, "NewsUrl": url,
+                "image_url": image, "ImageThumb": image, "news_image_url": image, "newsImageUrl": image,
+                "source": source, "Source": source, "news_from_name": source,
+                "update_date": date, "PublishDate": date, "publish_date": date,
+                "sentiment": sentiment, "Sentiment": sentiment,
+                "score": score, "Score": score,
+                "ticker": it.get("ticker") or it.get("Symbol") or clean_symbol,
             }
-            for it in (items or [])
-        ]
+
+        data = [_normalize(it) for it in (items or [])]
         result = {"success": True, "data": data}
         _cache_set(cache_key, result)
         return jsonify(result)
@@ -983,50 +1015,27 @@ def _news_events_db_path() -> str | None:
             return p
     return None
 
-_AI_NEWS_FIELD_MAP = {
-    # VCI IQ field -> AI news field
-    "newsSourceLink": "news_source_link",
-    "newsImageUrl": "news_image_url",
-    "newsSmallImageUrl": "news_image_url",
-    "sentimentScore": "score",
-    "sentimentLabel": "sentiment",
-}
-
-def _enrich_with_ai_news(items: list[dict], symbol: str) -> list[dict]:
-    """Enrich VCI IQ news items with AI news data (URL, image, sentiment)."""
-    try:
-        ai_items = query_ai_news(ai_news_db_path(), symbol, limit=50)
-    except Exception as exc:
-        logger.warning("ai_news enrich failed: %s", exc)
-        ai_items = []
-
-    if not ai_items:
-        return items
-
-    # Build lookup by normalized title
-    ai_by_title: dict[str, dict] = {}
-    for ai in ai_items:
-        title = (ai.get("news_title") or ai.get("Title") or ai.get("title") or "").strip().lower()
-        if title:
-            ai_by_title[title] = ai
-
-    enriched = []
-    for item in items:
-        iq_title = (item.get("newsTitle") or item.get("title") or "").strip().lower()
-        ai_match = ai_by_title.get(iq_title)
-        if ai_match:
-            item = dict(item)  # copy
-            item.setdefault("newsSourceLink", ai_match.get("news_source_link") or ai_match.get("Link") or ai_match.get("url") or "")
-            item.setdefault("newsImageUrl", ai_match.get("news_image_url") or ai_match.get("ImageThumb") or ai_match.get("image_url") or "")
-            item.setdefault("newsSmallImageUrl", ai_match.get("news_image_url") or ai_match.get("ImageThumb") or "")
-            item.setdefault("sentimentScore", ai_match.get("score"))
-            item.setdefault("sentimentLabel", ai_match.get("sentiment") or ai_match.get("Sentiment") or "")
-            item.setdefault("newsSource", ai_match.get("news_from_name") or ai_match.get("Source") or ai_match.get("source") or item.get("newsSource"))
-        enriched.append(item)
-    return enriched
-
 def _feed_from_sqlite(symbol: str, tab: str, limit: int = 50) -> list | None:
-    """Return items from SQLite cache, or None if DB not available / no rows."""
+    """Return items from SQLite cache, or None if DB not available / no rows.
+
+    For the **news** tab we prefer the VCI AI news database (vci_ai_news.sqlite)
+    because it has complete fields: news_source_link (URL), news_image_url,
+    sentiment, and score.  Other tabs (dividend, insider, agm, other) continue
+    to use the VCI IQ events database (vci_news_events.sqlite).
+    """
+    # News tab: use AI news database which has URL, image, sentiment
+    if tab == "news":
+        try:
+            db = ai_news_db_path()
+            if db and os.path.exists(db):
+                items = query_ai_news(db, symbol, limit=limit)
+                if items:
+                    return items
+        except Exception as exc:
+            logger.warning("ai_news feed error: %s", exc)
+        # Fall through to VCI IQ events DB if AI news has nothing
+
+    # Other tabs: use VCI IQ events database
     db = _news_events_db_path()
     if not db:
         return None
@@ -1039,11 +1048,7 @@ def _feed_from_sqlite(symbol: str, tab: str, limit: int = 50) -> list | None:
             ).fetchall()
         if not rows:
             return None
-        items = [json.loads(r["raw_json"]) for r in rows]
-        # Enrich news tab with AI news data (URL, image, sentiment)
-        if tab == "news":
-            items = _enrich_with_ai_news(items, symbol)
-        return items
+        return [json.loads(r["raw_json"]) for r in rows]
     except Exception as exc:
         logger.warning("feed sqlite error: %s", exc)
         return None
