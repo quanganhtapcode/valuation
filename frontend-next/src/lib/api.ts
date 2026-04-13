@@ -44,6 +44,11 @@ export const API = {
 
     // Stock Data (VCI Source via vnstock)
     STOCK: (symbol: string) => `${API_BASE}/stock/${symbol}?fetch_price=true`,
+    STOCK_SUMMARY: (symbol: string) => `${API_BASE}/stock/${symbol}/summary`,
+    STOCK_PROFILE: (symbol: string) => `${API_BASE}/stock/${symbol}/profile`,
+    STOCK_RATIO_HISTORY: (symbol: string) => `${API_BASE}/stock/${symbol}/ratio-history`,
+    STOCK_RATIO_SERIES: (symbol: string) => `${API_BASE}/stock/${symbol}/ratio-series`,
+    STOCK_OVERVIEW_FULL: (symbol: string) => `${API_BASE}/stock/${symbol}/overview-full`,
     APP_DATA: (symbol: string) => `${API_BASE}/app-data/${symbol}?fetch_price=true`,
     CURRENT_PRICE: (symbol: string) => `${API_BASE}/current-price/${symbol}`,
     PRICE: (symbol: string) => `${API_BASE}/price/${symbol}`,

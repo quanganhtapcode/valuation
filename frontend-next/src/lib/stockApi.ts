@@ -88,10 +88,90 @@ export async function searchCompanies(query: string, limit: number = 20): Promis
     }
 }
 
-// ==================== STOCK OVERVIEW ====================
+// ==================== STOCK OVERVIEW (SPLIT ENDPOINTS) ====================
 
 /**
- * Get stock overview (ratios, metrics) by symbol
+ * Lightweight stock summary: identity + price + key ratios (~500 B).
+ * GET /api/stock/<symbol>/summary
+ */
+export async function fetchStockSummary(symbol: string): Promise<Record<string, any> | null> {
+    try {
+        const response = await fetch(`${API_BASE}/stock/${symbol}/summary`);
+        if (!response.ok) return null;
+        const json = await response.json();
+        return json.success ? json : null;
+    } catch (error) {
+        console.error(`Error fetching stock summary for ${symbol}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Company profile: description, established date, employees (~1.5 KB).
+ * GET /api/stock/<symbol>/profile
+ */
+export async function fetchStockProfile(symbol: string): Promise<Record<string, any> | null> {
+    try {
+        const response = await fetch(`${API_BASE}/stock/${symbol}/profile`);
+        if (!response.ok) return null;
+        const json = await response.json();
+        return json.success ? json : null;
+    } catch (error) {
+        console.error(`Error fetching stock profile for ${symbol}:`, error);
+        return null;
+    }
+}
+
+/**
+ * 12-year PE/PB/ROE/ROA/Debt ratio history (~1.5 KB).
+ * GET /api/stock/<symbol>/ratio-history
+ */
+export async function fetchStockRatioHistory(symbol: string): Promise<Record<string, any> | null> {
+    try {
+        const response = await fetch(`${API_BASE}/stock/${symbol}/ratio-history`);
+        if (!response.ok) return null;
+        const json = await response.json();
+        return json.success ? json : null;
+    } catch (error) {
+        console.error(`Error fetching stock ratio history for ${symbol}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Quarterly/annual ratio arrays for mini-charts (~500 B).
+ * GET /api/stock/<symbol>/ratio-series
+ */
+export async function fetchStockRatioSeries(symbol: string): Promise<Record<string, any> | null> {
+    try {
+        const response = await fetch(`${API_BASE}/stock/${symbol}/ratio-series`);
+        if (!response.ok) return null;
+        const json = await response.json();
+        return json.success ? json : null;
+    } catch (error) {
+        console.error(`Error fetching stock ratio series for ${symbol}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Legacy: Full overview — all 4 combined (~4 KB, backward compat).
+ * GET /api/stock/<symbol>/overview-full
+ */
+export async function fetchStockOverviewFull(symbol: string): Promise<StockApiData | null> {
+    try {
+        const response = await fetch(`${API_BASE}/stock/${symbol}/overview-full`);
+        if (!response.ok) return null;
+        return unwrap<StockApiData>(await response.json());
+    } catch (error) {
+        console.error(`Error fetching stock overview-full for ${symbol}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Get stock overview (legacy, kept for backward compat).
+ * GET /api/stock/<symbol>
  */
 export async function fetchStockOverview(symbol: string): Promise<StockApiData | null> {
     try {
