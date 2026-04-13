@@ -28,6 +28,8 @@ const SOURCE_LOGOS: Record<string, string> = {
     'vietstock': 'https://vietstock.vn/favicon.ico',
     'cafef': 'https://cafef.vn/favicon.ico',
     'tinnhanhchungkhoan': 'https://www.tinnhanhchungkhoan.vn/favicon.ico',
+    'nguoiquansat': 'https://nguoiquansat.vn/favicon.ico',
+    'người quan sát': 'https://nguoiquansat.vn/favicon.ico',
     'ndh': 'https://ndh.vn/favicon.ico',
     'vnexpress': 'https://vnexpress.net/favicon.ico',
     'dantri': 'https://dantri.com.vn/favicon.ico',
