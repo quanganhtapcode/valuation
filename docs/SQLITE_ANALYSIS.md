@@ -454,6 +454,24 @@
 
 ---
 
+## API Endpoints (Split Design)
+
+| Endpoint | Size | Content | Used by |
+|---|---|---|---|
+| `GET /api/stock/{symbol}/summary` | ~500 B | Identity + price + 38 key ratios | Header, quick stats |
+| `GET /api/stock/{symbol}/profile` | ~1.5 KB | company_profile, description | Overview tab |
+| `GET /api/stock/{symbol}/ratio-history` | ~1.5 KB | 12-year PE/PB/ROE/ROA/Debt array | 12-year ratio chart |
+| `GET /api/stock/{symbol}/ratio-series` | ~500 B | current_ratio_data, quick_ratio_data, ev_ebitda… | Mini-charts |
+| `GET /api/stock/{symbol}/overview-full` | ~4 KB | All 4 combined (legacy) | Downloads, old clients |
+| `GET /api/stock/{symbol}` | ~4 KB | Legacy endpoint (kept for compat) | Old clients |
+| `GET /api/stock/history/{symbol}` | ~110 KB | 1245 days OHLCV | Price chart |
+| `GET /api/financial-report/{symbol}` | ~16 KB | Full BCTC (VCI field codes) | Financials tab |
+| `GET /api/valuation/{symbol}` | ~12 KB | DCF valuation result | Valuation tab |
+| `GET /api/stock/holders/{symbol}` | ~2 KB | Shareholder list | Holders tab |
+
+**Before:** 1 call × 4 KB = 4 KB (monolithic, slow)
+**After:** 4 calls × 500B–1.5KB in parallel = same total, but **header renders first** (fastest endpoint returns first)
+
 ## Data Flow Architecture
 
 ```
