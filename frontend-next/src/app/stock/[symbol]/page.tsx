@@ -596,15 +596,13 @@ export default function StockDetailPage() {
                             KLCP: {financials?.sharesOutstanding ? formatNumber(financials.sharesOutstanding) : '-'}
                         </div>
                         {targetPrice != null && targetPrice > 0 && priceData.price > 0 && (
-                            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}>
-                                <span className="text-tremor-content dark:text-dark-tremor-content">
-                                    Target: <strong style={{ color: '#3b82f6' }}>{formatNumber(targetPrice)}</strong>
+                            <div className={styles.targetPriceRow}>
+                                <span className={styles.targetPriceLabel}>Target</span>
+                                <span className={`${styles.targetPriceValue} ${targetPrice >= priceData.price ? styles.targetPriceUp : styles.targetPriceDown}`}>
+                                    {formatNumber(targetPrice)}
                                 </span>
-                                <span style={{
-                                    fontWeight: 600,
-                                    color: targetPrice >= priceData.price ? '#10b981' : '#ef4444',
-                                }}>
-                                    ({((targetPrice - priceData.price) / priceData.price * 100).toFixed(1)}%)
+                                <span className={`${styles.targetPricePct} ${targetPrice >= priceData.price ? styles.targetPriceUp : styles.targetPriceDown}`}>
+                                    {targetPrice >= priceData.price ? '▲' : '▼'} {Math.abs((targetPrice - priceData.price) / priceData.price * 100).toFixed(1)}%
                                 </span>
                             </div>
                         )}
