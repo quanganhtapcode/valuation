@@ -243,6 +243,7 @@ def register(stock_bp: Blueprint) -> None:
         })
         if report_type in ("income", "balance", "cashflow", "note"):
             fs_db_path = resolve_vci_financial_statement_db_path()
+            logger.info(f"Note report debug: report_type={report_type}, fs_db_path={fs_db_path}, exists={os.path.exists(fs_db_path) if fs_db_path else False}")
             if fs_db_path and os.path.exists(fs_db_path):
                 try:
                     conn = sqlite3.connect(fs_db_path)
@@ -266,6 +267,7 @@ def register(stock_bp: Blueprint) -> None:
                             """,
                             (clean_symbol, period_kind, limit),
                         ).fetchall()
+                        logger.info(f"Note query: wide_table={wide_table}, ticker={clean_symbol}, period_kind={period_kind}, rows_count={len(rows)}")
                         conn.close()
                         if rows:
                             data: list[dict] = []
@@ -323,6 +325,7 @@ def register(stock_bp: Blueprint) -> None:
                     logger.warning(f"VCI FS DB read failed for {clean_symbol}: {exc}")
 
         if report_type == "note":
+            logger.info(f"Note report for {clean_symbol}: returning empty (VCI FS DB not available or no data)")
             return jsonify([])
 
         try:

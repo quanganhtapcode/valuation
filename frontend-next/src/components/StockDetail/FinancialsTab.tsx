@@ -32,7 +32,7 @@ const BANK_SYMBOLS = new Set(['VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','S
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmt(v: number | null | undefined, decimals = 0): string {
+function fmt(v: number | null | undefined, decimals = 2): string {
     if (v === null || v === undefined || Number.isNaN(v)) return '-';
     return formatNumber(v, { maximumFractionDigits: decimals });
 }
@@ -273,6 +273,8 @@ export default function FinancialsTab({
                 const payload = res.value;
                 return Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
             };
+            const noteData = unwrap(note);
+            console.log('Note API response:', note, 'Unwrapped:', noteData);
             setReportData({
                 income: unwrap(income).sort((a, b) => periodSortKey(b) - periodSortKey(a)).slice(0, windowSize),
                 balance: unwrap(balance).sort((a, b) => periodSortKey(b) - periodSortKey(a)).slice(0, windowSize),

@@ -210,7 +210,7 @@ def _load_symbols_from_company_db(company_db: Path, limit: int) -> list[str]:
             SELECT ticker
             FROM companies
             WHERE is_index = 0
-              AND floor IN ('HOSE', 'HNX')
+              AND floor IN ('HOSE', 'HNX', 'UPCOM')
               AND ticker IS NOT NULL
               AND TRIM(ticker) <> ''
             ORDER BY ticker
@@ -752,7 +752,7 @@ def main() -> int:
 
     conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", ("symbol_source", source))
     conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", ("symbol_count", str(len(symbols))))
-    conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", ("floors", "HOSE,HNX"))
+    conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", ("floors", "HOSE,HNX,UPCOM"))
     conn.commit()
 
     log.info("Start fetch symbols=%d workers=%d db=%s", len(symbols), int(args.workers), db_path)

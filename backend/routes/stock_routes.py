@@ -414,6 +414,25 @@ def api_batch_price():
         logger.error(f"API /stock/batch-price error: {exc}")
         return jsonify({"success": False, "error": str(exc)}), 500
 
+_VCI_COMPANY_DB_PATH = os.path.join(os.path.dirname(__file__), "../../fetch_sqlite/vci_company.sqlite")
+
+def _get_company_target_price(symbol: str) -> float | None:
+    """Read target_price from vci_company.sqlite for the given symbol."""
+    db = os.environ.get("VCI_COMPANY_DB_PATH") or _VCI_COMPANY_DB_PATH
+    if not db or not os.path.exists(db):
+        return None
+    try:
+        with sqlite3.connect(db) as conn:
+            row = conn.execute(
+                "SELECT target_price FROM companies WHERE ticker = ?",
+                (symbol.upper(),),
+            ).fetchone()
+            if row and row[0] is not None:
+                return float(row[0])
+    except Exception as exc:
+        logger.warning("company target_price read failed for %s: %s", symbol, exc)
+    return None
+
 @stock_bp.route("/stock/<symbol>")
 def api_stock(symbol):
     """Get stock summary data (financials, ratios)"""
@@ -422,6 +441,11 @@ def api_stock(symbol):
         period = request.args.get("period", "year")
         fetch_price = request.args.get("fetch_price", "false").lower() == "true"
         data = provider.get_stock_data(symbol, period, fetch_current_price=fetch_price)
+
+        # Inject target_price from VCI company database
+        tp = _get_company_target_price(symbol)
+        if tp is not None:
+            data["target_price"] = tp
         
         def convert_nan_to_none(obj):
             if isinstance(obj, dict):
@@ -946,6 +970,8 @@ _VCI_FEED_TABS = {
     "other":    {"path": "events", "extra": {"eventCode": "AIS,MA,MOVE,NLIS,OTHE,RETU,SUSP"}},
 }
 
+from backend.services.vci_news_sqlite import default_news_db_path as ai_news_db_path, query_news_for_symbol as query_ai_news
+
 def _news_events_db_path() -> str | None:
     candidates = [
         os.environ.get("VCI_NEWS_EVENTS_DB_PATH"),
@@ -956,6 +982,48 @@ def _news_events_db_path() -> str | None:
         if p and os.path.exists(p):
             return p
     return None
+
+_AI_NEWS_FIELD_MAP = {
+    # VCI IQ field -> AI news field
+    "newsSourceLink": "news_source_link",
+    "newsImageUrl": "news_image_url",
+    "newsSmallImageUrl": "news_image_url",
+    "sentimentScore": "score",
+    "sentimentLabel": "sentiment",
+}
+
+def _enrich_with_ai_news(items: list[dict], symbol: str) -> list[dict]:
+    """Enrich VCI IQ news items with AI news data (URL, image, sentiment)."""
+    try:
+        ai_items = query_ai_news(ai_news_db_path(), symbol, limit=50)
+    except Exception as exc:
+        logger.warning("ai_news enrich failed: %s", exc)
+        ai_items = []
+
+    if not ai_items:
+        return items
+
+    # Build lookup by normalized title
+    ai_by_title: dict[str, dict] = {}
+    for ai in ai_items:
+        title = (ai.get("news_title") or ai.get("Title") or ai.get("title") or "").strip().lower()
+        if title:
+            ai_by_title[title] = ai
+
+    enriched = []
+    for item in items:
+        iq_title = (item.get("newsTitle") or item.get("title") or "").strip().lower()
+        ai_match = ai_by_title.get(iq_title)
+        if ai_match:
+            item = dict(item)  # copy
+            item.setdefault("newsSourceLink", ai_match.get("news_source_link") or ai_match.get("Link") or ai_match.get("url") or "")
+            item.setdefault("newsImageUrl", ai_match.get("news_image_url") or ai_match.get("ImageThumb") or ai_match.get("image_url") or "")
+            item.setdefault("newsSmallImageUrl", ai_match.get("news_image_url") or ai_match.get("ImageThumb") or "")
+            item.setdefault("sentimentScore", ai_match.get("score"))
+            item.setdefault("sentimentLabel", ai_match.get("sentiment") or ai_match.get("Sentiment") or "")
+            item.setdefault("newsSource", ai_match.get("news_from_name") or ai_match.get("Source") or ai_match.get("source") or item.get("newsSource"))
+        enriched.append(item)
+    return enriched
 
 def _feed_from_sqlite(symbol: str, tab: str, limit: int = 50) -> list | None:
     """Return items from SQLite cache, or None if DB not available / no rows."""
@@ -971,7 +1039,11 @@ def _feed_from_sqlite(symbol: str, tab: str, limit: int = 50) -> list | None:
             ).fetchall()
         if not rows:
             return None
-        return [json.loads(r["raw_json"]) for r in rows]
+        items = [json.loads(r["raw_json"]) for r in rows]
+        # Enrich news tab with AI news data (URL, image, sentiment)
+        if tab == "news":
+            items = _enrich_with_ai_news(items, symbol)
+        return items
     except Exception as exc:
         logger.warning("feed sqlite error: %s", exc)
         return None

@@ -79,6 +79,7 @@ export default function StockDetailPage() {
 
     const [stockInfo, setStockInfo] = useState<StockInfo | null>(null);
     const [priceData, setPriceData] = useState<PriceData | null>(null);
+    const [targetPrice, setTargetPrice] = useState<number | null>(null);
     const [financials, setFinancials] = useState<FinancialData | null>(null);
     const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
     const [timeRange, setTimeRange] = useState<'3M' | '6M' | '1Y' | '3Y' | '5Y'>('3M');
@@ -188,6 +189,8 @@ export default function StockDetailPage() {
                     currentPriceValue = data.current_price || data.price || data.close || 0;
                     const profitGrowthValue = data.profit_growth ?? data.profitGrowth;
                     const debtToEquityValue = data.debt_to_equity ?? data.debtToEquity ?? data.de;
+                    const tp = data.target_price ?? data.targetPrice ?? null;
+                    if (tp) setTargetPrice(Number(tp));
                     setFinancials({
                         eps: data.eps_ttm || data.eps,
                         pe: data.pe_ratio || data.pe || data.PE,
@@ -529,6 +532,19 @@ export default function StockDetailPage() {
                         <div className={styles.klcpCompact}>
                             KLCP: {financials?.sharesOutstanding ? formatNumber(financials.sharesOutstanding) : '-'}
                         </div>
+                        {targetPrice != null && targetPrice > 0 && priceData.price > 0 && (
+                            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}>
+                                <span className="text-tremor-content dark:text-dark-tremor-content">
+                                    Target: <strong style={{ color: '#3b82f6' }}>{formatNumber(targetPrice)}</strong>
+                                </span>
+                                <span style={{
+                                    fontWeight: 600,
+                                    color: targetPrice >= priceData.price ? '#10b981' : '#ef4444',
+                                }}>
+                                    ({((targetPrice - priceData.price) / priceData.price * 100).toFixed(1)}%)
+                                </span>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
