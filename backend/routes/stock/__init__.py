@@ -9,6 +9,7 @@ def register_stock_routes(bp: Blueprint) -> None:
     # Local imports keep startup fast and avoid circular dependencies.
     from .prices import register as register_prices
     from .stock_data import register as register_stock_data
+    from .stock_overview import register as register_stock_overview
     from .charts import register as register_charts
     from .profile import register as register_profile
     from .history import register as register_history
@@ -21,6 +22,7 @@ def register_stock_routes(bp: Blueprint) -> None:
 
     register_prices(bp)
     register_stock_data(bp)
+    register_stock_overview(bp)
     register_charts(bp)
     register_profile(bp)
     register_history(bp)
