@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { formatNumber } from '@/lib/api';
-import { Card, Title, Text, Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from '@tremor/react';
 import { cx } from '@/lib/utils';
 
-type DisplayMode = 'annual' | 'quarterly';
-type ReportType = 'key_stats' | 'ratio' | 'income' | 'balance' | 'cashflow' | 'note';
-type StatementWindow = '4' | '8' | '12' | 'all';
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type DisplayMode = 'annual' | 'quarterly' | 'ttm';
+type ReportType = 'key_stats' | 'income' | 'balance' | 'cashflow' | 'ratios';
+type DisplayUnit = 'billions' | 'trillions';
 
 interface FinancialsTabProps {
     symbol: string;
@@ -19,22 +20,30 @@ interface FinancialsTabProps {
     onDownloadExcel?: () => void;
 }
 
+// ── Tab Configuration ─────────────────────────────────────────────────────────
+
 const TABS: { id: ReportType; label: string }[] = [
     { id: 'key_stats', label: 'Key Stats' },
-    { id: 'ratio', label: 'Ratios' },
-    { id: 'income', label: 'Income' },
+    { id: 'income', label: 'Income Statement' },
     { id: 'balance', label: 'Balance Sheet' },
     { id: 'cashflow', label: 'Cash Flow' },
-    { id: 'note', label: 'Note' },
+    { id: 'ratios', label: 'Ratios' },
 ];
 
-const BANK_SYMBOLS = new Set(['VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB','TPB','LPB','MSB','OCB','EIB','ABB','NAB','PGB','VAB','VIB','SSB','BAB','KLB','BVB','KBS','SGB','NVB']);
+const BANK_SYMBOLS = new Set([
+    'VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB',
+    'TPB','LPB','MSB','OCB','EIB','ABB','NAB','PGB','VAB','VIB',
+    'SSB','BAB','KLB','BVB','KBS','SGB','NVB'
+]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmt(v: number | null | undefined, decimals = 2): string {
+function fmt(v: number | null | undefined, decimals = 0): string {
     if (v === null || v === undefined || Number.isNaN(v)) return '-';
-    return formatNumber(v, { maximumFractionDigits: decimals });
+    const absV = Math.abs(v);
+    if (absV < 0.01) return '-';
+    const sign = v < 0 ? '-' : '';
+    return `${sign}${formatNumber(absV, { maximumFractionDigits: decimals, minimumFractionDigits: 0 })}`;
 }
 
 function fmtPct(v: number | null | undefined, decimals = 1): string {
@@ -43,18 +52,22 @@ function fmtPct(v: number | null | undefined, decimals = 1): string {
     return `${displayValue.toFixed(decimals)}%`;
 }
 
-function renderPeriod(row: Record<string, any>): string {
+function renderPeriod(row: Record<string, any>, isForecast?: boolean): { label: string; isForecast: boolean } {
     const year = row?.year ?? row?.year_report ?? row?.yearReport;
     const quarter = row?.quarter ?? row?.quarter_report ?? row?.quarterReport;
-    if (quarter && Number(quarter) > 0) return `Q${quarter}/${year}`;
-    if (year) return String(year);
-    return '-';
+    let label = '-';
+    if (quarter && Number(quarter) > 0) {
+        label = `Q${quarter}/${year}`;
+    } else if (year) {
+        label = `12/31/${year}`;
+    }
+    return { label, isForecast: isForecast ?? row?.is_forecast ?? row?.isForecast ?? false };
 }
 
 function periodSortKey(row: Record<string, any>): number {
     const year = Number(row?.year ?? row?.year_report ?? row?.yearReport ?? 0);
     const quarter = Number(row?.quarter ?? row?.quarter_report ?? row?.quarterReport ?? 0);
-    return year * 10 + quarter;
+    return year * 10 + (quarter || 0);
 }
 
 function isBankStock(symbol: string, overviewData: any): boolean {
@@ -64,146 +77,555 @@ function isBankStock(symbol: string, overviewData: any): boolean {
     return false;
 }
 
+// ── Display Unit Config ───────────────────────────────────────────────────────
+
+const DISPLAY_UNITS: { id: DisplayUnit; label: string; divisor: number }[] = [
+    { id: 'billions', label: 'Tỷ', divisor: 1_000_000 },
+    { id: 'trillions', label: 'Nghìn tỷ', divisor: 1_000_000_000 },
+];
+
 // ── Key Metrics Config ────────────────────────────────────────────────────────
 
-const NORMAL_KEY_METRICS = [
-    { key: 'pe', label: 'P/E', fields: ['pe'] },
-    { key: 'pb', label: 'P/B', fields: ['pb'] },
-    { key: 'eps', label: 'EPS', fields: ['eps'] },
-    { key: 'roe', label: 'ROE', fields: ['roe'], isPct: true },
-    { key: 'roa', label: 'ROA', fields: ['roa'], isPct: true },
-    { key: 'net_margin', label: 'Biên LN ròng', fields: ['net_profit_margin'], isPct: true },
-    { key: 'pre_tax_margin', label: 'Biên LN trước thuế', fields: ['pre_tax_margin'], isPct: true },
-    { key: 'debt_to_equity', label: 'D/E', fields: ['debt_to_equity'] },
-    { key: 'ebit_margin', label: 'Biên EBIT', fields: ['ebit_margin'], isPct: true },
-    { key: 'revenue_growth', label: 'Tăng trưởng DT', fields: ['revenue_growth_yoy'], isPct: true },
+const NORMAL_KEY_METRICS: { key: string; label: string; section: string; isPct?: boolean; indent?: boolean }[] = [
+    { key: 'market_cap', label: 'Market Cap', section: 'overview' },
+    { key: 'cash', label: 'Cash', section: 'overview' },
+    { key: 'total_debt', label: 'Debt', section: 'overview' },
+    { key: 'enterprise_value', label: 'Enterprise Value', section: 'overview' },
+    { key: 'revenue', label: 'Revenue', section: 'income' },
+    { key: 'revenue_growth', label: '  Revenue Growth', isPct: true, indent: true, section: 'income' },
+    { key: 'gross_profit', label: 'Gross Profit', section: 'income' },
+    { key: 'gross_margin', label: '  Gross Margin', isPct: true, indent: true, section: 'income' },
+    { key: 'ebitda', label: 'EBITDA', section: 'income' },
+    { key: 'ebitda_margin', label: '  EBITDA Margin', isPct: true, indent: true, section: 'income' },
+    { key: 'net_income', label: 'Net Income', section: 'income' },
+    { key: 'net_profit_margin', label: '  Net Margin', isPct: true, indent: true, section: 'income' },
+    { key: 'eps', label: 'Diluted EPS', section: 'eps' },
+    { key: 'eps_ttm', label: 'EPS (TTM)', section: 'eps' },
+    { key: 'profit_growth', label: '  Profit Growth', isPct: true, indent: true, section: 'eps' },
+    { key: 'operating_cash_flow', label: 'Operating Cash Flow', section: 'cashflow' },
+    { key: 'capex', label: 'CapEx', section: 'cashflow' },
+    { key: 'free_cash_flow', label: 'Free Cash Flow', section: 'cashflow' },
 ];
 
-const BANK_KEY_METRICS = [
-    { key: 'pe', label: 'P/E', fields: ['pe'] },
-    { key: 'pb', label: 'P/B', fields: ['pb'] },
-    { key: 'eps', label: 'EPS', fields: ['eps'] },
-    { key: 'nim', label: 'NIM', fields: ['nim', 'net_interest_margin'], isPct: true },
-    { key: 'cir', label: 'CIR', fields: ['cir'], isPct: true },
-    { key: 'casa', label: 'CASA', fields: ['casa', 'casa_ratio'], isPct: true },
-    { key: 'npl', label: 'NPL', fields: ['npl'], isPct: true },
-    { key: 'roe', label: 'ROE', fields: ['roe'], isPct: true },
-    { key: 'roa', label: 'ROA', fields: ['roa'], isPct: true },
-    { key: 'car', label: 'CAR', fields: ['car'], isPct: true },
-    { key: 'ldr', label: 'LDR', fields: ['ldr'], isPct: true },
-    { key: 'net_margin', label: 'Biên LN ròng', fields: ['net_profit_margin'], isPct: true },
-    { key: 'debt_to_equity', label: 'D/E', fields: ['debt_to_equity'] },
+const BANK_KEY_METRICS: { key: string; label: string; section: string; isPct?: boolean; indent?: boolean }[] = [
+    { key: 'market_cap', label: 'Market Cap', section: 'overview' },
+    { key: 'cash', label: 'Cash', section: 'overview' },
+    { key: 'debt', label: 'Debt', section: 'overview' },
+    { key: 'enterprise_value', label: 'Enterprise Value', section: 'overview' },
+    { key: 'nim', label: 'NIM', isPct: true, section: 'income' },
+    { key: 'cir', label: 'CIR', isPct: true, section: 'income' },
+    { key: 'casa', label: 'CASA', isPct: true, section: 'balance' },
+    { key: 'npl', label: 'NPL', isPct: true, section: 'balance' },
+    { key: 'roe', label: 'ROE', isPct: true, section: 'ratios' },
+    { key: 'roa', label: 'ROA', isPct: true, section: 'ratios' },
+    { key: 'car', label: 'CAR', isPct: true, section: 'ratios' },
+    { key: 'ldr', label: 'LDR', isPct: true, section: 'ratios' },
 ];
 
-// Key metrics for Cash Flow (only important items)
-const CASHFLOW_KEY_METRICS = [
-    { key: 'cfa1', label: 'LN trước thuế' },
-    { key: 'cfa18', label: 'LC tiền từ HĐKD' },
-    { key: 'cfa19', label: 'Tiền mua sắm TSCĐ' },
-    { key: 'cfa26', label: 'LC tiền từ HĐĐT' },
-    { key: 'cfa34', label: 'LC tiền từ HĐTC' },
-    { key: 'cfa35', label: 'LC tiền thuần trong kỳ' },
-    { key: 'cfa38', label: 'Tiền và TĐT cuối kỳ' },
+// ── Section Definitions for Reports ───────────────────────────────────────────
+
+const INCOME_SECTIONS = [
+    {
+        title: 'Báo cáo kết quả kinh doanh',
+        rows: [
+            { key: 'revenue', label: 'Total Revenues' },
+            { key: 'net_revenue', label: 'Net Revenue' },
+            { key: 'cost_of_goods_sold', label: 'Cost of Goods Sold' },
+            { key: 'gross_profit', label: 'Gross Profit', isTotal: true },
+            { key: 'financial_income', label: 'Financial Income' },
+            { key: 'financial_expense', label: 'Financial Expense' },
+            { key: 'selling_admin_expense', label: 'SG&A' },
+            { key: 'operating_profit', label: 'Operating Profit', isTotal: true },
+            { key: 'other_income_expense', label: 'Non-Operating Income' },
+            { key: 'profit_before_tax', label: 'Income Before Taxes', isTotal: true },
+            { key: 'corporate_income_tax', label: 'Provision for Taxes' },
+            { key: 'net_profit', label: 'Consolidated Net Income', isTotal: true },
+            { key: 'minority_interest', label: 'Minority Interests' },
+            { key: 'net_profit_parent_company', label: 'Net Profit (Parent)' },
+            { key: 'eps', label: 'EPS (Basic)' },
+            { key: 'eps_diluted', label: 'EPS (Diluted)' },
+        ]
+    },
+    {
+        title: 'Margins',
+        isPctSection: true,
+        rows: [
+            { key: 'gross_margin', label: 'Gross Margin' },
+            { key: 'gross_profit_margin', label: 'Gross Profit Margin' },
+            { key: 'operating_margin', label: 'Operating Margin' },
+            { key: 'ebit_margin', label: 'EBIT Margin' },
+            { key: 'ebitda_margin', label: 'EBITDA Margin' },
+            { key: 'net_margin', label: 'Net Profit Margin' },
+            { key: 'net_profit_margin', label: 'Net Margin' },
+            { key: 'pre_tax_margin', label: 'Pre-Tax Profit Margin' },
+            { key: 'after_tax_margin', label: 'After-Tax Margin' },
+        ]
+    }
 ];
 
-// Key metrics for Note (only important items)
-const NOTE_KEY_METRICS = [
-    { key: 'noc1', label: 'Thuế TNDN phải nộp' },
-    { key: 'noc2', label: 'Chi phí lãi vay' },
-    { key: 'noc3', label: 'Khấu hao TSCĐ' },
-    { key: 'noc4', label: 'Chi phí nhân viên' },
-    { key: 'noc5', label: 'Doanh thu bán hàng' },
+const BALANCE_SECTIONS = [
+    {
+        title: 'Assets',
+        rows: [
+            { key: 'cash', label: 'Cash' },
+            { key: 'cash_and_equivalents', label: 'Cash & Equivalents' },
+            { key: 'current_assets', label: 'Current Assets' },
+            { key: 'accounts_receivable', label: 'Receivables' },
+            { key: 'inventory', label: 'Inventory' },
+            { key: 'total_current_assets', label: 'Total Current Assets', isTotal: true },
+            { key: 'non_current_assets', label: 'Non-Current Assets' },
+            { key: 'ppe_net', label: 'Property, Plant & Equipment (Net)' },
+            { key: 'long_term_investments', label: 'Long-term Investments' },
+            { key: 'fixed_asset_to_equity', label: 'Fixed Assets' },
+            { key: 'other_long_term_assets', label: 'Other Long-term Assets' },
+            { key: 'total_assets', label: 'Total Assets', isGrandTotal: true },
+        ]
+    },
+    {
+        title: 'Liabilities',
+        rows: [
+            { key: 'current_liabilities', label: 'Current Liabilities' },
+            { key: 'accounts_payable', label: 'Payables' },
+            { key: 'short_term_debt', label: 'Short-term Debt' },
+            { key: 'non_current_liabilities', label: 'Non-Current Liabilities' },
+            { key: 'long_term_debt', label: 'Long-term Debt' },
+            { key: 'deferred_tax_liabilities', label: 'Deferred Tax Liabilities' },
+            { key: 'other_long_term_liabilities', label: 'Other Long-term Liabilities' },
+            { key: 'total_liabilities', label: 'Total Liabilities', isGrandTotal: true },
+        ]
+    },
+    {
+        title: 'Equity',
+        rows: [
+            { key: 'common_stock', label: 'Common Stock' },
+            { key: 'owners_equity_charter_capital', label: 'Charter Capital' },
+            { key: 'paid_in_capital', label: 'Paid-in Capital' },
+            { key: 'retained_earnings', label: 'Retained Earnings' },
+            { key: 'treasury_stock', label: 'Treasury Stock' },
+            { key: 'minority_interests', label: 'Minority Interests' },
+            { key: 'total_equity', label: 'Total Equity', isTotal: true },
+            { key: 'total_shareholders_equity', label: 'Total Shareholders\' Equity', isTotal: true },
+            { key: 'total_debt', label: 'Total Debt' },
+            { key: 'total_liabilities_and_equity', label: 'Total Liabilities & Equity', isGrandTotal: true },
+        ]
+    }
 ];
 
-// ── Unified Table Component ───────────────────────────────────────────────────
+const CASHFLOW_SECTIONS = [
+    {
+        title: 'Operating Activities',
+        rows: [
+            { key: 'profit_before_tax', label: 'Profit Before Tax' },
+            { key: 'net_profit', label: 'Net Income' },
+            { key: 'depreciation_fixed_assets', label: 'Depreciation & Amortization' },
+            { key: 'provision_credit_loss_real_estate', label: 'Provision for Credit Loss' },
+            { key: 'profit_loss_from_disposal_fixed_assets', label: 'P/L from Disposal of FA' },
+            { key: 'profit_loss_investment_activities', label: 'P/L from Investment Activities' },
+            { key: 'interest_income', label: 'Interest Income' },
+            { key: 'interest_and_dividend_income', label: 'Interest & Dividend Income' },
+            { key: 'increase_decrease_receivables', label: 'Change in Receivables' },
+            { key: 'increase_decrease_inventory', label: 'Change in Inventory' },
+            { key: 'increase_decrease_payables', label: 'Change in Payables' },
+            { key: 'increase_decrease_prepaid_expenses', label: 'Change in Prepaid Expenses' },
+            { key: 'interest_expense_paid', label: 'Interest Expense Paid' },
+            { key: 'corporate_income_tax_paid', label: 'Corporate Income Tax Paid' },
+            { key: 'other_cash_from_operating_activities', label: 'Other Cash from Operating' },
+            { key: 'other_cash_paid_for_operating_activities', label: 'Other Cash Paid for Operating' },
+            { key: 'net_cash_from_operating_activities', label: 'Cash from Operations', isTotal: true },
+        ]
+    },
+    {
+        title: 'Investing Activities',
+        rows: [
+            { key: 'purchase_purchase_fixed_assets', label: 'Purchase of Fixed Assets (CapEx)' },
+            { key: 'proceeds_from_disposal_fixed_assets', label: 'Proceeds from Disposal of FA' },
+            { key: 'loans_other_collections', label: 'Loans / Other Collections' },
+            { key: 'investments_other_companies', label: 'Investments in Other Companies' },
+            { key: 'proceeds_from_sale_investments_other_companies', label: 'Proceeds from Sale of Investments' },
+            { key: 'dividends_and_profits_received', label: 'Dividends & Profits Received' },
+            { key: 'net_cash_from_investing_activities', label: 'Cash from Investing', isTotal: true },
+        ]
+    },
+    {
+        title: 'Financing Activities',
+        rows: [
+            { key: 'increase_share_capital_contribution_equity', label: 'Increase Share Capital' },
+            { key: 'payment_for_capital_contribution_buyback_shares', label: 'Payment for Buyback Shares' },
+            { key: 'proceeds_from_borrowings', label: 'Proceeds from Borrowings' },
+            { key: 'repayments_of_borrowings', label: 'Repayments of Borrowings' },
+            { key: 'lease_principal_payments', label: 'Lease Principal Payments' },
+            { key: 'dividends_paid', label: 'Dividends Paid' },
+            { key: 'other_cash_from_financing_activities', label: 'Other Cash from Financing' },
+            { key: 'net_cash_from_financing_activities', label: 'Cash from Financing', isTotal: true },
+        ]
+    },
+    {
+        title: 'Summary',
+        rows: [
+            { key: 'net_cash_flow_period', label: 'Net Change in Cash', isTotal: true },
+            { key: 'cash_and_cash_equivalents_beginning', label: 'Cash at Beginning of Period' },
+            { key: 'cash_and_cash_equivalents_ending', label: 'Cash at End of Period', isGrandTotal: true },
+        ]
+    }
+];
 
-function UnifiedTable({
+const RATIOS_SECTIONS = [
+    {
+        title: 'Valuation',
+        rows: [
+            { key: 'current_price', label: 'Stock Price' },
+            { key: 'price', label: 'Market Price' },
+            { key: 'outstanding_share', label: 'Shares Outstanding' },
+            { key: 'shares_outstanding', label: 'Shares Outstanding' },
+            { key: 'market_cap', label: 'Market Cap' },
+            { key: 'tev', label: 'Total Enterprise Value (TEV)' },
+        ]
+    },
+    {
+        title: 'Trailing Valuation',
+        rows: [
+            { key: 'pe', label: 'P/E Ratio' },
+            { key: 'price_to_earnings', label: 'P/E Ratio' },
+            { key: 'pb', label: 'P/B Ratio' },
+            { key: 'price_to_book', label: 'P/B Ratio' },
+            { key: 'ps', label: 'P/S Ratio' },
+            { key: 'price_to_sales', label: 'P/S Ratio' },
+            { key: 'pcf', label: 'P/CF Ratio' },
+            { key: 'p_cash_flow', label: 'Price to Cash Flow' },
+            { key: 'ev_to_ebitda', label: 'EV/EBITDA' },
+            { key: 'ev_ebitda', label: 'EV/EBITDA' },
+            { key: 'dividend_yield', label: 'Dividend Yield', isPct: true },
+            { key: 'buyback_yield', label: 'Buyback Yield', isPct: true },
+            { key: 'fcf_yield', label: 'FCF Yield', isPct: true },
+        ]
+    },
+    {
+        title: 'Profitability',
+        rows: [
+            { key: 'roe', label: 'ROE', isPct: true },
+            { key: 'roa', label: 'ROA', isPct: true },
+            { key: 'roic', label: 'ROIC', isPct: true },
+            { key: 'net_profit_margin', label: 'Net Profit Margin', isPct: true },
+            { key: 'gross_profit_margin', label: 'Gross Profit Margin', isPct: true },
+            { key: 'ebit_margin', label: 'EBIT Margin', isPct: true },
+            { key: 'pre_tax_margin', label: 'Pre-Tax Margin', isPct: true },
+        ]
+    },
+    {
+        title: 'Financial Health',
+        rows: [
+            { key: 'current_ratio', label: 'Current Ratio' },
+            { key: 'quick_ratio', label: 'Quick Ratio' },
+            { key: 'cash_ratio', label: 'Cash Ratio' },
+            { key: 'debt_to_equity', label: 'Debt-to-Equity' },
+            { key: 'debt_equity', label: 'Debt/Equity' },
+            { key: 'financial_leverage', label: 'Financial Leverage' },
+            { key: 'interest_coverage', label: 'Interest Coverage' },
+            { key: 'asset_turnover', label: 'Asset Turnover' },
+            { key: 'inventory_turnover', label: 'Inventory Turnover' },
+            { key: 'receivables_turnover', label: 'Receivables Turnover' },
+        ]
+    },
+    {
+        title: 'Other',
+        rows: [
+            { key: 'free_cash_flow', label: 'Free Cash Flow' },
+            { key: 'ebitda', label: 'EBITDA' },
+            { key: 'nopat', label: 'NOPAT' },
+            { key: 'book_value', label: 'Book Value' },
+            { key: 'bvps', label: 'Book Value Per Share' },
+            { key: 'eps', label: 'EPS' },
+        ]
+    }
+];
+
+// ── Sectioned Table Component ─────────────────────────────────────────────────
+
+function SectionedTable({
+    sections,
     rows,
-    windowSize,
-    metrics,
+    displayUnit,
     fieldLabels,
-    useRowLabels,
-    isPctKey,
-    valueFormatter,
 }: {
+    sections: { title: string; rows: { key: string; label: string; isTotal?: boolean; isGrandTotal?: boolean; isPct?: boolean; indent?: boolean }[]; isPctSection?: boolean }[];
     rows: any[];
-    windowSize: number;
-    metrics: { key: string; label: string; isPct?: boolean }[];
+    displayUnit: DisplayUnit;
     fieldLabels?: Record<string, string>;
-    useRowLabels?: boolean;
-    isPctKey?: (key: string) => boolean;
-    valueFormatter?: (key: string, row: any) => string;
 }) {
     if (!rows || rows.length === 0) {
-        return <Text className="text-center py-8 text-tremor-content-subtle">Không có dữ liệu</Text>;
+        return <div className="text-center py-8 text-gray-500 text-sm">Không có dữ liệu</div>;
     }
+
+    const sortedRows = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
+    const displayRows = sortedRows.slice(0, 8); // Show latest 8 periods
 
     const formatLabel = (key: string): string => {
         if (fieldLabels && fieldLabels[key]) return fieldLabels[key];
         return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     };
 
-    const fmtValue = (key: string, row: any, isPct?: boolean): string => {
-        if (valueFormatter) return valueFormatter(key, row);
+    const getDisplayValue = (row: any, key: string, forcePct?: boolean): string => {
         const v = Number(row[key]);
         if (Number.isNaN(v) || Math.abs(v) < 0.01) return '-';
-        return isPct ? fmtPct(v) : fmt(v);
+        if (forcePct) return fmtPct(v);
+        const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000;
+        return fmt(v / divisor);
     };
-
-    const getPctFlag = (key: string): boolean => {
-        if (isPctKey) return isPctKey(key);
-        return metrics.find(m => m.key === key)?.isPct || false;
-    };
-
-    // Get all metric keys for dynamic tables (income/balance/cashflow/note)
-    const dynamicKeys = useRowLabels
-        ? Object.keys(rows[0] || {}).filter(k =>
-            !['symbol', 'ticker', 'year', 'quarter', 'year_report', 'quarter_report', 'yearReport', 'quarterReport', 'data_json', 'id', 'organ_code', 'organCode', 'source', 'period', 'create_date', 'update_date', 'public_date', 'created_at', 'updated_at'].includes(k)
-          )
-        : metrics.map(m => m.key);
-
-    // Filter to only non-zero keys for dynamic tables
-    const displayKeys = useRowLabels
-        ? dynamicKeys.filter(key => rows.some(row => { const v = Number(row[key]); return !Number.isNaN(v) && Math.abs(v) > 0.01; }))
-        : metrics.map(m => m.key);
-
-    // Limit columns for dynamic tables
-    const finalKeys = useRowLabels ? displayKeys.slice(0, 30) : displayKeys;
 
     return (
         <div className="overflow-x-auto">
-            <Table>
-                <TableHead>
-                    <TableRow>
-                        <TableHeaderCell className="sticky left-0 bg-white dark:bg-gray-900 z-10 min-w-[140px] md:min-w-[200px] text-xs md:text-sm whitespace-nowrap">
+            <table className="w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+                <thead>
+                    <tr className="border-b border-gray-200">
+                        <th className="sticky left-0 bg-white z-10 text-left py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap min-w-[200px]">
                             Chỉ tiêu
-                        </TableHeaderCell>
-                        {rows.slice(0, windowSize).map((row, i) => (
-                            <TableHeaderCell key={i} className="text-right text-xs md:text-sm whitespace-nowrap">{renderPeriod(row)}</TableHeaderCell>
-                        ))}
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {finalKeys.map((key, idx) => {
-                        const metric = metrics.find(m => m.key === key);
-                        const label = metric?.label || formatLabel(key);
-                        const isPct = metric?.isPct || getPctFlag(key);
+                        </th>
+                        {displayRows.map((row, i) => {
+                            const { label, isForecast } = renderPeriod(row);
+                            return (
+                                <th key={i} className="text-right py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap min-w-[90px]">
+                                    <span className="inline-flex items-center gap-1">
+                                        {label}
+                                        {isForecast && (
+                                            <span className="text-gray-400 cursor-help" title="Forecast">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <path d="M12 16v-4" />
+                                                    <path d="M12 8h.01" />
+                                                </svg>
+                                            </span>
+                                        )}
+                                    </span>
+                                </th>
+                            );
+                        })}
+                    </tr>
+                </thead>
+                <tbody>
+                    {sections.map((section, sectionIdx) => (
+                        <React.Fragment key={sectionIdx}>
+                            {/* Section Header */}
+                            <tr>
+                                <td colSpan={displayRows.length + 1} className="pt-4 pb-1">
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.title}</span>
+                                </td>
+                            </tr>
+                            {/* Section Rows */}
+                            {section.rows.map((rowDef, rowIdx) => {
+                                const hasData = displayRows.some(r => {
+                                    const v = Number(r[rowDef.key]);
+                                    return !Number.isNaN(v) && Math.abs(v) > 0.01;
+                                });
+                                if (!hasData) return null;
+
+                                const isTotalRow = rowDef.isTotal ?? false;
+                                const isGrandTotalRow = rowDef.isGrandTotal ?? false;
+                                const isPctRow = rowDef.isPct ?? section.isPctSection ?? false;
+                                const isIndented = rowDef.indent ?? false;
+
+                                return (
+                                    <tr
+                                        key={`${sectionIdx}-${rowIdx}`}
+                                        className={cx(
+                                            'transition-colors',
+                                            isGrandTotalRow ? 'border-t-2 border-gray-300 font-semibold' : '',
+                                            isTotalRow ? 'border-t border-gray-200 font-medium' : '',
+                                            !isTotalRow && !isGrandTotalRow ? 'border-b border-gray-100' : ''
+                                        )}
+                                    >
+                                        <td className={cx(
+                                            'sticky left-0 bg-white z-10 py-2 px-3',
+                                            isGrandTotalRow ? 'text-gray-900' : 'text-gray-700',
+                                            isIndented ? 'pl-6' : ''
+                                        )}>
+                                            {rowDef.label}
+                                        </td>
+                                        {displayRows.map((row, i) => (
+                                            <td key={i} className="text-right py-2 px-3 tabular-nums whitespace-nowrap text-gray-700">
+                                                {getDisplayValue(row, rowDef.key, isPctRow)}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                );
+                            })}
+                        </React.Fragment>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+// ── Simple Table for Key Stats ────────────────────────────────────────────────
+
+function KeyStatsTable({
+    metrics,
+    overviewData,
+    displayUnit,
+}: {
+    metrics: typeof NORMAL_KEY_METRICS;
+    overviewData: any;
+    displayUnit: DisplayUnit;
+}) {
+    if (!overviewData) {
+        return <div className="text-center py-8 text-gray-500 text-sm">Không có dữ liệu</div>;
+    }
+
+    const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000;
+
+    const getValue = (key: string, isPct?: boolean): string => {
+        const v = Number(overviewData[key]);
+        if (Number.isNaN(v) || Math.abs(v) < 0.01) return '-';
+        if (isPct) return fmtPct(v);
+        return fmt(v / divisor);
+    };
+
+    const sections = ['overview', 'income', 'eps', 'cashflow'];
+    const sectionLabels: Record<string, string> = {
+        overview: 'Overview',
+        income: 'Income & Margins',
+        eps: 'EPS',
+        cashflow: 'Cash Flow',
+    };
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+                <thead>
+                    <tr className="border-b border-gray-200">
+                        <th className="sticky left-0 bg-white z-10 text-left py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap min-w-[200px]">
+                            Chỉ tiêu
+                        </th>
+                        <th className="text-right py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap min-w-[120px]">
+                            Giá trị
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {sections.map(section => {
+                        const sectionMetrics = metrics.filter(m => m.section === section);
+                        if (sectionMetrics.length === 0) return null;
 
                         return (
-                            <TableRow key={key}>
-                                <TableCell className="sticky left-0 bg-white dark:bg-gray-900 z-10 font-medium text-xs md:text-sm break-words whitespace-normal" style={{ minWidth: '140px', maxWidth: '250px' }}>
-                                    {label}
-                                </TableCell>
-                                {rows.slice(0, windowSize).map((row, i) => (
-                                    <TableCell key={i} className="text-right text-xs md:text-sm font-semibold tabular-nums whitespace-nowrap">
-                                        {fmtValue(key, row, isPct)}
-                                    </TableCell>
+                            <React.Fragment key={section}>
+                                <tr>
+                                    <td colSpan={2} className="pt-4 pb-1">
+                                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{sectionLabels[section]}</span>
+                                    </td>
+                                </tr>
+                                {sectionMetrics.map((metric, idx) => (
+                                    <tr key={metric.key} className="border-b border-gray-100">
+                                        <td className={cx(
+                                            'sticky left-0 bg-white z-10 py-2 px-3 text-gray-700',
+                                            metric.indent ? 'pl-6' : ''
+                                        )}>
+                                            {metric.label}
+                                        </td>
+                                        <td className="text-right py-2 px-3 tabular-nums whitespace-nowrap text-gray-700">
+                                            {getValue(metric.key, metric.isPct)}
+                                        </td>
+                                    </tr>
                                 ))}
-                            </TableRow>
+                            </React.Fragment>
                         );
                     })}
-                </TableBody>
-            </Table>
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+// ── Dropdown Menu Component ───────────────────────────────────────────────────
+
+function DropdownMenu({
+    isOpen,
+    onClose,
+    displayUnit,
+    setDisplayUnit,
+    fromYear,
+    setFromYear,
+    toYear,
+    setToYear,
+    years,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    displayUnit: DisplayUnit;
+    setDisplayUnit: (u: DisplayUnit) => void;
+    fromYear: string;
+    setFromYear: (y: string) => void;
+    toYear: string;
+    setToYear: (y: string) => void;
+    years: number[];
+}) {
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                onClose();
+            }
+        }
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen, onClose]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div
+            ref={menuRef}
+            className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-3"
+        >
+            {/* Display Units */}
+            <div className="px-4 pb-3 border-b border-gray-100">
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Display Units</span>
+                <div className="mt-2 space-y-1.5">
+                    {DISPLAY_UNITS.map(unit => (
+                        <label key={unit.id} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="radio"
+                                name="displayUnit"
+                                checked={displayUnit === unit.id}
+                                onChange={() => setDisplayUnit(unit.id)}
+                                className="w-3.5 h-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{unit.label}</span>
+                        </label>
+                    ))}
+                </div>
+            </div>
+
+            {/* From / To */}
+            <div className="px-4 pt-3">
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Period Range</span>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                        <label className="block text-xs text-gray-500 mb-1">From</label>
+                        <select
+                            value={fromYear}
+                            onChange={e => setFromYear(e.target.value)}
+                            className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">Select</option>
+                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs text-gray-500 mb-1">To</label>
+                        <select
+                            value={toYear}
+                            onChange={e => setToYear(e.target.value)}
+                            className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">Select</option>
+                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
@@ -221,16 +643,26 @@ export default function FinancialsTab({
 }: FinancialsTabProps) {
     const [loading, setLoading] = useState(false);
     const [reportLoading, setReportLoading] = useState(false);
-    const [activeSubTab, setActiveSubTab] = useState<ReportType>('key_stats');
+    const [activeTab, setActiveTab] = useState<ReportType>('key_stats');
     const [displayMode, setDisplayMode] = useState<DisplayMode>('annual');
-    const [statementWindow, setStatementWindow] = useState<StatementWindow>('4');
+    const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('billions');
+    const [fromYear, setFromYear] = useState<string>('');
+    const [toYear, setToYear] = useState<string>('');
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     const [overviewData, setOverviewData] = useState<any>(null);
-    const [reportData, setReportData] = useState({ income: [], balance: [], cashflow: [], note: [], ratio: [] });
+    const [reportData, setReportData] = useState({
+        income: [],
+        balance: [],
+        cashflow: [],
+        ratios: [],
+    });
     const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
 
-    const effectivePeriod = period || (displayMode === 'annual' ? 'year' : 'quarter');
-    const isBank = isBankStock(symbol, overviewData);
-    const windowSize = statementWindow === 'all' ? 100 : Number(statementWindow);
+    const effectivePeriod = period || (displayMode === 'annual' || displayMode === 'ttm' ? 'year' : 'quarter');
+
+    // Generate available years for dropdown
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
     // ── Fetch data ────────────────────────────────────────────────────────────
 
@@ -264,30 +696,26 @@ export default function FinancialsTab({
             fetch(`/api/financial-report/${symbol}?type=income&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=balance&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=cashflow&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/financial-report/${symbol}?type=note&period=${effectivePeriod}&limit=20`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/financial-report/${symbol}?type=ratio&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-        ]).then(([income, balance, cashflow, note, ratio]) => {
+        ]).then(([income, balance, cashflow, ratio]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
                 if (res.status !== 'fulfilled') return [];
                 const payload = res.value;
                 return Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
             };
-            const noteData = unwrap(note);
-            console.log('Note API response:', note, 'Unwrapped:', noteData);
             setReportData({
-                income: unwrap(income).sort((a, b) => periodSortKey(b) - periodSortKey(a)).slice(0, windowSize),
-                balance: unwrap(balance).sort((a, b) => periodSortKey(b) - periodSortKey(a)).slice(0, windowSize),
-                cashflow: unwrap(cashflow).sort((a, b) => periodSortKey(b) - periodSortKey(a)).slice(0, windowSize),
-                note: unwrap(note).sort((a, b) => periodSortKey(b) - periodSortKey(a)).slice(0, windowSize),
-                ratio: unwrap(ratio).sort((a, b) => periodSortKey(b) - periodSortKey(a)).slice(0, windowSize),
+                income: unwrap(income).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
+                balance: unwrap(balance).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
+                cashflow: unwrap(cashflow).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
+                ratios: unwrap(ratio).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
             });
         }).catch(() => {}).finally(() => {
             if (!controller.signal.aborted) setReportLoading(false);
         });
 
         return () => controller.abort();
-    }, [symbol, effectivePeriod, windowSize]);
+    }, [symbol, effectivePeriod]);
 
     // ── Render ────────────────────────────────────────────────────────────────
 
@@ -295,38 +723,29 @@ export default function FinancialsTab({
         return (
             <div className="flex items-center justify-center p-12">
                 <div className="spinner" />
-                <span className="ml-3 text-tremor-default text-tremor-content">Loading data...</span>
+                <span className="ml-3 text-sm text-gray-500">Loading data...</span>
             </div>
         );
     }
 
-    const getMetricValue = (metric: any): string => {
-        const src = overviewData || {};
-        for (const field of metric.fields) {
-            const v = src[field];
-            if (v !== null && v !== undefined && !Number.isNaN(Number(v))) {
-                return metric.isPct ? fmtPct(Number(v)) : fmt(Number(v));
-            }
-        }
-        return '-';
-    };
+    const isBank = isBankStock(symbol, overviewData);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* ── Tab Bar + Controls ──────────────────────────────────────── */}
-            <Card className="p-3">
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
-                    {/* Sub-tabs (desktop) */}
-                    <div className="hidden md:flex items-center gap-1">
+                    {/* Tabs */}
+                    <div className="flex items-center gap-1 overflow-x-auto">
                         {TABS.map(tab => (
                             <button
                                 key={tab.id}
-                                onClick={() => { setActiveSubTab(tab.id); setStatementWindow('4'); }}
+                                onClick={() => setActiveTab(tab.id)}
                                 className={cx(
-                                    'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                                    activeSubTab === tab.id
-                                        ? 'bg-tremor-background-muted text-tremor-content-emphasis dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content-emphasis'
-                                        : 'text-tremor-content-subtle hover:text-tremor-content dark:text-dark-tremor-content-subtle hover:dark:text-dark-tremor-content'
+                                    'px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap',
+                                    activeTab === tab.id
+                                        ? 'bg-gray-100 text-gray-900'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                                 )}
                             >
                                 {tab.label}
@@ -334,43 +753,57 @@ export default function FinancialsTab({
                         ))}
                     </div>
 
-                    {/* Right controls (desktop) */}
-                    <div className="hidden md:flex ml-auto items-center gap-2">
-                        <div className="flex items-center rounded-md border border-tremor-border bg-tremor-background-muted p-0.5 dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted">
-                            {(['annual', 'quarterly'] as DisplayMode[]).map(m => (
+                    {/* Right controls */}
+                    <div className="flex ml-auto items-center gap-2 relative">
+                        {/* Annual / Quarterly / TTM */}
+                        <div className="flex items-center rounded-md border border-gray-200 bg-gray-50 p-0.5">
+                            {(['annual', 'quarterly', 'ttm'] as DisplayMode[]).map(m => (
                                 <button
                                     key={m}
                                     onClick={() => setDisplayMode(m)}
                                     className={cx(
                                         'rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors',
                                         displayMode === m
-                                            ? 'bg-white text-tremor-content-emphasis shadow-sm dark:bg-dark-tremor-background dark:text-dark-tremor-content-emphasis'
-                                            : 'text-tremor-content-subtle hover:text-tremor-content dark:text-dark-tremor-content-subtle'
+                                            ? 'bg-white text-gray-900 shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-700'
                                     )}
                                 >
-                                    {m === 'annual' ? 'Năm' : 'Quý'}
+                                    {m === 'annual' ? 'Annual' : m === 'quarterly' ? 'Quarterly' : 'TTM'}
                                 </button>
                             ))}
                         </div>
 
-                        {activeSubTab !== 'ratio' && activeSubTab !== 'key_stats' && (
-                            <select
-                                value={statementWindow}
-                                onChange={e => setStatementWindow(e.target.value as StatementWindow)}
-                                className="rounded-md border border-tremor-border bg-tremor-background-muted px-2 py-1 text-xs text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
+                        {/* 3-dot menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setDropdownOpen(!dropdownOpen)}
+                                className="flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                             >
-                                <option value="4">4 kỳ</option>
-                                <option value="8">8 kỳ</option>
-                                <option value="12">12 kỳ</option>
-                                <option value="all">Tất cả</option>
-                            </select>
-                        )}
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="12" cy="5" r="2" />
+                                    <circle cx="12" cy="12" r="2" />
+                                    <circle cx="12" cy="19" r="2" />
+                                </svg>
+                            </button>
+                            <DropdownMenu
+                                isOpen={dropdownOpen}
+                                onClose={() => setDropdownOpen(false)}
+                                displayUnit={displayUnit}
+                                setDisplayUnit={setDisplayUnit}
+                                fromYear={fromYear}
+                                setFromYear={setFromYear}
+                                toYear={toYear}
+                                setToYear={setToYear}
+                                years={years}
+                            />
+                        </div>
 
+                        {/* Download button */}
                         {onDownloadExcel && (
                             <button
                                 onClick={onDownloadExcel}
-                                title="Export Excel"
-                                className="flex items-center justify-center rounded-md border border-tremor-border bg-tremor-background-muted p-1.5 text-tremor-content-subtle hover:bg-tremor-background dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content-subtle"
+                                title="Download"
+                                className="flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -381,169 +814,67 @@ export default function FinancialsTab({
                         )}
                     </div>
                 </div>
+            </div>
 
-                {/* Mobile dropdowns - single sticky row */}
-                <div className="sticky top-0 z-10 mt-3 flex gap-1.5 md:hidden bg-white dark:bg-gray-950 pb-1.5 -mx-1 px-1">
-                    <select
-                        value={activeSubTab}
-                        onChange={e => { setActiveSubTab(e.target.value as ReportType); setStatementWindow('4'); }}
-                        className="flex-1 min-w-0 rounded-md border border-tremor-border bg-tremor-background-muted px-2 py-1.5 text-xs text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
-                    >
-                        {TABS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
-                    <select
-                        value={displayMode}
-                        onChange={e => setDisplayMode(e.target.value as DisplayMode)}
-                        className="w-16 shrink-0 rounded-md border border-tremor-border bg-tremor-background-muted px-2 py-1.5 text-xs text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
-                    >
-                        <option value="annual">Năm</option>
-                        <option value="quarterly">Quý</option>
-                    </select>
-                    {activeSubTab !== 'ratio' && activeSubTab !== 'key_stats' && (
-                        <select
-                            value={statementWindow}
-                            onChange={e => setStatementWindow(e.target.value as StatementWindow)}
-                            className="w-14 shrink-0 rounded-md border border-tremor-border bg-tremor-background-muted px-1.5 py-1.5 text-xs text-tremor-content dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content"
-                        >
-                            <option value="4">4</option>
-                            <option value="8">8</option>
-                            <option value="12">12</option>
-                            <option value="all">All</option>
-                        </select>
-                    )}
-                    {onDownloadExcel && (
-                        <button
-                            onClick={onDownloadExcel}
-                            title="Export Excel"
-                            className="shrink-0 flex items-center justify-center rounded-md border border-tremor-border bg-tremor-background-muted p-1.5 text-tremor-content-subtle dark:border-dark-tremor-border dark:bg-dark-tremor-background-muted dark:text-dark-tremor-content-subtle"
-                        >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                        </button>
-                    )}
-                </div>
-            </Card>
+            {/* ── Content Area ────────────────────────────────────────────── */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                {reportLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                        <div className="spinner" />
+                    </div>
+                ) : (
+                    <>
+                        {/* Key Stats */}
+                        {activeTab === 'key_stats' && (
+                            <KeyStatsTable
+                                metrics={isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS}
+                                overviewData={overviewData}
+                                displayUnit={displayUnit}
+                            />
+                        )}
 
-            {/* ── Key Stats Tab ───────────────────────────────────────────── */}
-            {activeSubTab === 'key_stats' && (
-                <Card>
-                    <Title>{isBank ? 'Chỉ số Ngân hàng' : 'Chỉ số Tài chính'}</Title>
-                    <Text className="mb-4">{isBank ? 'Các chỉ số đặc thù ngân hàng (TTM)' : 'Các chỉ số tài chính chính (TTM)'}</Text>
-                    {reportLoading ? (
-                        <div className="flex items-center justify-center p-8">
-                            <div className="spinner" />
-                        </div>
-                    ) : (
-                        <UnifiedTable
-                            rows={[overviewData || {}]}
-                            windowSize={1}
-                            metrics={isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS}
-                            valueFormatter={(key) => getMetricValue({ key, fields: (isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).find(m => m.key === key)?.fields || [], isPct: (isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS).find(m => m.key === key)?.isPct })}
-                        />
-                    )}
-                </Card>
-            )}
+                        {/* Income Statement */}
+                        {activeTab === 'income' && (
+                            <SectionedTable
+                                sections={INCOME_SECTIONS}
+                                rows={reportData.income}
+                                displayUnit={displayUnit}
+                                fieldLabels={fieldLabels}
+                            />
+                        )}
 
-            {/* ── Ratios Tab ──────────────────────────────────────────────── */}
-            {activeSubTab === 'ratio' && (
-                <Card>
-                    <Title>Tỷ số tài chính</Title>
-                    <Text className="mb-4">ROE, ROA, P/E, P/B, Biên lợi nhuận...</Text>
-                    {reportLoading || reportData.ratio.length === 0 ? (
-                        <div className="flex items-center justify-center p-8">
-                            <div className="spinner" />
-                        </div>
-                    ) : (
-                        <UnifiedTable
-                            rows={reportData.ratio}
-                            windowSize={windowSize}
-                            metrics={[
-                                { key: 'roe', label: 'ROE', isPct: true },
-                                { key: 'roa', label: 'ROA', isPct: true },
-                                { key: 'price_to_earnings', label: 'P/E' },
-                                { key: 'price_to_book', label: 'P/B' },
-                                { key: 'net_profit_margin', label: 'Biên LN ròng', isPct: true },
-                                { key: 'gross_margin', label: 'Biên LN gộp', isPct: true },
-                                { key: 'ebit_margin', label: 'Biên EBIT', isPct: true },
-                                { key: 'debt_to_equity', label: 'D/E' },
-                                { key: 'current_ratio', label: 'Current Ratio' },
-                                { key: 'quick_ratio', label: 'Quick Ratio' },
-                                { key: 'asset_turnover', label: 'Vòng quay TS' },
-                                { key: 'inventory_turnover', label: 'Vòng quay HTK' },
-                            ]}
-                        />
-                    )}
-                </Card>
-            )}
+                        {/* Balance Sheet */}
+                        {activeTab === 'balance' && (
+                            <SectionedTable
+                                sections={BALANCE_SECTIONS}
+                                rows={reportData.balance}
+                                displayUnit={displayUnit}
+                                fieldLabels={fieldLabels}
+                            />
+                        )}
 
-            {/* ── Income / Balance / Cashflow / Note Tabs ─────────────────── */}
-            {['income', 'balance', 'cashflow', 'note'].includes(activeSubTab) && (
-                <Card>
-                    <Title>
-                        {activeSubTab === 'income' && 'Báo cáo Kết quả kinh doanh'}
-                        {activeSubTab === 'balance' && 'Bảng Cân đối kế toán'}
-                        {activeSubTab === 'cashflow' && 'Báo cáo Lưu chuyển tiền tệ'}
-                        {activeSubTab === 'note' && 'Thuyết minh BCTC'}
-                    </Title>
-                    <Text className="mb-4">Dữ liệu {effectivePeriod === 'year' ? 'năm' : 'quý'}</Text>
-                    {reportLoading ? (
-                        <div className="flex items-center justify-center p-8">
-                            <div className="spinner" />
-                        </div>
-                    ) : (
-                        <ReportTable
-                            rows={reportData[activeSubTab as keyof typeof reportData] || []}
-                            windowSize={windowSize}
-                            isBank={isBank}
-                            fieldLabels={fieldLabels}
-                            tabType={activeSubTab as 'income' | 'balance' | 'cashflow' | 'note'}
-                        />
-                    )}
-                </Card>
-            )}
+                        {/* Cash Flow */}
+                        {activeTab === 'cashflow' && (
+                            <SectionedTable
+                                sections={CASHFLOW_SECTIONS}
+                                rows={reportData.cashflow}
+                                displayUnit={displayUnit}
+                                fieldLabels={fieldLabels}
+                            />
+                        )}
+
+                        {/* Ratios */}
+                        {activeTab === 'ratios' && (
+                            <SectionedTable
+                                sections={RATIOS_SECTIONS}
+                                rows={reportData.ratios}
+                                displayUnit={displayUnit}
+                                fieldLabels={fieldLabels}
+                            />
+                        )}
+                    </>
+                )}
+            </div>
         </div>
-    );
-}
-
-// ── Report Table Sub-component ────────────────────────────────────────────────
-
-function ReportTable({ rows, windowSize, isBank, fieldLabels, tabType }: {
-    rows: any[];
-    windowSize: number;
-    isBank: boolean;
-    fieldLabels?: Record<string, string>;
-    tabType?: 'income' | 'balance' | 'cashflow' | 'note';
-}) {
-    if (!rows || rows.length === 0) {
-        return <Text className="text-center py-8 text-tremor-content-subtle">Không có dữ liệu</Text>;
-    }
-
-    // For cashflow and note, use predefined key metrics
-    const keyMetrics = tabType === 'cashflow' ? CASHFLOW_KEY_METRICS :
-                       tabType === 'note' ? NOTE_KEY_METRICS : null;
-
-    if (keyMetrics) {
-        return (
-            <UnifiedTable
-                rows={rows}
-                windowSize={windowSize}
-                metrics={keyMetrics}
-                fieldLabels={fieldLabels}
-            />
-        );
-    }
-
-    // For income/balance, use dynamic row labels
-    return (
-        <UnifiedTable
-            rows={rows}
-            windowSize={windowSize}
-            metrics={[]}
-            fieldLabels={fieldLabels}
-            useRowLabels={true}
-        />
     );
 }
