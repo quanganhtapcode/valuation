@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useState, useEffect, useTransition, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { formatNumber, formatPercentChange, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
+import { formatNumber, formatPercentChange, PRICE_SYNC_INTERVAL_MS, subscribePricesStream } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
 import { useWatchlist } from '@/lib/watchlistContext';
 import { RiStarFill, RiStarLine } from '@remixicon/react';
@@ -312,6 +312,69 @@ export default function StockDetailPage() {
         }
 
         loadData();
+    }, [symbol]);
+
+    // ── WebSocket: Real-time price stream (VCI) ────────────────────────────
+    const wsSymbolRef = useRef<string>('');
+
+    useEffect(() => {
+        if (!symbol) return;
+        wsSymbolRef.current = symbol;
+
+        const unsub = subscribePricesStream({
+            onData: (data: any, type: string) => {
+                // data shape: { SYM: { c, ref, vo, orderbook } }
+                if (!data || typeof data !== 'object') return;
+                const symData = data[symbol];
+                if (!symData) return;
+
+                const c = symData.c;       // current price
+                const ref = symData.ref;   // reference price
+                const vo = symData.vo;     // volume
+                const ob = symData.orderbook;
+
+                if (c == null && ref == null) return;
+
+                const refPrice = ref ?? 0;
+                const curPrice = c ?? 0;
+                const change = refPrice > 0 ? curPrice - refPrice : 0;
+                const changePercent = refPrice > 0 ? (change / refPrice) * 100 : 0;
+
+                setPriceData(prev => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        ...(curPrice > 0 && { price: curPrice }),
+                        ...(refPrice > 0 && { ref: refPrice }),
+                        ...(vo != null && { volume: vo }),
+                        ...(ob && ob.bid && ob.bid.length > 0 && {
+                            bid1: ob.bid[0]?.price || 0,
+                            bid2: ob.bid[1]?.price || 0,
+                            bid3: ob.bid[2]?.price || 0,
+                        }),
+                        ...(ob && ob.ask && ob.ask.length > 0 && {
+                            ask1: ob.ask[0]?.price || 0,
+                            ask2: ob.ask[1]?.price || 0,
+                            ask3: ob.ask[2]?.price || 0,
+                        }),
+                        // Recompute change from ref
+                        ...(change !== 0 && { change }),
+                        ...(changePercent !== 0 && { changePercent }),
+                    };
+                });
+            },
+            onStatus: (status) => {
+                // Optional: could show a subtle indicator when WS is live
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`[WS Prices] ${symbol}: ${status}`);
+                }
+            },
+        });
+
+        return () => {
+            unsub();
+            wsSymbolRef.current = '';
+        };
     }, [symbol]);
 
     // State to hold full 5-year history for client-side filtering
