@@ -418,22 +418,6 @@ export default function OverviewTab({
                                 const imageUrl = item.image_url || item.ImageThumb || item.news_image_url || '';
                                 const date = item.update_date || item.PublishDate || item.publish_date || '';
                                 const source = item.source || item.Source || item.news_from_name || '';
-                                const sentiment = item.sentiment || item.Sentiment || '';
-                                const score = item.score ?? item.Score;
-
-                                // Determine sentiment class
-                                const sentLower = sentiment.toLowerCase();
-                                let badgeClass = styles.sentimentNeutral;
-                                let badgeText = sentiment;
-                                if (sentLower.includes('pos') || (typeof score === 'number' && score > 0)) {
-                                    badgeClass = styles.sentimentPositive;
-                                    badgeText = score != null ? `${sentiment} (${score})` : sentiment;
-                                } else if (sentLower.includes('neg') || (typeof score === 'number' && score < 0)) {
-                                    badgeClass = styles.sentimentNegative;
-                                    badgeText = score != null ? `${sentiment} (${score})` : sentiment;
-                                } else if (typeof score === 'number' && score === 0) {
-                                    badgeText = `Neutral (${score})`;
-                                }
 
                                 return (
                                     <a
@@ -465,13 +449,6 @@ export default function OverviewTab({
                                                     <span className={styles.newsDate}>{formatRelativeTime(date)}</span>
                                                 )}
                                             </div>
-                                            {sentiment && (
-                                                <div className={styles.newsSentiment}>
-                                                    <span className={`${styles.sentimentBadge} ${badgeClass}`}>
-                                                        {badgeText}
-                                                    </span>
-                                                </div>
-                                            )}
                                         </div>
                                     </a>
                                 );
