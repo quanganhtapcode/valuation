@@ -27,6 +27,9 @@ type Interval = 'D' | 'W' | 'M';
 const INTERVAL_LABELS: Record<Interval, string> = { D: '1D', W: '1W', M: '1M' };
 const INTERVAL_CYCLE: Record<Interval, Interval> = { D: 'W', W: 'M', M: 'D' };
 
+// Default bars to show per interval (~5 months of data)
+const INTERVAL_BARS: Record<Interval, number> = { D: 105, W: 22, M: 6 };
+
 interface TradingViewChartProps {
     data: HistoricalData[];
     isLoading: boolean;
@@ -42,6 +45,31 @@ interface BarDisplay {
     volume: number;
     change: number;
     changePct: number;
+}
+
+function buildTheme(isDark: boolean) {
+    return {
+        isDark,
+        text:      isDark ? '#9ca3af' : '#6b7280',
+        border:    isDark ? '#374151' : '#e5e7eb',
+        gridLine:  isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.7)',
+        crosshair: isDark ? '#4b5563' : '#cbd5e1',
+    };
+}
+
+/** Reactive dark-mode hook — watches the <html> class list */
+function useDarkMode(): boolean {
+    const [isDark, setIsDark] = useState<boolean>(() =>
+        typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
+    );
+    useEffect(() => {
+        const obs = new MutationObserver(() => {
+            setIsDark(document.documentElement.classList.contains('dark'));
+        });
+        obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        return () => obs.disconnect();
+    }, []);
+    return isDark;
 }
 
 function toFiniteNumber(value: unknown): number | null {
@@ -85,10 +113,10 @@ function normalizeData(data: HistoricalData[]): HistoricalData[] {
     if (!Array.isArray(data)) return [];
     const cleaned = data
         .map((d) => {
-            const ts   = new Date(d.time).getTime();
-            const open = toFiniteNumber(d.open);
-            const high = toFiniteNumber(d.high);
-            const low  = toFiniteNumber(d.low);
+            const ts    = new Date(d.time).getTime();
+            const open  = toFiniteNumber(d.open);
+            const high  = toFiniteNumber(d.high);
+            const low   = toFiniteNumber(d.low);
             const close = toFiniteNumber(d.close);
             const volume = toFiniteNumber(d.volume) ?? 0;
             if (!Number.isFinite(ts) || open === null || high === null || low === null || close === null) return null;
@@ -135,8 +163,6 @@ function aggregateData(data: HistoricalData[], interval: Interval): HistoricalDa
 
 // ── Interval selector ─────────────────────────────────────────────────────────
 function IntervalSelector({ interval, setInterval }: { interval: Interval; setInterval: (i: Interval) => void }) {
-    // Desktop: three separate buttons
-    // Mobile: single cycling button
     return (
         <div className="flex items-center gap-1">
             {/* Desktop buttons */}
@@ -204,17 +230,22 @@ function OHLCVBar({ bar }: { bar: BarDisplay | null }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function TradingViewChart({ data, isLoading }: TradingViewChartProps) {
-    const chartContainerRef  = useRef<HTMLDivElement>(null);
-    const chartRef           = useRef<IChartApi | null>(null);
+    const chartContainerRef    = useRef<HTMLDivElement>(null);
+    const chartRef             = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-    const volumeSeriesRef    = useRef<ISeriesApi<'Histogram'> | null>(null);
+    const volumeSeriesRef      = useRef<ISeriesApi<'Histogram'> | null>(null);
     const [interval, setIntervalState] = useState<Interval>('D');
+    const intervalRef = useRef<Interval>('D');
 
     // Bar displayed in the OHLCV footer (null = show latestBar)
     const [hoveredBar, setHoveredBar] = useState<BarDisplay | null>(null);
 
-    const normalizedData  = useMemo(() => normalizeData(data), [data]);
-    const aggregatedData  = useMemo(() => aggregateData(normalizedData, interval), [normalizedData, interval]);
+    // Dark mode
+    const isDark = useDarkMode();
+    const theme  = useMemo(() => buildTheme(isDark), [isDark]);
+
+    const normalizedData = useMemo(() => normalizeData(data), [data]);
+    const aggregatedData = useMemo(() => aggregateData(normalizedData, interval), [normalizedData, interval]);
 
     const latestBar = useMemo<BarDisplay | null>(() => {
         if (!aggregatedData.length) return null;
@@ -231,39 +262,42 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
 
     const displayBar = hoveredBar ?? latestBar;
 
-    // ── Chart init ────────────────────────────────────────────────────────────
+    // keep intervalRef in sync for use inside effects
+    useEffect(() => { intervalRef.current = interval; }, [interval]);
+
+    // ── Chart init (once) ────────────────────────────────────────────────────
     useEffect(() => {
         if (!chartContainerRef.current || chartRef.current) return;
 
-        const isDark = document.documentElement.classList.contains('dark');
+        const initTheme = buildTheme(document.documentElement.classList.contains('dark'));
 
         const chart = createChart(chartContainerRef.current, {
             width:  chartContainerRef.current.clientWidth,
             height: 400,
             layout: {
                 background: { type: 'solid', color: 'transparent' },
-                textColor:  isDark ? '#9ca3af' : '#6b7280',
+                textColor:  initTheme.text,
                 fontSize:   11,
                 fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             },
             grid: {
-                vertLines: { color: isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.7)' },
-                horzLines: { color: isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.7)' },
+                vertLines: { color: initTheme.gridLine },
+                horzLines: { color: initTheme.gridLine },
             },
             crosshair: {
                 mode:     CrosshairMode.Normal,
-                vertLine: { color: isDark ? '#4b5563' : '#cbd5e1', width: 1, style: 0, labelBackgroundColor: '#2563eb' },
-                horzLine: { color: isDark ? '#4b5563' : '#cbd5e1', width: 1, style: 0, labelBackgroundColor: '#2563eb' },
+                vertLine: { color: initTheme.crosshair, width: 1, style: 0, labelBackgroundColor: '#2563eb' },
+                horzLine: { color: initTheme.crosshair, width: 1, style: 0, labelBackgroundColor: '#2563eb' },
             },
             rightPriceScale: {
-                borderColor:  isDark ? '#374151' : '#e5e7eb',
+                borderColor:  initTheme.border,
                 scaleMargins: { top: 0.06, bottom: 0.22 },
             },
             timeScale: {
-                borderColor:          isDark ? '#374151' : '#e5e7eb',
-                timeVisible:          false,
-                rightOffset:          2,
-                barSpacing:           6,
+                borderColor:           initTheme.border,
+                timeVisible:           false,
+                rightOffset:           2,
+                barSpacing:            6,
                 rightBarStaysOnScroll: true,
             },
             handleScroll: { vertTouchDrag: false },
@@ -294,10 +328,10 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             const vol    = param.seriesData.get(volumeSeries);
             if (!candle) { setHoveredBar(null); return; }
 
-            const open  = (candle as { open: number }).open;
-            const high  = (candle as { high: number }).high;
-            const low   = (candle as { low: number }).low;
-            const close = (candle as { close: number }).close;
+            const open   = (candle as { open: number }).open;
+            const high   = (candle as { high: number }).high;
+            const low    = (candle as { low: number }).low;
+            const close  = (candle as { close: number }).close;
             const volume = (vol as { value?: number })?.value ?? 0;
             const change    = close - open;
             const changePct = open > 0 ? (change / open) * 100 : 0;
@@ -327,7 +361,24 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             candlestickSeriesRef.current = null;
             volumeSeriesRef.current = null;
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // ── Sync dark mode ───────────────────────────────────────────────────────
+    useEffect(() => {
+        const chart = chartRef.current;
+        if (!chart) return;
+        chart.applyOptions({
+            layout:          { textColor: theme.text },
+            grid:            { vertLines: { color: theme.gridLine }, horzLines: { color: theme.gridLine } },
+            rightPriceScale: { borderColor: theme.border },
+            timeScale:       { borderColor: theme.border },
+            crosshair: {
+                vertLine: { color: theme.crosshair },
+                horzLine: { color: theme.crosshair },
+            },
+        });
+    }, [theme]);
 
     // ── Push data ─────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -348,7 +399,13 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             color: d.close >= d.open ? 'rgba(22,163,74,0.28)' : 'rgba(220,38,38,0.28)',
         })));
 
-        chartRef.current.timeScale().fitContent();
+        // Set default viewport: ~5 months of data based on interval
+        const total = aggregatedData.length;
+        const barsToShow = INTERVAL_BARS[intervalRef.current];
+        chartRef.current.timeScale().setVisibleLogicalRange({
+            from: Math.max(0, total - barsToShow),
+            to:   total + 2,
+        });
     }, [aggregatedData]);
 
     const setInterval = useCallback((iv: Interval) => {
@@ -357,13 +414,6 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
     }, []);
 
     // ── Render ────────────────────────────────────────────────────────────────
-    if (isLoading) {
-        return <div className="flex h-[400px] items-center justify-center text-slate-400 text-sm">Loading…</div>;
-    }
-    if (!normalizedData.length) {
-        return <div className="flex h-[400px] items-center justify-center text-slate-400 text-sm">Không có dữ liệu giá lịch sử</div>;
-    }
-
     return (
         <div className="w-full">
             {/* Toolbar: interval only (range removed — always show all data) */}
@@ -371,8 +421,32 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
                 <IntervalSelector interval={interval} setInterval={setInterval} />
             </div>
 
-            {/* Chart */}
-            <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '400px' }} />
+            {/* Chart area — always mounted so chart instance is never destroyed */}
+            <div className="relative">
+                {/* Loading overlay */}
+                {isLoading && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg"
+                        style={{ backgroundColor: isDark ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.6)' }}
+                    >
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                            </svg>
+                            Loading…
+                        </div>
+                    </div>
+                )}
+
+                {/* No data message */}
+                {!isLoading && !normalizedData.length && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg">
+                        <span className="text-slate-400 text-sm">Không có dữ liệu giá lịch sử</span>
+                    </div>
+                )}
+
+                <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '400px' }} />
+            </div>
 
             {/* OHLCV footer — shows latest bar, updates live on crosshair hover */}
             <div className="mt-1 border-t border-slate-100 dark:border-slate-800">
