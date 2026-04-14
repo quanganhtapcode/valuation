@@ -105,8 +105,9 @@ interface FinancialData {
     dividend?: number;
     sharesOutstanding?: number;
     netProfitMargin?: number;
-    profitGrowth?: number;
+    grossMargin?: number;
     debtToEquity?: number;
+    currentRatio?: number;
 }
 
 interface HistoricalData {
@@ -452,29 +453,13 @@ export default function OverviewTab({
                                 </span>
                             </div>
 
-                            {/* EPS */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>EPS:</span>
-                                <span className={styles.metricValue}>
-                                    {financials.eps !== undefined ? `${formatNumber(financials.eps, { maximumFractionDigits: 0 })} đ` : '-'}
-                                </span>
-                            </div>
-
-                            {/* Net Profit Margin */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>NET PROFIT MARGIN:</span>
-                                <span className={styles.metricValue}>
-                                    {financials.netProfitMargin !== undefined
-                                        ? `${financials.netProfitMargin.toFixed(1)}%`
-                                        : '-'}
-                                </span>
-                            </div>
-
                             {/* ROE */}
                             <div className={styles.metricCard}>
                                 <span className={styles.metricLabel}>ROE (%):</span>
                                 <span className={styles.metricValue}>
-                                    {financials.roe !== undefined ? `${financials.roe.toFixed(1)}%` : '-'}
+                                    {financials.roe !== undefined && financials.roe !== 0
+                                        ? `${(Math.abs(financials.roe) < 1 ? financials.roe * 100 : financials.roe).toFixed(1)}%`
+                                        : '-'}
                                 </span>
                             </div>
 
@@ -482,18 +467,28 @@ export default function OverviewTab({
                             <div className={styles.metricCard}>
                                 <span className={styles.metricLabel}>ROA (%):</span>
                                 <span className={styles.metricValue}>
-                                    {financials.roa !== undefined ? `${financials.roa.toFixed(1)}%` : '-'}
+                                    {financials.roa !== undefined && financials.roa !== 0
+                                        ? `${(Math.abs(financials.roa) < 1 ? financials.roa * 100 : financials.roa).toFixed(1)}%`
+                                        : '-'}
                                 </span>
                             </div>
 
-                            {/* Profit Growth */}
+                            {/* Net Margin */}
                             <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>PROFIT GROWTH:</span>
+                                <span className={styles.metricLabel}>NET MARGIN (%):</span>
                                 <span className={styles.metricValue}>
-                                    {financials.profitGrowth !== undefined
-                                        ? `${(Math.abs(financials.profitGrowth) < 1
-                                            ? financials.profitGrowth * 100
-                                            : financials.profitGrowth).toFixed(1)}%`
+                                    {financials.netProfitMargin !== undefined && financials.netProfitMargin !== 0
+                                        ? `${(Math.abs(financials.netProfitMargin) < 1 ? financials.netProfitMargin * 100 : financials.netProfitMargin).toFixed(1)}%`
+                                        : '-'}
+                                </span>
+                            </div>
+
+                            {/* Gross Margin */}
+                            <div className={styles.metricCard}>
+                                <span className={styles.metricLabel}>GROSS MARGIN (%):</span>
+                                <span className={styles.metricValue}>
+                                    {financials.grossMargin !== undefined && financials.grossMargin !== 0
+                                        ? `${(Math.abs(financials.grossMargin) < 1 ? financials.grossMargin * 100 : financials.grossMargin).toFixed(1)}%`
                                         : '-'}
                                 </span>
                             </div>
@@ -502,14 +497,24 @@ export default function OverviewTab({
                             <div className={styles.metricCard}>
                                 <span className={styles.metricLabel}>DEBT/EQUITY:</span>
                                 <span className={styles.metricValue}>
-                                    {financials.debtToEquity !== undefined
+                                    {financials.debtToEquity !== undefined && financials.debtToEquity !== 0
                                         ? financials.debtToEquity.toFixed(2)
+                                        : '-'}
+                                </span>
+                            </div>
+
+                            {/* Current Ratio */}
+                            <div className={styles.metricCard}>
+                                <span className={styles.metricLabel}>CURRENT RATIO:</span>
+                                <span className={styles.metricValue}>
+                                    {financials.currentRatio !== undefined && financials.currentRatio !== 0
+                                        ? financials.currentRatio.toFixed(2)
                                         : '-'}
                                 </span>
                             </div>
                         </div>
                         <p className="text-[11px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle mt-3 italic text-center">
-                            * Data from most recent quarter
+                            * Data from VCI Stats Financial (TTM)
                         </p>
                     </section>
                 )}
