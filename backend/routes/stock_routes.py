@@ -24,7 +24,6 @@ from backend.routes.stock.history import register as register_history_routes
 from backend.routes.stock.missing_routes import register as register_missing_routes
 from backend.routes.market.http_headers import VCI_HEADERS
 from backend.routes.stock.stock_data import _clean_stock_response
-from vnstock import Vnstock, Quote, Company
 
 stock_bp = Blueprint('stock', __name__)
 logger = logging.getLogger(__name__)
@@ -515,189 +514,6 @@ def api_app(symbol):
         logger.error(f"API /app-data error {symbol}: {exc}")
         return jsonify({"success": False, "error": str(exc)}), 500
 
-@stock_bp.route("/historical-chart-data/<symbol>")
-def api_historical_chart_data(symbol):
-    """
-    Get historical chart data for Financials Tab charts (ROE, ROA, PE, PB, etc.)
-    """
-    try:
-        is_valid, result = validate_stock_symbol(symbol)
-        if not is_valid: return jsonify({"error": result}), 400
-        symbol = result
-        
-        period = request.args.get('period', 'quarter') # 'quarter' or 'year'
-        
-        # Check cache first
-        cache_key = f'hist_chart_{symbol}_{period}'
-        cached = _cache_get(cache_key)
-        if cached:
-            logger.info(f"Cache HIT for historical-chart-data {symbol} {period}")
-            return jsonify(cached)
-        
-        # Use Vnstock directly to get historical series
-        stock = Vnstock().stock(symbol=symbol, source='VCI')
-        df = stock.finance.ratio(period=period, lang='en', dropna=True)
-        
-        if df is None or df.empty:
-            return jsonify({'success': False, 'message': 'No data'}), 404
-            
-        # Handle MultiIndex columns
-        # Flatten logic or access by tuple
-        
-        # Sort chronologically: oldest to newest
-        # Columns often include ('Meta', 'yearReport') and ('Meta', 'lengthReport')
-        
-        # Attempt to find year/quarter columns
-        year_col = None
-        period_col = None
-        
-        for col in df.columns:
-            if isinstance(col, tuple):
-                if 'yearReport' in str(col): year_col = col
-                if 'lengthReport' in str(col): period_col = col
-            else:
-                if 'yearReport' in str(col): year_col = col
-                if 'lengthReport' in str(col): period_col = col
-                
-        if not year_col:
-            # Fallback for year only
-            if period == 'year' and 'year' in df.columns: year_col = 'year'
-            
-        if year_col:
-            if period_col:
-                df = df.sort_values([year_col, period_col], ascending=[True, True])
-            else:
-                df = df.sort_values([year_col], ascending=[True])
-        
-        # Extract series
-        years = []
-        roe_data = []
-        roa_data = []
-        pe_ratio_data = []
-        pb_ratio_data = []
-        current_ratio_data = []
-        quick_ratio_data = []
-        cash_ratio_data = []
-        nim_data = []
-        net_profit_margin_data = []
-        
-        def get_val(row, key_tuple):
-            val = row.get(key_tuple)
-            if pd.isna(val): return None
-            try:
-                return float(val)
-            except (TypeError, ValueError):
-                return None
-
-        # Define keys based on vnstock output (verified in stock_provider)
-        key_roe = ('Chỉ tiêu khả năng sinh lợi', 'ROE (%)')
-        key_roa = ('Chỉ tiêu khả năng sinh lợi', 'ROA (%)')
-        key_net_margin = ('Chỉ tiêu khả năng sinh lợi', 'Net Profit Margin (%)')
-        key_pe = ('Chỉ tiêu định giá', 'P/E')
-        key_pb = ('Chỉ tiêu định giá', 'P/B')
-        key_current = ('Chỉ tiêu thanh khoản', 'Current Ratio')
-        key_quick = ('Chỉ tiêu thanh khoản', 'Quick Ratio')
-        key_cash = ('Chỉ tiêu thanh khoản', 'Cash Ratio')
-        key_nim = ('Chỉ tiêu khả năng sinh lợi', 'NIM (%)') # Bank specific (not available in VCI)
-        
-        # If columns are not MultiIndex tuples, try to match partial string
-        is_multi = isinstance(df.columns, pd.MultiIndex)
-        
-        for _, row in df.iterrows():
-            # Time axis
-            y = row.get(year_col)
-            p = row.get(period_col) if period_col else None
-            
-            label = str(y)
-            if period == 'quarter' and p:
-                label = f"Q{int(p)} '{str(y)[-2:]}"
-            
-            years.append(label)
-            
-            # Data points
-            # Helper to find key in row
-            def safe_get(k):
-                if k in row: return get_val(row, k)
-                # Fallback search
-                k_str = str(k[-1]) if isinstance(k, tuple) else str(k)
-                for col_key in row.index:
-                    col_str = str(col_key)
-                    if k_str in col_str:
-                        return get_val(row, col_key)
-                return None
-                
-            roe = safe_get(key_roe)
-            if roe is not None and abs(roe) < 1: roe *= 100 # Adjust decimal to percent if needed (VCI usually %)
-            roe_data.append(roe)
-
-            roa = safe_get(key_roa)
-            if roa is not None and abs(roa) < 1: roa *= 100
-            roa_data.append(roa)
-
-            npm = safe_get(key_net_margin)
-            if npm is not None and abs(npm) < 1: npm *= 100
-            net_profit_margin_data.append(npm)
-
-            pe_ratio_data.append(safe_get(key_pe))
-            pb_ratio_data.append(safe_get(key_pb))
-            current_ratio_data.append(safe_get(key_current))
-            quick_ratio_data.append(safe_get(key_quick))
-            cash_ratio_data.append(safe_get(key_cash))
-
-            # NIM — not available from VCI API; kept for future use
-            nim = safe_get(key_nim)
-            if nim is not None and abs(nim) < 1: nim *= 100
-            nim_data.append(nim)
-
-        # Build array-of-objects, treating 0 as missing
-        def nz(v):
-            """Return None for zero/null, else round to 4dp."""
-            if v is None or v == 0: return None
-            return round(v, 4)
-
-        records = []
-        for i, label in enumerate(years):
-            records.append({
-                'period':    label,
-                'roe':       nz(roe_data[i]),
-                'roa':       nz(roa_data[i]),
-                'pe':        nz(pe_ratio_data[i]),
-                'pb':        nz(pb_ratio_data[i]),
-                'netMargin': nz(net_profit_margin_data[i]),
-                'currentRatio': current_ratio_data[i],
-                'quickRatio':   quick_ratio_data[i],
-                'nim':       nz(nim_data[i]) if i < len(nim_data) else None,
-            })
-
-        # Drop records where all key metrics are null (sparse early history)
-        key_metrics = ('roe', 'roa', 'pe', 'pb')
-        records = [r for r in records if any(r.get(k) is not None for k in key_metrics)]
-
-        # Keep only the latest 20 periods
-        records = records[-20:]
-
-        # Drop series columns where every value is None (e.g. currentRatio for banks)
-        series_keys = ['roe', 'roa', 'pe', 'pb', 'netMargin', 'currentRatio', 'quickRatio', 'nim']
-        empty_keys = {k for k in series_keys if all(r.get(k) is None for r in records)}
-        if empty_keys:
-            for r in records:
-                for k in empty_keys:
-                    r.pop(k, None)
-
-        result = {
-            'success': True,
-            'symbol':  symbol,
-            'period':  period,
-            'count':   len(records),
-            'data':    records,
-        }
-        _cache_set(cache_key, result)
-        return jsonify(result)
-
-    except Exception as exc:
-        logger.error(f"API /historical-chart-data error {symbol}: {exc}")
-        return jsonify({"success": False, "error": str(exc)}), 500
-
 # ===================== BANKING KPI HISTORY =====================
 
 @stock_bp.route('/banking-kpi-history/<symbol>')
@@ -783,56 +599,60 @@ def banking_kpi_history(symbol):
 
 @stock_bp.route('/company/profile/<symbol>')
 def get_company_profile(symbol):
-    """Get company overview/description from vnstock API (VietCap source)"""
+    """Get company overview/description from SQLite company_overview table."""
     try:
         is_valid, result = validate_stock_symbol(symbol)
         if not is_valid: return jsonify({'error': result, 'success': False}), 400
         symbol = result
-        
+
         # Check cache
         cache_key = f'profile_{symbol}'
         cached = _cache_get(cache_key)
         if cached:
             return jsonify(cached)
-        
+
         try:
-            # Use VCI source via provider if possible, or direct vnstock
-            company = Company(symbol=symbol, source='VCI')
-            overview_df = company.overview()
-            
-            if overview_df is None or (hasattr(overview_df, 'empty') and overview_df.empty):
+            db_path = resolve_stocks_db_path()
+            if not db_path or not os.path.exists(db_path):
+                return jsonify({'success': False, 'message': 'Database not found'}), 404
+
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                """
+                SELECT company_profile, history, icb_name3, icb_name2, icb_name4,
+                       charter_capital, issue_share
+                FROM company_overview
+                WHERE symbol = ?
+                """,
+                (symbol,),
+            ).fetchone()
+            conn.close()
+
+            if row is None:
                 return jsonify({'success': False, 'message': 'No overview data available'}), 404
-            
-            def safe_get(df, column, default=''):
-                try:
-                    if hasattr(df, 'columns') and column in df.columns:
-                        val = df[column].iloc[0]
-                        if pd.notna(val): return str(val)
-                    return default
-                except (AttributeError, IndexError, KeyError):
-                    return default
-            
-            company_profile_text = safe_get(overview_df, 'company_profile', '')
-            history = safe_get(overview_df, 'history', '')
-            industry = safe_get(overview_df, 'icb_name3', '')
-            
+
+            company_profile_text = row['company_profile'] or ''
+            history = row['history'] or ''
+            industry = row['icb_name3'] or ''
+
             profile_result = {
                 'symbol': symbol,
                 'company_name': symbol,
                 'company_profile': company_profile_text or history,
                 'industry': industry,
-                'charter_capital': safe_get(overview_df, 'charter_capital', ''),
-                'issue_share': safe_get(overview_df, 'issue_share', ''),
+                'charter_capital': row['charter_capital'] or '',
+                'issue_share': row['issue_share'] or '',
                 'history': history[:300] + '...' if len(history) > 300 else history,
                 'success': True
             }
             _cache_set(cache_key, profile_result)
             return jsonify(profile_result)
-            
+
         except Exception as e:
             logger.error(f"Error fetching overview for {symbol}: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
-            
+
     except Exception as exc:
         return jsonify({'success': False, 'error': str(exc)}), 500
 

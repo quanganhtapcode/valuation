@@ -51,3 +51,7 @@ Thumbs.db
 # UUID-named temp uploads (e.g. {GUID}.png from Claude)
 {[0-9A-Fa-f]*}.png
 {[0-9A-Fa-f]*}.jpg
+
+# Exported data files (large, regenerated)
+company_profile_export.json
+company_table_export.json

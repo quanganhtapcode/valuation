@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 VCI_METRICS_SOURCE = "vci_screening.sqlite"
 VCI_STATS_FINANCIAL_SOURCE = "vci_stats_financial.sqlite"
 VCI_RATIO_DAILY_SOURCE = "vci_ratio_daily.sqlite"
-SOURCE_PRIORITY_LABEL = "vci_ratio_daily -> vci_stats_financial -> vci_screening -> stocks_optimized -> vnstock"
+SOURCE_PRIORITY_LABEL = "vci_ratio_daily → vci_stats_financial → vci_screening (VCI SQLite only)"
 
 _LOCAL_CACHE_NAMESPACE = "source_priority"
 _LOCAL_CACHE_TTL_SECONDS = 600

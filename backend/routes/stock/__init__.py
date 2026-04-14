@@ -2,9 +2,15 @@ from __future__ import annotations
 
 from flask import Blueprint
 
+# Create the shared blueprint
+stock_bp = Blueprint('stock', __name__)
 
-def register_stock_routes(bp: Blueprint) -> None:
-    """Register all /api/* stock routes onto the provided blueprint."""
+
+def register_stock_routes(bp: Blueprint | None = None) -> None:
+    """Register all /api/* stock routes onto the provided blueprint.
+    If no blueprint is passed, uses the module-level stock_bp.
+    """
+    target = bp or stock_bp
 
     # Local imports keep startup fast and avoid circular dependencies.
     from .prices import register as register_prices
@@ -20,15 +26,19 @@ def register_stock_routes(bp: Blueprint) -> None:
     from .valuation import register as register_valuation
     from .missing_routes import register as register_missing_routes
 
-    register_prices(bp)
-    register_stock_data(bp)
-    register_stock_overview(bp)
-    register_charts(bp)
-    register_profile(bp)
-    register_history(bp)
-    register_misc(bp)
-    register_news_events(bp)
-    register_revenue_profit(bp)
-    register_financial_dashboard(bp)
-    register_valuation(bp)
-    register_missing_routes(bp)
+    register_prices(target)
+    register_stock_data(target)
+    register_stock_overview(target)
+    register_charts(target)
+    register_profile(target)
+    register_history(target)
+    register_misc(target)
+    register_news_events(target)
+    register_revenue_profit(target)
+    register_financial_dashboard(target)
+    register_valuation(target)
+    register_missing_routes(target)
+
+
+# Auto-register when module is imported (for server.py that just does `from .stock import stock_bp`)
+register_stock_routes()

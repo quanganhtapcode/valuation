@@ -6,11 +6,10 @@ import sqlite3
 
 import pandas as pd
 from flask import Blueprint, jsonify, request
-from vnstock import Vnstock
 
-from backend.extensions import get_provider
+from backend.db_path import resolve_vci_stats_financial_db_path
 from backend.utils import validate_stock_symbol
-from .cache import cache_get, cache_set
+from backend.cache_utils import cache_get, cache_set
 
 
 logger = logging.getLogger(__name__)
@@ -19,22 +18,10 @@ logger = logging.getLogger(__name__)
 def register(stock_bp: Blueprint) -> None:
     @stock_bp.route("/historical-chart-data/<symbol>")
     def api_historical_chart_data(symbol):
-        """
-        Historical financial ratios for a stock.
+        """Historical financial ratios from VCI sources.
 
-        Returns an array of period objects (oldest → newest), e.g.:
-          {
-            "success": true,
-            "symbol": "MBB",
-            "period": "quarter",
-            "count": 20,
-            "data": [
-              { "period": "Q1 '20", "roe": 14.2, "roa": 1.8, "pe": 8.5, "pb": 1.3,
-                "currentRatio": null, "quickRatio": null, "cashRatio": null,
-                "nim": 4.1, "netMargin": 28.4 },
-              ...
-            ]
-          }
+        Uses vci_stats_financial_history for PE, PB, ROE, ROA, margins.
+        Falls back to stocks_optimized.db financial_ratios if VCI data unavailable.
         """
         try:
             is_valid, result = validate_stock_symbol(symbol)
@@ -46,160 +33,27 @@ def register(stock_bp: Blueprint) -> None:
             cache_key = f"hist_chart_{symbol}_{period}"
             cached = cache_get(cache_key)
             if cached:
-                logger.info(f"Cache HIT for historical-chart-data {symbol} {period}")
                 return jsonify(cached)
 
-            stock = Vnstock().stock(symbol=symbol, source="VCI")
-            df = stock.finance.ratio(period=period, lang="en", dropna=True)
-            if df is None or df.empty:
-                return jsonify({"success": False, "message": "No data"}), 404
+            # Primary: VCI stats_financial_history
+            db_path = resolve_vci_stats_financial_db_path()
+            records = _query_vci_history(db_path, symbol, period)
 
-            # ── locate year / quarter columns ─────────────────────────────────
-            year_col = None
-            period_col = None
-            for col in df.columns:
-                s = str(col)
-                if "yearReport" in s:
-                    year_col = col
-                if "lengthReport" in s:
-                    period_col = col
-            if not year_col and period == "year" and "year" in df.columns:
-                year_col = "year"
+            # Fallback: stocks_optimized.db financial_ratios
+            if not records:
+                from backend.db_path import resolve_stocks_db_path
+                fallback_path = resolve_stocks_db_path()
+                records = _query_legacy_ratios(fallback_path, symbol, period)
 
-            if year_col:
-                sort_keys = [year_col, period_col] if period_col else [year_col]
-                df = df.sort_values(sort_keys, ascending=True)
-
-            # ── known tuple keys from VCI ─────────────────────────────────────
-            KEY_ROE        = ("Chỉ tiêu khả năng sinh lợi", "ROE (%)")
-            KEY_ROA        = ("Chỉ tiêu khả năng sinh lợi", "ROA (%)")
-            KEY_NET_MARGIN = ("Chỉ tiêu khả năng sinh lợi", "Net Profit Margin (%)")
-            KEY_NIM        = ("Chỉ tiêu khả năng sinh lợi", "NIM (%)")
-            KEY_PE         = ("Chỉ tiêu định giá", "P/E")
-            KEY_PB         = ("Chỉ tiêu định giá", "P/B")
-            KEY_CURRENT    = ("Chỉ tiêu thanh khoản", "Current Ratio")
-            KEY_QUICK      = ("Chỉ tiêu thanh khoản", "Quick Ratio")
-            KEY_CASH       = ("Chỉ tiêu thanh khoản", "Cash Ratio")
-
-            def _val(row, key) -> float | None:
-                """Extract a float from a row, returning None if missing/NaN."""
-                raw = row.get(key)
-                if raw is None or (isinstance(raw, float) and pd.isna(raw)):
-                    return None
-                try:
-                    return float(raw)
-                except Exception:
-                    return None
-
-            def _safe(row, key) -> float | None:
-                """Try exact key, fall back to substring match on column name."""
-                v = _val(row, key)
-                if v is not None:
-                    return v
-                needle = str(key[-1]) if isinstance(key, tuple) else str(key)
-                for col in row.index:
-                    if needle in str(col):
-                        v = _val(row, col)
-                        if v is not None:
-                            return v
-                return None
-
-            def _pct(row, key) -> float | None:
-                """Get a percentage value; multiply by 100 if stored as a fraction."""
-                v = _safe(row, key)
-                if v is not None and abs(v) < 1:
-                    v = round(v * 100, 4)
-                return v
-
-            # ── build records ─────────────────────────────────────────────────
-            records: list[dict] = []
-            nim_labels: list[str] = []       # for DB NIM fallback alignment
-
-            for _, row in df.iterrows():
-                y = row.get(year_col)
-                q = row.get(period_col) if period_col else None
-                label = str(y)
-                if period == "quarter" and q:
-                    label = f"Q{int(q)} '{str(y)[-2:]}"
-                nim_labels.append(label)
-
-                records.append({
-                    "period":       label,
-                    "roe":          _pct(row, KEY_ROE),
-                    "roa":          _pct(row, KEY_ROA),
-                    "pe":           _safe(row, KEY_PE),
-                    "pb":           _safe(row, KEY_PB),
-                    "currentRatio": _safe(row, KEY_CURRENT),
-                    "quickRatio":   _safe(row, KEY_QUICK),
-                    "cashRatio":    _safe(row, KEY_CASH),
-                    "nim":          _pct(row, KEY_NIM),
-                    "netMargin":    _pct(row, KEY_NET_MARGIN),
-                })
-
-            # ── NIM SQLite fallback (banks) ────────────────────────────────────
-            live_nim_count = sum(1 for r in records if r["nim"] not in (None, 0))
-            try:
-                provider = get_provider()
-                db_path = getattr(provider, "db_path", None)
-                if db_path and os.path.exists(db_path):
-                    with sqlite3.connect(db_path) as conn:
-                        conn.row_factory = sqlite3.Row
-                        cur = conn.cursor()
-                        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ratio_wide'")
-                        if cur.fetchone():
-                            if period == "quarter":
-                                cur.execute(
-                                    """
-                                    SELECT year, quarter, nim, cof
-                                    FROM ratio_wide
-                                    WHERE symbol = ? AND period_type = 'quarter' AND nim IS NOT NULL
-                                    ORDER BY year ASC, quarter ASC
-                                    """,
-                                    (symbol,),
-                                )
-                                rows = cur.fetchall()
-                                if rows:
-                                    nim_map = {}
-                                    for r in rows:
-                                        lbl = f"Q{int(r['quarter'])} '{str(r['year'])[-2:]}"
-                                        nim_val = float(r["nim"])
-                                        if r["cof"] is not None and 0 < nim_val < 2:
-                                            nim_val *= 4
-                                        nim_map[lbl] = round(nim_val, 2)
-                                    if len(nim_map) > live_nim_count:
-                                        for rec in records:
-                                            if rec["period"] in nim_map:
-                                                rec["nim"] = nim_map[rec["period"]]
-                            else:
-                                cur.execute(
-                                    """
-                                    SELECT year,
-                                           AVG(CASE WHEN cof IS NOT NULL AND nim > 0 AND nim < 2
-                                                    THEN nim * 4 ELSE nim END) AS nim_year
-                                    FROM ratio_wide
-                                    WHERE symbol = ? AND period_type = 'quarter' AND nim IS NOT NULL
-                                    GROUP BY year ORDER BY year ASC
-                                    """,
-                                    (symbol,),
-                                )
-                                rows = cur.fetchall()
-                                if rows:
-                                    nim_map = {str(int(r["year"])): round(float(r["nim_year"]), 2)
-                                               for r in rows if r["nim_year"] is not None}
-                                    if len(nim_map) > live_nim_count:
-                                        for rec in records:
-                                            yr = rec["period"][:4] if rec["period"][:4].isdigit() else None
-                                            if yr and yr in nim_map:
-                                                rec["nim"] = nim_map[yr]
-            except Exception as db_exc:
-                logger.warning(f"NIM DB fallback failed for {symbol}: {db_exc}")
+            if not records:
+                return jsonify({"success": False, "message": "No data available"}), 404
 
             result = {
                 "success": True,
-                "symbol":  symbol,
-                "period":  period,
-                "count":   len(records),
-                "data":    records,
+                "symbol": symbol,
+                "period": period,
+                "count": len(records),
+                "data": records,
             }
             cache_set(cache_key, result)
             return jsonify(result)
@@ -207,3 +61,147 @@ def register(stock_bp: Blueprint) -> None:
         except Exception as exc:
             logger.error(f"API /historical-chart-data error {symbol}: {exc}")
             return jsonify({"success": False, "error": str(exc)}), 500
+
+
+def _query_vci_history(db_path: str, symbol: str, period: str) -> list[dict]:
+    """Query historical ratios from vci_stats_financial_history."""
+    if not db_path or not os.path.exists(db_path):
+        return []
+
+    try:
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='stats_financial_history'")
+            if not cur.fetchone():
+                return []
+
+            if period == "quarter":
+                query = """
+                    SELECT year_report as year, quarter_report as quarter,
+                           pe, pb, roe, roa, after_tax_margin, net_interest_margin
+                    FROM stats_financial_history
+                    WHERE ticker = ?
+                    ORDER BY year_report ASC, quarter_report ASC
+                """
+                rows = cur.execute(query, (symbol,)).fetchall()
+            else:
+                # Yearly: aggregate quarterly data
+                query = """
+                    SELECT year_report as year,
+                           AVG(pe) as pe, AVG(pb) as pb,
+                           AVG(roe) as roe, AVG(roa) as roa,
+                           AVG(after_tax_margin) as net_margin,
+                           AVG(net_interest_margin) as nim
+                    FROM stats_financial_history
+                    WHERE ticker = ?
+                    GROUP BY year_report
+                    ORDER BY year_report ASC
+                """
+                rows = cur.execute(query, (symbol,)).fetchall()
+
+            if not rows:
+                return []
+
+            records = []
+            for r in rows:
+                d = dict(r)
+                y = d.get("year")
+                q = d.get("quarter")
+                label = str(int(y)) if y else "Unknown"
+                if period == "quarter" and q is not None:
+                    label = f"Q{int(q)} '{str(y)[-2:]}"
+
+                roe = d.get("roe")
+                roa = d.get("roa")
+                net_margin = d.get("after_tax_margin") or d.get("net_margin")
+                nim = d.get("net_interest_margin") or d.get("nim")
+
+                records.append({
+                    "period": label,
+                    "roe": round(roe * 100, 2) if roe and abs(roe) < 1 else roe,
+                    "roa": round(roa * 100, 2) if roa and abs(roa) < 1 else roa,
+                    "pe": d.get("pe"),
+                    "pb": d.get("pb"),
+                    "currentRatio": None,
+                    "quickRatio": None,
+                    "cashRatio": None,
+                    "nim": round(nim * 100, 2) if nim and abs(nim) < 1 else nim,
+                    "netMargin": round(net_margin * 100, 2) if net_margin and abs(net_margin) < 1 else net_margin,
+                })
+
+            return records
+
+    except Exception as e:
+        logger.warning(f"VCI history query failed for {symbol}: {e}")
+        return []
+
+
+def _query_legacy_ratios(db_path: str, symbol: str, period: str) -> list[dict]:
+    """Fallback: query financial_ratios from stocks_optimized.db."""
+    if not db_path or not os.path.exists(db_path):
+        return []
+
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_ratios'")
+            if not cur.fetchone():
+                return []
+
+            if period == "quarter":
+                query = """
+                    SELECT year, quarter,
+                           roe, roa, price_to_earnings as pe, price_to_book as pb,
+                           current_ratio, quick_ratio, cash_ratio,
+                           net_profit_margin, ebit_margin as nim
+                    FROM financial_ratios
+                    WHERE symbol = ? AND quarter IS NOT NULL
+                    ORDER BY year ASC, quarter ASC
+                """
+            else:
+                query = """
+                    SELECT year,
+                           AVG(roe) as roe, AVG(roa) as roa,
+                           AVG(price_to_earnings) as pe, AVG(price_to_book) as pb,
+                           AVG(current_ratio) as current_ratio,
+                           AVG(quick_ratio) as quick_ratio,
+                           AVG(cash_ratio) as cash_ratio,
+                           AVG(net_profit_margin) as net_profit_margin,
+                           AVG(ebit_margin) as nim
+                    FROM financial_ratios
+                    WHERE symbol = ? AND (quarter IS NULL OR quarter = 0)
+                    GROUP BY year
+                    ORDER BY year ASC
+                """
+
+            df = pd.read_sql_query(query, conn, params=(symbol,))
+            if df.empty:
+                return []
+
+            records = []
+            for _, row in df.iterrows():
+                y = row.get("year")
+                q = row.get("quarter")
+                label = str(int(y)) if y is not None else "Unknown"
+                if period == "quarter" and q is not None:
+                    label = f"Q{int(q)} '{str(y)[-2:]}"
+
+                records.append({
+                    "period": label,
+                    "roe": round(row.get("roe") * 100, 2) if row.get("roe") is not None and abs(row.get("roe", 0)) < 1 else row.get("roe"),
+                    "roa": round(row.get("roa") * 100, 2) if row.get("roa") is not None and abs(row.get("roa", 0)) < 1 else row.get("roa"),
+                    "pe": row.get("pe") if pd.notna(row.get("pe")) else None,
+                    "pb": row.get("pb") if pd.notna(row.get("pb")) else None,
+                    "currentRatio": row.get("current_ratio") if pd.notna(row.get("current_ratio")) else None,
+                    "quickRatio": row.get("quick_ratio") if pd.notna(row.get("quick_ratio")) else None,
+                    "cashRatio": row.get("cash_ratio") if pd.notna(row.get("cash_ratio")) else None,
+                    "nim": round(row.get("nim") * 100, 2) if row.get("nim") is not None and abs(row.get("nim", 0)) < 1 else row.get("nim"),
+                    "netMargin": round(row.get("net_profit_margin") * 100, 2) if row.get("net_profit_margin") is not None and abs(row.get("net_profit_margin", 0)) < 1 else row.get("net_profit_margin"),
+                })
+
+            return records
+
+    except Exception as e:
+        logger.warning(f"Legacy ratios query failed for {symbol}: {e}")
+        return []

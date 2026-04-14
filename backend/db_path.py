@@ -281,3 +281,78 @@ def resolve_vci_financial_statement_db_path(explicit_path: Optional[str] = None)
             return str(path)
 
     return str((root / "vci_financial_statement_data" / "hose_only" / "vci_financial_statements.sqlite").resolve())
+
+
+def _resolve_db_path(
+    explicit_path: Optional[str],
+    env_var: str,
+    default_rel: Path,
+    extra_candidates: Optional[list[Path]] = None,
+) -> str:
+    """Generic DB path resolver.
+
+    Resolution order: explicit_path > env_var > project_root/default_rel > extra_candidates.
+    """
+    candidates: list[Path] = []
+
+    if explicit_path:
+        candidates.append(Path(explicit_path).expanduser())
+
+    env_path = os.getenv(env_var)
+    if env_path:
+        candidates.append(Path(env_path).expanduser())
+
+    root = _project_root()
+    candidates.append(root / default_rel)
+
+    if extra_candidates:
+        candidates.extend(extra_candidates)
+
+    for path in candidates:
+        try:
+            path = path.resolve()
+        except Exception:
+            pass
+        if path.exists():
+            return str(path)
+
+    return str((root / default_rel).resolve())
+
+
+def resolve_vci_company_db_path(explicit_path: Optional[str] = None) -> str:
+    """Return absolute path to VCI company info SQLite DB."""
+    return _resolve_db_path(
+        explicit_path,
+        "VCI_COMPANY_DB_PATH",
+        Path("fetch_sqlite") / "vci_company.sqlite",
+        extra_candidates=[
+            Path("/var/www/valuation/fetch_sqlite/vci_company.sqlite"),
+            Path("/var/www/store/fetch_sqlite/vci_company.sqlite"),
+        ],
+    )
+
+
+def resolve_index_history_db_path(explicit_path: Optional[str] = None) -> str:
+    """Return absolute path to VCI index history SQLite DB."""
+    return _resolve_db_path(
+        explicit_path,
+        "INDEX_HISTORY_DB_PATH",
+        Path("fetch_sqlite") / "index_history.sqlite",
+        extra_candidates=[
+            Path("/var/www/valuation/fetch_sqlite/index_history.sqlite"),
+            Path("/var/www/store/fetch_sqlite/index_history.sqlite"),
+        ],
+    )
+
+
+def resolve_vci_news_events_db_path(explicit_path: Optional[str] = None) -> str:
+    """Return absolute path to VCI news/events SQLite DB."""
+    return _resolve_db_path(
+        explicit_path,
+        "VCI_NEWS_EVENTS_DB_PATH",
+        Path("fetch_sqlite") / "vci_news_events.sqlite",
+        extra_candidates=[
+            Path("/var/www/valuation/fetch_sqlite/vci_news_events.sqlite"),
+            Path("/var/www/store/fetch_sqlite/vci_news_events.sqlite"),
+        ],
+    )

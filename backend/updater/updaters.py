@@ -11,62 +11,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Literal
 from .database import StockDatabase
 
-try:
-    from vnstock import Vnstock
-except ImportError:
-    Vnstock = None
-
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# VCI compatibility shims: VCI Company API occasionally changes response
-# format or hits quota errors. These shims wrap the two internal methods
-# that fail loudly so Finance (which uses a DIFFERENT endpoint for actual
-# financial data) can still fetch balance_sheet / income_statement / etc.
-#
-# com_type_code values: 'CT' company  'CK' securities  'NH' bank  'BH' insurance
-# ---------------------------------------------------------------------------
-def _make_safe_wrapper(original_fn, fallback_value, label: str):
-    """Return a wrapper that calls original_fn and falls back on any exception."""
-    @functools.wraps(original_fn)
-    def _wrapper(self):
-        try:
-            return original_fn(self)
-        except Exception as exc:
-            logger.debug(
-                "VCI %s fallback for %s: %s",
-                label, getattr(self, "symbol", "?"), exc,
-            )
-            return fallback_value
-    return _wrapper
-
-
-def _apply_vci_shims() -> None:
-    """Apply compatibility shims to vnstock VCI internals once at startup."""
-    try:
-        from vnstock.explorer.vci import company as _vci_co_mod
-        if not getattr(_vci_co_mod.Company._fetch_data, "_shim_applied", False):
-            _vci_co_mod.Company._fetch_data = _make_safe_wrapper(
-                _vci_co_mod.Company._fetch_data, {}, "Company._fetch_data"
-            )
-            _vci_co_mod.Company._fetch_data._shim_applied = True
-    except Exception as exc:
-        logger.warning("Could not shim VCI Company._fetch_data: %s", exc)
-
-    try:
-        from vnstock.explorer.vci import financial as _vci_fin_mod
-        if not getattr(_vci_fin_mod.Finance._get_company_type, "_shim_applied", False):
-            _vci_fin_mod.Finance._get_company_type = _make_safe_wrapper(
-                _vci_fin_mod.Finance._get_company_type, "CT", "Finance._get_company_type"
-            )
-            _vci_fin_mod.Finance._get_company_type._shim_applied = True
-    except Exception as exc:
-        logger.warning("Could not shim VCI Finance._get_company_type: %s", exc)
-
-    logger.debug("VCI compatibility shims applied.")
-
-
-_apply_vci_shims()
 
 # ============================================================================
 # RATE LIMITER
@@ -110,7 +55,6 @@ class BaseUpdater:
     def __init__(self, db_conn, requests_per_minute: int = 30):
         self.conn = db_conn
         self.limiter = RateLimiter(requests_per_minute)
-        self.vnstock = Vnstock() if Vnstock else None
 
     def _was_recently_updated(self, symbol: str, table: str) -> bool:
         """Return True if *symbol* in *table* was updated within SKIP_IF_UPDATED_WITHIN_DAYS."""
@@ -410,175 +354,18 @@ class FinancialUpdater(BaseUpdater):
         return count
 
     def update_stock(self, symbol: str, period: str = 'year') -> dict:
-        if not self.vnstock:
-            logger.error("Vnstock library not available")
-            return {}
-
-        # Smart-skip: only skip if BOTH financial statements AND ratios are fresh.
-        # Previously only checked balance_sheet, which meant financial_ratios were
-        # never refreshed even when they were months out of date.
-        if (self._was_recently_updated(symbol, 'balance_sheet') and
-                self._was_recently_updated(symbol, 'financial_ratios')):
-            logger.info(f"  ⊙ Skip {symbol} (balance_sheet + financial_ratios updated < {SKIP_IF_UPDATED_WITHIN_DAYS}d ago)")
-            return {}
-
-        logger.info(f"  → Fetching BCTC: {symbol} ({period})")
-        results: dict = {}
-        # KBS uses 'year' for annual; 'quarter' for quarterly (same as our default)
-        kbs_period = 'year' if period in ('year', 'annual') else 'quarter'
-        try:
-            # Rate-limit BEFORE creating stock object (which may make an API call)
-            self.limiter.check()
-            stock = self.vnstock.stock(symbol=symbol, source='KBS')
-
-            # 1. Balance Sheet
-            bs_df = stock.finance.balance_sheet(period=kbs_period, display_mode='vi')
-            if bs_df is not None and not bs_df.empty:
-                n = self._upsert_kbs_rows(bs_df, 'balance_sheet', self.BALANCE_SHEET_MAPPING_KBS, symbol, period)
-                results['balance_sheet'] = n
-                logger.debug(f"    balance_sheet: {n} rows")
-
-            # 2. Income Statement
-            self.limiter.check()
-            is_df = stock.finance.income_statement(period=kbs_period, display_mode='vi')
-            if is_df is not None and not is_df.empty:
-                n = self._upsert_kbs_rows(is_df, 'income_statement', self.INCOME_STATEMENT_MAPPING_KBS, symbol, period)
-                results['income_statement'] = n
-                logger.debug(f"    income_statement: {n} rows")
-
-            # 3. Cash Flow Statement
-            self.limiter.check()
-            cf_df = stock.finance.cash_flow(period=kbs_period, display_mode='vi')
-            if cf_df is not None and not cf_df.empty:
-                n = self._upsert_kbs_rows(cf_df, 'cash_flow_statement', self.CASH_FLOW_MAPPING_KBS, symbol, period)
-                results['cash_flow_statement'] = n
-                logger.debug(f"    cash_flow: {n} rows")
-
-            # 4. Financial Ratios (VCI source — different endpoint from KBS financials)
-            try:
-                self.limiter.check()
-                ratio_stock = self.vnstock.stock(symbol=symbol, source='VCI')
-                ratio_df = ratio_stock.finance.ratio(period=kbs_period, display_mode='en')
-                if ratio_df is not None and not ratio_df.empty:
-                    n = self._upsert_vci_ratio_rows(ratio_df, symbol, period)
-                    results['financial_ratios'] = n
-                    logger.debug(f"    financial_ratios: {n} rows")
-            except Exception as ratio_exc:
-                # Ratio fetch is best-effort — don't fail the whole stock update
-                logger.warning(f"    financial_ratios fetch failed for {symbol}: {ratio_exc}")
-
-            self.conn.commit()
-            total = sum(results.values())
-            if total:
-                logger.info(f"  ✓ {symbol}: {total} rows written ({', '.join(f'{k}={v}' for k,v in results.items())})")
-            else:
-                logger.info(f"  ⊙ {symbol}: API returned no new rows (data up to date)")
-
-        except Exception as exc:
-            self.conn.rollback()
-            logger.error(
-                f"  ✗ Error updating {symbol}: {exc}\n{traceback.format_exc()}"
-            )
-        return results
+        """Deprecated: vnstock-based financial update is no longer used.
+        Financial data now comes from VCI fetch scripts (fetch_sqlite/*.py)."""
+        logger.info(f"  ⊙ Skip {symbol} (vnstock updater deprecated, use VCI fetch scripts)")
+        return {}
 
 # ============================================================================
 # COMPANY UPDATER
 # ============================================================================
 
 class CompanyUpdater(BaseUpdater):
-    @staticmethod
-    def _to_int(value, default: int = 0) -> int:
-        try:
-            if value is None:
-                return default
-            return int(float(value))
-        except Exception:
-            return default
-
-    @staticmethod
-    def _to_float(value, default: float = 0.0) -> float:
-        try:
-            if value is None:
-                return default
-            return float(value)
-        except Exception:
-            return default
-
-    def _upsert_shareholders(self, symbol: str, df: pd.DataFrame) -> int:
-        if df is None or df.empty:
-            return 0
-
-        count = 0
-        for _, row in df.iterrows():
-            holder = str(row.get('share_holder') or '').strip()
-            if not holder:
-                continue
-
-            update_date = str(row.get('update_date') or '').strip() or datetime.now().strftime('%Y-%m-%d')
-            raw_id = str(row.get('id') or '').strip()
-            rec_id = raw_id or f"{symbol}_sh_{holder}_{update_date}"
-
-            self.conn.execute(
-                '''
-                INSERT OR REPLACE INTO shareholders
-                    (id, symbol, share_holder, quantity, share_own_percent, update_date)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    rec_id,
-                    symbol,
-                    holder,
-                    self._to_int(row.get('quantity')),
-                    self._to_float(row.get('share_own_percent')),
-                    update_date,
-                ),
-            )
-            count += 1
-
-        return count
-
     def update_overview(self, symbol: str) -> int:
-        if not self.vnstock:
-            return 0
-        self.limiter.check()
-        try:
-            stock = self.vnstock.stock(symbol=symbol, source='VCI')
-            df = stock.company.overview()
-            changed = 0
-
-            if df is not None and not df.empty:
-                row = df.iloc[0]
-                self.conn.execute("DELETE FROM company_overview WHERE symbol=?", (symbol,))
-                self.conn.execute(
-                    '''INSERT INTO company_overview
-                       (symbol, history, company_profile,
-                        icb_name4, icb_name3, icb_name2,
-                        issue_share, charter_capital, updated_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)''',
-                    (
-                        symbol,
-                        row.get('history'),
-                        row.get('company_profile'),
-                        row.get('icb_name4'),
-                        row.get('icb_name3'),
-                        row.get('icb_name2'),
-                        self._to_int(row.get('issue_share')),
-                        self._to_int(row.get('charter_capital')),
-                    ),
-                )
-                changed += 1
-
-            # Holders datasets are critical for the Holders tab accuracy.
-            try:
-                self.limiter.check()
-                sh_df = stock.company.shareholders()
-                changed += self._upsert_shareholders(symbol, sh_df)
-            except Exception as sh_exc:
-                logger.warning(f"shareholders update failed for {symbol}: {sh_exc}")
-
-            self.conn.commit()
-            return 1 if changed > 0 else 0
-        except Exception as exc:
-            self.conn.rollback()
-            logger.error(f"Error updating company info for {symbol}: {exc}")
-            return 0
+        """Deprecated: vnstock-based company update is no longer used.
+        Company data now comes from VCI fetch scripts (fetch_sqlite/*.py)."""
+        logger.info(f"  ⊙ Skip {symbol} (vnstock updater deprecated, use VCI fetch scripts)")
+        return 0
