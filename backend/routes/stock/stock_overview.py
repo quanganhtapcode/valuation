@@ -14,6 +14,8 @@ Endpoints:
 from __future__ import annotations
 
 import logging
+import os
+import sqlite3
 
 import numpy as np
 import pandas as pd
@@ -23,6 +25,29 @@ from backend.extensions import get_provider
 
 
 logger = logging.getLogger(__name__)
+
+_VCI_COMPANY_DB = os.path.join(os.path.dirname(__file__), "../../../fetch_sqlite/vci_company.sqlite")
+
+
+def _read_vci_company(symbol: str) -> dict:
+    """Read target_price and company_profile from vci_company.sqlite."""
+    db = os.environ.get("VCI_COMPANY_DB_PATH") or _VCI_COMPANY_DB
+    if not db or not os.path.exists(db):
+        return {}
+    try:
+        with sqlite3.connect(db) as conn:
+            row = conn.execute(
+                "SELECT target_price, company_profile FROM companies WHERE ticker = ?",
+                (symbol.upper(),),
+            ).fetchone()
+            if row:
+                return {
+                    "target_price": float(row[0]) if row[0] is not None else None,
+                    "company_profile": row[1] or None,
+                }
+    except Exception as exc:
+        logger.warning("vci_company read failed for %s: %s", symbol, exc)
+    return {}
 
 
 def _convert_nan_to_none(obj):
@@ -66,6 +91,8 @@ _SUMMARY_FIELDS = [
     "nim", "npl", "ldr", "cir",
     # Other
     "ev_to_ebitda", "asset_turnover", "inventory_turnover", "cash_ratio", "roic", "ebit_margin",
+    # VCI analyst target
+    "target_price",
 ]
 
 
@@ -170,10 +197,16 @@ def register(stock_bp: Blueprint) -> None:
     def api_stock_summary(symbol: str):
         """Lightweight stock summary: identity + price + key ratios (~500 B)."""
         try:
-            raw = _fetch_raw(symbol.upper())
+            sym = symbol.upper()
+            raw = _fetch_raw(sym)
             if not raw.get("success"):
                 return jsonify({"success": False, "error": "Symbol not found"}), 404
-            return jsonify(_build_summary(raw))
+            result = _build_summary(raw)
+            # Inject target_price from vci_company.sqlite (not in provider chain)
+            vci = _read_vci_company(sym)
+            if result.get("target_price") is None and vci.get("target_price") is not None:
+                result["target_price"] = vci["target_price"]
+            return jsonify(result)
         except Exception as exc:
             logger.error(f"API /stock/{symbol}/summary error: {exc}")
             return jsonify({"success": False, "error": str(exc)}), 500
@@ -182,10 +215,16 @@ def register(stock_bp: Blueprint) -> None:
     def api_stock_profile(symbol: str):
         """Company profile: description, established date, employees (~1.5 KB)."""
         try:
-            raw = _fetch_raw(symbol.upper())
+            sym = symbol.upper()
+            raw = _fetch_raw(sym)
             if not raw.get("success"):
                 return jsonify({"success": False, "error": "Symbol not found"}), 404
-            return jsonify(_build_profile(raw))
+            result = _build_profile(raw)
+            # Inject company_profile from vci_company.sqlite if not already present
+            vci = _read_vci_company(sym)
+            if not result.get("company_profile") and vci.get("company_profile"):
+                result["company_profile"] = vci["company_profile"]
+            return jsonify(result)
         except Exception as exc:
             logger.error(f"API /stock/{symbol}/profile error: {exc}")
             return jsonify({"success": False, "error": str(exc)}), 500
