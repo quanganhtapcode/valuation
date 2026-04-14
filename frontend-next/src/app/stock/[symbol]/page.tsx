@@ -69,8 +69,9 @@ interface FinancialData {
     dividend?: number;
     sharesOutstanding?: number;
     netProfitMargin?: number;
-    profitGrowth?: number;
+    grossMargin?: number;
     debtToEquity?: number;
+    currentRatio?: number;
 }
 
 export default function StockDetailPage() {
@@ -209,23 +210,22 @@ export default function StockDetailPage() {
                     const data = stockRes.data || stockRes;
                     // current_price is normalized to full VND by the backend
                     currentPriceValue = data.current_price || data.price || data.close || 0;
-                    const profitGrowthValue = data.profit_growth ?? data.profitGrowth;
-                    const debtToEquityValue = data.debt_to_equity ?? data.debtToEquity ?? data.de;
                     const tp = data.target_price ?? data.targetPrice ?? null;
                     if (tp) setTargetPrice(Number(tp));
                     setFinancials({
-                        eps: data.eps_ttm || data.eps,
-                        pe: data.pe_ratio || data.pe || data.PE,
-                        pb: data.pb_ratio || data.pb || data.PB,
-                        roe: data.roe || data.ROE,
-                        roa: data.roa || data.ROA,
+                        eps: data.eps || (data.current_price && data.pe && data.pe > 0 ? Math.round(data.current_price / data.pe) : undefined),
+                        pe: data.pe,
+                        pb: data.pb,
+                        roe: data.roe,
+                        roa: data.roa,
                         marketCap: data.market_cap || data.marketCap,
                         bookValue: data.bvps || data.bookValue,
                         dividend: data.dividend_per_share || data.dividend,
                         sharesOutstanding: data.shares_outstanding || data.sharesOutstanding,
-                        netProfitMargin: data.net_profit_margin || data.netProfitMargin,
-                        profitGrowth: profitGrowthValue === 0 ? undefined : profitGrowthValue,
-                        debtToEquity: debtToEquityValue === 0 ? undefined : debtToEquityValue,
+                        netProfitMargin: data.after_tax_margin ?? data.net_margin ?? data.netProfitMargin,
+                        grossMargin: data.gross_margin ?? data.grossMargin,
+                        debtToEquity: data.debt_to_equity ?? data.debtToEquity ?? data.de,
+                        currentRatio: data.current_ratio ?? data.currentRatio,
                     });
                     setRawOverviewData(data);
 
