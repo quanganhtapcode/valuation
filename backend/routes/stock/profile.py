@@ -1,22 +1,41 @@
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 
-import pandas as pd
 from flask import Blueprint, jsonify
-from vnstock import Company
 
 from backend.utils import validate_stock_symbol
-from .cache import cache_get, cache_set
+from backend.cache_utils import cache_get, cache_set
+from backend.db_path import _project_root
 
 
 logger = logging.getLogger(__name__)
+
+# Load company profile data from exported JSON
+_PROFILE_JSON_PATH = _project_root() / "company_profile_export.json"
+
+_company_profiles = {}
+
+def _load_profiles():
+    global _company_profiles
+    if _company_profiles or not _PROFILE_JSON_PATH.exists():
+        return
+    try:
+        with open(_PROFILE_JSON_PATH, "r", encoding="utf-8") as f:
+            _company_profiles = json.load(f)
+        logger.info(f"Loaded {len(_company_profiles)} company profiles from JSON")
+    except Exception as e:
+        logger.warning(f"Failed to load company profiles from JSON: {e}")
 
 
 def register(stock_bp: Blueprint) -> None:
     @stock_bp.route("/company/profile/<symbol>")
     def get_company_profile(symbol):
-        """Get company overview/description from vnstock API (VietCap source)."""
+        """Get company overview/description from JSON file (exported from stocks_optimized.db)."""
+        _load_profiles()
+
         try:
             is_valid, result = validate_stock_symbol(symbol)
             if not is_valid:
@@ -28,40 +47,26 @@ def register(stock_bp: Blueprint) -> None:
             if cached:
                 return jsonify(cached)
 
-            try:
-                company = Company(symbol=symbol, source="VCI")
-                overview_df = company.overview()
-                if overview_df is None or (hasattr(overview_df, "empty") and overview_df.empty):
-                    return jsonify({"success": False, "message": "No overview data available"}), 404
-
-                def safe_get(df, column, default=""):
-                    try:
-                        if hasattr(df, "columns") and column in df.columns:
-                            val = df[column].iloc[0]
-                            if pd.notna(val):
-                                return str(val)
-                        return default
-                    except Exception:
-                        return default
-
-                company_profile_text = safe_get(overview_df, "company_profile", "")
-                history = safe_get(overview_df, "history", "")
-                industry = safe_get(overview_df, "icb_name3", "")
+            profile_data = _company_profiles.get(symbol)
+            if profile_data:
+                company_profile_text = profile_data.get("company_profile") or ""
+                history = profile_data.get("history") or ""
+                industry = profile_data.get("icb_name3") or ""
 
                 profile_result = {
                     "symbol": symbol,
                     "company_name": symbol,
                     "company_profile": company_profile_text or history,
                     "industry": industry,
-                    "charter_capital": safe_get(overview_df, "charter_capital", ""),
-                    "issue_share": safe_get(overview_df, "issue_share", ""),
+                    "charter_capital": profile_data.get("charter_capital") or "",
+                    "issue_share": profile_data.get("issue_share") or "",
                     "history": history[:300] + "..." if len(history) > 300 else history,
                     "success": True,
                 }
                 cache_set(cache_key, profile_result)
                 return jsonify(profile_result)
-            except Exception as e:
-                logger.error(f"Error fetching overview for {symbol}: {e}")
-                return jsonify({"success": False, "error": str(e)}), 500
+
+            return jsonify({"success": False, "message": "No company data available"}), 404
+
         except Exception as exc:
             return jsonify({"success": False, "error": str(exc)}), 500

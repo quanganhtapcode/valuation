@@ -5,13 +5,12 @@ from datetime import date
 
 import requests
 from flask import Blueprint, jsonify, request
-from vnstock import Vnstock
 
 from backend.services.news_service import NewsService
 from backend.utils import validate_stock_symbol
 from backend.services.vci_news_sqlite import query_news_for_symbol, default_news_db_path
 from backend.routes.market.http_headers import VCI_HEADERS
-from .cache import cache_get, cache_set
+from backend.cache_utils import cache_get, cache_set
 
 _VCI_IQ_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1"
 
@@ -63,30 +62,50 @@ def register(stock_bp: Blueprint) -> None:
 
     @stock_bp.route("/events/<symbol>")
     def api_events(symbol):
-        """Get events for a symbol."""
+        """Get events for a symbol (dividend, insider, AGM, etc)."""
         try:
-            cache_key = f"events_{symbol}"
+            is_valid, clean_symbol = validate_stock_symbol(symbol)
+            if not is_valid:
+                return jsonify({"success": False, "error": clean_symbol}), 400
+
+            cache_key = f"events_{clean_symbol}"
             cached = cache_get(cache_key)
             if cached:
                 return jsonify(cached)
 
-            stock = Vnstock().stock(symbol=symbol, source="VCI")
-            events_df = stock.company.events()
+            # Use VCI IQ API directly (same as vci-feed endpoint)
+            today = date.today()
+            from_date = "20100101"
+            to_date = f"{today.year + 1}{today.month:02d}{today.day:02d}"
 
-            result = {"success": True, "data": []}
-            if events_df is not None and not getattr(events_df, "empty", True):
-                events_data = []
-                for _, row in events_df.head(10).iterrows():
-                    events_data.append(
-                        {
-                            "event_name": row.get("event_title", ""),
-                            "event_code": row.get("event_list_name", "Event"),
-                            "notify_date": str(row.get("public_date", "")).split(" ")[0],
-                            "url": row.get("source_url", "#"),
-                        }
-                    )
-                result = {"success": True, "data": events_data}
+            all_events = []
+            for event_code in ["DIV,ISS", "DDIND,DDINS,DDRP", "AGME,AGMR,EGME", "AIS,MA,MOVE,NLIS,OTHE,RETU,SUSP"]:
+                try:
+                    params = {
+                        "ticker": clean_symbol,
+                        "fromDate": from_date,
+                        "toDate": to_date,
+                        "page": "0",
+                        "size": "50",
+                        "eventCode": event_code,
+                    }
+                    url = f"{_VCI_IQ_BASE}/events"
+                    resp = requests.get(url, params=params, headers=VCI_HEADERS, timeout=10)
+                    resp.raise_for_status()
+                    raw = resp.json()
+                    items = (raw.get("data") or {}).get("content") or []
+                    for item in items:
+                        all_events.append({
+                            "event_name": item.get("title", ""),
+                            "event_code": item.get("eventCode", "Event"),
+                            "notify_date": str(item.get("publicDate", "")).split(" ")[0] if item.get("publicDate") else "",
+                            "url": "#",
+                        })
+                except Exception:
+                    continue
 
+            all_events.sort(key=lambda e: e["notify_date"] or "9999-12-31", reverse=True)
+            result = {"success": True, "data": all_events[:10]}
             cache_set(cache_key, result)
             return jsonify(result)
         except Exception as exc:

@@ -19,10 +19,10 @@ import logging
 import json
 import sqlite3
 from datetime import datetime, timedelta
-from vnstock import Vnstock, Listing, Company, Quote
 from backend.data_sources import VCIClient
 from backend.data_sources.sqlite_db import SQLiteDB
 from backend.db_path import resolve_stocks_db_path, resolve_vci_screening_db_path
+from backend.vci_data_access import VCIDataAccess
 from backend.services.source_priority import apply_peer_source_priority, get_screening_metrics_map, get_stats_financial_metrics_map, get_ratio_daily_metrics_map
 import logging
 
@@ -31,20 +31,16 @@ logger = logging.getLogger(__name__)
 class StockDataProvider:
     def __init__(self):
         self.sources = ["VCI"]
-        self.vnstock = Vnstock()
-        self.listing = Listing()
         self._listing_cache = None
         self._stock_data_cache = {} # In-memory cache for stock details
         self._price_cache = {} # Short-term cache for realtime prices (TTL 30s)
-        
-        # Set VNStock API Key from environment — no hardcoded fallback
-        vnstock_key = os.getenv('VNSTOCK_API_KEY')
-        if vnstock_key:
-            os.environ['VNSTOCK_API_KEY'] = vnstock_key
-        else:
-            logger.warning("VNSTOCK_API_KEY not set — live VNStock API calls may fail")
         self.db_path = resolve_stocks_db_path()
+        # DEPRECATED: self.db is the legacy SQLiteDB wrapper for stocks_optimized.db.
+        # New code should use self.vci (VCIDataAccess) which queries distributed VCI sources.
         self.db = SQLiteDB(db_path=self.db_path)
+        
+        # VCI unified data access layer (replaces stocks_optimized.db)
+        self.vci = VCIDataAccess()
         
         # Load ticker metadata from public/ticker_data.json
         self.ticker_metadata = {}
@@ -91,90 +87,37 @@ class StockDataProvider:
             
         return default
 
-    def _get_quarter_data_from_vnstock(self, symbol: str) -> dict:
-        """Get latest quarter data from vnstock API"""
+    def _get_quarter_data_from_db(self, symbol: str) -> dict:
+        """Get latest quarter data from SQLite via VCIDataAccess."""
         try:
-            stock = self.vnstock.stock(symbol=symbol, source="VCI")
-            
-            # Get financial statements
             quarter_data = {}
-            
-            # Get balance sheet
-            try:
-                balance_sheet = stock.finance.balance_sheet(period='quarter', lang='en', dropna=True)
-                if balance_sheet.empty:
-                    balance_sheet = stock.finance.balance_sheet(period='quarter', lang='vn', dropna=True)
-                if not balance_sheet.empty:
-                    # Sort to get latest quarter
-                    if 'yearReport' in balance_sheet.columns and 'lengthReport' in balance_sheet.columns:
-                        balance_sheet['yearReport'] = pd.to_numeric(balance_sheet['yearReport'], errors='coerce').fillna(0).astype(int)
-                        balance_sheet['lengthReport'] = pd.to_numeric(balance_sheet['lengthReport'], errors='coerce').fillna(0).astype(int)
-                        balance_sheet = balance_sheet.sort_values(['yearReport', 'lengthReport'], ascending=[False, False])
-                    latest_bs = balance_sheet.iloc[0]
-                    quarter_data['balance_sheet'] = latest_bs
-            except Exception as e:
-                logger.warning(f"Failed to get quarter balance sheet for {symbol}: {e}")
-            
-            # Get income statement
-            try:
-                income_statement = stock.finance.income_statement(period='quarter', lang='en', dropna=True)
-                if income_statement.empty:
-                    income_statement = stock.finance.income_statement(period='quarter', lang='vn', dropna=True)
-                if not income_statement.empty:
-                    # Sort to get latest quarter
-                    if 'yearReport' in income_statement.columns and 'lengthReport' in income_statement.columns:
-                        income_statement['yearReport'] = pd.to_numeric(income_statement['yearReport'], errors='coerce').fillna(0).astype(int)
-                        income_statement['lengthReport'] = pd.to_numeric(income_statement['lengthReport'], errors='coerce').fillna(0).astype(int)
-                        income_statement = income_statement.sort_values(['yearReport', 'lengthReport'], ascending=[False, False])
-                    latest_is = income_statement.iloc[0]
-                    quarter_data['income_statement'] = latest_is
-            except Exception as e:
-                logger.warning(f"Failed to get quarter income statement for {symbol}: {e}")
-            
-            # Get cash flow
-            try:
-                cash_flow = stock.finance.cash_flow(period='quarter', lang='en', dropna=True)
-                if cash_flow.empty:
-                    cash_flow = stock.finance.cash_flow(period='quarter', lang='vn', dropna=True)
-                if not cash_flow.empty:
-                    # Sort to get latest quarter
-                    if 'yearReport' in cash_flow.columns and 'lengthReport' in cash_flow.columns:
-                        cash_flow['yearReport'] = pd.to_numeric(cash_flow['yearReport'], errors='coerce').fillna(0).astype(int)
-                        cash_flow['lengthReport'] = pd.to_numeric(cash_flow['lengthReport'], errors='coerce').fillna(0).astype(int)
-                        cash_flow = cash_flow.sort_values(['yearReport', 'lengthReport'], ascending=[False, False])
-                    latest_cf = cash_flow.iloc[0]
-                    quarter_data['cash_flow'] = latest_cf
-            except Exception as e:
-                logger.warning(f"Failed to get quarter cash flow for {symbol}: {e}")
-            
-            # Get ratios
-            try:
-                ratio_quarter = stock.finance.ratio(period='quarter', lang='en', dropna=True)
-                if ratio_quarter.empty:
-                    ratio_quarter = stock.finance.ratio(period='quarter', lang='vn', dropna=True)
-                if not ratio_quarter.empty:
-                    # Sort to get latest quarter
-                    if ('Meta', 'yearReport') in ratio_quarter.columns and ('Meta', 'lengthReport') in ratio_quarter.columns:
-                        ratio_quarter[('Meta', 'yearReport')] = pd.to_numeric(ratio_quarter[('Meta', 'yearReport')], errors='coerce').fillna(0).astype(int)
-                        ratio_quarter[('Meta', 'lengthReport')] = pd.to_numeric(ratio_quarter[('Meta', 'lengthReport')], errors='coerce').fillna(0).astype(int)
-                        ratio_quarter = ratio_quarter.sort_values([('Meta', 'yearReport'), ('Meta', 'lengthReport')], ascending=[False, False])
-                    latest_ratio = ratio_quarter.iloc[0]
-                    quarter_data['ratios'] = latest_ratio
-            except Exception as e:
-                logger.warning(f"Failed to get quarter ratios for {symbol}: {e}")
 
-            # Get company overview for shares outstanding
-            try:
-                overview = stock.company.overview()
-                if not overview.empty:
-                    quarter_data['overview'] = overview.iloc[0]
-            except Exception as e:
-                logger.warning(f"Failed to get company overview for {symbol}: {e}")
-            
+            # Get latest financial statements via VCIDataAccess
+            bs = self.vci.get_financial_statement(symbol, "balance", limit=1)
+            if bs:
+                quarter_data['balance_sheet'] = bs[0]
+
+            is_data = self.vci.get_financial_statement(symbol, "income", limit=1)
+            if is_data:
+                quarter_data['income_statement'] = is_data[0]
+
+            cf = self.vci.get_financial_statement(symbol, "cashflow", limit=1)
+            if cf:
+                quarter_data['cash_flow'] = cf[0]
+
+            # Get latest ratios
+            ratios = self.vci.get_ratio_history(symbol)
+            if ratios:
+                quarter_data['ratios'] = ratios[-1]  # latest
+
+            # Get company info
+            company = self.vci.get_company_info(symbol)
+            if company:
+                quarter_data['overview'] = company
+
             return quarter_data
-            
         except Exception as e:
-            logger.error(f"Failed to get quarter data for {symbol}: {e}")
+            logger.error(f"Failed to get quarter data from DB for {symbol}: {e}")
             return {}
 
     def _get_industry_for_symbol(self, symbol: str) -> str:
@@ -268,18 +211,6 @@ class StockDataProvider:
         except Exception as e:
             logger.warning(f"Error getting symbols from DB: {e}")
             return []
-        # Fallback to live API if no cached data
-        logger.warning("No cached data available, falling back to live API for symbols")
-        try:
-            stock = self.vnstock.stock(symbol="ACB", source="VCI")
-            symbols_df = stock.listing.all_symbols()
-            self._all_symbols = symbols_df["symbol"].str.upper().values
-            logger.info(f"Loaded {len(self._all_symbols)} symbols from live API")
-            return self._all_symbols
-        except Exception as e:
-            logger.warning(f"Failed to get symbols list from API: {e}")
-            self._all_symbols = []
-            return self._all_symbols
 
     def validate_symbol(self, symbol: str, symbols_override=None) -> bool:
         symbols = self._get_all_symbols(symbols_override)
@@ -289,293 +220,192 @@ class StockDataProvider:
         return symbol.upper() in symbols
 
     def _get_company_metadata_from_listing(self, symbol: str) -> dict:
-        """Fetch metadata from the Listing API via vnstock"""
-        try:
-            # Initialize a temporary stock object to access listing
-            stock = self.vnstock.stock(symbol=symbol, source='VCI')
-            df = stock.listing.all_symbols()
-            if not df.empty:
-                row = df[df['symbol'] == symbol.upper()]
-                if not row.empty:
-                    # Try to map possible column names
-                    name = row['organ_name'].iloc[0] if 'organ_name' in row.columns else (row['organName'].iloc[0] if 'organName' in row.columns else symbol.upper())
-                    industry = row['icb_name3'].iloc[0] if 'icb_name3' in row.columns else (row['icbName3'].iloc[0] if 'icbName3' in row.columns else "Unknown")
-                    exchange = row['exchange'].iloc[0] if 'exchange' in row.columns else (row['comGroupCode'].iloc[0] if 'comGroupCode' in row.columns else "Unknown")
-                    
-                    return {
-                        'organ_name': name,
-                        'industry': industry,
-                        'exchange': exchange
-                    }
-        except Exception as e:
-            logger.warning(f"Failed to fetch metadata from Listing API for {symbol}: {e}")
-        return None
-
-    def _get_data_from_db(self, symbol, period):
-        """Fetch stock data from SQLite database (overview table)"""
-        if not os.path.exists(self.db_path):
-            return None
-
+        """Fetch metadata from SQLite database (company/overview tables)."""
         try:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            # Query overview table which has pre-calculated metrics
-            cursor.execute("SELECT * FROM overview WHERE symbol = ?", (symbol,))
+            # Try company table first
+            cursor.execute(
+                "SELECT name, industry, exchange FROM company WHERE symbol = ?",
+                (symbol.upper(),)
+            )
             row = cursor.fetchone()
-
-            data = {}
-            if row:
-                # Convert row to dict
-                data = dict(row)
-                data['success'] = True
-                data['data_period'] = period
-                # Consistent metadata keys with Live API shape
-                data.setdefault('data_source', 'SQLite')
-                if not data.get('sector'):
-                    # DB uses `industry` in most places; frontend expects `sector`
-                    data['sector'] = data.get('industry')
-
-                # Normalize price to full VND (DB stores in thousands VND, e.g. 23.5 → 23500)
-                cp = data.get('current_price')
-                if cp and isinstance(cp, (int, float)) and 0 < float(cp) < 1000:
-                    data['current_price'] = float(cp) * 1000
-
-                # Standardize field name aliases so frontend doesn't need fallback chains
-                if not data.get('pe_ratio') and data.get('pe'):
-                    data['pe_ratio'] = data['pe']
-                elif data.get('pe_ratio') and not data.get('pe'):
-                    data['pe'] = data['pe_ratio']
-                if not data.get('pb_ratio') and data.get('pb'):
-                    data['pb_ratio'] = data['pb']
-                elif data.get('pb_ratio') and not data.get('pb'):
-                    data['pb'] = data['pb_ratio']
-
-                # Ensure name is present (join with companies if needed, but overview has some info)
-
-                # Get additional company info (description)
-                cursor.execute("SELECT name, company_profile, industry FROM company WHERE symbol = ?", (symbol,))
-                comp_row = cursor.fetchone()
-
-                if comp_row:
-                    if not data.get('name'):
-                        data['name'] = comp_row['name']
-
-                    if not data.get('industry') or not str(data.get('industry')).strip() or str(data.get('industry')).strip().lower() == 'unknown':
-                        data['industry'] = comp_row['industry']
-
-                    if not data.get('sector') or not str(data.get('sector')).strip() or str(data.get('sector')).strip().lower() == 'unknown':
-                        data['sector'] = data.get('industry')
-
-                    # Populate overview.description
-                    data['overview'] = {
-                        'description': comp_row['company_profile'] or "No description available."
-                    }
-                else:
-                    data['overview'] = {'description': "No description available."}
-
-                # Final industry normalization to prevent blank sector on stock detail
-                if not data.get('industry') or not str(data.get('industry')).strip() or str(data.get('industry')).strip().lower() == 'unknown':
-                    data['industry'] = self._get_industry_for_symbol(symbol)
-                if not data.get('sector') or not str(data.get('sector')).strip() or str(data.get('sector')).strip().lower() == 'unknown':
-                    data['sector'] = data.get('industry')
-
-                # Enrich banking metrics from normalized wide ratio table (if available)
-                cursor.execute("SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name='ratio_wide'")
-                has_ratio_wide = cursor.fetchone() is not None
-
-                if has_ratio_wide:
-                    # NOTE: ratio_wide schema differs between DB builds. Only select columns that exist
-                    # to avoid failing the entire DB path (which would incorrectly fall back to VCI_Live).
-                    cursor.execute("PRAGMA table_info(ratio_wide)")
-                    ratio_wide_cols = {r[1] for r in cursor.fetchall()}
-
-                    desired_cols = [
-                        'nim',
-                        'casa_ratio',
-                        'npl_ratio',
-                        'loan_to_deposit',
-                        'cof',
-                        'cir',
-                        'debt_equity',
-                    ]
-                    available_cols = [c for c in desired_cols if c in ratio_wide_cols]
-                    if available_cols:
-                        cursor.execute(
-                            f"""
-                            SELECT {', '.join(available_cols)}
-                            FROM ratio_wide
-                            WHERE symbol = ?
-                              AND period_type = 'quarter'
-                            ORDER BY year DESC, quarter DESC
-                            LIMIT 1
-                            """,
-                            (symbol,),
-                        )
-                        bank_row = cursor.fetchone()
-
-                        if bank_row:
-                            bank_keys = set(bank_row.keys())
-                            if 'nim' in bank_keys and bank_row['nim'] is not None:
-                                nim_value = float(bank_row['nim'])
-                                # KBS quarterly NIM may be non-annualized (~0.5-1.0), annualize for UI consistency
-                                if 'cof' in bank_keys and bank_row['cof'] is not None and 0 < nim_value < 2:
-                                    nim_value = nim_value * 4
-                                data['nim'] = round(nim_value, 2)
-                            if 'casa_ratio' in bank_keys and bank_row['casa_ratio'] is not None:
-                                data['casa'] = bank_row['casa_ratio']
-                            if 'npl_ratio' in bank_keys and bank_row['npl_ratio'] is not None:
-                                data['npl_ratio'] = bank_row['npl_ratio']
-                            if 'loan_to_deposit' in bank_keys and bank_row['loan_to_deposit'] is not None:
-                                data['ldr'] = bank_row['loan_to_deposit']
-                            if 'cof' in bank_keys and bank_row['cof'] is not None:
-                                data['cof'] = bank_row['cof']
-                            if 'cir' in bank_keys and bank_row['cir'] is not None:
-                                data['cir'] = bank_row['cir']
-                            if (
-                                'debt_equity' in bank_keys
-                                and bank_row['debt_equity'] is not None
-                                and (data.get('debt_to_equity') is None or data.get('debt_to_equity') == 0)
-                            ):
-                                data['debt_to_equity'] = bank_row['debt_equity']
-
-                    # Populate chart series expected by /stock/<symbol> using ratio_wide
-                    # (so we don't need VCI_Live for series, and avoid empty arrays)
-                    cursor.execute("PRAGMA table_info(ratio_wide)")
-                    ratio_wide_cols_for_series = {r[1] for r in cursor.fetchall()}
-
-                    series_map = {
-                        'roe': 'roe_data',
-                        'roa': 'roa_data',
-                        'pe': 'pe_ratio_data',
-                        'pb': 'pb_ratio_data',
-                        'ps': 'ps_ratio_data',
-                        'current_ratio': 'current_ratio_data',
-                        'quick_ratio': 'quick_ratio_data',
-                        'debt_equity': 'debt_to_equity_data',
-                        'nim': 'nim_data',
-                    }
-
-                    # Ensure keys exist even if no rows found
-                    data.setdefault('years', [])
-                    data.setdefault('revenue_data', [])
-                    data.setdefault('profit_data', [])
-                    for out_key in series_map.values():
-                        data.setdefault(out_key, [])
-                    data.setdefault('casa_data', [])
-                    data.setdefault('npl_data', [])
-
-                    # Pick period_type based on request, but fail-open if only one exists
-                    desired_period_type = 'year' if period == 'year' else 'quarter'
-                    cursor.execute(
-                        "SELECT COUNT(*) FROM ratio_wide WHERE symbol = ? AND period_type = ?",
-                        (symbol, desired_period_type),
-                    )
-                    count_rows = cursor.fetchone()[0]
-                    period_type = desired_period_type
-                    if count_rows == 0 and desired_period_type == 'year':
-                        period_type = 'quarter'
-
-                    metric_cols = [c for c in series_map.keys() if c in ratio_wide_cols_for_series]
-                    if metric_cols:
-                        cursor.execute(
-                            f"""
-                            SELECT year, quarter, period_label, {', '.join(metric_cols)}
-                            FROM ratio_wide
-                            WHERE symbol = ?
-                              AND period_type = ?
-                            ORDER BY year ASC, quarter ASC
-                            """,
-                            (symbol, period_type),
-                        )
-                        rows = cursor.fetchall() or []
-                        if rows:
-                            rows = rows[-12:]
-
-                            years = []
-                            series = {out_key: [] for out_key in series_map.values()}
-
-                            for r in rows:
-                                label = r['period_label']
-                                if not label:
-                                    y = r['year']
-                                    q = r['quarter']
-                                    label = f"{y} Q{q}" if q and int(q) > 0 else str(y)
-                                years.append(str(label))
-
-                                for col, out_key in series_map.items():
-                                    if col not in metric_cols:
-                                        continue
-                                    v = r[col]
-                                    if v is None:
-                                        series[out_key].append(0)
-                                    else:
-                                        try:
-                                            series[out_key].append(float(v))
-                                        except Exception:
-                                            series[out_key].append(0)
-
-                            data['years'] = years
-                            for out_key, vals in series.items():
-                                data[out_key] = vals
-
-                # Fallback for key metrics from summary snapshot
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ratio_snap'")
-                has_summary_snapshot = cursor.fetchone() is not None
-
-                if has_summary_snapshot and (
-                    data.get('profit_growth') is None
-                    or data.get('profit_growth') == 0
-                    or data.get('debt_to_equity') is None
-                    or data.get('debt_to_equity') == 0
-                ):
-                    cursor.execute(
-                        """
-                        SELECT net_profit_growth, de
-                        FROM ratio_snap
-                        WHERE symbol = ?
-                        ORDER BY year_report DESC, length_report DESC
-                        LIMIT 1
-                        """,
-                        (symbol,),
-                    )
-                    snap_row = cursor.fetchone()
-
-                    if snap_row:
-                        if (
-                            (data.get('profit_growth') is None or data.get('profit_growth') == 0)
-                            and snap_row['net_profit_growth'] is not None
-                        ):
-                            data['profit_growth'] = snap_row['net_profit_growth']
-
-                        if (
-                            (data.get('debt_to_equity') is None or data.get('debt_to_equity') == 0)
-                            and snap_row['de'] is not None
-                        ):
-                            data['debt_to_equity'] = snap_row['de']
-
-                # Add shares_outstanding from ratio_wide (not in overview table)
-                if has_ratio_wide and 'outstanding_share' in ratio_wide_cols:
-                    cursor.execute(
-                        """SELECT outstanding_share FROM ratio_wide
-                           WHERE symbol = ? AND outstanding_share IS NOT NULL AND outstanding_share > 0
-                           ORDER BY year DESC, quarter DESC LIMIT 1""",
-                        (symbol,),
-                    )
-                    share_row = cursor.fetchone()
-                    if share_row and share_row['outstanding_share']:
-                        data['shares_outstanding'] = share_row['outstanding_share']
-
             conn.close()
+            if row:
+                return {
+                    'organ_name': row["name"] or symbol.upper(),
+                    'industry': row["industry"] or "Unknown",
+                    'exchange': row["exchange"] or "Unknown",
+                }
+        except Exception as e:
+            logger.warning(f"Failed to fetch metadata from DB for {symbol}: {e}")
+        return None
 
-            if data:
-                return data
+    def _get_data_from_db(self, symbol, period):
+        """Fetch stock data from VCI SQLite databases (replaces stocks_optimized.db).
+        
+        Data sources:
+        - vci_company.sqlite        → name, sector, exchange, logo
+        - vci_screening.sqlite      → price, market cap, price change
+        - vci_stats_financial.sqlite → PE, PB, ROE, ROA, banking KPIs
+        - vci_stats_financial.sqlite (history) → ratio chart series
+        - vci_financials.sqlite     → income statement, balance sheet, cash flow
+        - price_history.sqlite      → OHLCV
+        """
+        try:
+            data = {'symbol': symbol, 'data_source': 'VCI_SQLite', 'data_period': period}
+
+            # 1. Company info (name, sector, exchange, logo) - BASE layer
+            company = self.vci.get_company_info(symbol)
+            if company:
+                data.update({
+                    'name': company.get('name'),
+                    'sector': company.get('sector'),
+                    'industry': company.get('sector'),
+                    'exchange': company.get('exchange'),
+                    'floor': company.get('floor'),
+                    'logo_url': company.get('logo_url'),
+                    'isbank': company.get('isbank', False),
+                })
+
+            # 2. Overview data (screening + stats_financial) - DON'T override sector if company has it
+            overview = self.vci.get_overview_data(symbol)
+            if overview:
+                # Update price/market data from screening
+                for key in ['current_price', 'ref_price', 'ceiling', 'floor_price', 'market_cap',
+                            'price_change_pct', 'accumulated_volume', 'accumulated_value']:
+                    if overview.get(key) is not None:
+                        data[key] = overview[key]
+                # Update ratios from stats_financial
+                for key in ['pe', 'pb', 'ps', 'roe', 'roa', 'eps', 'bvps',
+                            'net_margin', 'gross_margin', 'current_ratio', 'quick_ratio',
+                            'debt_to_equity', 'nim', 'car', 'casa', 'npl_ratio', 'ldr', 'cir']:
+                    if overview.get(key) is not None:
+                        data[key] = overview[key]
+                # Only use sector from overview if company didn't provide it
+                if not data.get('sector') and overview.get('sector'):
+                    data['sector'] = overview['sector']
+                    data['industry'] = overview['sector']
+                if not data.get('exchange') and overview.get('exchange'):
+                    data['exchange'] = overview['exchange']
+
+            # 3. Shares outstanding from stats_financial
+            ratios = self.vci.get_current_ratios(symbol)
+            if ratios and ratios.get('shares'):
+                data['shares_outstanding'] = ratios['shares']
+
+            # 3b. Calculate EPS and BVPS from PE/PB + current price
+            # EPS = Price / PE, BVPS = Price / PB
+            price = data.get('current_price')
+            pe = data.get('pe')
+            pb = data.get('pb')
+            if price and price > 0:
+                if pe and pe > 0:
+                    data['eps'] = round(price / pe, 0)
+                if pb and pb > 0:
+                    data['bvps'] = round(price / pb, 0)
+
+            # 4. Chart series from ratio history (for frontend charts)
+            ratio_history = self.vci.get_ratio_history(symbol)
+            if ratio_history:
+                # Filter by period type and take last 12
+                if period == 'year':
+                    # For yearly, aggregate by year
+                    yearly = {}
+                    for r in ratio_history:
+                        y = r.get('year')
+                        if y:
+                            yearly.setdefault(y, []).append(r)
+                    years = sorted(yearly.keys())[-12:]
+                    data['years'] = [str(y) for y in years]
+                    data['roe_data'] = []
+                    data['roa_data'] = []
+                    data['pe_ratio_data'] = []
+                    data['pb_ratio_data'] = []
+                    data['nim_data'] = []
+                    data['casa_data'] = []
+                    data['npl_data'] = []
+                    for y in years:
+                        items = yearly[y]
+                        # Average quarterly values for yearly
+                        data['roe_data'].append(round(sum(i.get('roe') or 0 for i in items) / len(items) * 100, 2) if items else 0)
+                        data['roa_data'].append(round(sum(i.get('roa') or 0 for i in items) / len(items) * 100, 2) if items else 0)
+                        data['pe_ratio_data'].append(round(sum(i.get('pe') or 0 for i in items) / len(items), 2) if items else 0)
+                        data['pb_ratio_data'].append(round(sum(i.get('pb') or 0 for i in items) / len(items), 2) if items else 0)
+                        data['nim_data'].append(round(sum(i.get('nim') or 0 for i in items) / len(items) * 100, 2) if items else 0)
+                        data['casa_data'].append(round(sum(i.get('casa_ratio') or 0 for i in items) / len(items) * 100, 2) if items else 0)
+                        data['npl_data'].append(round(sum(i.get('npl') or 0 for i in items) / len(items) * 100, 2) if items else 0)
+                else:
+                    # Quarterly - take last 12 quarters
+                    quarters = ratio_history[-12:]
+                    data['years'] = []
+                    data['roe_data'] = []
+                    data['roa_data'] = []
+                    data['pe_ratio_data'] = []
+                    data['pb_ratio_data'] = []
+                    data['nim_data'] = []
+                    data['casa_data'] = []
+                    data['npl_data'] = []
+                    for q in quarters:
+                        y = q.get('year') or ''
+                        qr = q.get('quarter')
+                        label = f"{y} Q{qr}" if qr else str(y)
+                        data['years'].append(label)
+                        roe = q.get('roe')
+                        data['roe_data'].append(round(roe * 100, 2) if roe and abs(roe) < 1 else roe or 0)
+                        roa = q.get('roa')
+                        data['roa_data'].append(round(roa * 100, 2) if roa and abs(roa) < 1 else roa or 0)
+                        data['pe_ratio_data'].append(q.get('pe') or 0)
+                        data['pb_ratio_data'].append(q.get('pb') or 0)
+                        nim = q.get('nim')
+                        data['nim_data'].append(round(nim * 100, 2) if nim and abs(nim) < 1 else nim or 0)
+                        casa = q.get('casa_ratio')
+                        data['casa_data'].append(round(casa * 100, 2) if casa and abs(casa) < 1 else casa or 0)
+                        npl = q.get('npl')
+                        data['npl_data'].append(round(npl * 100, 2) if npl and abs(npl) < 1 else npl or 0)
+
+                # Revenue/profit data placeholder (from financial statements)
+                data.setdefault('revenue_data', [])
+                data.setdefault('profit_data', [])
+
+            # 5. Company description from JSON export (exported from stocks_optimized.db)
+            try:
+                import json
+                from pathlib import Path
+                profile_path = Path(__file__).resolve().parents[1] / "company_profile_export.json"
+                if profile_path.exists():
+                    with open(profile_path, "r", encoding="utf-8") as f:
+                        profiles = json.load(f)
+                    profile_data = profiles.get(symbol, {})
+                    if profile_data:
+                        cp = profile_data.get("company_profile") or ""
+                        if cp:
+                            data['overview'] = {'description': cp}
+            except Exception:
+                pass
+
+            # 3c. Ensure all numeric fields have defaults (prevent frontend null errors)
+            for key in ['eps', 'bvps', 'nim', 'casa', 'npl_ratio', 'ldr', 'cir', 'car',
+                        'debt_to_equity', 'current_ratio', 'quick_ratio', 'cash_ratio']:
+                if data.get(key) is None:
+                    data[key] = 0
+
+            data.setdefault('overview', {'description': "No description available."})
+            data['success'] = True
+
+            # Normalize missing sectors
+            if not data.get('sector') or str(data.get('sector')).strip().lower() in ('', 'unknown', 'none'):
+                data['sector'] = data.get('industry') or "Unknown"
+            if not data.get('industry') or str(data.get('industry')).strip().lower() in ('', 'unknown', 'none'):
+                data['industry'] = data.get('sector') or "Unknown"
+
+            return data if data.get('name') or data.get('current_price') else None
 
         except Exception as e:
-            logger.error(f"Error reading from DB for {symbol}: {e}")
-
-        return None
+            logger.error(f"Error reading VCI data for {symbol}: {e}")
+            return None
 
     def get_stock_data(self, symbol: str, period: str = "year", fetch_current_price: bool = False, symbols_override=None) -> dict:
         """Get stock data: Primary: DB (SQLite), Fallback: Live API (Parallel)"""
@@ -753,7 +583,7 @@ class StockDataProvider:
             return []
 
     def _process_quarter_data(self, quarter_data: dict, symbol: str, company_info: dict) -> dict:
-        """Process quarter data from vnstock into the expected format"""
+        """Process quarter data from SQLite into the expected format"""
         processed = {
             "symbol": symbol,
             "name": company_info['organ_name'],
@@ -1483,37 +1313,20 @@ class StockDataProvider:
                 "data_period": period,
                 "price_change": np.nan
             })
+            # Get current price from VCI
             try:
-                stock = self.vnstock.stock(symbol=symbol, source="VCI")
-                current_price = self._get_market_price_vci(stock, symbol)
-                if pd.notna(current_price):
-                    vci_data["current_price"] = current_price
-            except Exception as e:
+                from backend.data_sources.vci import VCIClient
+                price_data = VCIClient.get_price_detail(symbol)
+                if price_data and price_data.get('price'):
+                    vci_data["current_price"] = price_data['price']
+            except Exception:
                 pass
             if pd.notna(vci_data.get("current_price")) and pd.notna(vci_data.get("shares_outstanding")):
                 vci_data["market_cap"] = vci_data["current_price"] * vci_data["shares_outstanding"]
             return vci_data
-        
-        logger.warning(f"VCI comprehensive data failed, trying basic VCI fallback for {symbol}")
-        try:
-            stock = self.vnstock.stock(symbol=symbol, source="VCI")
-            company = self._get_company_overview(stock, symbol)
-            financials = self._get_financial_statements(stock, period)
-            market = self._get_price_data(stock, company["shares_outstanding"], symbol)
-            # Use organ_name from CSV if available
-            organ_name = self._get_organ_name_for_symbol(symbol)
-            company["name"] = organ_name
-            return {
-                **company,
-                **financials,
-                **market,
-                "data_source": "VCI",
-                "data_period": period,
-                "success": True
-            }
-        except Exception as exc:
-            logger.error(f"All VCI methods failed for {symbol}: {exc}")
-            raise RuntimeError(f"All VCI data sources failed for {symbol}")
+
+        logger.warning(f"VCI comprehensive data failed for {symbol}")
+        raise RuntimeError(f"VCI data sources failed for {symbol}")
 
     def reload_data(self):
         """Reload stock data from file - useful for updating without restarting server"""
@@ -1758,146 +1571,64 @@ class StockDataProvider:
         }
 
     def _get_vci_data(self, symbol: str, period: str) -> dict:
-        """Fetch all VCI data in parallel - Optimized for speed (~2s)"""
-        logger.info(f"Parallel fetching VCI data for {symbol} ({period})...")
+        """Fetch VCI data from SQLite database - SQLite-only implementation."""
+        logger.info(f"Fetching VCI data from SQLite for {symbol} ({period})...")
         symbol = symbol.upper()
-        
-        # Internal function for each API call
-        def fetch_task(name, func, *args, **kwargs):
-            try:
-                start = time.time()
-                res = func(*args, **kwargs)
-                logger.info(f"Task {name} finished in {time.time()-start:.2f}s")
-                return name, res
-            except Exception as e:
-                logger.warning(f"Task {name} failed: {e}")
-                return name, None
+
+        financial_data = {"success": True, "data_source": "SQLite", "data_period": period}
 
         try:
-            # Main stock object for sub-calls - Initialize it
-            stock = self.vnstock.stock(symbol=symbol, source='VCI')
-            
-            # Sub-tasks
-            # These are properties or methods in vnstock
-            def get_ratio_summary(): return stock.company.ratio_summary
-            def get_ratio_period(): return stock.finance.ratio(period, lang='en', dropna=True)
-            def get_income(): return stock.finance.income_statement(period, lang='en', dropna=True)
-            def get_balance(): return stock.finance.balance_sheet(period, lang='en', dropna=True)
-            def get_cashflow(): return stock.finance.cash_flow(period, lang='en', dropna=True)
-            def get_overview(): return stock.company.overview
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
 
-            task_list = [
-                ("ratio_summary", get_ratio_summary),
-                ("ratio_period", get_ratio_period),
-                ("income", get_income),
-                ("balance", get_balance),
-                ("cashflow", get_cashflow),
-                ("overview", get_overview)
-            ]
+            # A. Get latest ratios from financial_ratios table
+            cursor.execute(
+                "SELECT * FROM financial_ratios WHERE symbol = ? ORDER BY year DESC, quarter DESC LIMIT 1",
+                (symbol,)
+            )
+            ratio_row = cursor.fetchone()
+            if ratio_row:
+                ratio_dict = dict(ratio_row)
+                # Map common keys
+                for key in ['roe', 'roa', 'eps', 'pe', 'pb', 'current_ratio', 'quick_ratio',
+                            'debt_to_equity', 'net_margin', 'gross_margin', 'nim', 'car',
+                            'casa_ratio', 'npl_ratio', 'ldr']:
+                    if key in ratio_dict and ratio_dict[key] is not None:
+                        val = float(ratio_dict[key])
+                        # Store under expected keys
+                        if key == 'pe': financial_data['pe_ratio'] = val
+                        elif key == 'pb': financial_data['pb_ratio'] = val
+                        elif key == 'roe': financial_data['roe'] = val
+                        elif key == 'roa': financial_data['roa'] = val
+                        elif key == 'eps': financial_data['eps'] = val
+                        elif key == 'current_ratio': financial_data['current_ratio'] = val
+                        elif key == 'quick_ratio': financial_data['quick_ratio'] = val
+                        elif key == 'debt_to_equity': financial_data['debt_to_equity'] = val
+                        elif key == 'net_margin': financial_data['net_margin'] = val
+                        elif key == 'gross_margin': financial_data['gross_margin'] = val
+                        elif key == 'nim': financial_data['nim'] = val
+                        elif key == 'car': financial_data['car'] = val
+                        elif key == 'casa_ratio': financial_data['casa'] = val
+                        elif key == 'npl_ratio': financial_data['npl_ratio'] = val
+                        elif key == 'ldr': financial_data['ldr'] = val
 
-            results = {}
-            with ThreadPoolExecutor(max_workers=6) as executor:
-                futures = {executor.submit(fetch_task, name, func): name for name, func in task_list}
-                for future in as_completed(futures):
-                    name, res = future.result()
-                    results[name] = res
-
-            # --- Post-process results ---
-            financial_data = {"success": True, "data_source": "VCI_Live", "data_period": period}
-            
-            # A. Process ratio_summary (Manual mapping for safety)
-            if results.get("ratio_summary") is not None and isinstance(results["ratio_summary"], pd.DataFrame) and not results["ratio_summary"].empty:
-                rs = results["ratio_summary"].T.iloc[:, 0]
-                mapping = {
-                    'eps': ['eps', 'EPS', 'EPS (VND)'],
-                    'pe_ratio': ['pe', 'PE', 'P/E'],
-                    'pb_ratio': ['pb', 'PB', 'P/B'],
-                    'roe': ['roe', 'ROE', 'ROE (%)'],
-                    'roa': ['roa', 'ROA', 'ROA (%)']
-                }
-                for key, candidates in mapping.items():
-                    for c in candidates:
-                        if c in rs.index and pd.notna(rs[c]):
-                            val = float(rs[c])
-                            if '%' in c: val *= 100
-                            financial_data[key] = val
-                            break
-
-            # B. Process period-specific ratios (More accurate for the requested period)
-            if results.get("ratio_period") is not None and not results["ratio_period"].empty:
-                rp = results["ratio_period"].iloc[0]
-                # Extract all MultiIndex or flat keys
-                extract_keys = {
-                    'P/E': 'pe', 'P/B': 'pb', 'P/S': 'ps', 
-                    'ROE (%)': 'roe', 'ROA (%)': 'roa', 'EPS (VND)': 'eps_ttm',
-                    'BVPS (VND)': 'bvps', 'Current Ratio': 'current_ratio',
-                    'Quick Ratio': 'quick_ratio', 'Debt/Equity': 'debt_to_equity',
-                    'Net Profit Margin (%)': 'net_margin',
-                    'Gross Profit Margin (%)': 'gross_margin',
-                    'NIM (%)': 'nim', 'CASA (%)': 'casa',
-                    'NPL (%)': 'npl_ratio', 'LDR (%)': 'ldr', 'CAR (%)': 'car'
-                }
-                for col in rp.index:
-                    col_name = col[1] if isinstance(col, tuple) else col
-                    if col_name in extract_keys:
-                        val = rp[col]
-                        if pd.notna(val):
-                            target_key = extract_keys[col_name]
-                            if '%' in col_name and val < 1: # Convert 0.15 to 15
-                                financial_data[target_key] = float(val) * 100
-                            else:
-                                financial_data[target_key] = float(val)
-            
-            # C. Process Accounting Statements
-            if results.get("income") is not None or results.get("balance") is not None:
-                is_quarter = (period == "quarter")
-                statement_metrics = self._extract_financial_metrics(
-                    results.get("income", pd.DataFrame()), 
-                    results.get("balance", pd.DataFrame()), 
-                    results.get("cashflow", pd.DataFrame()), 
-                    is_quarter
-                )
-                financial_data.update(statement_metrics)
-
-            # D. Overview for shares & profile
-            if results.get("overview") is not None and isinstance(results["overview"], pd.DataFrame) and not results["overview"].empty:
-                ov = results["overview"].iloc[0]
-                shares = ov.get('issue_share') or ov.get('listed_share') or ov.get('outstanding_share')
-                if pd.notna(shares):
+            # B. Get shares outstanding from company_overview
+            cursor.execute(
+                "SELECT issue_share, charter_capital FROM company_overview WHERE symbol = ?",
+                (symbol,)
+            )
+            ov_row = cursor.fetchone()
+            if ov_row:
+                shares = ov_row["issue_share"]
+                if shares:
                     financial_data['shares_outstanding'] = float(shares)
-                
-                # Profile info for Overview Tab
-                financial_data['overview'] = {
-                    'description': ov.get('summary') or ov.get('company_profile') or "No description available.",
-                    'established': ov.get('established_date') or ov.get('founding_date') or "",
-                    'listedDate': ov.get('listing_date') or "",
-                    'website': ov.get('website') or "",
-                    'employees': int(ov.get('employees', 0)) if pd.notna(ov.get('employees')) else 0
-                }
 
-            # E. Extract Historical Series for Charts
-            history = self._extract_historical_series(results, period)
-            financial_data.update(history)
-
-            # F. Map standardized names for frontend consistency
-            standard_mapping = {
-                'pe_ratio': 'pe',
-                'pb_ratio': 'pb',
-                'ps_ratio': 'ps',
-                'pcf_ratio': 'pcf',
-                'net_profit_margin': 'net_margin',
-            }
-            for old_k, new_k in standard_mapping.items():
-                if old_k in financial_data:
-                    financial_data[new_k] = financial_data[old_k]
-
-            return financial_data
-
+            conn.close()
         except Exception as e:
-            logger.error(f"Error in parallel VCI fetch for {symbol}: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return {"success": False, "error": str(e)}
+            logger.warning(f"SQLite VCI data fetch failed for {symbol}: {e}")
+
+        return financial_data
 
     def _extract_historical_series(self, results: dict, period: str) -> dict:
         """Extract series of data for charts from multiple DataFrames"""
@@ -2074,31 +1805,24 @@ class StockDataProvider:
             
             return result if has_data else None
 
-        # PRIORITY 1: Direct VCI API (Standardized via VCIClient if implemented fully, 
-        # but VCIClient right now only gets price. Let's use vnstock's implementation which is good)
-        
-        # Try using vnstock's Trading/PriceBoard which wraps VCI
+        # PRIORITY 1: Direct VCI API via VCIClient
         try:
-            # 1. Try stock.trading.price_board (vnstock standard)
-            price_board_df = stock.trading.price_board([symbol])
-            if not price_board_df.empty:
-                res = extract_from_df(price_board_df, "VCI_API")
-                if res:
-                    logger.debug(f"✓ Got full market data from VCI_API for {symbol}")
-                    return res
-        except Exception:
-            pass
-            
-        try:
-            # 2. Try direct import if method 1 failed
-            from vnstock.explorer.vci import Trading
-            trading = Trading(symbol)
-            price_board_df = trading.price_board([symbol])
-            if not price_board_df.empty:
-                 res = extract_from_df(price_board_df, "VCI_API")
-                 if res:
-                    logger.debug(f"✓ Got full market data from VCI_API (Direct) for {symbol}")
-                    return res
+            from backend.data_sources.vci import VCIClient
+            price_detail = VCIClient.get_price_detail(symbol)
+            if price_detail and price_detail.get('price', 0) > 0:
+                res = {
+                    "price": price_detail['price'],
+                    "source": "VCI_RAM",
+                    "open": price_detail.get('open', 0),
+                    "high": price_detail.get('high', 0),
+                    "low": price_detail.get('low', 0),
+                    "volume": price_detail.get('volume', 0),
+                    "ceiling": price_detail.get('ceiling', 0),
+                    "floor": price_detail.get('floor', 0),
+                    "ref": price_detail.get('ref', 0),
+                }
+                logger.debug(f"✓ Got full market data from VCI_RAM for {symbol}")
+                return res
         except Exception:
             pass
 
@@ -2163,58 +1887,43 @@ class StockDataProvider:
             # 1. Get Realtime Price (Priority: VCIClient directly for speed)
             from backend.data_sources.vci import VCIClient
             market_data = VCIClient.get_price_detail(symbol)
-            
-            # Fallback to vnstock if VCIClient fails
-            if not market_data:
-                logger.warning(f"VCIClient failed for {symbol}, falling back to vnstock")
-                stock = self.vnstock.stock(symbol=symbol, source='VCI')
-                market_data = self._get_market_price_vci(stock, symbol)
-            
+
             if not market_data:
                 return None
-            
-            # Normalize prices:
-            # - VCI RAM/direct payloads are already full VND (e.g. 300, 105500)
-            # - Some vnstock fallback payloads may be in "thousand VND" units
-            source = str(market_data.get('source') or '')
-            should_scale_thousand_unit = source not in {'VCI_RAM', 'VCI_DIRECT'}
 
+            # Normalize prices - VCI RAM/direct payloads are already full VND
             def normalize(v):
                 if pd.isna(v) or v is None: return 0
                 val = float(v)
-                # Only apply *1000 heuristic for non-RAM/direct sources.
-                if should_scale_thousand_unit and 0 < val < 1000: return val * 1000
+                if 0 < val < 1000: return val * 1000  # heuristic for thousand-unit
                 return val
 
             current_price = normalize(market_data.get('price') or market_data.get('c'))
-            ref_price = normalize(market_data.get('ref_price') or market_data.get('ref') or market_data.get('ref_price'))
-            
+            ref_price = normalize(market_data.get('ref_price') or market_data.get('ref'))
+
             if current_price <= 0:
                 return None
-                
+
             price_change = 0
             price_change_percent = 0
-            
             if ref_price > 0:
                 price_change = current_price - ref_price
                 price_change_percent = (price_change / ref_price) * 100
-            
-            # Final normalized result
+
             result = {
                 "current_price": current_price,
                 "price_change": price_change,
                 "price_change_percent": price_change_percent,
                 "source": market_data.get('source', 'VCI'),
-                "open": normalize(market_data.get('open') or market_data.get('op')),
-                "high": normalize(market_data.get('high') or market_data.get('h')),
-                "low": normalize(market_data.get('low') or market_data.get('l')),
-                "volume": float(market_data.get('volume') or market_data.get('vo') or 0),
-                "ceiling": normalize(market_data.get('ceiling') or market_data.get('cei')),
-                "floor": normalize(market_data.get('floor') or market_data.get('flo')),
+                "open": normalize(market_data.get('open', 0)),
+                "high": normalize(market_data.get('high', 0)),
+                "low": normalize(market_data.get('low', 0)),
+                "volume": float(market_data.get('volume', 0)),
+                "ceiling": normalize(market_data.get('ceiling', 0)),
+                "floor": normalize(market_data.get('floor', 0)),
                 "ref_price": ref_price,
             }
-            
-            # Update cache
+
             self._price_cache[symbol] = (result, now)
             return result
 
@@ -2223,7 +1932,6 @@ class StockDataProvider:
             return None
 
     def calculate_missing_ratios(self, stock_data):
-        """Calculate missing financial ratios from available data"""
         try:
             # Get required fields - try both TTM and regular versions
             revenue = stock_data.get('revenue_ttm') or stock_data.get('revenue', 0)

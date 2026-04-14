@@ -24,7 +24,10 @@
       "Bash(find *)",
       "Bash(do)",
       "Bash(continue)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(grep *)",
+      "Bash(.venv/bin/python *)",
+      "Bash(npm install *)"
     ]
   },
   "$version": 3

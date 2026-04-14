@@ -118,9 +118,11 @@ def _clean_stock_response(data: dict) -> dict:
     if "pcf_ratio" in out:
         out.pop("p_cash_flow", None)
 
-    # 7e. Drop sector when identical to industry (often duplicated for VN stocks)
+    # 7e. Drop sector when identical to industry ONLY if both are generic/unknown
+    # Keep sector when it has meaningful value (from VCI sources)
     if out.get("sector") and out.get("sector") == out.get("industry"):
-        out.pop("sector", None)
+        if out.get("sector", "").lower() in ("unknown", "n/a", "other", ""):
+            out.pop("sector", None)
 
     # 8. Build history array-of-objects from parallel arrays, then drop the arrays
     years = out.get("years") or []
@@ -141,9 +143,10 @@ def _clean_stock_response(data: dict) -> dict:
                 arr = out.get(arr_key)
                 if arr and i < len(arr):
                     v = arr[i]
-                    record[field] = v if v != 0 else None
+                    # Keep 0 instead of None - frontend calls .toLocaleString() on these
+                    record[field] = v if v is not None else 0
                 else:
-                    record[field] = None
+                    record[field] = 0
             history.append(record)
         out["history"] = history
         # Drop parallel arrays — data is now in history

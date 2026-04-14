@@ -21,10 +21,10 @@ from flask_sock import Sock
 # Import refactored data source modules
 from backend.services import GoldService
 from backend.extensions import init_provider
-from backend.routes.stock_routes import stock_bp
 from backend.routes.market import market_bp, init_market_routes
 from backend.routes.download_routes import download_bp
 from backend.routes.health_routes import health_bp
+from backend.routes.stock import stock_bp
 from backend.data_sources.vci import VCIClient
 from backend.data_sources.ff_ws import ensure_started as ff_ensure_started, get_prices as ff_get_prices, register_client as ff_register, unregister_client as ff_unregister
 from backend.telemetry import record_request_latency
