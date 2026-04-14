@@ -83,7 +83,6 @@ export default function StockDetailPage() {
     const [targetPrice, setTargetPrice] = useState<number | null>(null);
     const [financials, setFinancials] = useState<FinancialData | null>(null);
     const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
-    const [timeRange, setTimeRange] = useState<'3M' | '6M' | '1Y' | '3Y' | '5Y'>('3M');
     const [isDescExpanded, setIsDescExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -458,25 +457,11 @@ export default function StockDetailPage() {
         loadFullHistory();
     }, [symbol]);
 
-    // 2. Client-side Filter when timeRange changes (Instant Transition)
+    // 2. Use all data (infinite range)
     useEffect(() => {
         if (fullHistoryData.length === 0) return;
-
-        const now = new Date();
-        const cutoff = new Date();
-
-        switch (timeRange) {
-            case '3M': cutoff.setDate(now.getDate() - 90); break;
-            case '6M': cutoff.setDate(now.getDate() - 180); break;
-            case '1Y': cutoff.setDate(now.getDate() - 365); break;
-            case '3Y': cutoff.setDate(now.getDate() - 365 * 3); break;
-            case '5Y': cutoff.setDate(now.getDate() - 365 * 5); break;
-            default: cutoff.setDate(now.getDate() - 90); // Default 3M
-        }
-
-        const filtered = fullHistoryData.filter(d => new Date(d.time) >= cutoff);
-        setHistoricalData(filtered);
-    }, [timeRange, fullHistoryData]);
+        setHistoricalData(fullHistoryData);
+    }, [fullHistoryData]);
 
     // Watchlist Logic (via global context — syncs across sidebar)
     const { toggle: toggleWatchlist, isWatched } = useWatchlist();
@@ -623,8 +608,6 @@ export default function StockDetailPage() {
                         stockInfo={stockInfo}
                         priceData={priceData}
                         financials={financials}
-                        timeRange={timeRange}
-                        setTimeRange={setTimeRange}
                         isDescExpanded={isDescExpanded}
                         setIsDescExpanded={setIsDescExpanded}
                         historicalData={historicalData}
