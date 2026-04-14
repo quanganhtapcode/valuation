@@ -13,19 +13,9 @@ import {
     MouseEventParams,
 } from 'lightweight-charts';
 
-import { fetchPEChart, fetchPEChartByRange, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
+import { fetchPEChart, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
 
-type TimeRange = '6m' | 'ytd' | '1y' | '2y' | '5y' | 'all';
 type ActiveChart = 'vnindex' | 'pe' | 'pb';
-
-const TIME_RANGES: { key: TimeRange; label: string }[] = [
-    { key: '6m',  label: '6M'  },
-    { key: 'ytd', label: 'YTD' },
-    { key: '1y',  label: '1Y'  },
-    { key: '2y',  label: '2Y'  },
-    { key: '5y',  label: '5Y'  },
-    { key: 'all', label: 'All' },
-];
 
 const CHART_TABS: { key: ActiveChart; label: string }[] = [
     { key: 'vnindex', label: 'VN-Index' },
@@ -39,21 +29,6 @@ const RATIO_COLOR: Record<ActiveChart, string> = {
     pb:      '#34d399',
 };
 
-function getCutoffDate(range: TimeRange): Date | null {
-    const now = new Date();
-    switch (range) {
-        case '6m':  { const d = new Date(now); d.setMonth(d.getMonth() - 6);       return d; }
-        case 'ytd': return new Date(now.getFullYear(), 0, 1);
-        case '1y':  { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); return d; }
-        case '2y':  { const d = new Date(now); d.setFullYear(d.getFullYear() - 2); return d; }
-        case '5y':  { const d = new Date(now); d.setFullYear(d.getFullYear() - 5); return d; }
-        case 'all': return null;
-    }
-}
-
-function rangeToApiKey(range: TimeRange): '6M' | 'YTD' | '1Y' | '2Y' | '5Y' | 'ALL' {
-    return range.toUpperCase() as '6M' | 'YTD' | '1Y' | '2Y' | '5Y' | 'ALL';
-}
 
 function formatVolume(value: number): string {
     if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -169,12 +144,10 @@ interface PEChartProps {
 
 export default function PEChart({ initialData = [], externalData = [], useExternalOnly = false }: PEChartProps) {
     // ── Data state ───────────────────────────────────────────────────────────
-    const [result, setResult]       = useState<PEChartResult>({ series: initialData, stats: {} });
-    const [timeRange, setTimeRange] = useState<TimeRange>('1y');
+    const [result, setResult]           = useState<PEChartResult>({ series: initialData, stats: {} });
     const [activeChart, setActiveChart] = useState<ActiveChart>('vnindex');
-    const [isLoading, setIsLoading] = useState(initialData.length === 0);
-    const cacheRef  = useRef<Partial<Record<TimeRange, PEChartResult>>>({});
-    const abortRef  = useRef<AbortController | null>(null);
+    const [isLoading, setIsLoading]     = useState(initialData.length === 0);
+    const abortRef = useRef<AbortController | null>(null);
 
     // ── Chart refs ───────────────────────────────────────────────────────────
     const containerRef      = useRef<HTMLDivElement>(null);
@@ -208,30 +181,24 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         };
     }, [normalizedSeries]);
 
-    const vnTVData = useMemo<VNData[]>(() => {
-        const cutoff = getCutoffDate(timeRange);
-        let rows = normalizedSeries.filter((d) => toFiniteNumber(d.vnindex) !== null);
-        if (cutoff) rows = rows.filter(d => d.date >= cutoff);
-        return rows.map(d => ({
-            time:   toUTCTime(d.date),
-            close:  toFiniteNumber(d.vnindex) ?? 0,
-            volume: toFiniteNumber(d.volume)  ?? 0,
-        }));
-    }, [normalizedSeries, timeRange]);
+    // Always show all available data — no cutoff
+    const vnTVData = useMemo<VNData[]>(() =>
+        normalizedSeries
+            .filter(d => toFiniteNumber(d.vnindex) !== null)
+            .map(d => ({ time: toUTCTime(d.date), close: toFiniteNumber(d.vnindex) ?? 0, volume: toFiniteNumber(d.volume) ?? 0 })),
+    [normalizedSeries]);
 
-    const peTVData = useMemo<RatioData[]>(() => {
-        const cutoff = getCutoffDate(timeRange);
-        let rows = normalizedSeries.filter((d) => toFiniteNumber(d.pe) !== null);
-        if (cutoff) rows = rows.filter(d => d.date >= cutoff);
-        return rows.map(d => ({ time: toUTCTime(d.date), value: toFiniteNumber(d.pe) ?? 0 }));
-    }, [normalizedSeries, timeRange]);
+    const peTVData = useMemo<RatioData[]>(() =>
+        normalizedSeries
+            .filter(d => toFiniteNumber(d.pe) !== null)
+            .map(d => ({ time: toUTCTime(d.date), value: toFiniteNumber(d.pe) ?? 0 })),
+    [normalizedSeries]);
 
-    const pbTVData = useMemo<RatioData[]>(() => {
-        const cutoff = getCutoffDate(timeRange);
-        let rows = normalizedSeries.filter((d) => toFiniteNumber(d.pb) !== null);
-        if (cutoff) rows = rows.filter(d => d.date >= cutoff);
-        return rows.map(d => ({ time: toUTCTime(d.date), value: toFiniteNumber(d.pb) ?? 0 }));
-    }, [normalizedSeries, timeRange]);
+    const pbTVData = useMemo<RatioData[]>(() =>
+        normalizedSeries
+            .filter(d => toFiniteNumber(d.pb) !== null)
+            .map(d => ({ time: toUTCTime(d.date), value: toFiniteNumber(d.pb) ?? 0 })),
+    [normalizedSeries]);
 
     const activeStats: ValuationStats | undefined = useMemo(() =>
         activeChart === 'pe' ? result.stats?.pe :
@@ -495,42 +462,24 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         if (activeStats.minusTwoSD != null) add(activeStats.minusTwoSD, '#3b82f6', `−2σ ${activeStats.minusTwoSD.toFixed(2)}`);
     }, [activeStats]);
 
-    // ── Data fetching ─────────────────────────────────────────────────────────
+    // ── Data fetching — always load ALL data ─────────────────────────────────
     useEffect(() => {
         if (externalData.length > 0) {
             setResult(r => ({ ...r, series: externalData }));
             setIsLoading(false);
-            cacheRef.current['6m'] = { series: externalData, stats: result.stats || {} };
             return;
         }
         if (initialData.length > 0 || useExternalOnly) return;
 
         const ctrl = new AbortController();
         abortRef.current = ctrl;
+        // Fetch all available data
         fetchPEChart('both', { signal: ctrl.signal })
-            .then(r => { cacheRef.current['6m'] = r; setResult(r); setIsLoading(false); })
+            .then(r => { setResult(r); setIsLoading(false); })
             .catch(() => setIsLoading(false));
         return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    useEffect(() => {
-        if (externalData.length > 0 && timeRange === '6m') return;
-        const cached = cacheRef.current[timeRange];
-        if (cached) { setResult(cached); setIsLoading(false); return; }
-
-        abortRef.current?.abort();
-        const ctrl = new AbortController();
-        abortRef.current = ctrl;
-        setIsLoading(true);
-
-        fetchPEChartByRange(rangeToApiKey(timeRange), 'both', { signal: ctrl.signal })
-            .then(r  => { cacheRef.current[timeRange] = r; setResult(r); setIsLoading(false); })
-            .catch((e: unknown) => { if ((e as Error)?.name === 'AbortError') return; setIsLoading(false); });
-
-        return () => ctrl.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [timeRange]);
 
     // ── σ legend ──────────────────────────────────────────────────────────────
     const stdColors = { plusTwo: '#ef4444', plusOne: '#f97316', average: '#64748b', minusOne: '#22c55e', minusTwo: '#3b82f6' };
@@ -560,36 +509,20 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                 boxShadow:       theme.isDark ? '0 1px 8px rgba(0,0,0,0.3)' : '0 1px 4px rgba(0,0,0,0.06)',
             }}
         >
-            {/* ── Toolbar ── */}
+            {/* ── Toolbar — chart type tabs only ── */}
             <div
-                className="flex items-center justify-between gap-2 px-3 py-2 border-b"
+                className="flex items-center gap-0.5 px-3 py-2 border-b"
                 style={{ borderColor: theme.border }}
             >
-                {/* Chart type tabs */}
-                <div className="flex items-center gap-0.5">
-                    {CHART_TABS.map(t => (
-                        <ToolbarButton
-                            key={t.key}
-                            active={activeChart === t.key}
-                            label={t.label}
-                            color={RATIO_COLOR[t.key]}
-                            onClick={() => setActiveChart(t.key)}
-                        />
-                    ))}
-                </div>
-
-                {/* Time range */}
-                <div className="flex items-center gap-0.5">
-                    {TIME_RANGES.map(t => (
-                        <ToolbarButton
-                            key={t.key}
-                            active={timeRange === t.key}
-                            label={t.label}
-                            color="#2563eb"
-                            onClick={() => setTimeRange(t.key)}
-                        />
-                    ))}
-                </div>
+                {CHART_TABS.map(t => (
+                    <ToolbarButton
+                        key={t.key}
+                        active={activeChart === t.key}
+                        label={t.label}
+                        color={RATIO_COLOR[t.key]}
+                        onClick={() => setActiveChart(t.key)}
+                    />
+                ))}
             </div>
 
             {/* ── Chart area ── */}
