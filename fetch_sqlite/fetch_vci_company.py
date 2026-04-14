@@ -218,6 +218,8 @@ def _parse_company(
         "en_icb_name4":   en_icb_name4 or _str(item_vi, "enIcbName4", "en_icb_name4"),
         # ID
         "company_id":     _str(item_vi, "companyId", "organCode", "id"),
+        # Not from VCI API — preserved via COALESCE in upsert
+        "company_profile": None,
         "fetched_at":     fetched_at,
     }
 
@@ -249,6 +251,7 @@ CREATE TABLE IF NOT EXISTS companies (
     en_icb_name3    TEXT,
     en_icb_name4    TEXT,
     company_id      TEXT,
+    company_profile TEXT,
     fetched_at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_companies_floor ON companies(floor);
@@ -273,14 +276,14 @@ INSERT INTO companies (
     icb_code1, icb_code2, icb_code3, icb_code4,
     icb_name1, icb_name2, icb_name3, icb_name4,
     en_icb_name1, en_icb_name2, en_icb_name3, en_icb_name4,
-    company_id, fetched_at
+    company_id, company_profile, fetched_at
 ) VALUES (
     :ticker, :organ_name, :en_organ_name, :short_name, :en_short_name,
     :floor, :logo_url, :target_price, :isbank, :is_index,
     :icb_code1, :icb_code2, :icb_code3, :icb_code4,
     :icb_name1, :icb_name2, :icb_name3, :icb_name4,
     :en_icb_name1, :en_icb_name2, :en_icb_name3, :en_icb_name4,
-    :company_id, :fetched_at
+    :company_id, :company_profile, :fetched_at
 )
 ON CONFLICT(ticker) DO UPDATE SET
     organ_name      = excluded.organ_name,
@@ -305,6 +308,8 @@ ON CONFLICT(ticker) DO UPDATE SET
     en_icb_name3    = excluded.en_icb_name3,
     en_icb_name4    = excluded.en_icb_name4,
     company_id      = excluded.company_id,
+    -- Preserve existing company_profile; only overwrite if a new value is provided
+    company_profile = COALESCE(excluded.company_profile, companies.company_profile),
     fetched_at      = excluded.fetched_at;
 """
 
@@ -333,6 +338,7 @@ _COMPANY_COLUMNS = [
     "en_icb_name3",
     "en_icb_name4",
     "company_id",
+    "company_profile",
     "fetched_at",
 ]
 

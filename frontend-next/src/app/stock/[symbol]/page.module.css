@@ -733,6 +733,11 @@
     align-self: flex-end;
 }
 
+:global(.dark) .targetPriceRow {
+    background: #1e293b;
+    border-color: #334155;
+}
+
 .targetPriceLabel {
     color: #64748b;
     font-weight: 600;
@@ -741,9 +746,17 @@
     letter-spacing: 0.5px;
 }
 
+:global(.dark) .targetPriceLabel {
+    color: #94a3b8;
+}
+
 .targetPriceValue {
     font-weight: 700;
     color: #0f172a;
+}
+
+:global(.dark) .targetPriceValue {
+    color: #f1f5f9;
 }
 
 .targetPricePct {
