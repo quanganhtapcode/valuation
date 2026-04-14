@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
     createChart,
     IChartApi,
@@ -12,7 +12,6 @@ import {
     CrosshairMode,
     MouseEventParams,
 } from 'lightweight-charts';
-import type { DeepPartial, ChartOptions, CandlestickSeriesOptions, HistogramSeriesOptions } from 'lightweight-charts';
 
 interface HistoricalData {
     time: string | number;
@@ -23,7 +22,8 @@ interface HistoricalData {
     volume: number;
 }
 
-export type Interval = 'D' | 'W' | 'M';
+type Interval = 'D' | 'W' | 'M';
+type Range = '3M' | '6M' | '1Y' | '3Y' | 'ALL';
 
 interface TradingViewChartProps {
     data: HistoricalData[];
@@ -33,6 +33,11 @@ interface TradingViewChartProps {
 function toUTCTime(time: string | number): UTCTime {
     const d = new Date(time);
     return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
+}
+
+function dayKey(time: string | number): string {
+    const d = new Date(time);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function formatVolume(value: number): string {
@@ -52,7 +57,42 @@ function formatDate(time: Time): string {
     return String(time);
 }
 
-// Aggregate daily data into weekly or monthly
+function normalizeData(data: HistoricalData[]): HistoricalData[] {
+    if (!Array.isArray(data)) return [];
+
+    const cleaned = data
+        .filter((d) => {
+            const ts = new Date(d.time).getTime();
+            return Number.isFinite(ts)
+                && Number.isFinite(d.open)
+                && Number.isFinite(d.high)
+                && Number.isFinite(d.low)
+                && Number.isFinite(d.close)
+                && Number.isFinite(d.volume);
+        })
+        .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+    const byDate = new Map<string, HistoricalData>();
+    for (const item of cleaned) byDate.set(dayKey(item.time), item);
+
+    return Array.from(byDate.values()).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+}
+
+function applyRange(data: HistoricalData[], range: Range): HistoricalData[] {
+    if (range === 'ALL' || data.length === 0) return data;
+
+    const latestTs = new Date(data[data.length - 1].time).getTime();
+    const daysByRange: Record<Exclude<Range, 'ALL'>, number> = {
+        '3M': 92,
+        '6M': 183,
+        '1Y': 365,
+        '3Y': 365 * 3,
+    };
+    const cutoff = latestTs - daysByRange[range] * 24 * 60 * 60 * 1000;
+    const sliced = data.filter((d) => new Date(d.time).getTime() >= cutoff);
+    return sliced.length > 0 ? sliced : data;
+}
+
 function aggregateData(data: HistoricalData[], interval: Interval): HistoricalData[] {
     if (interval === 'D') return data;
 
@@ -86,13 +126,30 @@ function aggregateData(data: HistoricalData[], interval: Interval): HistoricalDa
     return result;
 }
 
+function ToolbarButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+    return (
+        <button
+            onClick={onClick}
+            className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                active
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+            }`}
+        >
+            {label}
+        </button>
+    );
+}
+
 export default function TradingViewChart({ data, isLoading }: TradingViewChartProps) {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
-    const [interval, setInterval] = React.useState<Interval>('D');
+    const [interval, setInterval] = useState<Interval>('D');
+    const [range, setRange] = useState<Range>('1Y');
+    const [containerWidth, setContainerWidth] = useState(400);
     const [tooltipData, setTooltipData] = useState<{
         time: string;
         open: string;
@@ -105,48 +162,56 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         y: number;
     } | null>(null);
 
-    // Aggregated data
-    const aggregatedData = useMemo(() => aggregateData(data, interval), [data, interval]);
+    const normalizedData = useMemo(() => normalizeData(data), [data]);
+    const rangeData = useMemo(() => applyRange(normalizedData, range), [normalizedData, range]);
+    const aggregatedData = useMemo(() => aggregateData(rangeData, interval), [rangeData, interval]);
 
-    // Create chart
+    const latestBar = useMemo(() => {
+        if (aggregatedData.length === 0) return null;
+        const latest = aggregatedData[aggregatedData.length - 1];
+        const prev = aggregatedData.length > 1 ? aggregatedData[aggregatedData.length - 2] : latest;
+        const change = latest.close - prev.close;
+        const changePct = prev.close > 0 ? (change / prev.close) * 100 : 0;
+        return { latest, change, changePct };
+    }, [aggregatedData]);
+
     useEffect(() => {
         if (!chartContainerRef.current) return;
 
         const isDark = document.documentElement.classList.contains('dark');
-
         const chart = createChart(chartContainerRef.current, {
             width: chartContainerRef.current.clientWidth,
-            height: 400,
+            height: 420,
             layout: {
                 background: { type: 'solid', color: 'transparent' },
-                textColor: isDark ? '#6b7280' : '#9ca3af',
-                fontSize: 11,
+                textColor: isDark ? '#9ca3af' : '#6b7280',
+                fontSize: 12,
             },
             grid: {
-                vertLines: { visible: false },
-                horzLines: { visible: false },
+                vertLines: { visible: true, color: isDark ? 'rgba(55, 65, 81, 0.25)' : 'rgba(229, 231, 235, 0.7)' },
+                horzLines: { visible: true, color: isDark ? 'rgba(55, 65, 81, 0.25)' : 'rgba(229, 231, 235, 0.7)' },
             },
             crosshair: {
                 mode: CrosshairMode.Normal,
                 vertLine: {
-                    color: isDark ? '#374151' : '#d1d5db',
+                    color: isDark ? '#4b5563' : '#cbd5e1',
                     width: 1,
                     style: 0,
-                    labelBackgroundColor: '#6366f1',
+                    labelBackgroundColor: '#2563eb',
                 },
                 horzLine: {
-                    color: isDark ? '#374151' : '#d1d5db',
+                    color: isDark ? '#4b5563' : '#cbd5e1',
                     width: 1,
                     style: 0,
-                    labelBackgroundColor: '#6366f1',
+                    labelBackgroundColor: '#2563eb',
                 },
             },
             rightPriceScale: {
-                borderColor: isDark ? '#1f2937' : '#e5e7eb',
-                scaleMargins: { top: 0.05, bottom: 0.2 },
+                borderColor: isDark ? '#374151' : '#e5e7eb',
+                scaleMargins: { top: 0.06, bottom: 0.22 },
             },
             timeScale: {
-                borderColor: isDark ? '#1f2937' : '#e5e7eb',
+                borderColor: isDark ? '#374151' : '#e5e7eb',
                 timeVisible: false,
                 rightOffset: 2,
                 barSpacing: 6,
@@ -156,8 +221,8 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         });
 
         const candlestickSeries = chart.addSeries(CandlestickSeries, {
-            upColor: '#22c55e',
-            downColor: '#ef4444',
+            upColor: '#16a34a',
+            downColor: '#dc2626',
             borderDownColor: '#dc2626',
             borderUpColor: '#16a34a',
             wickDownColor: '#dc2626',
@@ -167,12 +232,11 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         const volumeSeries = chart.addSeries(HistogramSeries, {
             priceFormat: { type: 'volume' },
             priceScaleId: '',
-            scaleMargins: { top: 0.85, bottom: 0 },
+            scaleMargins: { top: 0.84, bottom: 0.02 },
         });
 
-        // Crosshair move handler
         chart.subscribeCrosshairMove((param: MouseEventParams) => {
-            if (!param || !param.time || !param.seriesData || tooltipRef.current) return;
+            if (!param || !param.time || !param.seriesData) return;
 
             const candle = param.seriesData.get(candlestickSeries);
             const vol = param.seriesData.get(volumeSeries);
@@ -189,13 +253,8 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             const change = close - open;
             const changePct = open > 0 ? (change / open) * 100 : 0;
 
-            // Calculate tooltip position
-            const chartRect = chartContainerRef.current?.getBoundingClientRect();
-            if (!chartRect) return;
-
-            const timeStr = formatDate(param.time);
             setTooltipData({
-                time: timeStr,
+                time: formatDate(param.time),
                 open: formatPrice(open),
                 high: formatPrice(high),
                 low: formatPrice(low),
@@ -214,7 +273,8 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const { width } = entry.contentRect;
-                chart.applyOptions({ width });
+                setContainerWidth(width || 400);
+                chart.applyOptions({ width, height: width < 640 ? 340 : 420 });
             }
         });
         resizeObserver.observe(chartContainerRef.current);
@@ -226,10 +286,8 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             candlestickSeriesRef.current = null;
             volumeSeriesRef.current = null;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Update data
     useEffect(() => {
         if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current) return;
         if (aggregatedData.length === 0) return;
@@ -245,78 +303,85 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         const volumeData = aggregatedData.map((d) => ({
             time: toUTCTime(d.time),
             value: d.volume,
-            color: d.close >= d.open ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+            color: d.close >= d.open ? 'rgba(22, 163, 74, 0.30)' : 'rgba(220, 38, 38, 0.30)',
         }));
 
         candlestickSeriesRef.current.setData(candleData);
         volumeSeriesRef.current.setData(volumeData);
-
         chartRef.current.timeScale().fitContent();
     }, [aggregatedData]);
 
     if (isLoading) {
-        return <div className="flex h-[400px] items-center justify-center"><div className="spinner" /></div>;
+        return <div className="flex h-[420px] items-center justify-center"><div className="spinner" /></div>;
     }
 
-    if (!data || data.length === 0) {
-        return <div className="flex h-[400px] items-center justify-center text-gray-500">Không có dữ liệu</div>;
+    if (normalizedData.length === 0) {
+        return <div className="flex h-[420px] items-center justify-center text-gray-500">Không có dữ liệu giá lịch sử</div>;
     }
 
     return (
-        <div className="relative w-full">
-            {/* Interval Selector */}
-            <div className="absolute left-3 top-3 z-10 flex gap-1 rounded-md border border-gray-200 bg-white/90 p-0.5 text-xs font-medium shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/90">
-                {(['D', 'W', 'M'] as Interval[]).map((iv) => (
-                    <button
-                        key={iv}
-                        onClick={() => setInterval(iv)}
-                        className={`rounded px-2.5 py-1 transition-colors ${
-                            interval === iv
-                                ? 'bg-indigo-600 text-white shadow-sm'
-                                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
-                        }`}
-                    >
-                        {iv === 'D' ? 'Ngày' : iv === 'W' ? 'Tuần' : 'Tháng'}
-                    </button>
-                ))}
+        <div className="w-full">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50">
+                <div className="flex items-center gap-1">
+                    {(['3M', '6M', '1Y', '3Y', 'ALL'] as Range[]).map((r) => (
+                        <ToolbarButton key={r} active={range === r} label={r} onClick={() => setRange(r)} />
+                    ))}
+                </div>
+                <div className="flex items-center gap-1">
+                    {(['D', 'W', 'M'] as Interval[]).map((iv) => (
+                        <ToolbarButton
+                            key={iv}
+                            active={interval === iv}
+                            label={iv === 'D' ? 'Ngày' : iv === 'W' ? 'Tuần' : 'Tháng'}
+                            onClick={() => setInterval(iv)}
+                        />
+                    ))}
+                </div>
             </div>
 
-            {/* OHLCV Tooltip */}
-            {tooltipData && (
-                <div
-                    ref={tooltipRef}
-                    className="pointer-events-none absolute z-20 rounded-md border border-gray-200 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-300"
-                    style={{
-                        left: Math.min(tooltipData.x + 12, (chartContainerRef.current?.clientWidth ?? 400) - 200),
-                        top: Math.max(tooltipData.y - 10, 4),
-                    }}
-                >
-                    <div className="font-semibold text-gray-900 dark:text-white">{tooltipData.time}</div>
-                    <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                        <span className="text-gray-500">Mở cửa</span>
-                        <span className="font-mono text-right">{tooltipData.open}</span>
-                        <span className="text-gray-500">Cao nhất</span>
-                        <span className="font-mono text-right text-emerald-600">{tooltipData.high}</span>
-                        <span className="text-gray-500">Thấp nhất</span>
-                        <span className="font-mono text-right text-red-500">{tooltipData.low}</span>
-                        <span className="text-gray-500">Đóng cửa</span>
-                        <span className="font-mono text-right font-semibold">{tooltipData.close}</span>
-                        <span className="text-gray-500">Khối lượng</span>
-                        <span className="font-mono text-right">{tooltipData.volume}</span>
-                        <span className="text-gray-500">Thay đổi</span>
-                        <span className={`font-mono text-right font-semibold ${tooltipData.change.startsWith('+') ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {tooltipData.change}
-                        </span>
-                    </div>
+            {latestBar && (
+                <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 text-xs dark:border-slate-700 sm:grid-cols-4 lg:grid-cols-6">
+                    <div><span className="text-slate-500">Đóng cửa</span><p className="font-semibold text-slate-900 dark:text-slate-100">{formatPrice(latestBar.latest.close)}</p></div>
+                    <div><span className="text-slate-500">Mở cửa</span><p className="font-semibold text-slate-900 dark:text-slate-100">{formatPrice(latestBar.latest.open)}</p></div>
+                    <div><span className="text-slate-500">Cao nhất</span><p className="font-semibold text-emerald-600">{formatPrice(latestBar.latest.high)}</p></div>
+                    <div><span className="text-slate-500">Thấp nhất</span><p className="font-semibold text-red-500">{formatPrice(latestBar.latest.low)}</p></div>
+                    <div><span className="text-slate-500">KLGD</span><p className="font-semibold text-slate-900 dark:text-slate-100">{formatVolume(latestBar.latest.volume)}</p></div>
+                    <div><span className="text-slate-500">Thay đổi</span><p className={`font-semibold ${latestBar.change >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{latestBar.change >= 0 ? '+' : ''}{formatPrice(Math.abs(latestBar.change))} ({latestBar.changePct >= 0 ? '+' : ''}{latestBar.changePct.toFixed(2)}%)</p></div>
                 </div>
             )}
 
-            {/* Chart Container */}
-            <div
-                ref={chartContainerRef}
-                className="w-full"
-                style={{ height: '400px' }}
-            />
+            <div className="relative">
+                {tooltipData && (
+                    <div
+                        ref={tooltipRef}
+                        className="pointer-events-none absolute z-20 rounded-md border border-gray-200 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-300"
+                        style={{
+                            left: Math.min(tooltipData.x + 12, containerWidth - 215),
+                            top: Math.max(tooltipData.y - 10, 4),
+                        }}
+                    >
+                        <div className="font-semibold text-gray-900 dark:text-white">{tooltipData.time}</div>
+                        <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                            <span className="text-gray-500">Mở cửa</span>
+                            <span className="font-mono text-right">{tooltipData.open}</span>
+                            <span className="text-gray-500">Cao nhất</span>
+                            <span className="font-mono text-right text-emerald-600">{tooltipData.high}</span>
+                            <span className="text-gray-500">Thấp nhất</span>
+                            <span className="font-mono text-right text-red-500">{tooltipData.low}</span>
+                            <span className="text-gray-500">Đóng cửa</span>
+                            <span className="font-mono text-right font-semibold">{tooltipData.close}</span>
+                            <span className="text-gray-500">Khối lượng</span>
+                            <span className="font-mono text-right">{tooltipData.volume}</span>
+                            <span className="text-gray-500">Thay đổi</span>
+                            <span className={`font-mono text-right font-semibold ${tooltipData.change.startsWith('+') ? 'text-emerald-600' : 'text-red-500'}`}>
+                                {tooltipData.change}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '420px' }} />
+            </div>
         </div>
     );
 }

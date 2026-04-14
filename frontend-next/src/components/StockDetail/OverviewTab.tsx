@@ -154,7 +154,6 @@ interface OverviewTabProps {
 }
 
 export default function OverviewTab({
-    symbol: _symbol,
     stockInfo,
     priceData,
     financials,
@@ -165,8 +164,6 @@ export default function OverviewTab({
     news = [],
     epsHistory = [],
 }: OverviewTabProps) {
-    console.log('[OverviewTab] Props - news:', news?.length, 'items, epsHistory:', epsHistory?.length, 'items');
-
     const stats52w = useMemo(() => {
         if (!historicalData || historicalData.length === 0) {
             return {
@@ -222,15 +219,20 @@ export default function OverviewTab({
             <div className={styles.leftColumn}>
                 {/* Price Chart */}
                 <section className={`${styles.section} ${styles.sectionChart} mt-2 sm:mt-0`}>
-                    <div className="mt-2">
+                    <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                            Biểu đồ giá
+                        </h3>
+                    </div>
+                    <div>
                         <TradingViewChart
                             data={historicalData}
                             isLoading={isLoading}
                         />
                     </div>
                         {priceData && (
-                            <div className="">
-                                <div className="grid grid-cols-3 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                            <div className="mt-4 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                                     {[
                                         { name: '52W High', value: stats52w.high52w !== null ? formatNumber(stats52w.high52w, { maximumFractionDigits: 0 }) : '-', bgColor: 'bg-blue-500' },
                                         { name: '52W Low', value: stats52w.low52w !== null ? formatNumber(stats52w.low52w, { maximumFractionDigits: 0 }) : '-', bgColor: 'bg-violet-500' },
@@ -239,13 +241,13 @@ export default function OverviewTab({
                                         { name: 'Today Low', value: todayStats.low > 0 ? formatNumber(todayStats.low, { maximumFractionDigits: 0 }) : '-', bgColor: 'bg-cyan-500' },
                                         { name: 'Avg 52W Vol', value: stats52w.avgVol52w !== null ? formatNumber(stats52w.avgVol52w) : '-', bgColor: 'bg-emerald-500' },
                                     ].map((item) => (
-                                        <div key={item.name} className="flex items-center gap-3">
+                                        <div key={item.name} className="flex items-center gap-3 rounded-lg border border-slate-100 p-2 dark:border-slate-800">
                                             <span className={`${item.bgColor} h-8 w-1 shrink-0 rounded`} aria-hidden={true} />
                                             <div className="min-w-0">
-                                                <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content">
+                                                <p className="text-[11px] uppercase tracking-wide text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
                                                     {item.name}
                                                 </p>
-                                                <p className="truncate font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                                <p className="truncate text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
                                                     {item.value}
                                                 </p>
                                             </div>
