@@ -64,6 +64,30 @@ function formatDate(time: UTCTime): string {
     return `${String(time.day).padStart(2, '0')}/${String(time.month).padStart(2, '0')}/${time.year}`;
 }
 
+function utcDayKey(time: UTCTime): string {
+    return `${time.year}-${String(time.month).padStart(2, '0')}-${String(time.day).padStart(2, '0')}`;
+}
+
+function normalizeDailyRows<T>(
+    rows: T[],
+    getDate: (row: T) => Date,
+): T[] {
+    const valid = rows
+        .filter((row) => {
+            const d = getDate(row);
+            return Number.isFinite(d.getTime());
+        })
+        .sort((a, b) => getDate(a).getTime() - getDate(b).getTime());
+
+    const byDay = new Map<string, T>();
+    for (const row of valid) {
+        const d = getDate(row);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        byDay.set(key, row);
+    }
+    return Array.from(byDay.values()).sort((a, b) => getDate(a).getTime() - getDate(b).getTime());
+}
+
 // ── Chart theme helper ──────────────────────────────────────────────────────
 
 function getChartTheme() {
@@ -92,7 +116,8 @@ function TVVNIndexChart({ data, isLoading }: TVVNIndexChartProps) {
     const chartRef = useRef<IChartApi | null>(null);
     const areaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-    const priceLinesRef = useRef<{ removePriceLine: (id: string) => void; id: string }[]>([]);
+    const [containerWidth, setContainerWidth] = useState(400);
+    const closeByDayRef = useRef<Map<string, number>>(new Map());
     const [tooltipData, setTooltipData] = useState<{
         time: string; close: string; volume: string; change: string; x: number; y: number;
     } | null>(null);
@@ -111,7 +136,10 @@ function TVVNIndexChart({ data, isLoading }: TVVNIndexChartProps) {
                 fontSize: 11,
                 fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             },
-            grid: { vertLines: { visible: false }, horzLines: { visible: false } },
+            grid: {
+                vertLines: { visible: true, color: theme.isDark ? 'rgba(55, 65, 81, 0.25)' : 'rgba(229, 231, 235, 0.7)' },
+                horzLines: { visible: true, color: theme.isDark ? 'rgba(55, 65, 81, 0.25)' : 'rgba(229, 231, 235, 0.7)' },
+            },
             crosshair: {
                 mode: CrosshairMode.Normal,
                 vertLine: { color: theme.crosshairColor, width: 1, style: 2, labelBackgroundColor: '#f97316' },
@@ -169,12 +197,14 @@ function TVVNIndexChart({ data, isLoading }: TVVNIndexChartProps) {
             const volume = vol?.value as number;
             const timeStr = formatDate(param.time as UTCTime);
 
-            // Calculate change from previous data point
-            const allData = areaSeries.data() as Array<{ time: UTCTime; value: number }>;
-            const idx = allData.findIndex(d => d.time.year === (param.time as UTCTime).year && d.time.month === (param.time as UTCTime).month && d.time.day === (param.time as UTCTime).day);
+            const t = param.time as UTCTime;
+            const key = utcDayKey(t);
             let change = '';
+            const closeByDay = closeByDayRef.current;
+            const keys = Array.from(closeByDay.keys());
+            const idx = keys.indexOf(key);
             if (idx > 0) {
-                const prev = allData[idx - 1].value;
+                const prev = closeByDay.get(keys[idx - 1]) ?? 0;
                 const ch = close - prev;
                 const pct = prev > 0 ? (ch / prev) * 100 : 0;
                 change = `${ch >= 0 ? '+' : ''}${formatPrice(Math.abs(ch))} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
@@ -196,7 +226,9 @@ function TVVNIndexChart({ data, isLoading }: TVVNIndexChartProps) {
 
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                chart.applyOptions({ width: entry.contentRect.width });
+                const width = entry.contentRect.width;
+                setContainerWidth(width || 400);
+                chart.applyOptions({ width, height: width < 640 ? 340 : 420 });
             }
         });
         resizeObserver.observe(containerRef.current);
@@ -208,7 +240,6 @@ function TVVNIndexChart({ data, isLoading }: TVVNIndexChartProps) {
             areaSeriesRef.current = null;
             volumeSeriesRef.current = null;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Update data
@@ -216,7 +247,10 @@ function TVVNIndexChart({ data, isLoading }: TVVNIndexChartProps) {
         if (!areaSeriesRef.current || !volumeSeriesRef.current) return;
         if (data.length === 0) return;
 
-        areaSeriesRef.current.setData(data.map(d => ({ time: d.time, value: d.close })));
+        const areaData = data.map((d) => ({ time: d.time, value: d.close }));
+        areaSeriesRef.current.setData(areaData);
+        closeByDayRef.current = new Map(data.map((d) => [utcDayKey(d.time), d.close]));
+
         volumeSeriesRef.current.setData(data.map((d, i) => {
             const isUp = i === 0 || d.close >= data[i - 1].close;
             return {
@@ -241,7 +275,7 @@ function TVVNIndexChart({ data, isLoading }: TVVNIndexChartProps) {
                 <div
                     className="pointer-events-none absolute z-20 rounded-lg border px-3.5 py-2.5 text-xs shadow-xl backdrop-blur-md"
                     style={{
-                        left: Math.min(tooltipData.x + 16, (containerRef.current?.clientWidth ?? 400) - 220),
+                        left: Math.min(tooltipData.x + 16, containerWidth - 220),
                         top: Math.max(tooltipData.y - 12, 8),
                         border: `1px solid ${getChartTheme().cardBorder}`,
                         backgroundColor: getChartTheme().cardBg,
@@ -284,6 +318,8 @@ function TVRatioChart({ data, stats, ratioColor, ratioName, isLoading }: TVRatio
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const lineSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const [containerWidth, setContainerWidth] = useState(400);
+    const createdPriceLinesRef = useRef<ReturnType<ISeriesApi<'Line'>['createPriceLine']>[]>([]);
     const [tooltipData, setTooltipData] = useState<{
         time: string; value: string; zone: string; x: number; y: number;
     } | null>(null);
@@ -311,7 +347,10 @@ function TVRatioChart({ data, stats, ratioColor, ratioName, isLoading }: TVRatio
                 fontSize: 11,
                 fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             },
-            grid: { vertLines: { visible: false }, horzLines: { visible: false } },
+            grid: {
+                vertLines: { visible: true, color: theme.isDark ? 'rgba(55, 65, 81, 0.25)' : 'rgba(229, 231, 235, 0.7)' },
+                horzLines: { visible: true, color: theme.isDark ? 'rgba(55, 65, 81, 0.25)' : 'rgba(229, 231, 235, 0.7)' },
+            },
             crosshair: {
                 mode: CrosshairMode.Normal,
                 vertLine: { color: theme.crosshairColor, width: 1, style: 2, labelBackgroundColor: ratioColor },
@@ -370,7 +409,9 @@ function TVRatioChart({ data, stats, ratioColor, ratioName, isLoading }: TVRatio
 
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                chart.applyOptions({ width: entry.contentRect.width });
+                const width = entry.contentRect.width;
+                setContainerWidth(width || 400);
+                chart.applyOptions({ width, height: width < 640 ? 340 : 420 });
             }
         });
         resizeObserver.observe(containerRef.current);
@@ -380,6 +421,7 @@ function TVRatioChart({ data, stats, ratioColor, ratioName, isLoading }: TVRatio
             chart.remove();
             chartRef.current = null;
             lineSeriesRef.current = null;
+            createdPriceLinesRef.current = [];
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -398,13 +440,15 @@ function TVRatioChart({ data, stats, ratioColor, ratioName, isLoading }: TVRatio
         if (!lineSeriesRef.current || !chartRef.current) return;
         const series = lineSeriesRef.current;
 
-        // Remove all existing price lines
-        series.priceLines().forEach(pl => series.removePriceLine(pl.id));
+        for (const line of createdPriceLinesRef.current) {
+            series.removePriceLine(line);
+        }
+        createdPriceLinesRef.current = [];
 
         if (!stats) return;
 
         const addLine = (value: number, color: string, label: string) => {
-            series.createPriceLine({
+            const line = series.createPriceLine({
                 price: value,
                 color,
                 lineWidth: 1,
@@ -412,6 +456,7 @@ function TVRatioChart({ data, stats, ratioColor, ratioName, isLoading }: TVRatio
                 axisLabelVisible: true,
                 title: label,
             });
+            createdPriceLinesRef.current.push(line);
         };
 
         if (stats.plusTwoSD != null)  addLine(stats.plusTwoSD,  '#ef4444', `+2σ ${stats.plusTwoSD.toFixed(2)}`);
@@ -437,7 +482,7 @@ function TVRatioChart({ data, stats, ratioColor, ratioName, isLoading }: TVRatio
                 <div
                     className="pointer-events-none absolute z-20 rounded-lg border px-3.5 py-2.5 text-xs shadow-xl backdrop-blur-md"
                     style={{
-                        left: Math.min(tooltipData.x + 16, (containerRef.current?.clientWidth ?? 400) - 240),
+                        left: Math.min(tooltipData.x + 16, containerWidth - 240),
                         top: Math.max(tooltipData.y - 12, 8),
                         border: `1px solid ${getChartTheme().cardBorder}`,
                         backgroundColor: getChartTheme().cardBg,
@@ -547,37 +592,42 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [timeRange]);
 
-    const { series, stats } = result;
+    const normalizedSeries = useMemo(() => {
+        const rows = normalizeDailyRows(result.series, (row) => row.date instanceof Date ? row.date : new Date(row.date as any));
+        return rows;
+    }, [result.series]);
+
+    const { stats } = result;
 
     const currentStats = useMemo(() => {
-        if (!series.length) return { pe: null, pb: null, vnindex: null };
-        const last = [...series].sort((a, b) => a.date.getTime() - b.date.getTime()).at(-1)!;
+        if (!normalizedSeries.length) return { pe: null, pb: null, vnindex: null };
+        const last = normalizedSeries[normalizedSeries.length - 1];
         return { pe: last.pe, pb: last.pb, vnindex: last.vnindex };
-    }, [series]);
+    }, [normalizedSeries]);
 
     // ── VN-Index TradingView data ──────────────────────────────────────────
     const vnTVData = useMemo(() => {
         const cutoff = getCutoffDate(timeRange);
-        let filtered = series.filter(d => d.vnindex != null);
+        let filtered = normalizedSeries.filter(d => d.vnindex != null && Number.isFinite(d.vnindex));
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
         return filtered.map(d => ({
             time: toUTCTime(d.date),
             close: d.vnindex!,
             volume: d.volume ?? 0,
         }));
-    }, [series, timeRange]);
+    }, [normalizedSeries, timeRange]);
 
     // ── PE/PB TradingView data ─────────────────────────────────────────────
     const ratioTVData = useMemo(() => {
         const field = activeChart as 'pe' | 'pb';
         const cutoff = getCutoffDate(timeRange);
-        let filtered = series.filter(d => d[field] != null);
+        let filtered = normalizedSeries.filter(d => d[field] != null && Number.isFinite(d[field] as number));
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
         return filtered.map(d => ({
             time: toUTCTime(d.date),
             value: d[field]!,
         }));
-    }, [series, timeRange, activeChart]);
+    }, [normalizedSeries, timeRange, activeChart]);
 
     const activeStats: ValuationStats | undefined =
         activeChart === 'pe' ? stats.pe : activeChart === 'pb' ? stats.pb : undefined;
