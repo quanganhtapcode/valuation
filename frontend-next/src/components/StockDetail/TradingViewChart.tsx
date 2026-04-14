@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
     createChart,
     IChartApi,
@@ -23,11 +23,25 @@ interface HistoricalData {
 }
 
 type Interval = 'D' | 'W' | 'M';
-type Range = '3M' | '6M' | '1Y' | '3Y' | 'ALL';
+
+const INTERVAL_LABELS: Record<Interval, string> = { D: '1D', W: '1W', M: '1M' };
+const INTERVAL_CYCLE: Record<Interval, Interval> = { D: 'W', W: 'M', M: 'D' };
 
 interface TradingViewChartProps {
     data: HistoricalData[];
     isLoading: boolean;
+}
+
+// ── Displayed bar (latest OR hovered candle) ──────────────────────────────────
+interface BarDisplay {
+    time: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+    change: number;
+    changePct: number;
 }
 
 function toFiniteNumber(value: unknown): number | null {
@@ -51,7 +65,7 @@ function dayKey(time: string | number): string {
 
 function formatVolume(value: number): string {
     if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    if (value >= 1_000)     return `${(value / 1_000).toFixed(1)}K`;
     return value.toString();
 }
 
@@ -61,248 +75,253 @@ function formatPrice(value: number): string {
 
 function formatDate(time: Time): string {
     if (typeof time === 'object') {
-        return `${String(time.day).padStart(2, '0')}/${String(time.month).padStart(2, '0')}/${time.year}`;
+        const t = time as UTCTime;
+        return `${String(t.day).padStart(2, '0')}/${String(t.month).padStart(2, '0')}/${t.year}`;
     }
     return String(time);
 }
 
 function normalizeData(data: HistoricalData[]): HistoricalData[] {
     if (!Array.isArray(data)) return [];
-
     const cleaned = data
         .map((d) => {
-            const ts = new Date(d.time).getTime();
+            const ts   = new Date(d.time).getTime();
             const open = toFiniteNumber(d.open);
             const high = toFiniteNumber(d.high);
-            const low = toFiniteNumber(d.low);
+            const low  = toFiniteNumber(d.low);
             const close = toFiniteNumber(d.close);
             const volume = toFiniteNumber(d.volume) ?? 0;
-
-            if (!Number.isFinite(ts) || open === null || high === null || low === null || close === null) {
-                return null;
-            }
-
-            return {
-                time: d.time,
-                open,
-                high,
-                low,
-                close,
-                volume,
-            } satisfies HistoricalData;
+            if (!Number.isFinite(ts) || open === null || high === null || low === null || close === null) return null;
+            return { time: d.time, open, high, low, close, volume } satisfies HistoricalData;
         })
         .filter((d): d is HistoricalData => d !== null)
         .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
     const byDate = new Map<string, HistoricalData>();
     for (const item of cleaned) byDate.set(dayKey(item.time), item);
-
     return Array.from(byDate.values()).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-}
-
-function applyRange(data: HistoricalData[], range: Range): HistoricalData[] {
-    if (range === 'ALL' || data.length === 0) return data;
-
-    const latestTs = new Date(data[data.length - 1].time).getTime();
-    const daysByRange: Record<Exclude<Range, 'ALL'>, number> = {
-        '3M': 92,
-        '6M': 183,
-        '1Y': 365,
-        '3Y': 365 * 3,
-    };
-    const cutoff = latestTs - daysByRange[range] * 24 * 60 * 60 * 1000;
-    const sliced = data.filter((d) => new Date(d.time).getTime() >= cutoff);
-    return sliced.length > 0 ? sliced : data;
 }
 
 function aggregateData(data: HistoricalData[], interval: Interval): HistoricalData[] {
     if (interval === 'D') return data;
-
     const groups = new Map<string, HistoricalData[]>();
     data.forEach((d) => {
         const date = new Date(d.time);
         let key: string;
         if (interval === 'W') {
-            const weekStart = new Date(date);
-            weekStart.setDate(date.getDate() - date.getDay());
-            key = `${weekStart.getFullYear()}-W${String(Math.ceil((weekStart.getTime() - new Date(weekStart.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1).padStart(2, '0')}`;
+            const ws = new Date(date);
+            ws.setDate(date.getDate() - date.getDay());
+            key = `${ws.getFullYear()}-W${String(Math.ceil((ws.getTime() - new Date(ws.getFullYear(), 0, 1).getTime()) / (7 * 86400000)) + 1).padStart(2, '0')}`;
         } else {
             key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         }
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key)!.push(d);
     });
-
     const result: HistoricalData[] = [];
     groups.forEach((items) => {
-        if (items.length === 0) return;
+        if (!items.length) return;
         result.push({
-            time: items[0].time,
-            open: items[0].open,
-            high: Math.max(...items.map((i) => i.high)),
-            low: Math.min(...items.map((i) => i.low)),
-            close: items[items.length - 1].close,
-            volume: items.reduce((sum, i) => sum + i.volume, 0),
+            time:   items[0].time,
+            open:   items[0].open,
+            high:   Math.max(...items.map(i => i.high)),
+            low:    Math.min(...items.map(i => i.low)),
+            close:  items[items.length - 1].close,
+            volume: items.reduce((s, i) => s + i.volume, 0),
         });
     });
     return result;
 }
 
-function ToolbarButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+// ── Interval selector ─────────────────────────────────────────────────────────
+function IntervalSelector({ interval, setInterval }: { interval: Interval; setInterval: (i: Interval) => void }) {
+    // Desktop: three separate buttons
+    // Mobile: single cycling button
     return (
-        <button
-            onClick={onClick}
-            className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
-                active
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-            }`}
-        >
-            {label}
-        </button>
+        <div className="flex items-center gap-1">
+            {/* Desktop buttons */}
+            {(['D', 'W', 'M'] as Interval[]).map((iv) => (
+                <button
+                    key={iv}
+                    onClick={() => setInterval(iv)}
+                    className={`hidden sm:inline-flex rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                        interval === iv
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                    }`}
+                >
+                    {INTERVAL_LABELS[iv]}
+                </button>
+            ))}
+
+            {/* Mobile cycling button */}
+            <button
+                onClick={() => setInterval(INTERVAL_CYCLE[interval])}
+                className="sm:hidden flex items-center gap-1 rounded px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white shadow-sm"
+            >
+                {INTERVAL_LABELS[interval]}
+                <svg className="w-3 h-3 opacity-80" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 4.5L6 8.5L10 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+            </button>
+        </div>
     );
 }
 
+// ── OHLCV Stats bar ───────────────────────────────────────────────────────────
+function OHLCVBar({ bar }: { bar: BarDisplay | null }) {
+    if (!bar) return null;
+    const isUp = bar.change >= 0;
+    return (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 py-2 text-[11px]">
+            <span className="text-slate-400 dark:text-slate-500 font-medium">{bar.time}</span>
+            <span className="flex items-center gap-1">
+                <span className="text-slate-400 dark:text-slate-500">O</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{formatPrice(bar.open)}</span>
+            </span>
+            <span className="flex items-center gap-1">
+                <span className="text-slate-400 dark:text-slate-500">H</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatPrice(bar.high)}</span>
+            </span>
+            <span className="flex items-center gap-1">
+                <span className="text-slate-400 dark:text-slate-500">L</span>
+                <span className="font-semibold text-red-500 dark:text-red-400 tabular-nums">{formatPrice(bar.low)}</span>
+            </span>
+            <span className="flex items-center gap-1">
+                <span className="text-slate-400 dark:text-slate-500">C</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{formatPrice(bar.close)}</span>
+            </span>
+            <span className="flex items-center gap-1">
+                <span className="text-slate-400 dark:text-slate-500">Vol</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{formatVolume(bar.volume)}</span>
+            </span>
+            <span className={`font-semibold tabular-nums ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                {isUp ? '+' : ''}{formatPrice(Math.abs(bar.change))} ({isUp ? '+' : ''}{bar.changePct.toFixed(2)}%)
+            </span>
+        </div>
+    );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function TradingViewChart({ data, isLoading }: TradingViewChartProps) {
-    const chartContainerRef = useRef<HTMLDivElement>(null);
-    const chartRef = useRef<IChartApi | null>(null);
+    const chartContainerRef  = useRef<HTMLDivElement>(null);
+    const chartRef           = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-    const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-    const tooltipRef = useRef<HTMLDivElement>(null);
-    const [interval, setInterval] = useState<Interval>('D');
-    const [range, setRange] = useState<Range>('1Y');
-    const [containerWidth, setContainerWidth] = useState(400);
-    const [tooltipData, setTooltipData] = useState<{
-        time: string;
-        open: string;
-        high: string;
-        low: string;
-        close: string;
-        volume: string;
-        change: string;
-        x: number;
-        y: number;
-    } | null>(null);
+    const volumeSeriesRef    = useRef<ISeriesApi<'Histogram'> | null>(null);
+    const [interval, setIntervalState] = useState<Interval>('D');
 
-    const normalizedData = useMemo(() => normalizeData(data), [data]);
-    const rangeData = useMemo(() => applyRange(normalizedData, range), [normalizedData, range]);
-    const aggregatedData = useMemo(() => aggregateData(rangeData, interval), [rangeData, interval]);
+    // Bar displayed in the OHLCV footer (null = show latestBar)
+    const [hoveredBar, setHoveredBar] = useState<BarDisplay | null>(null);
 
-    const latestBar = useMemo(() => {
-        if (aggregatedData.length === 0) return null;
+    const normalizedData  = useMemo(() => normalizeData(data), [data]);
+    const aggregatedData  = useMemo(() => aggregateData(normalizedData, interval), [normalizedData, interval]);
+
+    const latestBar = useMemo<BarDisplay | null>(() => {
+        if (!aggregatedData.length) return null;
         const latest = aggregatedData[aggregatedData.length - 1];
-        const prev = aggregatedData.length > 1 ? aggregatedData[aggregatedData.length - 2] : latest;
-        const change = latest.close - prev.close;
+        const prev   = aggregatedData.length > 1 ? aggregatedData[aggregatedData.length - 2] : latest;
+        const change    = latest.close - prev.close;
         const changePct = prev.close > 0 ? (change / prev.close) * 100 : 0;
-        return { latest, change, changePct };
+        return {
+            time: formatDate(toUTCTime(latest.time)),
+            open: latest.open, high: latest.high, low: latest.low, close: latest.close,
+            volume: latest.volume, change, changePct,
+        };
     }, [aggregatedData]);
 
+    const displayBar = hoveredBar ?? latestBar;
+
+    // ── Chart init ────────────────────────────────────────────────────────────
     useEffect(() => {
-        if (!chartContainerRef.current) return;
+        if (!chartContainerRef.current || chartRef.current) return;
 
         const isDark = document.documentElement.classList.contains('dark');
+
         const chart = createChart(chartContainerRef.current, {
-            width: chartContainerRef.current.clientWidth,
-            height: 420,
+            width:  chartContainerRef.current.clientWidth,
+            height: 400,
             layout: {
                 background: { type: 'solid', color: 'transparent' },
-                textColor: isDark ? '#9ca3af' : '#6b7280',
-                fontSize: 12,
+                textColor:  isDark ? '#9ca3af' : '#6b7280',
+                fontSize:   11,
+                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             },
             grid: {
-                vertLines: { visible: true, color: isDark ? 'rgba(55, 65, 81, 0.25)' : 'rgba(229, 231, 235, 0.7)' },
-                horzLines: { visible: true, color: isDark ? 'rgba(55, 65, 81, 0.25)' : 'rgba(229, 231, 235, 0.7)' },
+                vertLines: { color: isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.7)' },
+                horzLines: { color: isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.7)' },
             },
             crosshair: {
-                mode: CrosshairMode.Normal,
-                vertLine: {
-                    color: isDark ? '#4b5563' : '#cbd5e1',
-                    width: 1,
-                    style: 0,
-                    labelBackgroundColor: '#2563eb',
-                },
-                horzLine: {
-                    color: isDark ? '#4b5563' : '#cbd5e1',
-                    width: 1,
-                    style: 0,
-                    labelBackgroundColor: '#2563eb',
-                },
+                mode:     CrosshairMode.Normal,
+                vertLine: { color: isDark ? '#4b5563' : '#cbd5e1', width: 1, style: 0, labelBackgroundColor: '#2563eb' },
+                horzLine: { color: isDark ? '#4b5563' : '#cbd5e1', width: 1, style: 0, labelBackgroundColor: '#2563eb' },
             },
             rightPriceScale: {
-                borderColor: isDark ? '#374151' : '#e5e7eb',
+                borderColor:  isDark ? '#374151' : '#e5e7eb',
                 scaleMargins: { top: 0.06, bottom: 0.22 },
             },
             timeScale: {
-                borderColor: isDark ? '#374151' : '#e5e7eb',
-                timeVisible: false,
-                rightOffset: 2,
-                barSpacing: 6,
+                borderColor:          isDark ? '#374151' : '#e5e7eb',
+                timeVisible:          false,
+                rightOffset:          2,
+                barSpacing:           6,
                 rightBarStaysOnScroll: true,
             },
             handleScroll: { vertTouchDrag: false },
         });
 
         const candlestickSeries = chart.addSeries(CandlestickSeries, {
-            upColor: '#16a34a',
-            downColor: '#dc2626',
-            borderDownColor: '#dc2626',
-            borderUpColor: '#16a34a',
-            wickDownColor: '#dc2626',
-            wickUpColor: '#16a34a',
+            upColor:        '#16a34a',
+            downColor:      '#dc2626',
+            borderUpColor:  '#16a34a',
+            borderDownColor:'#dc2626',
+            wickUpColor:    '#16a34a',
+            wickDownColor:  '#dc2626',
         });
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
-            priceFormat: { type: 'volume' },
+            priceFormat:  { type: 'volume' },
             priceScaleId: '',
             scaleMargins: { top: 0.84, bottom: 0.02 },
         });
 
+        // Crosshair: update footer bar instead of floating tooltip
         chart.subscribeCrosshairMove((param: MouseEventParams) => {
-            if (!param || !param.time || !param.seriesData) return;
-
-            const candle = param.seriesData.get(candlestickSeries);
-            const vol = param.seriesData.get(volumeSeries);
-            if (!candle) {
-                setTooltipData(null);
+            if (!param?.time || !param?.seriesData) {
+                setHoveredBar(null);
                 return;
             }
+            const candle = param.seriesData.get(candlestickSeries);
+            const vol    = param.seriesData.get(volumeSeries);
+            if (!candle) { setHoveredBar(null); return; }
 
-            const open = candle.open as number;
-            const high = candle.high as number;
-            const low = candle.low as number;
-            const close = candle.close as number;
-            const volume = vol?.value as number;
-            const change = close - open;
+            const open  = (candle as { open: number }).open;
+            const high  = (candle as { high: number }).high;
+            const low   = (candle as { low: number }).low;
+            const close = (candle as { close: number }).close;
+            const volume = (vol as { value?: number })?.value ?? 0;
+            const change    = close - open;
             const changePct = open > 0 ? (change / open) * 100 : 0;
 
-            setTooltipData({
+            setHoveredBar({
                 time: formatDate(param.time),
-                open: formatPrice(open),
-                high: formatPrice(high),
-                low: formatPrice(low),
-                close: formatPrice(close),
-                volume: formatVolume(volume || 0),
-                change: `${change >= 0 ? '+' : ''}${formatPrice(Math.abs(change))} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`,
-                x: param.point?.x ?? 0,
-                y: param.point?.y ?? 0,
+                open, high, low, close, volume, change, changePct,
             });
         });
 
-        chartRef.current = chart;
+        chartRef.current           = chart;
         candlestickSeriesRef.current = candlestickSeries;
-        volumeSeriesRef.current = volumeSeries;
+        volumeSeriesRef.current    = volumeSeries;
 
-        const resizeObserver = new ResizeObserver((entries) => {
+        const ro = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                const { width } = entry.contentRect;
-                setContainerWidth(width || 400);
-                chart.applyOptions({ width, height: width < 640 ? 340 : 420 });
+                const w = entry.contentRect.width;
+                chart.applyOptions({ width: w, height: w < 640 ? 320 : 400 });
             }
         });
-        resizeObserver.observe(chartContainerRef.current);
+        ro.observe(chartContainerRef.current);
 
         return () => {
-            resizeObserver.disconnect();
+            ro.disconnect();
             chart.remove();
             chartRef.current = null;
             candlestickSeriesRef.current = null;
@@ -310,99 +329,54 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         };
     }, []);
 
+    // ── Push data ─────────────────────────────────────────────────────────────
     useEffect(() => {
         if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current) return;
-        if (aggregatedData.length === 0) return;
+        if (!aggregatedData.length) return;
 
-        const candleData = aggregatedData.map((d) => ({
-            time: toUTCTime(d.time),
-            open: d.open,
-            high: d.high,
-            low: d.low,
+        candlestickSeriesRef.current.setData(aggregatedData.map(d => ({
+            time:  toUTCTime(d.time),
+            open:  d.open,
+            high:  d.high,
+            low:   d.low,
             close: d.close,
-        }));
+        })));
 
-        const volumeData = aggregatedData.map((d) => ({
-            time: toUTCTime(d.time),
+        volumeSeriesRef.current.setData(aggregatedData.map(d => ({
+            time:  toUTCTime(d.time),
             value: d.volume,
-            color: d.close >= d.open ? 'rgba(22, 163, 74, 0.30)' : 'rgba(220, 38, 38, 0.30)',
-        }));
+            color: d.close >= d.open ? 'rgba(22,163,74,0.28)' : 'rgba(220,38,38,0.28)',
+        })));
 
-        candlestickSeriesRef.current.setData(candleData);
-        volumeSeriesRef.current.setData(volumeData);
         chartRef.current.timeScale().fitContent();
     }, [aggregatedData]);
 
-    if (isLoading) {
-        return <div className="flex h-[420px] items-center justify-center"><div className="spinner" /></div>;
-    }
+    const setInterval = useCallback((iv: Interval) => {
+        setIntervalState(iv);
+        setHoveredBar(null);
+    }, []);
 
-    if (normalizedData.length === 0) {
-        return <div className="flex h-[420px] items-center justify-center text-gray-500">Không có dữ liệu giá lịch sử</div>;
+    // ── Render ────────────────────────────────────────────────────────────────
+    if (isLoading) {
+        return <div className="flex h-[400px] items-center justify-center text-slate-400 text-sm">Loading…</div>;
+    }
+    if (!normalizedData.length) {
+        return <div className="flex h-[400px] items-center justify-center text-slate-400 text-sm">Không có dữ liệu giá lịch sử</div>;
     }
 
     return (
         <div className="w-full">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50">
-                <div className="flex items-center gap-1">
-                    {(['3M', '6M', '1Y', '3Y', 'ALL'] as Range[]).map((r) => (
-                        <ToolbarButton key={r} active={range === r} label={r} onClick={() => setRange(r)} />
-                    ))}
-                </div>
-                <div className="flex items-center gap-1">
-                    {(['D', 'W', 'M'] as Interval[]).map((iv) => (
-                        <ToolbarButton
-                            key={iv}
-                            active={interval === iv}
-                            label={iv === 'D' ? 'Ngày' : iv === 'W' ? 'Tuần' : 'Tháng'}
-                            onClick={() => setInterval(iv)}
-                        />
-                    ))}
-                </div>
+            {/* Toolbar: interval only (range removed — always show all data) */}
+            <div className="mb-2 flex items-center justify-end px-1">
+                <IntervalSelector interval={interval} setInterval={setInterval} />
             </div>
 
-            {latestBar && (
-                <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 text-xs dark:border-slate-700 sm:grid-cols-4 lg:grid-cols-6">
-                    <div><span className="text-slate-500">Đóng cửa</span><p className="font-semibold text-slate-900 dark:text-slate-100">{formatPrice(latestBar.latest.close)}</p></div>
-                    <div><span className="text-slate-500">Mở cửa</span><p className="font-semibold text-slate-900 dark:text-slate-100">{formatPrice(latestBar.latest.open)}</p></div>
-                    <div><span className="text-slate-500">Cao nhất</span><p className="font-semibold text-emerald-600">{formatPrice(latestBar.latest.high)}</p></div>
-                    <div><span className="text-slate-500">Thấp nhất</span><p className="font-semibold text-red-500">{formatPrice(latestBar.latest.low)}</p></div>
-                    <div><span className="text-slate-500">KLGD</span><p className="font-semibold text-slate-900 dark:text-slate-100">{formatVolume(latestBar.latest.volume)}</p></div>
-                    <div><span className="text-slate-500">Thay đổi</span><p className={`font-semibold ${latestBar.change >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{latestBar.change >= 0 ? '+' : ''}{formatPrice(Math.abs(latestBar.change))} ({latestBar.changePct >= 0 ? '+' : ''}{latestBar.changePct.toFixed(2)}%)</p></div>
-                </div>
-            )}
+            {/* Chart */}
+            <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '400px' }} />
 
-            <div className="relative">
-                {tooltipData && (
-                    <div
-                        ref={tooltipRef}
-                        className="pointer-events-none absolute z-20 rounded-md border border-gray-200 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-300"
-                        style={{
-                            left: Math.min(tooltipData.x + 12, containerWidth - 215),
-                            top: Math.max(tooltipData.y - 10, 4),
-                        }}
-                    >
-                        <div className="font-semibold text-gray-900 dark:text-white">{tooltipData.time}</div>
-                        <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                            <span className="text-gray-500">Mở cửa</span>
-                            <span className="font-mono text-right">{tooltipData.open}</span>
-                            <span className="text-gray-500">Cao nhất</span>
-                            <span className="font-mono text-right text-emerald-600">{tooltipData.high}</span>
-                            <span className="text-gray-500">Thấp nhất</span>
-                            <span className="font-mono text-right text-red-500">{tooltipData.low}</span>
-                            <span className="text-gray-500">Đóng cửa</span>
-                            <span className="font-mono text-right font-semibold">{tooltipData.close}</span>
-                            <span className="text-gray-500">Khối lượng</span>
-                            <span className="font-mono text-right">{tooltipData.volume}</span>
-                            <span className="text-gray-500">Thay đổi</span>
-                            <span className={`font-mono text-right font-semibold ${tooltipData.change.startsWith('+') ? 'text-emerald-600' : 'text-red-500'}`}>
-                                {tooltipData.change}
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '420px' }} />
+            {/* OHLCV footer — shows latest bar, updates live on crosshair hover */}
+            <div className="mt-1 border-t border-slate-100 dark:border-slate-800">
+                <OHLCVBar bar={displayBar} />
             </div>
         </div>
     );
