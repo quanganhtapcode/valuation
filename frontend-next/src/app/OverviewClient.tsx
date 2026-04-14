@@ -79,6 +79,29 @@ function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
     return true;
 }
 
+function samePESeries(a: PEChartData[], b: PEChartData[]): boolean {
+    if (a === b) return true;
+    if (!a || !b || a.length !== b.length) return false;
+    if (a.length === 0) return true;
+
+    const getSig = (row: PEChartData) => [
+        row.date instanceof Date ? row.date.getTime() : new Date(row.date as any).getTime(),
+        Number(row.pe ?? 0),
+        Number(row.pb ?? 0),
+        Number(row.vnindex ?? 0),
+    ].join('|');
+
+    // Compare only edge samples to avoid O(n) deep compare on each refresh.
+    const headA = getSig(a[0]);
+    const headB = getSig(b[0]);
+    const tailA = getSig(a[a.length - 1]);
+    const tailB = getSig(b[b.length - 1]);
+    if (headA !== headB || tailA !== tailB) return false;
+
+    const mid = Math.floor(a.length / 2);
+    return getSig(a[mid]) === getSig(b[mid]);
+}
+
 export default function OverviewClient({
     initialIndices,
     initialNews,
@@ -184,7 +207,7 @@ export default function OverviewClient({
             });
 
             setNews(snapshot.news);
-            setLivePEData(snapshot.peData);
+            setLivePEData((prev) => (samePESeries(prev, snapshot.peData) ? prev : snapshot.peData));
             setLiveHeatmapData(snapshot.heatmap);
 
             const nextPrices: Record<string, { price: number; changePercent: number }> = {};

@@ -1,5 +1,4 @@
-import React, { useMemo } from 'react';
-import { formatNumber } from '@/lib/api';
+import React from 'react';
 import styles from '../../app/stock/[symbol]/page.module.css';
 import TradingViewChart from './TradingViewChart';
 
@@ -155,7 +154,6 @@ interface OverviewTabProps {
 
 export default function OverviewTab({
     stockInfo,
-    priceData,
     financials,
     historicalData,
     isDescExpanded,
@@ -164,55 +162,6 @@ export default function OverviewTab({
     news = [],
     epsHistory = [],
 }: OverviewTabProps) {
-    const stats52w = useMemo(() => {
-        if (!historicalData || historicalData.length === 0) {
-            return {
-                high52w: null as number | null,
-                low52w: null as number | null,
-                avgVol52w: null as number | null,
-            };
-        }
-
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 365);
-
-        const last52w = historicalData.filter((d) => new Date(d.time).getTime() >= cutoff.getTime());
-        if (last52w.length === 0) {
-            return {
-                high52w: null as number | null,
-                low52w: null as number | null,
-                avgVol52w: null as number | null,
-            };
-        }
-
-        const highs = last52w.map((d) => d.high).filter((v) => !Number.isNaN(v));
-        const lows = last52w.map((d) => d.low).filter((v) => !Number.isNaN(v));
-        const vols = last52w.map((d) => d.volume).filter((v) => !Number.isNaN(v));
-
-        const high52w = highs.length ? Math.max(...highs) : null;
-        const low52w = lows.length ? Math.min(...lows) : null;
-        const avgVol52w = vols.length ? Math.round(vols.reduce((a, b) => a + b, 0) / vols.length) : null;
-
-        return { high52w, low52w, avgVol52w };
-    }, [historicalData]);
-
-    // Get today's stats from the latest entry in historicalData (more reliable than API)
-    const todayStats = useMemo(() => {
-        if (!historicalData || historicalData.length === 0) {
-            return {
-                open: priceData?.open || 0,
-                high: priceData?.high || 0,
-                low: priceData?.low || 0,
-            };
-        }
-        const latest = historicalData[historicalData.length - 1];
-        return {
-            open: latest.open || priceData?.open || 0,
-            high: latest.high || priceData?.high || 0,
-            low: latest.low || priceData?.low || 0,
-        };
-    }, [historicalData, priceData]);
-
     return (
         <div className={styles.mainContent}>
             {/* Left Column */}
@@ -230,32 +179,6 @@ export default function OverviewTab({
                             isLoading={isLoading}
                         />
                     </div>
-                        {priceData && (
-                            <div className="mt-4 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                                    {[
-                                        { name: '52W High', value: stats52w.high52w !== null ? formatNumber(stats52w.high52w, { maximumFractionDigits: 0 }) : '-', bgColor: 'bg-blue-500' },
-                                        { name: '52W Low', value: stats52w.low52w !== null ? formatNumber(stats52w.low52w, { maximumFractionDigits: 0 }) : '-', bgColor: 'bg-violet-500' },
-                                        { name: 'Today Open', value: todayStats.open > 0 ? formatNumber(todayStats.open, { maximumFractionDigits: 0 }) : '-', bgColor: 'bg-fuchsia-500' },
-                                        { name: 'Today High', value: todayStats.high > 0 ? formatNumber(todayStats.high, { maximumFractionDigits: 0 }) : '-', bgColor: 'bg-amber-500' },
-                                        { name: 'Today Low', value: todayStats.low > 0 ? formatNumber(todayStats.low, { maximumFractionDigits: 0 }) : '-', bgColor: 'bg-cyan-500' },
-                                        { name: 'Avg 52W Vol', value: stats52w.avgVol52w !== null ? formatNumber(stats52w.avgVol52w) : '-', bgColor: 'bg-emerald-500' },
-                                    ].map((item) => (
-                                        <div key={item.name} className="flex items-center gap-3 rounded-lg border border-slate-100 p-2 dark:border-slate-800">
-                                            <span className={`${item.bgColor} h-8 w-1 shrink-0 rounded`} aria-hidden={true} />
-                                            <div className="min-w-0">
-                                                <p className="text-[11px] uppercase tracking-wide text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                                                    {item.name}
-                                                </p>
-                                                <p className="truncate text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                                    {item.value}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                 </section>
 
                 {/* News Section */}

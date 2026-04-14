@@ -655,7 +655,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             className={cx(
                 'flex-1 rounded-md px-4 py-2 text-[11px] font-semibold tracking-wide uppercase transition-all duration-200 text-center',
                 activeChart === key
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
+                    ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800/50'
             )}>
             {label}
@@ -677,11 +677,18 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const theme = getChartTheme();
 
     return (
-        <section className="rounded-xl border overflow-hidden" style={{ borderColor: theme.borderColor, backgroundColor: theme.isDark ? '#0f1117' : '#ffffff', boxShadow: theme.isDark ? '0 4px 24px rgba(0,0,0,0.4)' : '0 1px 8px rgba(0,0,0,0.06)' }}>
+        <section
+            className="overflow-hidden rounded-xl border"
+            style={{
+                borderColor: theme.borderColor,
+                backgroundColor: theme.isDark ? '#0f172a' : '#ffffff',
+                boxShadow: theme.isDark ? '0 1px 6px rgba(0,0,0,0.25)' : '0 1px 4px rgba(0,0,0,0.06)',
+            }}
+        >
             {/* ── Header: Tabs + Current Values ── */}
             <div className="p-4 pb-0 space-y-3">
                 {/* Chart type tabs */}
-                <div className="flex gap-1 rounded-lg p-1" style={{ backgroundColor: theme.isDark ? 'rgba(30,30,40,0.8)' : '#f3f4f6' }}>
+                <div className="flex gap-1 rounded-lg p-1" style={{ backgroundColor: theme.isDark ? 'rgba(30,41,59,0.8)' : '#f3f4f6' }}>
                     {CHART_TABS.map(t => tabBtn(t.key, t.label))}
                 </div>
 
