@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import OverviewClient from './OverviewClient';
 import {
@@ -69,16 +68,14 @@ export default async function OverviewPage() {
   const initialPEData: PEChartData[] = [];
 
   return (
-    <Suspense fallback={<div className="p-8 text-center text-tremor-content">Loading market data...</div>}>
-      <OverviewClient
-        initialIndices={initialIndices}
-        initialNews={initialNews}
-        initialGainers={initialGainers}
-        initialLosers={initialLosers}
-        initialGoldPrices={initialGoldPrices}
-        initialGoldUpdated={initialGoldUpdated}
-        initialPEData={initialPEData}
-      />
-    </Suspense>
+    <OverviewClient
+      initialIndices={initialIndices}
+      initialNews={initialNews}
+      initialGainers={initialGainers}
+      initialLosers={initialLosers}
+      initialGoldPrices={initialGoldPrices}
+      initialGoldUpdated={initialGoldUpdated}
+      initialPEData={initialPEData}
+    />
   );
 }
