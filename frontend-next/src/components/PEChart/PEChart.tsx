@@ -74,20 +74,35 @@ function normalizeDailyRows<T>(rows: T[], getDate: (row: T) => Date): T[] {
     return Array.from(byDay.values()).sort((a, b) => getDate(a).getTime() - getDate(b).getTime());
 }
 
-function getTheme() {
-    const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+function buildTheme(isDark: boolean) {
     return {
         isDark,
-        bg:            isDark ? 'transparent' : 'transparent',
-        text:          isDark ? '#9ca3af' : '#6b7280',
-        border:        isDark ? '#2d3748' : '#e5e7eb',
-        crosshair:     isDark ? '#4b5563' : '#d1d5db',
-        gridLine:      isDark ? 'rgba(55,65,81,0.3)' : 'rgba(229,231,235,0.6)',
-        tooltipBg:     isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
-        tooltipBorder: isDark ? '#334155' : '#e2e8f0',
-        tooltipText:   isDark ? '#e2e8f0' : '#0f172a',
-        tooltipMuted:  isDark ? '#64748b' : '#94a3b8',
+        text:         isDark ? '#9ca3af' : '#6b7280',
+        border:       isDark ? '#2d3748' : '#e5e7eb',
+        crosshair:    isDark ? '#4b5563' : '#d1d5db',
+        gridLine:     isDark ? 'rgba(55,65,81,0.3)' : 'rgba(229,231,235,0.6)',
+        tooltipBg:    isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
+        tooltipBorder:isDark ? '#334155' : '#e2e8f0',
+        tooltipText:  isDark ? '#e2e8f0' : '#0f172a',
+        tooltipMuted: isDark ? '#64748b' : '#94a3b8',
+        wrapperBg:    isDark ? '#0f172a' : '#ffffff',
+        wrapperShadow:isDark ? '0 1px 8px rgba(0,0,0,0.3)' : '0 1px 4px rgba(0,0,0,0.06)',
     };
+}
+
+/** Reactive dark-mode hook — watches the <html> class list */
+function useDarkMode(): boolean {
+    const [isDark, setIsDark] = useState<boolean>(() =>
+        typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
+    );
+    useEffect(() => {
+        const obs = new MutationObserver(() => {
+            setIsDark(document.documentElement.classList.contains('dark'));
+        });
+        obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        return () => obs.disconnect();
+    }, []);
+    return isDark;
 }
 
 function ToolbarButton({
@@ -143,6 +158,10 @@ interface PEChartProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PEChart({ initialData = [], externalData = [], useExternalOnly = false }: PEChartProps) {
+    // ── Dark mode (reactive) ─────────────────────────────────────────────────
+    const isDark = useDarkMode();
+    const theme  = useMemo(() => buildTheme(isDark), [isDark]);
+
     // ── Data state ───────────────────────────────────────────────────────────
     const [result, setResult]           = useState<PEChartResult>({ series: initialData, stats: {} });
     const [activeChart, setActiveChart] = useState<ActiveChart>('vnindex');
@@ -206,11 +225,27 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         undefined,
     [activeChart, result.stats]);
 
+    // ── Sync chart colors when dark mode changes ──────────────────────────────
+    useEffect(() => {
+        const chart = chartRef.current;
+        if (!chart) return;
+        chart.applyOptions({
+            layout:          { textColor: theme.text },
+            grid:            { vertLines: { color: theme.gridLine }, horzLines: { color: theme.gridLine } },
+            rightPriceScale: { borderColor: theme.border },
+            timeScale:       { borderColor: theme.border },
+            crosshair:       {
+                vertLine: { color: theme.crosshair },
+                horzLine: { color: theme.crosshair },
+            },
+        });
+    }, [theme]);
+
     // ── Chart init (runs once) ────────────────────────────────────────────────
     useEffect(() => {
         if (!containerRef.current || chartRef.current) return;
-        const theme = getTheme();
 
+        const initTheme = buildTheme(document.documentElement.classList.contains('dark'));
         const chart = createChart(containerRef.current, {
             width:  containerRef.current.clientWidth,
             height: 420,
@@ -371,7 +406,10 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                 : 'rgba(239,68,68,0.45)',
         })));
 
-        if (activeChart === 'vnindex') chartRef.current?.timeScale().fitContent();
+        if (activeChart === 'vnindex') {
+            const total = vnTVData.length;
+            chartRef.current?.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 252), to: total + 3 });
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [vnTVData]);
 
@@ -380,7 +418,8 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         if (!lineSeriesRef.current) return;
         if (!peTVData.length || activeChart !== 'pe') return;
         lineSeriesRef.current.setData(peTVData);
-        chartRef.current?.timeScale().fitContent();
+        const total = peTVData.length;
+        chartRef.current?.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 252), to: total + 3 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [peTVData]);
 
@@ -389,7 +428,8 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         if (!lineSeriesRef.current) return;
         if (!pbTVData.length || activeChart !== 'pb') return;
         lineSeriesRef.current.setData(pbTVData);
-        chartRef.current?.timeScale().fitContent();
+        const total = pbTVData.length;
+        chartRef.current?.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 252), to: total + 3 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pbTVData]);
 
@@ -433,7 +473,10 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             })));
         }
 
-        chart.timeScale().fitContent();
+        const total = isVN ? vnTVData.length : (activeChart === 'pe' ? peTVData.length : pbTVData.length);
+        if (total > 0) {
+            chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 252), to: total + 3 });
+        }
         setTooltip(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeChart]);
@@ -497,8 +540,6 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
 
     const legendLabel = activeChart === 'vnindex' ? 'VN-Index' : activeChart === 'pe' ? 'P/E TTM' : 'P/B TTM';
     const legendColor = RATIO_COLOR[activeChart];
-
-    const theme = getTheme();
 
     return (
         <div
