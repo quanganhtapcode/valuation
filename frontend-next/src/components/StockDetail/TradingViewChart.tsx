@@ -30,6 +30,15 @@ interface TradingViewChartProps {
     isLoading: boolean;
 }
 
+function toFiniteNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
 function toUTCTime(time: string | number): UTCTime {
     const d = new Date(time);
     return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
@@ -61,15 +70,28 @@ function normalizeData(data: HistoricalData[]): HistoricalData[] {
     if (!Array.isArray(data)) return [];
 
     const cleaned = data
-        .filter((d) => {
+        .map((d) => {
             const ts = new Date(d.time).getTime();
-            return Number.isFinite(ts)
-                && Number.isFinite(d.open)
-                && Number.isFinite(d.high)
-                && Number.isFinite(d.low)
-                && Number.isFinite(d.close)
-                && Number.isFinite(d.volume);
+            const open = toFiniteNumber(d.open);
+            const high = toFiniteNumber(d.high);
+            const low = toFiniteNumber(d.low);
+            const close = toFiniteNumber(d.close);
+            const volume = toFiniteNumber(d.volume) ?? 0;
+
+            if (!Number.isFinite(ts) || open === null || high === null || low === null || close === null) {
+                return null;
+            }
+
+            return {
+                time: d.time,
+                open,
+                high,
+                low,
+                close,
+                volume,
+            } satisfies HistoricalData;
         })
+        .filter((d): d is HistoricalData => d !== null)
         .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
     const byDate = new Map<string, HistoricalData>();
