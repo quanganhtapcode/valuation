@@ -68,6 +68,15 @@ function utcDayKey(time: UTCTime): string {
     return `${time.year}-${String(time.month).padStart(2, '0')}-${String(time.day).padStart(2, '0')}`;
 }
 
+function toFiniteNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
 function normalizeDailyRows<T>(
     rows: T[],
     getDate: (row: T) => Date,
@@ -602,18 +611,22 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const currentStats = useMemo(() => {
         if (!normalizedSeries.length) return { pe: null, pb: null, vnindex: null };
         const last = normalizedSeries[normalizedSeries.length - 1];
-        return { pe: last.pe, pb: last.pb, vnindex: last.vnindex };
+        return {
+            pe: toFiniteNumber(last.pe),
+            pb: toFiniteNumber(last.pb),
+            vnindex: toFiniteNumber(last.vnindex),
+        };
     }, [normalizedSeries]);
 
     // ── VN-Index TradingView data ──────────────────────────────────────────
     const vnTVData = useMemo(() => {
         const cutoff = getCutoffDate(timeRange);
-        let filtered = normalizedSeries.filter(d => d.vnindex != null && Number.isFinite(d.vnindex));
+        let filtered = normalizedSeries.filter((d) => toFiniteNumber(d.vnindex) !== null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
         return filtered.map(d => ({
             time: toUTCTime(d.date),
-            close: d.vnindex!,
-            volume: d.volume ?? 0,
+            close: toFiniteNumber(d.vnindex) ?? 0,
+            volume: toFiniteNumber(d.volume) ?? 0,
         }));
     }, [normalizedSeries, timeRange]);
 
@@ -621,11 +634,11 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const ratioTVData = useMemo(() => {
         const field = activeChart as 'pe' | 'pb';
         const cutoff = getCutoffDate(timeRange);
-        let filtered = normalizedSeries.filter(d => d[field] != null && Number.isFinite(d[field] as number));
+        let filtered = normalizedSeries.filter((d) => toFiniteNumber(d[field]) !== null);
         if (cutoff) filtered = filtered.filter(d => d.date >= cutoff);
         return filtered.map(d => ({
             time: toUTCTime(d.date),
-            value: d[field]!,
+            value: toFiniteNumber(d[field]) ?? 0,
         }));
     }, [normalizedSeries, timeRange, activeChart]);
 
