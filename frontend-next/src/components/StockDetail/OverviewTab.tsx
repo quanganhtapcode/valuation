@@ -3,14 +3,6 @@ import { formatNumber } from '@/lib/api';
 import styles from '../../app/stock/[symbol]/page.module.css';
 import TradingViewChart from './TradingViewChart';
 
-function classNames(...classes: Array<string | false | undefined | null>) {
-    return classes.filter(Boolean).join(' ');
-}
-
-function formatDateRange(_days: number) {
-    return ''; // Return empty initially, tooltips are secondary
-}
-
 function formatRelativeTime(dateStr: string): string {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -154,8 +146,6 @@ interface OverviewTabProps {
     priceData: PriceData | null;
     financials: FinancialData | null;
     historicalData: HistoricalData[];
-    timeRange: '3M' | '6M' | '1Y' | '3Y' | '5Y';
-    setTimeRange: (range: '3M' | '6M' | '1Y' | '3Y' | '5Y') => void;
     isDescExpanded: boolean;
     setIsDescExpanded: (v: boolean) => void;
     isLoading: boolean;
@@ -169,8 +159,6 @@ export default function OverviewTab({
     priceData,
     financials,
     historicalData,
-    timeRange,
-    setTimeRange,
     isDescExpanded,
     setIsDescExpanded,
     isLoading,
@@ -178,15 +166,6 @@ export default function OverviewTab({
     epsHistory = [],
 }: OverviewTabProps) {
     console.log('[OverviewTab] Props - news:', news?.length, 'items, epsHistory:', epsHistory?.length, 'items');
-
-    const filterButtons = [
-        { key: '3M' as const, label: '3M', tooltip: formatDateRange(90) },
-        { key: '6M' as const, label: '6M', tooltip: formatDateRange(180) },
-        { key: '1Y' as const, label: '1Y', tooltip: formatDateRange(365) },
-        { key: '3Y' as const, label: '3Y', tooltip: formatDateRange(1095) },
-        { key: '5Y' as const, label: '5Y', tooltip: formatDateRange(1825) },
-    ];
-
 
     const stats52w = useMemo(() => {
         if (!historicalData || historicalData.length === 0) {
@@ -243,52 +222,12 @@ export default function OverviewTab({
             <div className={styles.leftColumn}>
                 {/* Price Chart */}
                 <section className={`${styles.section} ${styles.sectionChart} mt-2 sm:mt-0`}>
-                    <div className={styles.sectionHeader}>
-                        <div className="hidden items-center rounded-tremor-small text-tremor-default font-medium shadow-tremor-input dark:shadow-dark-tremor-input sm:inline-flex">
-                            {filterButtons.map((item, index) => (
-                                <button
-                                    key={item.key}
-                                    type="button"
-                                    title={item.tooltip}
-                                    onClick={() => setTimeRange(item.key)}
-                                    className={classNames(
-                                        index === 0 ? 'rounded-l-tremor-small' : '-ml-px',
-                                        index === filterButtons.length - 1 ? 'rounded-r-tremor-small' : '',
-                                        'border border-tremor-border bg-tremor-background px-4 py-2 text-tremor-content-strong hover:bg-tremor-background-muted hover:text-tremor-content-strong focus:z-10 focus:outline-none dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong hover:dark:bg-gray-950/50',
-                                        timeRange === item.key && 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand'
-                                    )}
-                                >
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
-                        {/* Mobile Filter Buttons */}
-                        <div className="flex w-full items-center justify-between rounded-tremor-small text-tremor-default font-medium shadow-tremor-input dark:shadow-dark-tremor-input sm:hidden mt-2">
-                            {filterButtons.map((item, index) => (
-                                <button
-                                    key={item.key}
-                                    type="button"
-                                    title={item.tooltip}
-                                    onClick={() => setTimeRange(item.key)}
-                                    className={classNames(
-                                        index === 0 ? 'rounded-l-tremor-small' : '-ml-px',
-                                        index === filterButtons.length - 1 ? 'rounded-r-tremor-small' : '',
-                                        'flex-1 border border-tremor-border bg-tremor-background py-2 text-center text-tremor-content-strong hover:bg-tremor-background-muted hover:text-tremor-content-strong focus:z-10 focus:outline-none dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong hover:dark:bg-gray-950/50',
-                                        timeRange === item.key && 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand'
-                                    )}
-                                >
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="mt-2">
+                        <TradingViewChart
+                            data={historicalData}
+                            isLoading={isLoading}
+                        />
                     </div>
-                    <div className="mt-6 grid grid-cols-1 gap-6">
-                        <div className="">
-                            <TradingViewChart
-                                data={historicalData}
-                                isLoading={isLoading}
-                            />
-                        </div>
                         {priceData && (
                             <div className="">
                                 <div className="grid grid-cols-3 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -301,7 +240,7 @@ export default function OverviewTab({
                                         { name: 'Avg 52W Vol', value: stats52w.avgVol52w !== null ? formatNumber(stats52w.avgVol52w) : '-', bgColor: 'bg-emerald-500' },
                                     ].map((item) => (
                                         <div key={item.name} className="flex items-center gap-3">
-                                            <span className={classNames(item.bgColor, 'h-8 w-1 shrink-0 rounded')} aria-hidden={true} />
+                                            <span className={`${item.bgColor} h-8 w-1 shrink-0 rounded`} aria-hidden={true} />
                                             <div className="min-w-0">
                                                 <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content">
                                                     {item.name}
@@ -315,7 +254,6 @@ export default function OverviewTab({
                                 </div>
                             </div>
                         )}
-                    </div>
                 </section>
 
                 {/* News Section */}
