@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { formatNumber } from '@/lib/api';
 import styles from '../../app/stock/[symbol]/page.module.css';
-import { BarChart, LineChart } from '@tremor/react';
+import TradingViewChart from './TradingViewChart';
 
 function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
@@ -177,31 +177,6 @@ export default function OverviewTab({
     epsHistory = [],
 }: OverviewTabProps) {
     console.log('[OverviewTab] Props - news:', news?.length, 'items, epsHistory:', epsHistory?.length, 'items');
-    // Prepare chart data for Tremor
-    const chartData = useMemo(() => {
-        if (!historicalData || historicalData.length === 0) return [];
-
-        return historicalData.map((d, i) => {
-            const date = new Date(d.time);
-            const day   = date.getDate().toString().padStart(2, '0');
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const year  = date.getFullYear().toString().slice(-2);
-
-            // Determine volume color based on price change
-            const prevClose = i > 0 ? historicalData[i - 1].close : d.open;
-            const isUp = d.close >= prevClose;
-
-            return {
-                date: `${day}/${month}/${year}`,
-                Price: d.close,
-                Volume: d.volume,
-                volumeColor: isUp ? '#10b981' : '#ef4444',
-            };
-        });
-    }, [historicalData]);
-
-    const valueFormatter = (number: number) =>
-        `${Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(number)}`;
 
     const filterButtons = [
         { key: '3M' as const, label: '3M', tooltip: formatDateRange(90) },
@@ -261,21 +236,6 @@ export default function OverviewTab({
         };
     }, [historicalData, priceData]);
 
-    const priceRange = useMemo(() => {
-        const prices = chartData.map((d) => Number(d.Price)).filter((v) => !Number.isNaN(v));
-        if (prices.length === 0) return { min: 0, max: 0 };
-        const min = Math.min(...prices);
-        const max = Math.max(...prices);
-        const padding = (max - min) * 0.05;
-        const rawMin = min - padding;
-        const rawMax = max + padding;
-        const step = 1000;
-        return {
-            min: Math.floor(rawMin / step) * step,
-            max: Math.ceil(rawMax / step) * step,
-        };
-    }, [chartData]);
-
     return (
         <div className={styles.mainContent}>
             {/* Left Column */}
@@ -323,58 +283,10 @@ export default function OverviewTab({
                     </div>
                     <div className="mt-6 grid grid-cols-1 gap-6">
                         <div className="">
-                            {isLoading && (
-                                <div className="flex h-80 items-center justify-center">
-                                    <div className="spinner" />
-                                </div>
-                            )}
-                            {!isLoading && chartData.length > 0 && (
-                                <>
-                                    <LineChart
-                                        data={chartData}
-                                        index="date"
-                                        categories={["Price"]}
-                                        colors={["blue"]}
-                                        valueFormatter={valueFormatter}
-                                        yAxisWidth={70}
-                                        showLegend={false}
-                                        minValue={priceRange.min}
-                                        maxValue={priceRange.max}
-                                        showXAxis={false}
-                                        showTooltip={true}
-                                        className="hidden h-72 sm:block"
-                                    />
-                                    <LineChart
-                                        data={chartData}
-                                        index="date"
-                                        categories={["Price"]}
-                                        colors={["blue"]}
-                                        valueFormatter={valueFormatter}
-                                        showYAxis={false}
-                                        showLegend={false}
-                                        startEndOnly={false}
-                                        minValue={priceRange.min}
-                                        maxValue={priceRange.max}
-                                        showXAxis={false}
-                                        showTooltip={true}
-                                        className="h-72 sm:hidden"
-                                    />
-                                    <div className="mt-3">
-                                        <BarChart
-                                            data={chartData}
-                                            index="date"
-                                            categories={["Volume"]}
-                                            colors={["emerald"]}
-                                            valueFormatter={(value) => Intl.NumberFormat('en-US').format(value)}
-                                            showLegend={false}
-                                            showYAxis={false}
-                                            startEndOnly={false}
-                                            showXAxis={true}
-                                            className="h-16"
-                                        />
-                                    </div>
-                                </>
-                            )}
+                            <TradingViewChart
+                                data={historicalData}
+                                isLoading={isLoading}
+                            />
                         </div>
                         {priceData && (
                             <div className="">
