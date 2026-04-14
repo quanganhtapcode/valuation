@@ -516,15 +516,9 @@ export default function OverviewTab({
 
                 {/* EPS History Section */}
                 {epsHistory && epsHistory.length >= 2 && (() => {
-                    const epsChartData = epsHistory.map(h => ({
-                        year: String(h.year),
-                        EPS: h.eps,
-                    }));
-                    const epsMax = Math.max(...epsHistory.map(h => Math.abs(h.eps)), 1);
-                    const epsYMax = Math.ceil(epsMax / 1000) * 1000;
-                    const epsYMin = epsHistory.some(h => h.eps < 0)
-                        ? -Math.ceil(epsMax / 1000) * 1000
-                        : 0;
+                    const epsMaxVal = Math.max(...epsHistory.map(h => Math.abs(h.eps)), 1);
+                    const hasNegative = epsHistory.some(h => h.eps < 0);
+                    const barMax = Math.ceil(epsMaxVal / 1000) * 1000;
 
                     return (
                         <section className={`${styles.section} ${styles.sectionEpsHistory}`}>
@@ -533,19 +527,37 @@ export default function OverviewTab({
                                     EPS History
                                 </h3>
                             </div>
-                            <BarChart
-                                data={epsChartData}
-                                index="year"
-                                categories={["EPS"]}
-                                colors={["blue"]}
-                                valueFormatter={(v) => `${Math.round(v).toLocaleString('vi-VN')} ₫`}
-                                yAxisWidth={60}
-                                showLegend={false}
-                                showGridLines={true}
-                                minValue={epsYMin}
-                                maxValue={epsYMax}
-                                className="h-48"
-                            />
+                            <div className="flex items-end gap-2 h-40 px-2">
+                                {epsHistory.map((h, i) => {
+                                    const isPositive = h.eps >= 0;
+                                    const barHeight = hasNegative
+                                        ? (Math.abs(h.eps) / barMax) * 45
+                                        : (h.eps / barMax) * 100;
+                                    const clampedHeight = Math.max(barHeight, 4);
+
+                                    return (
+                                        <div key={i} className="flex flex-col items-center flex-1 gap-1">
+                                            <span className="text-[10px] font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                                {Math.round(h.eps).toLocaleString('vi-VN')}
+                                            </span>
+                                            <div className="w-full flex items-end justify-center" style={{ height: '120px' }}>
+                                                <div
+                                                    className="w-3/4 rounded-t-sm transition-all duration-300"
+                                                    style={{
+                                                        height: `${clampedHeight}%`,
+                                                        minHeight: '4px',
+                                                        backgroundColor: isPositive ? '#10b981' : '#ef4444',
+                                                    }}
+                                                    title={`${h.year}: ${Math.round(h.eps).toLocaleString('vi-VN')} ₫`}
+                                                />
+                                            </div>
+                                            <span className="text-[10px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                                                {h.year}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                             <div className="mt-2 flex items-center justify-between text-[10px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
                                 <span>Cao nhất: <span className="font-semibold">{Math.round(Math.max(...epsHistory.map(h => h.eps))).toLocaleString('vi-VN')} ₫</span></span>
                                 <span>Gần nhất: <span className="font-semibold">{Math.round(epsHistory[epsHistory.length - 1].eps).toLocaleString('vi-VN')} ₫</span></span>
