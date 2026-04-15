@@ -13,7 +13,6 @@ import {
     Col,
     TextInput,
     Callout,
-    ProgressBar,
     Table,
     TableHead,
     TableHeaderCell,
@@ -172,174 +171,6 @@ function SensitivityMatrix({ matrix, currentPrice }: {
     );
 }
 
-const CHECK_NAME_VI: Record<string, string> = {
-    eps_ttm_available: 'EPS (TTM)',
-    bvps_available: 'Giá trị sổ sách / CP',
-    shares_outstanding_available: 'Số lượng cổ phiếu lưu hành',
-    pe_peer_sample_ge_10: 'Mẫu P/E ngành ≥ 10 công ty',
-    pb_peer_sample_ge_10: 'Mẫu P/B ngành ≥ 10 công ty',
-    ps_peer_sample_ge_10: 'Mẫu P/S ngành ≥ 10 công ty',
-    screening_industry_group_available: 'Nhóm ngành VCI Screening',
-};
-
-type TremorColor = 'emerald' | 'blue' | 'amber' | 'orange' | 'red';
-
-function QualityScoreCard({ quality }: { quality: any }) {
-    const grade: string = quality.grade ?? '?';
-    const score: number = quality.score ?? 0;
-    const checks: any[] = quality.checks ?? [];
-    const gradeColor: TremorColor = ({ A: 'emerald', B: 'blue', C: 'amber', D: 'orange', F: 'red' } as Record<string, TremorColor>)[grade] ?? 'red';
-
-    return (
-        <Card decoration="top" decorationColor={gradeColor}>
-            <div className="flex items-start justify-between mb-3 gap-3">
-                <div>
-                    <Title>Chất lượng dữ liệu</Title>
-                    <Text>Độ tin cậy của kết quả định giá dựa trên dữ liệu có sẵn</Text>
-                </div>
-                <Badge color={gradeColor} size="xl" className="text-2xl font-black px-4 py-1">{grade}</Badge>
-            </div>
-
-            <div className="mb-4">
-                <div className="flex justify-between mb-1.5">
-                    <Text>{quality.raw_points ?? 0} / {quality.max_points ?? 100} điểm</Text>
-                    <Text className="font-semibold">{score.toFixed(0)}%</Text>
-                </div>
-                <ProgressBar value={score} color={gradeColor} className="mt-1" />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                {checks.map((c: any) => (
-                    <div key={c.name} className="flex items-center gap-2">
-                        <Badge color={c.passed ? 'emerald' : 'slate'} size="xs">{c.passed ? '✓' : '✗'}</Badge>
-                        <Text className={`flex-1 text-xs ${!c.passed ? 'text-tremor-content-subtle' : ''}`}>
-                            {CHECK_NAME_VI[c.name] ?? c.name}
-                        </Text>
-                        <Text className="text-xs tabular-nums">{c.points}/{c.max_points}</Text>
-                    </div>
-                ))}
-            </div>
-        </Card>
-    );
-}
-
-function PeerComparisonTable({ peers, currentSymbol }: { peers: any[]; currentSymbol: string }) {
-    const sym = currentSymbol.toUpperCase();
-    const fmtN = (v: number, d = 1) => (v > 0 ? v.toFixed(d) : '—');
-    const fmtCap = (v: number) => {
-        if (!v || v <= 0) return '—';
-        if (v >= 1e12) return (v / 1e12).toFixed(1) + 'N';
-        if (v >= 1e9) return (v / 1e9).toFixed(1) + 'T';
-        return (v / 1e6).toFixed(0) + 'M';
-    };
-    const peBadge = (pe: number): 'emerald' | 'amber' | 'red' | 'gray' => {
-        if (pe <= 0) return 'gray';
-        if (pe <= 15) return 'emerald';
-        if (pe <= 25) return 'amber';
-        return 'red';
-    };
-    const roeBadge = (roe: number): 'emerald' | 'amber' | 'red' | 'gray' => {
-        if (roe <= 0) return 'gray';
-        if (roe >= 15) return 'emerald';
-        if (roe >= 8) return 'amber';
-        return 'red';
-    };
-
-    const sorted = [...peers].sort((a, b) => {
-        if (a.symbol === sym) return -1;
-        if (b.symbol === sym) return 1;
-        return (b.market_cap || 0) - (a.market_cap || 0);
-    });
-
-    return (
-        <Card>
-            <div className="flex items-start justify-between mb-1 gap-3">
-                <div>
-                    <Title>So sánh công ty cùng ngành</Title>
-                    <Text>{peers.length} công ty · sắp xếp theo vốn hóa · P/E xanh ≤ 15× · ROE xanh ≥ 15%</Text>
-                </div>
-                <Badge color="blue" size="sm">{peers.length} peers</Badge>
-            </div>
-            <div className="mt-4 overflow-x-auto">
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableHeaderCell>Mã CK</TableHeaderCell>
-                            <TableHeaderCell className="text-right">Vốn hóa</TableHeaderCell>
-                            <TableHeaderCell className="text-right">P/E</TableHeaderCell>
-                            <TableHeaderCell className="text-right">P/B</TableHeaderCell>
-                            <TableHeaderCell className="text-right">ROE</TableHeaderCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {sorted.slice(0, 25).map(p => {
-                            const isCurrent = p.symbol === sym;
-                            return (
-                                <TableRow key={p.symbol} className={isCurrent ? 'bg-blue-50' : ''}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Text className={`font-semibold ${isCurrent ? 'text-blue-700' : ''}`}>{p.symbol}</Text>
-                                            {isCurrent && <Badge color="blue" size="xs">bạn</Badge>}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Text className="tabular-nums text-xs">{fmtCap(p.market_cap)}</Text>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {p.pe > 0
-                                            ? <Badge color={peBadge(p.pe)} size="xs">{fmtN(p.pe)}×</Badge>
-                                            : <Text className="text-tremor-content-subtle text-xs">—</Text>}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Text className="tabular-nums">{p.pb > 0 ? fmtN(p.pb) + '×' : '—'}</Text>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {p.roe > 0
-                                            ? <Badge color={roeBadge(p.roe)} size="xs">{fmtN(p.roe)}%</Badge>
-                                            : <Text className="text-tremor-content-subtle text-xs">—</Text>}
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
-            </div>
-        </Card>
-    );
-}
-
-function EpsHistoryChart({ history }: { history: Array<{ year: number; eps: number }> }) {
-    if (!history || history.length < 2) return null;
-    const maxEps = Math.max(...history.map(h => h.eps));
-    if (maxEps <= 0) return null;
-
-    return (
-        <Card>
-            <Title className="mb-0.5">Lịch sử EPS</Title>
-            <Text className="mb-5">Thu nhập trên mỗi cổ phiếu (VND) — {history[0].year}–{history[history.length - 1].year}</Text>
-            <div className="flex items-end gap-1 h-28">
-                {history.map(h => {
-                    const barPct = Math.max(4, (h.eps / maxEps) * 100);
-                    return (
-                        <div key={h.year} className="flex-1 flex flex-col items-center gap-1.5 group">
-                            <div className="w-full" style={{ height: `${100 - barPct}%` }} />
-                            <div
-                                className="w-full bg-blue-500 rounded-t group-hover:bg-blue-400 transition-colors cursor-default"
-                                style={{ height: `${barPct}%` }}
-                                title={`${h.year}: ${Math.round(h.eps).toLocaleString('vi-VN')} VND`}
-                            />
-                            <span className="text-[9px] text-tremor-content-subtle tabular-nums">{String(h.year).slice(2)}</span>
-                        </div>
-                    );
-                })}
-            </div>
-            <div className="mt-3 flex items-center justify-between">
-                <Text className="text-xs">Cao nhất: <span className="font-semibold">{Math.round(maxEps).toLocaleString('vi-VN')} ₫</span></Text>
-                <Text className="text-xs">Gần nhất: <span className="font-semibold">{Math.round(history[history.length - 1].eps).toLocaleString('vi-VN')} ₫</span></Text>
-            </div>
-        </Card>
-    );
-}
 
 const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initialData, isBank, stockData }) => {
     const [loading, setLoading] = useState(false);
@@ -559,7 +390,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     };
 
     const sensitivity = (result as any)?.sensitivity_analysis as { row_headers: number[]; col_headers: number[]; values: number[][] } | undefined;
-    const peers = ((result?.export?.comparables as any)?.peers_detailed || []) as any[];
 
     return (
         <div className="space-y-6 pb-8">
@@ -871,18 +701,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     <SensitivityMatrix matrix={sensitivity} currentPrice={manualPrice} />
                 </Card>
             )}
-
-            {result && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    {result.quality && <QualityScoreCard quality={result.quality} />}
-                    {(() => {
-                        const hist = result.inputs?.eps_history_yearly as Array<{ year: number; eps: number }> | undefined;
-                        return hist && hist.length >= 2 ? <EpsHistoryChart history={hist} /> : null;
-                    })()}
-                </div>
-            )}
-
-            {peers.length > 0 && <PeerComparisonTable peers={peers} currentSymbol={symbol} />}
 
             {isBank && (
                 <Callout
