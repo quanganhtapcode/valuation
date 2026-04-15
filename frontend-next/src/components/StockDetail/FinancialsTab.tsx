@@ -462,6 +462,128 @@ const RATIOS_SECTIONS = [
     }
 ];
 
+// ── Pill Dropdown Component ───────────────────────────────────────────────────
+
+function PillDropdown({
+    label,
+    children,
+    align = 'left',
+}: {
+    label: React.ReactNode;
+    children: React.ReactNode;
+    align?: 'left' | 'right';
+}) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function onClickOutside(e: MouseEvent) {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        }
+        if (open) document.addEventListener('mousedown', onClickOutside);
+        return () => document.removeEventListener('mousedown', onClickOutside);
+    }, [open]);
+
+    return (
+        <div ref={ref} className="relative">
+            <button
+                onClick={() => setOpen(o => !o)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-[13px] font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+            >
+                {label}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-400 flex-shrink-0">
+                    <polyline points="6 9 12 15 18 9" />
+                </svg>
+            </button>
+            {open && (
+                <div className={cx(
+                    'absolute top-full mt-1.5 z-50 min-w-[160px] rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg py-1 overflow-hidden',
+                    align === 'right' ? 'right-0' : 'left-0'
+                )}>
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function PillDropdownItem({
+    active,
+    onClick,
+    children,
+}: {
+    active?: boolean;
+    onClick: () => void;
+    children: React.ReactNode;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className={cx(
+                'w-full text-left px-3 py-2 text-[13px] transition-colors',
+                active
+                    ? 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white font-medium'
+                    : 'text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/60'
+            )}
+        >
+            {children}
+        </button>
+    );
+}
+
+// ── Settings Popover ──────────────────────────────────────────────────────────
+
+function SettingsPopover({
+    displayUnit,
+    setDisplayUnit,
+}: {
+    displayUnit: DisplayUnit;
+    setDisplayUnit: (u: DisplayUnit) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function onClickOutside(e: MouseEvent) {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        }
+        if (open) document.addEventListener('mousedown', onClickOutside);
+        return () => document.removeEventListener('mousedown', onClickOutside);
+    }, [open]);
+
+    return (
+        <div ref={ref} className="relative">
+            <button
+                onClick={() => setOpen(o => !o)}
+                className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+            >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
+                </svg>
+            </button>
+            {open && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg py-3 px-4">
+                    <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">Đơn vị hiển thị</p>
+                    <div className="space-y-1">
+                        {DISPLAY_UNITS.map(unit => (
+                            <label key={unit.id} className="flex items-center gap-2 cursor-pointer py-0.5">
+                                <input
+                                    type="radio"
+                                    name="displayUnit"
+                                    checked={displayUnit === unit.id}
+                                    onChange={() => { setDisplayUnit(unit.id); setOpen(false); }}
+                                    className="w-3.5 h-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                />
+                                <span className="text-[13px] text-gray-700 dark:text-slate-200">{unit.label}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Sectioned Table Component ─────────────────────────────────────────────────
 
 function SectionedTable({
@@ -476,16 +598,11 @@ function SectionedTable({
     fieldLabels?: Record<string, string>;
 }) {
     if (!rows || rows.length === 0) {
-        return <div className="text-center py-8 text-gray-500 text-sm">Không có dữ liệu</div>;
+        return <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu</div>;
     }
 
     const sortedRows = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
-    const displayRows = sortedRows.slice(0, 8); // Show latest 8 periods
-
-    const formatLabel = (key: string): string => {
-        if (fieldLabels && fieldLabels[key]) return fieldLabels[key];
-        return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    };
+    const displayRows = sortedRows.slice(0, 8);
 
     const getDisplayValue = (row: any, key: string, forcePct?: boolean): string => {
         const v = Number(row[key]);
@@ -496,25 +613,23 @@ function SectionedTable({
     };
 
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+        <div className="overflow-x-auto -mx-4 px-0">
+            <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
                 <thead>
-                    <tr className="border-b border-gray-200">
-                        <th className="sticky left-0 bg-white z-10 text-left py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap min-w-[200px]">
+                    <tr className="border-b border-gray-100 dark:border-slate-800">
+                        <th className="sticky left-0 bg-white dark:bg-[#111827] z-10 text-left py-2.5 px-4 font-medium text-gray-500 dark:text-slate-400 whitespace-nowrap min-w-[180px] text-[12px]">
                             Chỉ tiêu
                         </th>
                         {displayRows.map((row, i) => {
                             const { label, isForecast } = renderPeriod(row);
                             return (
-                                <th key={i} className="text-right py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap min-w-[90px]">
+                                <th key={i} className="text-right py-2.5 px-4 font-medium text-gray-500 dark:text-slate-400 whitespace-nowrap min-w-[90px] text-[12px]">
                                     <span className="inline-flex items-center gap-1">
                                         {label}
                                         {isForecast && (
-                                            <span className="text-gray-400 cursor-help" title="Forecast">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <circle cx="12" cy="12" r="10" />
-                                                    <path d="M12 16v-4" />
-                                                    <path d="M12 8h.01" />
+                                            <span className="text-gray-400 cursor-help" title="Dự báo">
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
                                                 </svg>
                                             </span>
                                         )}
@@ -527,13 +642,11 @@ function SectionedTable({
                 <tbody>
                     {sections.map((section, sectionIdx) => (
                         <React.Fragment key={sectionIdx}>
-                            {/* Section Header */}
                             <tr>
-                                <td colSpan={displayRows.length + 1} className="pt-4 pb-1">
-                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.title}</span>
+                                <td colSpan={displayRows.length + 1} className="px-4 pt-4 pb-1.5">
+                                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{section.title}</span>
                                 </td>
                             </tr>
-                            {/* Section Rows */}
                             {section.rows.map((rowDef, rowIdx) => {
                                 const hasData = displayRows.some(r => {
                                     const v = Number(r[rowDef.key]);
@@ -541,31 +654,40 @@ function SectionedTable({
                                 });
                                 if (!hasData) return null;
 
-                                const isTotalRow = rowDef.isTotal ?? false;
-                                const isGrandTotalRow = rowDef.isGrandTotal ?? false;
-                                const isPctRow = rowDef.isPct ?? section.isPctSection ?? false;
+                                const isGrandTotal = rowDef.isGrandTotal ?? false;
+                                const isTotal = rowDef.isTotal ?? false;
+                                const isPct = rowDef.isPct ?? section.isPctSection ?? false;
                                 const isIndented = rowDef.indent ?? false;
+
+                                const bgClass = isIndented
+                                    ? 'bg-gray-50 dark:bg-slate-800/40'
+                                    : 'bg-white dark:bg-[#111827]';
 
                                 return (
                                     <tr
                                         key={`${sectionIdx}-${rowIdx}`}
                                         className={cx(
-                                            'transition-colors',
-                                            isGrandTotalRow ? 'border-t-2 border-gray-300 font-semibold' : '',
-                                            isTotalRow ? 'border-t border-gray-200 font-medium' : '',
-                                            !isTotalRow && !isGrandTotalRow ? 'border-b border-gray-100' : ''
+                                            'border-b border-gray-100 dark:border-slate-800/60',
+                                            isGrandTotal ? 'border-t border-gray-300 dark:border-slate-600' : '',
                                         )}
                                     >
                                         <td className={cx(
-                                            'sticky left-0 bg-white z-10 py-2 px-3',
-                                            isGrandTotalRow ? 'text-gray-900' : 'text-gray-700',
-                                            isIndented ? 'pl-6' : ''
+                                            'sticky left-0 z-10 py-2.5 px-4 whitespace-nowrap',
+                                            bgClass,
+                                            isGrandTotal ? 'font-semibold text-gray-900 dark:text-white' : '',
+                                            isTotal ? 'font-medium text-gray-800 dark:text-slate-100' : '',
+                                            !isTotal && !isGrandTotal ? 'text-gray-700 dark:text-slate-300' : '',
+                                            isIndented ? 'pl-8 italic text-gray-500 dark:text-slate-400' : '',
                                         )}>
                                             {rowDef.label}
                                         </td>
                                         {displayRows.map((row, i) => (
-                                            <td key={i} className="text-right py-2 px-3 tabular-nums whitespace-nowrap text-gray-700">
-                                                {getDisplayValue(row, rowDef.key, isPctRow)}
+                                            <td key={i} className={cx(
+                                                'text-right py-2.5 px-4 tabular-nums whitespace-nowrap',
+                                                bgClass,
+                                                isGrandTotal ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-slate-300',
+                                            )}>
+                                                {getDisplayValue(row, rowDef.key, isPct)}
                                             </td>
                                         ))}
                                     </tr>
@@ -579,7 +701,7 @@ function SectionedTable({
     );
 }
 
-// ── Simple Table for Key Stats ────────────────────────────────────────────────
+// ── Key Stats Table ───────────────────────────────────────────────────────────
 
 function KeyStatsTable({
     metrics,
@@ -591,7 +713,7 @@ function KeyStatsTable({
     displayUnit: DisplayUnit;
 }) {
     if (!overviewData) {
-        return <div className="text-center py-8 text-gray-500 text-sm">Không có dữ liệu</div>;
+        return <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu</div>;
     }
 
     const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000;
@@ -603,154 +725,64 @@ function KeyStatsTable({
         return fmt(v / divisor);
     };
 
-    const sections = Array.from(new Set(metrics.map(m => m.section)));
+    const sectionIds = Array.from(new Set(metrics.map(m => m.section)));
     const sectionLabels: Record<string, string> = {
         overview: 'Overview',
         income: 'Income & Margins',
         eps: 'EPS',
         cashflow: 'Cash Flow',
-        balance: 'Balance Sheet Metrics',
+        balance: 'Balance Sheet',
         ratios: 'Ratios',
     };
 
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-                <thead>
-                    <tr className="border-b border-gray-200">
-                        <th className="sticky left-0 bg-white z-10 text-left py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap min-w-[200px]">
-                            Chỉ tiêu
-                        </th>
-                        <th className="text-right py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap min-w-[120px]">
-                            Giá trị
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {sections.map(section => {
-                        const sectionMetrics = metrics.filter(m => m.section === section);
-                        if (sectionMetrics.length === 0) return null;
-
-                        return (
-                            <React.Fragment key={section}>
-                                <tr>
-                                    <td colSpan={2} className="pt-4 pb-1">
-                                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{sectionLabels[section]}</span>
-                                    </td>
-                                </tr>
-                                {sectionMetrics.map((metric, idx) => (
-                                    <tr key={metric.key} className="border-b border-gray-100">
-                                        <td className={cx(
-                                            'sticky left-0 bg-white z-10 py-2 px-3 text-gray-700',
-                                            metric.indent ? 'pl-6' : ''
-                                        )}>
-                                            {metric.label}
-                                        </td>
-                                        <td className="text-right py-2 px-3 tabular-nums whitespace-nowrap text-gray-700">
-                                            {getValue(metric.key, metric.isPct)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </React.Fragment>
-                        );
-                    })}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-
-// ── Dropdown Menu Component ───────────────────────────────────────────────────
-
-function DropdownMenu({
-    isOpen,
-    onClose,
-    displayUnit,
-    setDisplayUnit,
-    fromYear,
-    setFromYear,
-    toYear,
-    setToYear,
-    years,
-}: {
-    isOpen: boolean;
-    onClose: () => void;
-    displayUnit: DisplayUnit;
-    setDisplayUnit: (u: DisplayUnit) => void;
-    fromYear: string;
-    setFromYear: (y: string) => void;
-    toYear: string;
-    setToYear: (y: string) => void;
-    years: number[];
-}) {
-    const menuRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                onClose();
-            }
-        }
-        if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen, onClose]);
-
-    if (!isOpen) return null;
-
-    return (
-        <div
-            ref={menuRef}
-            className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-3"
-        >
-            {/* Display Units */}
-            <div className="px-4 pb-3 border-b border-gray-100">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Display Units</span>
-                <div className="mt-2 space-y-1.5">
-                    {DISPLAY_UNITS.map(unit => (
-                        <label key={unit.id} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="radio"
-                                name="displayUnit"
-                                checked={displayUnit === unit.id}
-                                onChange={() => setDisplayUnit(unit.id)}
-                                className="w-3.5 h-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">{unit.label}</span>
-                        </label>
-                    ))}
-                </div>
+        <div className="-mx-4">
+            <div className="flex items-center border-b border-gray-100 dark:border-slate-800 px-4 pb-2.5 mb-0">
+                <span className="text-[12px] font-medium text-gray-400 dark:text-slate-500 flex-1">Chỉ tiêu</span>
+                <span className="text-[12px] font-medium text-gray-400 dark:text-slate-500">Giá trị</span>
             </div>
+            {sectionIds.map(sectionId => {
+                const sectionMetrics = metrics.filter(m => m.section === sectionId);
+                if (sectionMetrics.length === 0) return null;
 
-            {/* From / To */}
-            <div className="px-4 pt-3">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Period Range</span>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div>
-                        <label className="block text-xs text-gray-500 mb-1">From</label>
-                        <select
-                            value={fromYear}
-                            onChange={e => setFromYear(e.target.value)}
-                            className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">Select</option>
-                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-xs text-gray-500 mb-1">To</label>
-                        <select
-                            value={toYear}
-                            onChange={e => setToYear(e.target.value)}
-                            className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">Select</option>
-                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                    </div>
-                </div>
-            </div>
+                return (
+                    <React.Fragment key={sectionId}>
+                        <div className="px-4 pt-4 pb-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                {sectionLabels[sectionId]}
+                            </span>
+                        </div>
+                        {sectionMetrics.map((metric) => {
+                            const value = getValue(metric.key, metric.isPct);
+                            const isIndented = metric.indent ?? false;
+                            return (
+                                <div
+                                    key={metric.key}
+                                    className={cx(
+                                        'flex items-center justify-between border-b border-gray-100 dark:border-slate-800/60 py-2.5 px-4',
+                                        isIndented ? 'bg-gray-50 dark:bg-slate-800/40' : 'bg-white dark:bg-[#111827]',
+                                    )}
+                                >
+                                    <span className={cx(
+                                        'text-[13px]',
+                                        isIndented
+                                            ? 'pl-4 italic text-gray-500 dark:text-slate-400'
+                                            : 'text-gray-700 dark:text-slate-300',
+                                    )}>
+                                        {metric.label}
+                                    </span>
+                                    <span className={cx(
+                                        'text-[13px] tabular-nums',
+                                        value === '-' ? 'text-gray-300 dark:text-slate-600' : 'text-gray-800 dark:text-slate-100 font-medium',
+                                    )}>
+                                        {value}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </React.Fragment>
+                );
+            })}
         </div>
     );
 }
@@ -771,9 +803,6 @@ export default function FinancialsTab({
     const [activeTab, setActiveTab] = useState<ReportType>('key_stats');
     const [displayMode, setDisplayMode] = useState<DisplayMode>('annual');
     const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('billions');
-    const [fromYear, setFromYear] = useState<string>('');
-    const [toYear, setToYear] = useState<string>('');
-    const [dropdownOpen, setDropdownOpen] = useState(false);
     const [overviewData, setOverviewData] = useState<any>(null);
     const [reportData, setReportData] = useState({
         income: [],
@@ -784,10 +813,6 @@ export default function FinancialsTab({
     const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
 
     const effectivePeriod = period || (displayMode === 'annual' || displayMode === 'ttm' ? 'year' : 'quarter');
-
-    // Generate available years for dropdown
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
     // ── Fetch data ────────────────────────────────────────────────────────────
 
@@ -854,107 +879,60 @@ export default function FinancialsTab({
     }
 
     const isBank = isBankStock(symbol, overviewData);
+    const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Key Stats';
+    const periodLabel = displayMode === 'annual' ? 'Năm' : displayMode === 'quarterly' ? 'Quý' : 'TTM';
 
     return (
-        <div className="space-y-4">
-            {/* ── Tab Bar + Controls ──────────────────────────────────────── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-3">
-                <div className="flex flex-col md:flex-row md:items-center gap-3">
-                    {/* Mobile: dropdown select */}
-                    <div className="sm:hidden">
-                        <select
-                            value={activeTab}
-                            onChange={e => setActiveTab(e.target.value as ReportType)}
-                            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="space-y-3">
+            {/* ── Perplexity-style toolbar ─────────────────────────────── */}
+            <div className="flex items-center gap-2 flex-wrap">
+                {/* Report type pill dropdown */}
+                <PillDropdown label={activeTabLabel}>
+                    {TABS.map(tab => (
+                        <PillDropdownItem
+                            key={tab.id}
+                            active={activeTab === tab.id}
+                            onClick={() => setActiveTab(tab.id)}
                         >
-                            {TABS.map(tab => (
-                                <option key={tab.id} value={tab.id}>{tab.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {/* Desktop: tab buttons */}
-                    <div className="hidden sm:flex items-center gap-1 overflow-x-auto">
-                        {TABS.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={cx(
-                                    'px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap',
-                                    activeTab === tab.id
-                                        ? 'bg-gray-100 text-gray-900'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                )}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
+                            {tab.label}
+                        </PillDropdownItem>
+                    ))}
+                </PillDropdown>
 
-                    {/* Right controls */}
-                    <div className="flex ml-auto items-center gap-2 relative">
-                        {/* Annual / Quarterly / TTM */}
-                        <div className="flex items-center rounded-md border border-gray-200 bg-gray-50 p-0.5">
-                            {(['annual', 'quarterly', 'ttm'] as DisplayMode[]).map(m => (
-                                <button
-                                    key={m}
-                                    onClick={() => setDisplayMode(m)}
-                                    className={cx(
-                                        'rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors',
-                                        displayMode === m
-                                            ? 'bg-white text-gray-900 shadow-sm'
-                                            : 'text-gray-500 hover:text-gray-700'
-                                    )}
-                                >
-                                    {m === 'annual' ? 'Annual' : m === 'quarterly' ? 'Quarterly' : 'TTM'}
-                                </button>
-                            ))}
-                        </div>
+                {/* Period pill dropdown */}
+                <PillDropdown label={periodLabel}>
+                    {([['annual', 'Năm'], ['quarterly', 'Quý'], ['ttm', 'TTM']] as [DisplayMode, string][]).map(([m, lbl]) => (
+                        <PillDropdownItem
+                            key={m}
+                            active={displayMode === m}
+                            onClick={() => setDisplayMode(m)}
+                        >
+                            {lbl}
+                        </PillDropdownItem>
+                    ))}
+                </PillDropdown>
 
-                        {/* 3-dot menu */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setDropdownOpen(!dropdownOpen)}
-                                className="flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                    <circle cx="12" cy="5" r="2" />
-                                    <circle cx="12" cy="12" r="2" />
-                                    <circle cx="12" cy="19" r="2" />
-                                </svg>
-                            </button>
-                            <DropdownMenu
-                                isOpen={dropdownOpen}
-                                onClose={() => setDropdownOpen(false)}
-                                displayUnit={displayUnit}
-                                setDisplayUnit={setDisplayUnit}
-                                fromYear={fromYear}
-                                setFromYear={setFromYear}
-                                toYear={toYear}
-                                setToYear={setToYear}
-                                years={years}
-                            />
-                        </div>
+                {/* Settings (units) */}
+                <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} />
 
-                        {/* Download button */}
-                        {onDownloadExcel && (
-                            <button
-                                onClick={onDownloadExcel}
-                                title="Download"
-                                className="flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                            </button>
-                        )}
-                    </div>
-                </div>
+                {/* Download */}
+                {onDownloadExcel && (
+                    <button
+                        onClick={onDownloadExcel}
+                        title="Tải Excel"
+                        className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                    </button>
+                )}
             </div>
 
             {/* ── Content Area ────────────────────────────────────────────── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="bg-white dark:bg-[#111827] rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden py-1">
                 {reportLoading ? (
                     <div className="flex items-center justify-center p-12">
                         <div className="spinner" />
