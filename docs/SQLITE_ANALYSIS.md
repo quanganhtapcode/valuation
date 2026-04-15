@@ -1,6 +1,6 @@
-# 📊 SQLite Databases — Full Analysis
+# SQLite Databases — Full Analysis
 
-> Last updated: 2026-04-13 | Total files: **16** | Total size: **~2.5 GB**
+> Last updated: 2026-04-15 | Total active files: **14** | Total size: **~560 MB**
 
 ---
 
@@ -8,585 +8,459 @@
 
 | Category | Files | Total Size | Purpose |
 |---|---|---|---|
-| **Core DB** | 1 | 836 MB | Master database — financial statements, stock profiles, valuation datamart |
-| **Price Data** | 1 | 218 MB | Daily OHLCV for all stocks |
-| **Financial Statements (VCI)** | 1 | 132 MB | BCTC wide-format from VCI (balance sheet, income, cash flow, notes) |
-| **Market Screener** | 1 | 2.7 MB | Real-time screener snapshot — price, PE, PB, ROE, sector, market cap |
-| **Financial Ratios** | 2 | 10.1 MB | TTM ratios (current + history) + daily PE/PB tracking |
-| **News & Events** | 2 | 191 MB | Raw news + AI-analyzed news |
-| **Company Info** | 1 | 3.6 MB | Company profiles, organization names |
-| **Market Indices** | 1 | 0.2 MB | VNINDEX, VN30, HNX daily index history |
-| **Foreign Trading** | 1 | 0.8 MB | Foreign buy/sell snapshots + intraday volume |
-| **Macro Economics** | 2 | 1.0 MB | GDP, CPI, M2, interest rates from VCI + Fireant |
-| **Valuation Cache** | 2 | 1.5 MB | Cached DCF results + VNINDEX valuation chart history |
-| **Shareholders** | 1 | 5.1 MB | Shareholder lists per company |
+| **Financial Statements (VCI)** | 1 | 132 MB | BCTC wide-format từ VCI (balance sheet, income, cash flow, notes) |
+| **Price Data** | 1 | 218 MB | Daily OHLCV cho tất cả cổ phiếu |
+| **Market Screener** | 1 | 2.6 MB | Snapshot real-time — giá, PE, PB, ROE, sector, market cap |
+| **Financial Ratios** | 2 | 10.1 MB | TTM ratios (hiện tại + lịch sử) + tracking PE/PB hàng ngày |
+| **Company Info** | 1 | 3.5 MB | Hồ sơ công ty, tên tổ chức, phân loại ngành |
+| **News & Events** | 2 | 190 MB | Tin tức thô + tin tức phân tích AI |
+| **Market Indices** | 1 | 0.2 MB | Lịch sử chỉ số VNINDEX, VN30, HNX hàng ngày |
+| **Foreign Trading** | 1 | 0.8 MB | Snapshot mua/bán nước ngoài + khối lượng theo phút |
+| **Macro Economics** | 2 | 1.0 MB | GDP, CPI, M2, lãi suất từ VCI + Fireant |
+| **Valuation** | 2 | 1.5 MB | Lịch sử PE/PB VNINDEX + cache tính toán DCF |
+| **Shareholders** | 1 | 5.1 MB | Danh sách cổ đông theo công ty |
 
 ---
 
 ## Detailed File Analysis
 
-### 1. `stocks_optimized.db` — ⭐ Master Database
+### ~~`stocks_optimized.db`~~ — REMOVED
 
-| Property | Value |
+**Status:** Đã xóa 2026-04-15.
+
+**Lý do:** Pipeline KBS/vnstock (`run_pipeline.py`) không còn chạy; dữ liệu trong DB bị mất. Toàn bộ chức năng đã được migrate sang các nguồn VCI.
+
+**Thay thế bởi:**
+| Chức năng cũ | Nguồn VCI mới |
 |---|---|
-| **Size** | 836 MB |
-| **Location** | `/var/www/valuation/` |
-| **Source** | KBS API via vnstock library + self-calculated fields |
-| **Update** | Daily 18:00 via `run_pipeline.py` (systemd timer) |
-| **Used by** | `stock_provider.py`, `valuation_service.py`, all stock overview APIs |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `income_statement` | 73,906 | Quarterly/annual income statements (revenue → net income) |
-| `balance_sheet` | 73,898 | Quarterly/annual balance sheets (assets, liabilities, equity) |
-| `cash_flow_statement` | 73,875 | Quarterly/annual cash flow statements (operating, investing, financing) |
-| `financial_ratios` | 73,407 | Calculated financial ratios (liquidity, leverage, profitability) |
-| `shareholders` | 92,196 | Historical shareholder lists |
-| `company_overview` | 1,673 | Company profiles, industry classification |
-| `stocks` | 1,738 | Stock symbols, exchange, trading status |
-| `valuation_datamart` | 1,738 | Pre-calculated intrinsic value, upside %, quality grade |
-| `officers` | 46 | Company officers/management |
-| `exchanges` | 4 | HOSE, HNX, UPCOM, Unlisted |
-| `indices` | 2 | VNINDEX, HNXINDEX metadata |
-
-**Empty tables** (reserved for future use): `industries`, `stock_exchange`, `stock_industry`, `update_log`, `stock_price_history`, `subsidiaries`, `events`, `news`, `financial_reports`
-
-**Assessment:**
-- ✅ **Backbone** of the system — all DCF calculations depend on it
-- ✅ ~73k financial statement rows covering ~1,730 stocks × multiple quarters
-- ⚠️ Several tables are empty — may indicate incomplete migration or reserved schema
-- ⚠️ Largest file — consider VACUUM periodically to reclaim space
+| `overview.industry` | `vci_company.companies.icb_name4` |
+| `overview.current_price` | `vci_screening.screening_data.marketPrice` |
+| `overview.pe/pb/ps/roe` | `vci_stats_financial.stats_financial` |
+| `overview.eps_ttm` | `marketPrice / pe` từ `vci_stats_financial` |
+| `overview.bvps` | `marketPrice / pb` từ `vci_stats_financial` |
+| `overview.shares_outstanding` | `vci_stats_financial.stats_financial.shares` |
+| `company_overview.company_profile` | `vci_company.companies.company_profile` |
+| `company_overview.icb_name*` | `vci_company.companies.icb_name*` |
+| `income_statement / balance_sheet / cash_flow` | `vci_financials.sqlite` (wide format, field codes) |
+| `valuation_datamart` (precomputed medians) | `vci_screening` + `vci_stats_financial` (live peers) |
+| `stocks` (ticker list) | `vci_company.companies` |
 
 ---
 
-### 2. `price_history.sqlite` — 📈 Price Data
-
-| Property | Value |
-|---|---|
-| **Size** | 218 MB |
-| **Location** | `/var/www/valuation/` |
-| **Source** | VCI Price History API |
-| **Update** | Daily 11:30 UTC via `backend/updater/update_price_history.py` |
-| **Used by** | `/api/stock/[symbol]/history`, chart rendering, technical analysis |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `stock_price_history` | 2,070,601 | Daily OHLCV (open, high, low, close, volume) per stock |
-
-**Assessment:**
-- ✅ Single source of truth for price history — clean, focused schema
-- ✅ 2M+ rows provides multi-year history for ~1,700+ stocks
-- 💡 Could consider partitioning by year if query performance degrades
-
----
-
-### 3. `vci_financials.sqlite` — 📋 VCI Financial Statements
+### 1. `vci_financials.sqlite` — BCTC từ VCI
 
 | Property | Value |
 |---|---|
 | **Size** | 132 MB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI Financial API |
-| **Update** | Daily via `fetch_vci_financial_statement.py` |
-| **Used by** | `vci_financial_adapter.py`, `/api/financial-report/` |
+| **Update** | Daily (`fetch_vci_financial_statement.py`) |
+| **Used by** | `vci_financial_adapter.py`, `valuation_service.py`, `/api/financial-report/` |
+| **Field mapping** | `fetch_sqlite/vci_field_codes.json` |
 
 **Tables:**
 
 | Table | Rows | Description |
 |---|---|---|
-| `income_statement` | 33,382 | VCI-wide format income statements (isa*, isb*, isi*, iss* columns) |
-| `balance_sheet` | 33,333 | VCI-wide format balance sheets (bsa*, bsb*, bsi*, bss* columns) |
-| `cash_flow` | 32,936 | VCI-wide format cash flows (cfa*, cfb*, cfi*, cfs* columns) |
-| `note` | 29,260 | Thuyết minh BCTC — footnote details (noc*, nob*, noi*, nos* columns) |
-| `fetch_log` | — | Fetch status tracking per ticker |
-| `meta` | — | Last run timestamp |
+| `income_statement` | ~33,382 | KQHĐKD wide-format (isa*, isb*, isi*, iss* columns) |
+| `balance_sheet` | ~33,333 | Bảng CĐKT wide-format (bsa*, bsb*, bsi*, bss* columns) |
+| `cash_flow` | ~32,936 | Lưu chuyển tiền tệ (cfa*, cfb*, cfi*, cfs* columns) |
+| `note` | ~29,260 | Thuyết minh BCTC (noc*, nob*, noi*, nos* columns) |
+| `fetch_log` | ~6,194 | Trạng thái fetch theo ticker |
+| `meta` | 7 | Timestamp lần chạy cuối |
 
-**VCI Field Code Prefixes:**
-- `*a*` → Standard companies
-- `*b*` → Banks
-- `*i*` → Insurance
-- `*s*` → Securities
-- `nos*` → Off-balance-sheet items
+**VCI field code prefixes:**
+- `*a*` → Công ty thông thường
+- `*b*` → Ngân hàng
+- `*i*` → Bảo hiểm
+- `*s*` → Chứng khoán
+- `nos*` → Off-balance-sheet
+
+**Key fields cho valuation:**
+
+| Field | Ý nghĩa |
+|---|---|
+| `isa1` | Doanh thu bán hàng |
+| `isa3` | Doanh thu thuần |
+| `isa7` | Chi phí tài chính |
+| `isa20` | Lợi nhuận sau thuế |
+| `isa22` | Lợi nhuận thuộc cổ đông công ty mẹ |
+| `isa23` | EPS cơ bản (VND) |
+| `bsa78` | Vốn chủ sở hữu (Owner's Equity) |
+| `bsa80` | Vốn góp (Paid-in capital) |
+| `bsa96` | Tổng cộng nguồn vốn (Total liabilities + Equity) |
+| `cfa2` | Khấu hao TSCĐ |
+| `cfa19` | Chi mua sắm TSCĐ (CapEx outflow) |
 
 **Assessment:**
-- ✅ Much more granular than `stocks_optimized.db` — hundreds of VCI-specific field codes
-- ✅ Supports banking/insurance/securities industry-specific columns
-- ⚠️ ~33k rows vs 73k in stocks_optimized — fewer quarters covered, may still be populating
-- 💡 Wide format (700+ columns in balance_sheet) — hard to query directly, frontend maps via `vci_financial_statement_metrics_hose_hnx.json`
+- ✅ Dữ liệu chi tiết hơn stocks_optimized.db — hàng trăm field code theo chuẩn VCI
+- ✅ Hỗ trợ ngân hàng/bảo hiểm/chứng khoán với columns riêng biệt
+- ✅ Nguồn dữ liệu BCTC chính thức, cập nhật daily
+- ⚠️ ~33k rows vs 73k trước đây — số kỳ ít hơn, vẫn đang tích lũy
+- 💡 Wide format (300+ columns) — tra cứu field code qua `vci_field_codes.json`
 
 ---
 
-### 4. `vci_screening.sqlite` — 🔍 Stock Screener
+### 2. `price_history.sqlite` — Lịch sử giá OHLCV
 
 | Property | Value |
 |---|---|
-| **Size** | 2.7 MB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | VCI Screener API |
-| **Update** | Every 7 minutes via cron `fetch_vci_screener.py` |
-| **Used by** | `/api/market/screener`, frontend `/screener` page |
+| **Size** | 218 MB |
+| **Location** | `/var/www/valuation/` |
+| **Source** | VCI Price History API |
+| **Update** | Daily 11:30 UTC (`update_price_history.py`) |
+| **Used by** | `/api/stock/[symbol]/history`, chart rendering |
 
 **Tables:**
 
 | Table | Rows | Description |
 |---|---|---|
-| `screening_data` | 1,547 | All listed stocks with real-time metrics |
-| `meta` | — | Last run timestamp |
-
-**Key Columns:**
-- **Price:** `refPrice`, `marketPrice`, `ceiling`, `floor`, `dailyPriceChangePercent`
-- **Volume:** `accumulatedValue`, `accumulatedVolume`, `adtv30Days`, `avgVolume30Days`
-- **Valuation:** `ttmPe`, `ttmPb`, `ttmRoe`
-- **Growth:** `npatmiGrowthYoyQm1`, `revenueGrowthYoy`
-- **Margins:** `netMargin`, `grossMargin`
-- **Info:** `enOrganName`, `viOrganShortName`, `enSector`, `viSector`, `icbCodeLv2`, `icbCodeLv4`
-- **Other:** `exchange` (HSX/HNX/UPCOM), `stockStrength`, `marketCap`
+| `stock_price_history` | 2,070,601+ | Daily OHLCV (open, high, low, close, volume) theo cổ phiếu |
 
 **Assessment:**
-- ✅ Most frequently updated (every 7 min) — near real-time market snapshot
-- ✅ Primary data source for the stock screener frontend
-- ✅ Small file (2.7 MB) but rich in screening metrics
-- 💡 Source priority fallback: `vci_ratio_daily` → `vci_stats_financial` → `vci_screening`
+- ✅ Nguồn duy nhất cho lịch sử giá — schema gọn, tập trung
+- ✅ 2M+ rows cung cấp lịch sử nhiều năm cho ~1,700+ cổ phiếu
+- 💡 Cân nhắc partition theo năm nếu query performance giảm
 
 ---
 
-### 5. `vci_stats_financial.sqlite` — 📊 Financial Ratios (TTM + History)
+### 3. `vci_screening.sqlite` — Screener thời gian thực
+
+| Property | Value |
+|---|---|
+| **Size** | 2.6 MB |
+| **Location** | `fetch_sqlite/` |
+| **Source** | VCI Screener API |
+| **Update** | Every 7 minutes (`fetch_vci_screener.py`) |
+| **Used by** | `/api/market/screener`, peer comparison, `valuation_service.py` (giá hiện tại) |
+
+**Tables:**
+
+| Table | Rows | Description |
+|---|---|---|
+| `screening_data` | ~1,550 | Tất cả cổ phiếu niêm yết với metrics real-time |
+| `meta` | — | Timestamp lần chạy cuối |
+
+**Key columns:**
+- **Giá:** `marketPrice`, `refPrice`, `ceiling`, `floor`, `dailyPriceChangePercent`
+- **Khối lượng:** `accumulatedValue`, `accumulatedVolume`, `adtv30Days`, `avgVolume30Days`
+- **Định giá:** `ttmPe`, `ttmPb`, `ttmRoe`
+- **Tăng trưởng:** `npatmiGrowthYoyQm1`, `revenueGrowthYoy`
+- **Biên lợi nhuận:** `netMargin`, `grossMargin`
+- **Thông tin:** `enOrganName`, `viOrganName`, `exchange`, `icbCodeLv2`, `icbCodeLv4`, `enSector`, `viSector`
+- **Khác:** `marketCap`, `stockStrength`
+
+**Assessment:**
+- ✅ Nguồn giá thời gian thực — cập nhật mỗi 7 phút
+- ✅ Nguồn chính cho `current_price` trong valuation
+- ✅ File nhỏ (2.6 MB) nhưng giàu metrics screening
+
+---
+
+### 4. `vci_stats_financial.sqlite` — TTM Ratios + Lịch sử
 
 | Property | Value |
 |---|---|
 | **Size** | 10 MB |
 | **Location** | `fetch_sqlite/` |
-| **Source** | VCI Stats API |
-| **Update** | Every hour via cron `fetch_vci_stats_financial.py` |
-| **Used by** | `source_priority.py`, valuation services, stock overview |
+| **Source** | VCI Stats Financial API |
+| **Update** | Every 1 hour (`fetch_vci_stats_financial.py`) |
+| **Used by** | `valuation_service.py` (PE, PB, PS, ROE, shares), `source_priority.py` |
 
 **Tables:**
 
 | Table | Rows | Description |
 |---|---|---|
-| `stats_financial` | 1,539 | Latest TTM ratios per stock (25+ metrics) |
-| `stats_financial_history` | 46,460 | Historical quarterly snapshots |
+| `stats_financial` | ~1,539 | TTM ratios mới nhất theo cổ phiếu (25+ metrics) |
+| `stats_financial_history` | ~46,460 | Snapshot lịch sử theo quý |
 
-**Current Metrics (`stats_financial`):**
-- **Valuation:** PE, PB, PS, Price-to-Cash-Flow, EV/EBITDA
-- **Profitability:** ROE, ROA, Gross Margin, Pre-tax Margin, After-tax Margin
-- **Banking:** Net Interest Margin, CIR, CAR, CASA Ratio, NPL, LDR, Loans Growth, Deposit Growth
-- **Leverage:** Debt-to-Equity, Financial Leverage
-- **Liquidity:** Current Ratio, Quick Ratio, Cash Ratio, Asset Turnover
-- **Market:** Market Cap, Shares Outstanding
+**Metrics trong `stats_financial`:**
+- **Định giá:** pe, pb, ps, price_to_cash_flow, ev_to_ebitda
+- **Lợi nhuận:** roe, roa, gross_margin, pre_tax_margin, after_tax_margin
+- **Ngân hàng:** net_interest_margin, cir, car, casa_ratio, npl, ldr
+- **Đòn bẩy:** debt_to_equity, financial_leverage
+- **Thanh khoản:** current_ratio, quick_ratio, cash_ratio, asset_turnover
+- **Thị trường:** market_cap, shares (số cổ phiếu lưu hành)
 
 **Assessment:**
-- ✅ Most comprehensive ratio dataset — 25+ metrics per stock
-- ✅ History table goes back years (e.g., VCB data from 2018) — excellent for trend analysis
-- ✅ Banking-specific metrics — critical for bank stock analysis
-- 💡 46k history rows = ~30 quarters × 1,500 stocks — good depth
+- ✅ Dataset ratio đầy đủ nhất — 25+ metrics theo cổ phiếu
+- ✅ History table lưu 30+ quý — tốt cho phân tích xu hướng
+- ✅ Metrics ngân hàng riêng biệt — cần thiết cho phân tích cổ phiếu ngân hàng
+- ✅ Cập nhật mỗi giờ — đủ fresh cho valuation
 
 ---
 
-### 6. `vci_ratio_daily.sqlite` — 📅 Daily PE/PB Tracker
+### 5. `vci_company.sqlite` — Hồ sơ & Phân loại Công ty
+
+| Property | Value |
+|---|---|
+| **Size** | 3.5 MB |
+| **Location** | `fetch_sqlite/` |
+| **Source** | VCI Company Info API |
+| **Update** | Weekly, bi-weekly Sunday 02:00 (`fetch_vci_company.py`) |
+| **Used by** | `valuation_service.py` (industry), `/api/companies`, `/api/stock/overview`, company profile |
+
+**Tables:**
+
+| Table | Rows | Description |
+|---|---|---|
+| `companies` | ~2,075 | Tên công ty (EN/VN), tên ngắn, sàn, phân loại ngành, hồ sơ |
+| `fetch_log` | ~5 | Trạng thái fetch |
+
+**Key columns:**
+- `ticker` — mã cổ phiếu
+- `organ_name` / `en_organ_name` — tên đầy đủ VI/EN
+- `icb_name4` — ngành chi tiết nhất (ví dụ: "Thép và sản phẩm thép") — dùng làm khóa industry trong valuation
+- `icb_name3` / `icb_name2` / `icb_name1` — ngành rộng hơn (fallback)
+- `floor` — sàn giao dịch (HOSE/HNX/UPCOM)
+- `isbank` — 1 nếu là ngân hàng (ảnh hưởng trọng số mô hình valuation)
+- `company_profile` — mô tả công ty
+
+**Assessment:**
+- ✅ Bao phủ 2,075 công ty — nhiều hơn cổ phiếu đang niêm yết (gồm hủy niêm yết/OTC)
+- ✅ File nhỏ, gọn — lookup nhanh
+- ✅ Nguồn chính cho tên công ty và phân loại ngành sau khi xóa `stocks_optimized.db`
+- ⚠️ Cập nhật weekly — company profile và ngành nghề không thay đổi thường xuyên nên OK
+
+---
+
+### 6. `vci_ratio_daily.sqlite` — PE/PB Hàng ngày
 
 | Property | Value |
 |---|---|
 | **Size** | 136 KB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI Daily Ratios API |
-| **Update** | Daily 13:30 via cron `fetch_vci_ratio_daily.py` |
-| **Used by** | `source_priority.py` (PRIORITY #1 for PE/PB) |
+| **Update** | Daily 13:30 (`fetch_vci_ratio_daily.py`) |
+| **Used by** | `source_priority.py` (PRIORITY #1 cho PE/PB trong screener) |
 
 **Tables:**
 
 | Table | Rows | Description |
 |---|---|---|
-| `ratio_daily` | 1,382 | Latest daily PE/PB per stock |
-| `meta` | — | Last run timestamp |
+| `ratio_daily` | ~1,382 | PE/PB mới nhất theo ngày per cổ phiếu |
+| `meta` | — | Timestamp lần chạy cuối |
 
 **Columns:** `ticker` (PK), `pe`, `pb`, `trading_date`, `fetched_at`
 
 **Assessment:**
-- ✅ **Smallest file** (136 KB) but **highest priority** for PE/PB data
-- ✅ Used by `/api/market/screener` as first-choice source for PE/PB when filtering
-- ✅ Source priority chain: `vci_ratio_daily` → `vci_stats_financial` → `vci_screening` → `vnstock`
-- ⚠️ Only stores 2 ratios (PE, PB) — limited scope but very fast to query
-- 💡 Trading date range: ~2 weeks of data (one snapshot per day per stock)
+- ✅ File nhỏ nhất (136 KB) nhưng ưu tiên cao nhất cho PE/PB trong screener
+- ✅ Priority chain: `vci_ratio_daily` → `vci_stats_financial` → `vci_screening` → vnstock live
+- ⚠️ Chỉ lưu 2 ratios (PE, PB) — phạm vi hẹp nhưng rất nhanh
 
 ---
 
-### 7. `vci_news_events.sqlite` — 📰 News & Events
-
-| Property | Value |
-|---|---|
-| **Size** | 184 MB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | VCI InvestorQuest API |
-| **Update** | Daily via `fetch_vci_news.py` |
-| **Used by** | `/api/stock/[symbol]/news`, news tab in stock detail |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `items` | 178,436 | News articles, dividend announcements, corporate events |
-| `fetch_meta` | 7,735 | Fetch tracking per symbol/tab |
-
-**Assessment:**
-- ⚠️ **2nd largest file** (184 MB) — stores raw JSON for 178k items
-- ✅ Comprehensive coverage of news, dividends, events per stock
-- 💡 Consider archiving older items (>1 year) to reduce size
-
----
-
-### 8. `vci_ai_news.sqlite` — 🤖 AI-Analyzed News
-
-| Property | Value |
-|---|---|
-| **Size** | 6.5 MB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | VCI API + AI processing |
-| **Update** | Every 10 minutes via cron `fetch_vci_news.py` |
-| **Used by** | Frontend news widgets |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `news_items` | 2,734 | AI-summarized/analyzed news articles |
-| `news_meta` | 3 | Source tracking |
-
-**Assessment:**
-- ✅ AI-processed news — more structured than raw news feed
-- ✅ Small file, fast to query
-
----
-
-### 9. `vci_company.sqlite` — 🏢 Company Profiles
-
-| Property | Value |
-|---|---|
-| **Size** | 3.6 MB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | VCI Company Info API |
-| **Update** | Weekly (bi-weekly on Sunday) via `fetch_vci_company.py` |
-| **Used by** | Stock profile display, company details |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `companies` | 2,075 | Company names (EN/VN), short names, sector info |
-| `fetch_log` | 5 | Fetch status tracking |
-
-**Assessment:**
-- ✅ Covers 2,075 companies — more than listed stocks (includes delisted/OTC)
-- ✅ Small, clean file — fast lookups for company names
-
----
-
-### 10. `vci_shareholders.sqlite` — 👥 Shareholder Lists
+### 7. `vci_shareholders.sqlite` — Cổ đông
 
 | Property | Value |
 |---|---|
 | **Size** | 5.1 MB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI Shareholders API |
-| **Update** | Daily 13:00 via cron `fetch_vci_shareholders.py` |
-| **Used by** | `/api/stock/[symbol]/shareholders`, Holders tab |
-
-**Tables:**
+| **Update** | Daily 13:00 (`fetch_vci_shareholders.py`) |
+| **Used by** | `/api/stock/[symbol]/shareholders`, tab Cổ đông |
 
 | Table | Rows | Description |
 |---|---|---|
-| `shareholders` | 27,000+ | Top shareholders per company (quantity, %, type) |
+| `shareholders` | 27,000+ | Cổ đông lớn per công ty (số lượng, %, loại) |
 
-**Columns:** `ticker`, `owner_code`, `owner_name`, `owner_name_en`, `position_name`, `quantity`, `percentage`, `owner_type` (CORPORATE/INDIVIDUAL)
-
-**Assessment:**
-- ✅ Useful for institutional ownership analysis
-- ✅ Clean schema with EN/VN names
+**Columns:** `ticker`, `owner_name`, `owner_name_en`, `quantity`, `percentage`, `owner_type` (CORPORATE/INDIVIDUAL)
 
 ---
 
-### 11. `vci_valuation.sqlite` — 📉 VNINDEX Valuation Chart
-
-| Property | Value |
-|---|---|
-| **Size** | 1.4 MB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | VCI API |
-| **Update** | Daily via `fetch_vci_valuation.py` |
-| **Used by** | `/api/market/pe-chart`, `/api/market/index-valuation-chart` |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `valuation_history` | 5,547 | Daily VNINDEX PE/PB/price/OHLC |
-| `valuation_stats` | 2 | PE/PB statistical bands (avg, ±1SD, ±2SD) |
-| `ema_breadth_history` | 5,897 | Daily EMA50 breadth (% stocks above EMA50) |
-| `meta` | 1 | Last run timestamp |
-
-**Assessment:**
-- ✅ Market-level valuation — PE/PB bands help identify overvalued/undervalued market
-- ✅ EMA50 breadth data for market health analysis
-- ✅ Statistical bands (±1SD, ±2SD) — useful for visualization on chart
-
----
-
-### 12. `vci_foreign.sqlite` — 🌏 Foreign Trading
+### 8. `vci_foreign.sqlite` — Dòng tiền Nước ngoài
 
 | Property | Value |
 |---|---|
 | **Size** | 760 KB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI Foreign Trading API |
-| **Update** | Every 2 min during market hours via cron `fetch_vci_foreign.py` |
+| **Update** | Every 2 minutes during market hours (`fetch_vci_foreign.py`) |
 | **Used by** | `/api/market/foreign` |
-
-**Tables:**
 
 | Table | Rows | Description |
 |---|---|---|
-| `foreign_net_snapshot` | 17 | Daily foreign buy/sell top lists (raw JSON) |
-| `foreign_volume_minute` | 4,624 | Intraday minute foreign trading volume |
-
-**Assessment:**
-- ✅ Snapshot table stores raw JSON — flexible but harder to query directly
-- ✅ Minute-level data for intraday foreign flow analysis
-- ⚠️ Only 17 snapshot rows — very recent data, no long history
+| `foreign_net_snapshot` | ~17 | Snapshot mua/bán nước ngoài theo ngày (raw JSON) |
+| `foreign_volume_minute` | ~4,624 | Khối lượng nước ngoài theo phút nội ngày |
 
 ---
 
-### 13. `index_history.sqlite` — 📊 Market Index History
+### 9. `vci_valuation.sqlite` — Định giá VNINDEX
+
+| Property | Value |
+|---|---|
+| **Size** | 1.4 MB |
+| **Location** | `fetch_sqlite/` |
+| **Source** | VCI API |
+| **Update** | Daily (`fetch_vci_valuation.py`) |
+| **Used by** | `/api/market/pe-chart`, `/api/market/index-valuation-chart` |
+
+| Table | Rows | Description |
+|---|---|---|
+| `valuation_history` | ~5,547 | PE/PB/giá VNINDEX theo ngày |
+| `valuation_stats` | 2 | Dải thống kê PE/PB (avg, ±1SD, ±2SD) |
+| `ema_breadth_history` | ~5,897 | Tỷ lệ % cổ phiếu trên EMA50 hàng ngày |
+| `meta` | 1 | Timestamp lần chạy cuối |
+
+---
+
+### 10. `index_history.sqlite` — Lịch sử Chỉ số
 
 | Property | Value |
 |---|---|
 | **Size** | 160 KB |
 | **Location** | `fetch_sqlite/` |
 | **Source** | VCI Index API |
-| **Update** | Every 15 minutes via cron `fetch_vci.py` |
+| **Update** | Every 15 minutes (`fetch_vci.py`) |
 | **Used by** | `/api/market/index-history` |
 
-**Tables:**
-
 | Table | Rows | Description |
 |---|---|---|
-| `market_index_history` | 272 | Daily index data (VNINDEX, VN30, HNXINDEX, UPCOM) |
-| `meta` | 2 | Last run timestamps |
-
-**Columns:** 62 columns including value, change %, OHLC index, volume/value, net buy/sell, foreign ownership ratio
+| `market_index_history` | ~272 | Dữ liệu chỉ số hàng ngày (VNINDEX, VN30, HNXINDEX, UPCOM) |
+| `meta` | 2 | Timestamps |
 
 **Assessment:**
-- ✅ Only 272 rows = ~1 year of trading days for 4 indices
-- ⚠️ Relatively short history — consider backfilling
-- ✅ Rich column set — comprehensive index data
+- ⚠️ Chỉ ~272 rows = ~1 năm ngày giao dịch cho 4 chỉ số — xem xét backfill thêm
 
 ---
 
-### 14. `macro_history.sqlite` — 📈 VCI Macro Data
+### 11. `macro_history.sqlite` / `fireant_macro.sqlite` — Kinh tế vĩ mô
 
-| Property | Value |
-|---|---|
-| **Size** | 636 KB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | VCI Macro API |
-| **Update** | Weekly via `fetch_macro_history.py` |
-| **Used by** | `/api/macro` |
-
-**Tables:**
+| File | Size | Source | Update |
+|---|---|---|---|
+| `macro_history.sqlite` | 636 KB | VCI Macro API | Weekly |
+| `fireant_macro.sqlite` | 376 KB | Fireant API | Weekly |
 
 | Table | Rows | Description |
 |---|---|---|
-| `macro_prices` | 6,126 | Time series for macro indicators (symbol, date, close) |
-
-**Assessment:**
-- ✅ Simple schema (symbol, date, close) — easy to query
-- ✅ 6,126 data points across multiple indicators
+| `macro_prices` | ~6,126 | Time series cho các chỉ số vĩ mô (VCI) |
+| `macro_indicators` | 96 | Metadata chỉ số (Fireant) |
+| `macro_data` | ~6,695 | Dữ liệu lịch sử (Fireant) |
 
 ---
 
-### 15. `fireant_macro.sqlite` — 📉 Fireant Macro Data
-
-| Property | Value |
-|---|---|
-| **Size** | 376 KB |
-| **Location** | `fetch_sqlite/` |
-| **Source** | Fireant API |
-| **Update** | Weekly via `fetch_fireant_macro.py` |
-| **Used by** | `/api/macro` (alternative source) |
-
-**Tables:**
-
-| Table | Rows | Description |
-|---|---|---|
-| `macro_indicators` | 96 | Indicator metadata (GDP, CPI, M2, interest rates, etc.) |
-| `macro_data` | 6,695 | Historical time series data |
-
-**Assessment:**
-- ✅ Alternative source to VCI macro — good for redundancy
-- ✅ 96 indicators across GDP, CPI, M2, interest rates, exchange rates
-- 💡 Two macro sources (VCI + Fireant) — useful for cross-validation
-
----
-
-### 16. `valuation_cache.sqlite` — 💾 Valuation Cache
+### 12. `valuation_cache.sqlite` — Cache DCF
 
 | Property | Value |
 |---|---|
 | **Size** | 124 KB |
 | **Location** | `fetch_sqlite/` |
-| **Source** | Self-calculated (DCF results) |
-| **Update** | On-demand via `batch_valuations.py` |
-| **Used by** | `/api/stock/[symbol]/valuation` |
-
-**Tables:**
+| **Source** | Self-calculated |
+| **Update** | On-demand (`batch_valuations.py`) |
+| **Used by** | Batch valuation pre-computation |
 
 | Table | Rows | Description |
 |---|---|---|
-| `valuations` | 1,463 | Cached DCF valuation results per symbol |
-
-**Assessment:**
-- ✅ Cache for expensive DCF calculations — speeds up repeat queries
-- ✅ Only 124 KB — very efficient
-- 💡 Consider TTL-based cleanup for stale entries
+| `valuations` | ~1,463 | Kết quả DCF cache per symbol |
 
 ---
-
-## API Endpoints (Split Design)
-
-| Endpoint | Size | Content | Used by |
-|---|---|---|---|
-| `GET /api/stock/{symbol}/summary` | ~500 B | Identity + price + 38 key ratios | Header, quick stats |
-| `GET /api/stock/{symbol}/profile` | ~1.5 KB | company_profile, description | Overview tab |
-| `GET /api/stock/{symbol}/ratio-history` | ~1.5 KB | 12-year PE/PB/ROE/ROA/Debt array | 12-year ratio chart |
-| `GET /api/stock/{symbol}/ratio-series` | ~500 B | current_ratio_data, quick_ratio_data, ev_ebitda… | Mini-charts |
-| `GET /api/stock/{symbol}/overview-full` | ~4 KB | All 4 combined (legacy) | Downloads, old clients |
-| `GET /api/stock/{symbol}` | ~4 KB | Legacy endpoint (kept for compat) | Old clients |
-| `GET /api/stock/history/{symbol}` | ~110 KB | 1245 days OHLCV | Price chart |
-| `GET /api/financial-report/{symbol}` | ~16 KB | Full BCTC (VCI field codes) | Financials tab |
-| `GET /api/valuation/{symbol}` | ~12 KB | DCF valuation result | Valuation tab |
-| `GET /api/stock/holders/{symbol}` | ~2 KB | Shareholder list | Holders tab |
-
-**Before:** 1 call × 4 KB = 4 KB (monolithic, slow)
-**After:** 4 calls × 500B–1.5KB in parallel = same total, but **header renders first** (fastest endpoint returns first)
 
 ## Data Flow Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      EXTERNAL APIs                               │
-├──────────────────────┬────────────────────────┬──────────────────┤
-│  VCI API             │  Fireant API           │  KBS (vnstock)   │
-│  (vietcap.com.vn)    │  (fireant.vn)          │                 │
-└────┬─────────────────┴────┬───────────────────┴────────┬────────┘
-     │                      │                            │
-     ▼                      ▼                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              FETCH SCRIPTS (fetch_sqlite/*.py)                    │
-│  Cron jobs: every 2min–weekly                                     │
-└────┬────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                         EXTERNAL APIs                               │
+├───────────────────────┬────────────────────────────────────────────┤
+│  VCI API              │  Fireant API                                │
+│  (vietcap.com.vn)     │  (fireant.vn)                               │
+└────┬──────────────────┴──────────────┬──────────────────────────────┘
+     │                                 │
+     ▼                                 ▼
+┌────────────────────────────────────────────────────────────────────┐
+│              FETCH SCRIPTS (fetch_sqlite/*.py)                       │
+│  Cron jobs: every 2min – weekly                                      │
+└────┬───────────────────────────────────────────────────────────────┘
      │
      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    LOCAL SQLITE DATABASES                         │
-│                                                                  │
-│  CORE:                                                           │
-│  ├── stocks_optimized.db (836 MB)  ← Master DB, pipeline daily  │
-│  ├── price_history.sqlite (218 MB)  ← OHLCV daily               │
-│  └── vci_financials.sqlite (132 MB)  ← VCI BCTC wide-format     │
-│                                                                  │
-│  MARKET DATA:                                                    │
-│  ├── vci_screening.sqlite (2.7 MB)  ← Real-time screener        │
-│  ├── vci_stats_financial.sqlite (10 MB)  ← TTM ratios + history │
-│  ├── vci_ratio_daily.sqlite (136 KB)  ← Daily PE/PB             │
-│  ├── vci_company.sqlite (3.6 MB)  ← Company profiles            │
-│  ├── vci_shareholders.sqlite (5.1 MB)  ← Shareholder lists      │
-│  └── vci_foreign.sqlite (760 KB)  ← Foreign trading             │
-│                                                                  │
-│  INDICES & MACRO:                                                │
-│  ├── index_history.sqlite (160 KB)  ← Index OHLC                │
-│  ├── macro_history.sqlite (636 KB)  ← VCI macro                 │
-│  └── fireant_macro.sqlite (376 KB)  ← Fireant macro             │
-│                                                                  │
-│  NEWS & AI:                                                      │
-│  ├── vci_news_events.sqlite (184 MB)  ← Raw news/events         │
-│  └── vci_ai_news.sqlite (6.5 MB)  ← AI-analyzed news            │
-│                                                                  │
-│  VALUATION:                                                      │
-│  ├── vci_valuation.sqlite (1.4 MB)  ← VNINDEX PE/PB chart       │
-│  └── valuation_cache.sqlite (124 KB)  ← DCF cache               │
-└────┬────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                    LOCAL SQLITE DATABASES                            │
+│                                                                     │
+│  CORE (cho valuation):                                              │
+│  ├── vci_financials.sqlite (132 MB)   ← BCTC wide-format daily     │
+│  ├── vci_screening.sqlite (2.6 MB)    ← Giá + screener 7min        │
+│  ├── vci_stats_financial.sqlite (10MB)← TTM ratios hourly          │
+│  └── vci_company.sqlite (3.5 MB)      ← Hồ sơ + ngành weekly       │
+│                                                                     │
+│  PRICE & MARKET:                                                    │
+│  ├── price_history.sqlite (218 MB)    ← OHLCV daily                │
+│  ├── vci_ratio_daily.sqlite (136KB)   ← PE/PB daily                │
+│  ├── vci_foreign.sqlite (760KB)       ← Nước ngoài 2min            │
+│  └── index_history.sqlite (160KB)     ← Chỉ số 15min               │
+│                                                                     │
+│  COMPANY DATA:                                                      │
+│  ├── vci_shareholders.sqlite (5.1MB)  ← Cổ đông daily              │
+│  └── vci_news_events.sqlite (183MB)   ← Tin tức + sự kiện daily    │
+│                                                                     │
+│  AI & MACRO:                                                        │
+│  ├── vci_ai_news.sqlite (6.5MB)       ← Tin tức AI 10min           │
+│  ├── macro_history.sqlite (636KB)     ← VCI vĩ mô weekly           │
+│  └── fireant_macro.sqlite (376KB)     ← Fireant vĩ mô weekly       │
+│                                                                     │
+│  VALUATION:                                                         │
+│  ├── vci_valuation.sqlite (1.4MB)     ← PE/PB VNINDEX daily        │
+│  └── valuation_cache.sqlite (124KB)   ← Cache DCF on-demand        │
+└────┬───────────────────────────────────────────────────────────────┘
      │
      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              BACKEND (Flask API)                                  │
-│  source_priority.py → merges VCI + KBS data (priority chain)    │
-│  vci_financial_adapter.py → maps VCI field codes to standard    │
-│  valuation_service.py → DCF calculation (FCFE/FCFF/P/E/P/B)     │
-│  stock_provider.py → reads stocks_optimized.db                   │
-└────┬────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│              BACKEND (Flask API)                                     │
+│                                                                     │
+│  valuation_service.py:                                              │
+│    industry    ← vci_company.companies.icb_name4                   │
+│    price       ← vci_screening.marketPrice                         │
+│    PE/PB/PS    ← vci_stats_financial.stats_financial               │
+│    EPS history ← vci_financials.income_statement.isa23             │
+│    Net income  ← vci_financials.income_statement.isa22             │
+│    Peers PE/PB ← vci_screening (icbCodeLv2) + vci_stats_financial  │
+│                                                                     │
+│  source_priority.py PE/PB chain:                                    │
+│    #1 vci_ratio_daily → #2 vci_stats_financial                     │
+│    → #3 vci_screening → #4 vnstock live API                        │
+└────┬───────────────────────────────────────────────────────────────┘
      │
      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              FRONTEND (Next.js)                                   │
-│  /screener → /api/market/screener (vci_screening + ratio_daily)  │
-│  /stock/[symbol] → overview, financials, valuation, news, etc.   │
-│  Market → index-valuation-chart, ema50-breadth, foreign, macro   │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│              FRONTEND (Next.js)                                      │
+│  /stock/[symbol] → overview, financials, valuation, news           │
+│  /screener → vci_screening + vci_stats_financial                   │
+│  Market → index-valuation-chart, ema50-breadth, foreign, macro     │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-## Update Schedule
+---
 
-| Frequency | Script(s) | Output File(s) | Cron |
-|---|---|---|---|
-| Every 2 min (market hours) | `fetch_vci_foreign.py` | `vci_foreign.sqlite` | ✅ |
-| Every 5 min | `fetch_vci_screener.py` | `vci_screening.sqlite` | ✅ |
-| Every 7 min | `fetch_vci_screener.py` (full) | `vci_screening.sqlite` | ✅ |
-| Every 10 min | `fetch_vci_news.py` | `vci_ai_news.sqlite` | ✅ |
-| Every 15 min | `fetch_vci.py` | `index_history.sqlite` | ✅ |
-| Every hour | `fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` | ✅ |
-| Daily 11:30 | `update_price_history.py` | `price_history.sqlite` | systemd |
-| Daily 13:00 | `fetch_vci_shareholders.py` | `vci_shareholders.sqlite` | ✅ |
-| Daily 13:30 | `fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` | ✅ |
-| Daily 18:00 | `run_pipeline.py` | `stocks_optimized.db` | systemd |
-| Daily | `fetch_vci_financial_statement.py` | `vci_financials.sqlite` | ✅ |
-| Daily | `fetch_vci_news.py` (events) | `vci_news_events.sqlite` | ✅ |
-| Daily | `fetch_vci_valuation.py` | `vci_valuation.sqlite` | ✅ |
-| Weekly (Sun 02:00, bi-weekly) | `fetch_vci_company.py` | `vci_company.sqlite` | ✅ |
-| Weekly | `fetch_macro_history.py` | `macro_history.sqlite` | ✅ |
-| Weekly | `fetch_fireant_macro.py` | `fireant_macro.sqlite` | ✅ |
-| On-demand | `batch_valuations.py` | `valuation_cache.sqlite` | — |
+## Fetch Schedule
 
-## Source Priority Chain (for PE/PB)
+| Frequency | Script | Output |
+|---|---|---|
+| Every 2 min (giờ giao dịch) | `fetch_vci_foreign.py` | `vci_foreign.sqlite` |
+| Every 7 min | `fetch_vci_screener.py` | `vci_screening.sqlite` |
+| Every 10 min | `fetch_vci_news.py` | `vci_ai_news.sqlite` |
+| Every 15 min | `fetch_vci.py` | `index_history.sqlite` |
+| Every 1 hour | `fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` |
+| Daily 11:30 UTC | `update_price_history.py` | `price_history.sqlite` |
+| Daily 13:00 | `fetch_vci_shareholders.py` | `vci_shareholders.sqlite` |
+| Daily 13:30 | `fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` |
+| Daily | `fetch_vci_financial_statement.py` | `vci_financials.sqlite` |
+| Daily | `fetch_vci_news.py` (events) | `vci_news_events.sqlite` |
+| Daily | `fetch_vci_valuation.py` | `vci_valuation.sqlite` |
+| Weekly (Sun 02:00) | `fetch_vci_company.py` | `vci_company.sqlite` |
+| Weekly | `fetch_macro_history.py` | `macro_history.sqlite` |
+| Weekly | `fetch_fireant_macro.py` | `fireant_macro.sqlite` |
+| On-demand | `batch_valuations.py` | `valuation_cache.sqlite` |
 
-When the backend resolves PE/PB ratios, it checks sources in this order:
+---
 
-```
-1. vci_ratio_daily.sqlite        → Latest daily PE/PB (PRIORITY #1)
-2. vci_stats_financial.sqlite    → TTM ratios from stats API
-3. vci_screening.sqlite          → Screener snapshot TTM PE/PB
-4. stocks_optimized.db           → KBS/vnstock PE/PB
-5. vnstock API (live)            → Fallback if all else fails
-```
+## Điểm mạnh & Cần cải thiện
 
-## Key Observations & Recommendations
+### Điểm mạnh
+- **Multi-source redundancy:** VCI + Fireant — tính bền vững dữ liệu
+- **Fast queries:** File nhỏ cho dữ liệu truy cập thường xuyên (screening, ratios)
+- **Clean separation:** Mỗi file có một trách nhiệm riêng
+- **VCI-native:** Toàn bộ tính năng chính dựa trên VCI data — không phụ thuộc KBS/vnstock nữa
 
-### ✅ Strengths
-- **Multi-source redundancy:** VCI + KBS + Fireant — data resilience
-- **Good coverage:** 1,500+ stocks, multi-year financial history
-- **Fast queries:** Small files for frequently accessed data (screening, ratios)
-- **Clean separation:** Each file has a single responsibility
-
-### ⚠️ Areas for Improvement
-1. **`vci_news_events.sqlite` (184 MB):** Consider archiving items older than 1 year
-2. **Empty tables in `stocks_optimized.db`:** Clean up or populate: `news`, `events`, `subsidiaries`, `stock_price_history`
-3. **`index_history.sqlite` (272 rows):** Only ~1 year of index data — consider backfilling
-4. **Periodic VACUUM:** Run `VACUUM` on large databases quarterly to reclaim space
-
-### 💡 Optimization Ideas
-- Partition `price_history.sqlite` by year for faster queries
-- Add indexes on frequently-queried columns (`ticker`, `trading_date`)
-- Consider a single unified "ratios" view that joins all 3 ratio sources
-- Add data quality checks (null PE/PB, negative market cap, etc.)
+### Cần cải thiện
+1. **`vci_news_events.sqlite` (183 MB):** Cân nhắc archive items cũ hơn 1 năm
+2. **`index_history.sqlite` (272 rows):** Chỉ ~1 năm dữ liệu — backfill thêm lịch sử
+3. **`vci_financials.sqlite` (~33k rows):** Ít hơn so với KBS cũ (~73k) — tiếp tục tích lũy thêm quý
+4. **Periodic VACUUM:** Chạy `VACUUM` quarterly trên các DB lớn để tái sử dụng không gian

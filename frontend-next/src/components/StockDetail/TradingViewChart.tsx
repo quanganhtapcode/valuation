@@ -27,8 +27,8 @@ type Interval = 'D' | 'W' | 'M';
 const INTERVAL_LABELS: Record<Interval, string> = { D: '1D', W: '1W', M: '1M' };
 const INTERVAL_CYCLE: Record<Interval, Interval> = { D: 'W', W: 'M', M: 'D' };
 
-// Default bars to show per interval (~5 months of data)
-const INTERVAL_BARS: Record<Interval, number> = { D: 105, W: 22, M: 6 };
+// Default bars to show per interval
+const INTERVAL_BARS: Record<Interval, number> = { D: 120, W: 52, M: 24 };
 
 interface TradingViewChartProps {
     data: HistoricalData[];
@@ -399,11 +399,13 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             color: d.close >= d.open ? 'rgba(22,163,74,0.28)' : 'rgba(220,38,38,0.28)',
         })));
 
-        // Set default viewport: ~5 months of data based on interval
+        // Anchor viewport to right edge: always show last N bars.
+        // Negative `from` is valid — lightweight-charts renders empty space to the left,
+        // so the chart never gets pinned to a historical start date.
         const total = aggregatedData.length;
         const barsToShow = INTERVAL_BARS[intervalRef.current];
         chartRef.current.timeScale().setVisibleLogicalRange({
-            from: Math.max(0, total - barsToShow),
+            from: total - barsToShow,
             to:   total + 2,
         });
     }, [aggregatedData]);

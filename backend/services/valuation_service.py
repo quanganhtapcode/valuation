@@ -3,7 +3,7 @@ import threading
 import time
 import logging
 from typing import Dict, Any, Optional
-from backend.db_path import resolve_vci_screening_db_path, resolve_vci_stats_financial_db_path
+from backend.db_path import resolve_vci_screening_db_path, resolve_vci_stats_financial_db_path, resolve_vci_company_db_path
 from backend.data_sources.financial_repository import FinancialRepository
 from backend.services.vci_financial_adapter import (
     has_vci_financial_db,
@@ -188,6 +188,83 @@ def _load_stats_financial_row(symbol: str) -> dict | None:
         return None
     finally:
         conn.close()
+
+
+def _load_symbol_overview_from_vci(symbol: str) -> dict | None:
+    """Build an overview-compatible row from VCI company + screening DBs.
+
+    Used as fallback when stocks_optimized.db overview table is empty or missing.
+    Returns a dict with keys: symbol, industry, current_price, eps_ttm, bvps, pe, pb.
+    """
+    symbol = symbol.upper()
+
+    industry = 'Unknown'
+    current_price = None
+    pe = 0.0
+    pb = 0.0
+
+    # Industry from vci_company (icb_name4 → icb_name3 → icb_name2 as fallback)
+    try:
+        conn = sqlite3.connect(resolve_vci_company_db_path())
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT icb_name4, icb_name3, icb_name2 FROM companies WHERE UPPER(ticker) = ?",
+            (symbol,),
+        ).fetchone()
+        if row:
+            industry = row['icb_name4'] or row['icb_name3'] or row['icb_name2'] or 'Unknown'
+        conn.close()
+    except Exception as exc:
+        logger.debug(f"VCI company lookup failed for {symbol}: {exc}")
+
+    if industry == 'Unknown':
+        # Try sector name from screening as secondary fallback
+        try:
+            conn = sqlite3.connect(resolve_vci_screening_db_path())
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT viSector, enSector FROM screening_data WHERE UPPER(ticker) = ?",
+                (symbol,),
+            ).fetchone()
+            if row:
+                industry = row['viSector'] or row['enSector'] or 'Unknown'
+            conn.close()
+        except Exception:
+            pass
+
+    # Current price + PE/PB from stats_financial (TTM)
+    sf = _load_stats_financial_row(symbol)
+    if sf:
+        pe = _to_float(sf.get('pe'))
+        pb = _to_float(sf.get('pb'))
+
+    # Market price from screening (live, updated every few minutes)
+    try:
+        conn = sqlite3.connect(resolve_vci_screening_db_path())
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT marketPrice FROM screening_data WHERE UPPER(ticker) = ?",
+            (symbol,),
+        ).fetchone()
+        if row and row['marketPrice']:
+            current_price = float(row['marketPrice'])
+        conn.close()
+    except Exception:
+        pass
+
+    if industry == 'Unknown' and pe == 0.0 and current_price is None:
+        # Symbol truly not found in any VCI source
+        return None
+
+    return {
+        'symbol': symbol,
+        'industry': industry,
+        'current_price': current_price,
+        'eps_ttm': 0.0,   # overridden below by sf_pe calculation
+        'bvps': 0.0,      # overridden below by sf_pb calculation
+        'pe': pe,
+        'pb': pb,
+    }
 
 
 class ScreeningIndustryComparablesCache:
@@ -1019,37 +1096,55 @@ def _build_default_scenarios(
 
 
 def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: float | None = None) -> dict:
+    import os
     symbol = symbol.upper()
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
 
-    ov = cur.execute(
-        "SELECT symbol, industry, current_price, eps_ttm, bvps, pe, pb FROM overview WHERE symbol = ?",
-        (symbol,),
-    ).fetchone()
-
-    # P/S and share count from ratio_wide (latest available quarter or annual)
+    ov = None
     ratio_wide_row = None
-    try:
-        ratio_wide_row = cur.execute(
-            """
-            SELECT ps, market_cap, outstanding_share
-            FROM ratio_wide
-            WHERE symbol = ?
-            ORDER BY year DESC,
-                     CASE WHEN quarter IS NULL THEN -1 ELSE quarter END DESC
-            LIMIT 1
-            """,
-            (symbol,),
-        ).fetchone()
-    except Exception:
-        ratio_wide_row = None
 
-    conn.close()
+    # Only attempt DB read when stocks_optimized.db exists and has real content.
+    # SQLite creates a 0-byte file on connect if the path doesn't exist — we skip that.
+    if db_path and os.path.exists(db_path) and os.path.getsize(db_path) > 4096:
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+
+            try:
+                ov = cur.execute(
+                    "SELECT symbol, industry, current_price, eps_ttm, bvps, pe, pb FROM overview WHERE symbol = ?",
+                    (symbol,),
+                ).fetchone()
+            except Exception:
+                ov = None
+
+            # P/S and share count from ratio_wide (latest available quarter or annual)
+            try:
+                ratio_wide_row = cur.execute(
+                    """
+                    SELECT ps, market_cap, outstanding_share
+                    FROM ratio_wide
+                    WHERE symbol = ?
+                    ORDER BY year DESC,
+                             CASE WHEN quarter IS NULL THEN -1 ELSE quarter END DESC
+                    LIMIT 1
+                    """,
+                    (symbol,),
+                ).fetchone()
+            except Exception:
+                ratio_wide_row = None
+
+            conn.close()
+        except Exception:
+            ov = None
+            ratio_wide_row = None
 
     if not ov:
-        return {'success': False, 'error': f'Symbol {symbol} not found in overview'}
+        # stocks_optimized.db overview is empty — fall back to VCI data sources
+        vci_ov = _load_symbol_overview_from_vci(symbol)
+        if not vci_ov:
+            return {'success': False, 'error': f'Symbol {symbol} not found in overview'}
+        ov = vci_ov
 
     industry = (ov['industry'] or 'Unknown')
 
@@ -1150,7 +1245,7 @@ def load_inputs_from_sqlite(db_path: str, symbol: str, current_price_override: f
     elif ratio_wide_row and ratio_wide_row['ps']:
         ps_company = _to_float(ratio_wide_row['ps'])
 
-    market_cap_raw = _to_float(ratio_wide_row['market_cap']) if ratio_wide_row and ratio_wide_row['market_cap'] else 0.0
+    market_cap_raw = _to_float(ratio_wide_row['market_cap']) if ratio_wide_row and ratio_wide_row['market_cap'] else _to_float((sf_row or {}).get('market_cap'))
     net_income_ttm, net_income_source = _load_latest_net_income(db_path, symbol)
     financial_components = _load_latest_financial_components(db_path, symbol)
     if net_income_ttm <= 0 and eps > 0 and outstanding_share > 0:

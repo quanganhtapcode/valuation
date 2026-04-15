@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from backend.extensions import get_provider, get_valuation_service
 from backend.utils import validate_stock_symbol
-from backend.db_path import resolve_stocks_db_path, resolve_vci_shareholders_db_path, resolve_vci_stats_financial_db_path
+from backend.db_path import resolve_stocks_db_path, resolve_vci_company_db_path, resolve_vci_shareholders_db_path, resolve_vci_stats_financial_db_path
 from backend.services.source_priority import (
     SOURCE_PRIORITY_LABEL,
     apply_source_priority,
@@ -612,18 +612,14 @@ def get_company_profile(symbol):
             return jsonify(cached)
 
         try:
-            db_path = resolve_stocks_db_path()
-            if not db_path or not os.path.exists(db_path):
-                return jsonify({'success': False, 'message': 'Database not found'}), 404
-
-            conn = sqlite3.connect(db_path)
+            company_path = resolve_vci_company_db_path()
+            conn = sqlite3.connect(company_path)
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 """
-                SELECT company_profile, history, icb_name3, icb_name2, icb_name4,
-                       charter_capital, issue_share
-                FROM company_overview
-                WHERE symbol = ?
+                SELECT company_profile, organ_name, icb_name3, icb_name2, icb_name4
+                FROM companies
+                WHERE UPPER(ticker) = ?
                 """,
                 (symbol,),
             ).fetchone()
@@ -633,17 +629,16 @@ def get_company_profile(symbol):
                 return jsonify({'success': False, 'message': 'No overview data available'}), 404
 
             company_profile_text = row['company_profile'] or ''
-            history = row['history'] or ''
-            industry = row['icb_name3'] or ''
+            industry = row['icb_name3'] or row['icb_name4'] or ''
 
             profile_result = {
                 'symbol': symbol,
-                'company_name': symbol,
-                'company_profile': company_profile_text or history,
+                'company_name': row['organ_name'] or symbol,
+                'company_profile': company_profile_text,
                 'industry': industry,
-                'charter_capital': row['charter_capital'] or '',
-                'issue_share': row['issue_share'] or '',
-                'history': history[:300] + '...' if len(history) > 300 else history,
+                'charter_capital': '',
+                'issue_share': '',
+                'history': '',
                 'success': True
             }
             _cache_set(cache_key, profile_result)
