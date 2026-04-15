@@ -14,6 +14,7 @@ from flask import Blueprint, jsonify, request
 from backend.utils import validate_stock_symbol
 from backend.db_path import resolve_price_history_db_path
 from backend.data_sources.vci import VCIClient
+from backend.cache_utils import cache_get_ns, cache_set_ns
 
 
 logger = logging.getLogger(__name__)
@@ -69,10 +70,24 @@ def register(stock_bp: Blueprint) -> None:
             logger.error(f"Error fetching price history from DB for {symbol}: {e}")
             return []
     
+    def _vietcap_cache_ttl() -> int:
+        """
+        Return appropriate TTL based on current VN market hours (UTC+7).
+        - During session (9:00–15:30): 15 min — intraday candle updates
+        - After close / pre-open:      60 min — data static until next session
+        """
+        vn_hour = (datetime.utcnow().hour + 7) % 24
+        vn_minute = datetime.utcnow().minute
+        in_session = (vn_hour == 9 and vn_minute >= 0) or \
+                     (10 <= vn_hour <= 14) or \
+                     (vn_hour == 15 and vn_minute <= 30)
+        return 15 * 60 if in_session else 60 * 60
+
     def get_price_history_from_vietcap(symbol: str, count_back: int, time_frame: str = "ONE_DAY") -> List[Dict]:
         """
         Fetch gap-adjusted OHLC price history from Vietcap API.
         This handles stock splits correctly — prices are adjusted for continuity.
+        Results are cached in-memory (15 min during session, 60 min after close).
 
         Args:
             symbol: Stock symbol
@@ -82,6 +97,11 @@ def register(stock_bp: Blueprint) -> None:
         Returns:
             List of price records sorted by date ascending
         """
+        cache_key = f"{symbol}:{count_back}:{time_frame}"
+        cached = cache_get_ns("vietcapHistory", cache_key)
+        if cached is not None:
+            return cached
+
         try:
             now_ts = int(time.time())
             body = json.dumps(
@@ -134,7 +154,10 @@ def register(stock_bp: Blueprint) -> None:
                     "volume": float(volumes[i]) if i < len(volumes) else 0.0,
                 })
 
-            return sorted(result, key=lambda x: x["date"])
+            result = sorted(result, key=lambda x: x["date"])
+            if result:
+                cache_set_ns("vietcapHistory", cache_key, result, ttl=_vietcap_cache_ttl())
+            return result
 
         except Exception as e:
             logger.error(f"Error fetching price history from Vietcap for {symbol}: {e}")
