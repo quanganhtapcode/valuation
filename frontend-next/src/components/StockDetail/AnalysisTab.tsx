@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
     Card,
@@ -127,58 +127,54 @@ function topeHistory(res: any): { period: string; 'P/E': number; 'P/B': number }
 // ── component ─────────────────────────────────────────────────────────────────
 
 const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading = false }: AnalysisTabProps) => {
-    const [peers, setPeers] = useState<Peer[]>((initialPeers?.data || initialPeers?.peers || []).map(normalizePeer));
+    const [peers, setPeers] = useState<Peer[]>([]);
     const [peHistory, setPeHistory] = useState<any[]>([]);
-    const [loading, setLoading] = useState(!initialPeers && !initialHistory);
-    const [medianPe, setMedianPe] = useState<number | null>(toNumberOrNull(initialPeers?.medianPe));
+    const [loading, setLoading] = useState(true);
+    const [medianPe, setMedianPe] = useState<number | null>(null);
+    // Track which (symbol, sector) pair has already been fetched to prevent re-fetching
+    const fetchedKeyRef = useRef<string>('');
 
-    useEffect(() => {
-        if ((initialPeers?.data || initialPeers?.peers) && peers.length === 0) {
-            setPeers((initialPeers.data || initialPeers.peers).map(normalizePeer));
-            setMedianPe(toNumberOrNull(initialPeers.medianPe));
-            if (peHistory.length > 0) setLoading(false);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialPeers, peHistory.length, peers.length]);
-
+    // Populate from initialHistory prop when it arrives
     useEffect(() => {
         if (initialHistory && peHistory.length === 0) {
             setPeHistory(topeHistory(initialHistory));
-            if (peers.length > 0) setLoading(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialHistory, peHistory.length, peers.length]);
+    }, [initialHistory]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Main fetch: only runs when symbol/sector/isLoading change, never re-triggers on state writes
     useEffect(() => {
-        const fetchData = async () => {
-            if (isLoading) return;
-            if (peers.length > 0 && peHistory.length > 0) { setLoading(false); return; }
-            setLoading(true);
-            try {
-                const [peersRes, historyRes] = await Promise.all([
-                    peers.length === 0
-                        ? fetch(`/api/stock/peers/${symbol}?industry=${encodeURIComponent(sector)}`).then(r => r.json())
-                        : Promise.resolve({ success: true, peers, medianPe }),
-                    (peHistory.length === 0 && !initialHistory)
-                        ? fetch(`/api/historical-chart-data/${symbol}?period=quarter`).then(r => r.json())
-                        : Promise.resolve(null),
-                ]);
-                if (peersRes.success) {
+        if (isLoading) return;                     // wait for parent history fetch
+        if (!sector || sector === 'Unknown') return; // wait for sector to resolve
+        const fetchKey = `${symbol}::${sector}`;
+        if (fetchedKeyRef.current === fetchKey) return; // already fetched for this pair
+        fetchedKeyRef.current = fetchKey;
+
+        let cancelled = false;
+        setLoading(true);
+
+        const peersPromise = fetch(`/api/stock/peers/${symbol}?industry=${encodeURIComponent(sector)}`)
+            .then(r => r.json());
+
+        const historyPromise = (initialHistory == null)
+            ? fetch(`/api/historical-chart-data/${symbol}?period=quarter`).then(r => r.json())
+            : Promise.resolve(null);
+
+        Promise.all([peersPromise, historyPromise])
+            .then(([peersRes, historyRes]) => {
+                if (cancelled) return;
+                if (peersRes?.success) {
                     setPeers((peersRes.data || peersRes.peers || []).map(normalizePeer));
                     setMedianPe(toNumberOrNull(peersRes.medianPe));
                 }
                 if (historyRes?.success) {
                     setPeHistory(topeHistory(historyRes));
                 }
-            } catch (error) {
-                console.error('Error fetching analysis data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [symbol, sector, isLoading, initialHistory, peHistory.length, peers, medianPe]);
+            })
+            .catch(err => console.error('AnalysisTab fetch error:', err))
+            .finally(() => { if (!cancelled) setLoading(false); });
+
+        return () => { cancelled = true; };
+    }, [symbol, sector, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const metricExtremes = useMemo(() => {
         const metricKeys: MetricKey[] = ['marketCap', 'pe', 'pb', 'roe', 'roa', 'netMargin', 'profitGrowth'];
