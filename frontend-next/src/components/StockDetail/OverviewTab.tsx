@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from '../../app/stock/[symbol]/page.module.css';
 import TradingViewChart from './TradingViewChart';
+import OrderBook from './OrderBook';
 
 function formatRelativeTime(dateStr: string): string {
     if (!dateStr) return '';
@@ -83,6 +84,11 @@ interface PriceData {
     ceiling: number;
     floor: number;
     ref: number;
+    avgPrice?: number;
+    orderbook?: {
+        bid: Array<{ price: number; volume: number }>;
+        ask: Array<{ price: number; volume: number }>;
+    };
 }
 
 interface FinancialData {
@@ -152,8 +158,29 @@ interface OverviewTabProps {
     epsHistory?: EpsHistoryItem[];
 }
 
+function formatValue(v: number): string {
+    if (!v) return '—';
+    if (v >= 1e9) return `${(v / 1e9).toFixed(1)} tỷ`;
+    if (v >= 1e6) return `${(v / 1e6).toFixed(1)} tr`;
+    return v.toLocaleString('vi-VN');
+}
+
+function formatVol(v: number): string {
+    if (!v) return '—';
+    if (v >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+    if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+    return v.toLocaleString('vi-VN');
+}
+
+function formatSessionPrice(v: number): string {
+    if (!v) return '—';
+    return v.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function OverviewTab({
+    symbol: _symbol,
     stockInfo,
+    priceData,
     financials,
     historicalData,
     isDescExpanded,
@@ -162,6 +189,14 @@ export default function OverviewTab({
     news = [],
     epsHistory = [],
 }: OverviewTabProps) {
+    const stats = [
+        { label: 'Mở cửa', value: formatSessionPrice(priceData?.open ?? 0) },
+        { label: 'Cao',     value: formatSessionPrice(priceData?.high ?? 0) },
+        { label: 'Thấp',    value: formatSessionPrice(priceData?.low ?? 0) },
+        { label: 'Tổng KL', value: formatVol(priceData?.volume ?? 0) },
+        { label: 'Tổng GT', value: formatValue(priceData?.value ?? 0) },
+    ];
+
     return (
         <div className={styles.mainContent}>
             {/* Left Column */}
@@ -173,10 +208,36 @@ export default function OverviewTab({
                             Biểu đồ giá
                         </h3>
                     </div>
+
+                    {/* Session stats bar */}
+                    {priceData && (priceData.open > 0 || priceData.volume > 0) && (
+                        <div className="mb-3 grid grid-cols-5 gap-0 rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden text-center">
+                            {stats.map((s, i) => (
+                                <div
+                                    key={s.label}
+                                    className={`py-1.5 px-1 ${i < stats.length - 1 ? 'border-r border-slate-100 dark:border-slate-800' : ''}`}
+                                >
+                                    <div className="text-[9px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500 mb-0.5">{s.label}</div>
+                                    <div className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 tabular-nums leading-tight">{s.value}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div>
                         <TradingViewChart
                             data={historicalData}
                             isLoading={isLoading}
+                        />
+                    </div>
+
+                    {/* Order book */}
+                    <div className="mt-3">
+                        <OrderBook
+                            orderbook={priceData?.orderbook}
+                            refPrice={priceData?.ref ?? 0}
+                            ceiling={priceData?.ceiling ?? 0}
+                            floor={priceData?.floor ?? 0}
                         />
                     </div>
                 </section>

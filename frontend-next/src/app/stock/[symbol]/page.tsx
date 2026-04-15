@@ -47,6 +47,11 @@ interface PriceData {
     ceiling: number;
     floor: number;
     ref: number;
+    avgPrice?: number;
+    orderbook?: {
+        bid: Array<{ price: number; volume: number }>;
+        ask: Array<{ price: number; volume: number }>;
+    };
 }
 
 interface HistoricalData {
@@ -368,15 +373,11 @@ export default function StockDetailPage() {
                         ...(curPrice > 0 && { price: curPrice }),
                         ...(refPrice > 0 && { ref: refPrice }),
                         ...(vo != null && { volume: vo }),
-                        ...(ob && ob.bid && ob.bid.length > 0 && {
-                            bid1: ob.bid[0]?.price || 0,
-                            bid2: ob.bid[1]?.price || 0,
-                            bid3: ob.bid[2]?.price || 0,
-                        }),
-                        ...(ob && ob.ask && ob.ask.length > 0 && {
-                            ask1: ob.ask[0]?.price || 0,
-                            ask2: ob.ask[1]?.price || 0,
-                            ask3: ob.ask[2]?.price || 0,
+                        ...(ob && {
+                            orderbook: {
+                                bid: (ob.bid || []).slice(0, 3).map((b: any) => ({ price: b?.price || 0, volume: b?.volume || 0 })),
+                                ask: (ob.ask || []).slice(0, 3).map((a: any) => ({ price: a?.price || 0, volume: a?.volume || 0 })),
+                            },
                         }),
                         // Recompute change from ref
                         ...(change !== 0 && { change }),
