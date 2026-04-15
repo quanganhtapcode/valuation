@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 # Cache for CafeF market data proxies - reduces API calls by 99%
 market_cache = {}
 MARKET_CACHE_TTL = {
-    'realtime': 45,      # 45 seconds - Balances freshness with API limits
+    'realtime': 15,      # 15 seconds - Synced with frontend poll interval
     'indices': 45,       # 45 seconds - Index data
     'pe_chart': 3600,    # 1 hour - Historical data
     'news': 300,         # 5 minutes - News

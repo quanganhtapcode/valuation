@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 def register(stock_bp: Blueprint) -> None:
     @stock_bp.route("/historical-chart-data/<symbol>")
+    @stock_bp.route("/stock/<symbol>/historical-chart-data")
     def api_historical_chart_data(symbol):
         """Historical financial ratios from VCI sources.
 

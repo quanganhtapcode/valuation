@@ -173,7 +173,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                             {items.map(item => (
                                 <div key={item.symbol} className="flex items-center gap-2 px-4 py-2.5">
                                     <StockLogo symbol={item.symbol} />
-                                    <Link href={`/stock/${item.symbol}`} className="flex-1 min-w-0 hover:opacity-75 transition-opacity">
+                                    <Link href={`/stock/${item.symbol}`} prefetch={false} className="flex-1 min-w-0 hover:opacity-75 transition-opacity">
                                         <div className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong truncate leading-tight">{item.name}</div>
                                         <div className="text-xs text-tremor-content dark:text-dark-tremor-content">{item.symbol}{item.exchange ? `  ${item.exchange}` : ''}</div>
                                     </Link>

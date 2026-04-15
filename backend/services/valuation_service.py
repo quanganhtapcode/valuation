@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import threading
 import time
@@ -88,23 +89,27 @@ class IndustryComparablesCache:
             if entry and (now - entry.created_at) < self._ttl_seconds:
                 return entry.rows
 
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            cur = conn.cursor()
-            cur.execute(
-                "SELECT symbol, pe, pb FROM overview WHERE industry = ?",
-                (industry,),
-            )
             rows: list[tuple[str, float, float]] = []
-            for r in cur.fetchall() or []:
-                rows.append(
-                    (
-                        str(r['symbol']).upper(),
-                        _to_float(r['pe']),
-                        _to_float(r['pb']),
+            if db_path and os.path.exists(db_path) and os.path.getsize(db_path) > 4096:
+                try:
+                    conn = sqlite3.connect(db_path)
+                    conn.row_factory = sqlite3.Row
+                    cur = conn.cursor()
+                    cur.execute(
+                        "SELECT symbol, pe, pb FROM overview WHERE industry = ?",
+                        (industry,),
                     )
-                )
-            conn.close()
+                    for r in cur.fetchall() or []:
+                        rows.append(
+                            (
+                                str(r['symbol']).upper(),
+                                _to_float(r['pe']),
+                                _to_float(r['pb']),
+                            )
+                        )
+                    conn.close()
+                except Exception:
+                    pass
 
             self._cache[industry] = _IndustryCacheEntry(now, rows)
             return rows
@@ -662,6 +667,9 @@ def _load_screening_peer_details(screening_db_path: str, icb_code_lv2: str, symb
 def _load_overview_peer_details(db_path: str, industry: str, symbol: str) -> list[dict]:
     symbol = symbol.upper()
 
+    if not db_path or not os.path.exists(db_path) or os.path.getsize(db_path) <= 4096:
+        return []
+
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -679,6 +687,8 @@ def _load_overview_peer_details(db_path: str, industry: str, symbol: str) -> lis
             """,
             (industry, symbol),
         ).fetchall() or []
+    except Exception:
+        rows = []
     finally:
         conn.close()
 
@@ -703,6 +713,9 @@ def _load_overview_metrics_map(db_path: str, symbols: list[str]) -> dict[str, di
     if not symbols:
         return {}
 
+    if not db_path or not os.path.exists(db_path) or os.path.getsize(db_path) <= 4096:
+        return {}
+
     syms = [str(s).upper() for s in symbols if s]
     placeholders = ','.join(['?'] * len(syms))
 
@@ -718,6 +731,8 @@ def _load_overview_metrics_map(db_path: str, symbols: list[str]) -> dict[str, di
             """,
             syms,
         ).fetchall() or []
+    except Exception:
+        rows = []
     finally:
         conn.close()
 

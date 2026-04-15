@@ -53,6 +53,7 @@ export default function Footer() {
                                             <Link
                                                 className="flex rounded-md text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                                 href={item.href}
+                                                prefetch={false}
                                                 target={item.external ? "_blank" : undefined}
                                                 rel={item.external ? "noopener noreferrer" : undefined}
                                             >
@@ -84,6 +85,7 @@ export default function Footer() {
                                             <Link
                                                 className="flex rounded-md text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                                 href={item.href}
+                                                prefetch={false}
                                                 target={item.external ? "_blank" : undefined}
                                                 rel={item.external ? "noopener noreferrer" : undefined}
                                             >
@@ -117,6 +119,7 @@ export default function Footer() {
                                             <Link
                                                 className="flex rounded-md text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                                 href={item.href}
+                                                prefetch={false}
                                                 target={item.external ? "_blank" : undefined}
                                                 rel={item.external ? "noopener noreferrer" : undefined}
                                             >
@@ -148,6 +151,7 @@ export default function Footer() {
                                             <Link
                                                 className="flex rounded-md text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                                 href={item.href}
+                                                prefetch={false}
                                                 target={item.external ? "_blank" : undefined}
                                                 rel={item.external ? "noopener noreferrer" : undefined}
                                             >

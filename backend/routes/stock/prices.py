@@ -59,11 +59,13 @@ def register(stock_bp: Blueprint) -> None:
             return jsonify({"success": False, "error": str(exc)}), 500
 
     @stock_bp.route("/current-price/<symbol>")
+    @stock_bp.route("/stock/<symbol>/current-price")
     def api_current_price(symbol):
         """Get real-time current price for a symbol (dict format)."""
         return api_price(symbol)
 
     @stock_bp.route("/stock/batch-price")
+    @stock_bp.route("/batch-price")
     def api_batch_price():
         """Get real-time prices for multiple symbols at once."""
         provider = get_provider()

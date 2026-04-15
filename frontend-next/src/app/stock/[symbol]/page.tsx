@@ -113,7 +113,7 @@ export default function StockDetailPage() {
         if (!symbol) return;
         setIsHistoryLoading(true);
         const controller = new AbortController();
-        fetch(`/api/historical-chart-data/${symbol}?period=quarter`, { signal: controller.signal })
+        fetch(`/api/stock/${symbol}/historical-chart-data?period=quarter`, { signal: controller.signal })
             .then(r => r.ok ? r.json() : null)
             .then(res => {
                 if (res?.success && res.data) {
@@ -152,7 +152,7 @@ export default function StockDetailPage() {
             try {
                 // Start realtime price request immediately so it runs in parallel
                 // with ticker/overview fetching instead of waiting for them.
-                const realtimePricePromise = fetch(`/api/current-price/${symbol}`)
+                const realtimePricePromise = fetch(`/api/stock/${symbol}/current-price`)
                     .then(r => r.ok ? r.json() : null)
                     .catch(() => null);
 
@@ -262,7 +262,7 @@ export default function StockDetailPage() {
                 setIsLoading(false);
 
                 // PHASE 2: Fetch news and EPS history in parallel
-                fetch(`/api/news/${symbol}`)
+                fetch(`/api/stock/${symbol}/news`)
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         console.log('[News API] Response:', res);
@@ -279,7 +279,7 @@ export default function StockDetailPage() {
                     .catch(err => console.error('[News API] Error:', err));
 
                 // Fetch EPS history from income statement SQLite
-                fetch(`/api/financial-report/${symbol}?type=income&period=year&limit=10`)
+                fetch(`/api/stock/${symbol}/financial-report?type=income&period=year&limit=10`)
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         console.log('[EPS API] Response:', res);

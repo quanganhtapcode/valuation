@@ -156,7 +156,7 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
             .then(r => r.json());
 
         const historyPromise = (initialHistory == null)
-            ? fetch(`/api/historical-chart-data/${symbol}?period=quarter`).then(r => r.json())
+            ? fetch(`/api/stock/${symbol}/historical-chart-data?period=quarter`).then(r => r.json())
             : Promise.resolve(null);
 
         Promise.all([peersPromise, historyPromise])

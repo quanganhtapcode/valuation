@@ -106,7 +106,7 @@ export default function TopMovers({
                         {items.slice(0, maxItems).map((item) => {
                             return (
                                 <ListItem key={item.Symbol} className="group border-b border-tremor-border/5 dark:border-dark-tremor-border/5 last:border-0 hover:bg-tremor-background-muted/40 transition-colors px-1 -mx-1">
-                                    <Link href={`/stock/${item.Symbol}`} className="flex items-center w-full py-2">
+                                    <Link href={`/stock/${item.Symbol}`} prefetch={false} className="flex items-center w-full py-2">
                                         {/* Ticker Logo */}
                                         <div className="relative shrink-0 h-8 w-8 flex items-center justify-center bg-white dark:bg-gray-900 rounded-lg overflow-hidden border border-tremor-border/10 dark:border-dark-tremor-border/10 group-hover:border-tremor-brand/30 transition-colors">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
