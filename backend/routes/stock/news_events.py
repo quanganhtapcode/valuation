@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
+import os
+import sqlite3
 from datetime import date
 
 import requests
@@ -11,6 +14,44 @@ from backend.utils import validate_stock_symbol
 from backend.services.vci_news_sqlite import query_news_for_symbol, default_news_db_path
 from backend.routes.market.http_headers import VCI_HEADERS
 from backend.cache_utils import cache_get, cache_set
+
+
+def _news_events_db_path() -> str:
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    candidates = [
+        os.path.join(root, "fetch_sqlite", "vci_news_events.sqlite"),
+        "/var/www/valuation/fetch_sqlite/vci_news_events.sqlite",
+        "/var/www/store/fetch_sqlite/vci_news_events.sqlite",
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return candidates[0]
+
+
+def _query_news_events_sqlite(symbol: str, tab: str, limit: int = 50) -> list:
+    """Query vci_news_events.sqlite for a given symbol+tab. Returns list of dicts from raw_json."""
+    db_path = _news_events_db_path()
+    if not os.path.exists(db_path):
+        return []
+    try:
+        conn = sqlite3.connect(db_path, timeout=5)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT raw_json FROM items WHERE symbol = ? AND tab = ? ORDER BY public_date DESC LIMIT ?",
+            (symbol.upper(), tab, limit),
+        ).fetchall()
+        conn.close()
+        result = []
+        for r in rows:
+            try:
+                result.append(json.loads(r[0]))
+            except Exception:
+                continue
+        return result
+    except Exception as e:
+        logger.warning("vci_news_events sqlite query failed for %s/%s: %s", symbol, tab, e)
+        return []
 
 _VCI_IQ_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1"
 
@@ -28,6 +69,7 @@ logger = logging.getLogger(__name__)
 
 def register(stock_bp: Blueprint) -> None:
     @stock_bp.route("/news/<symbol>")
+    @stock_bp.route("/stock/<symbol>/news")
     def api_news(symbol):
         """Get news for a symbol (prefer SQLite cache, fallback upstream)."""
         try:
@@ -112,6 +154,7 @@ def register(stock_bp: Blueprint) -> None:
             return jsonify({"success": False, "error": str(exc)}), 500
 
     @stock_bp.route("/vci-feed/<symbol>")
+    @stock_bp.route("/stock/vci-feed/<symbol>")
     def api_vci_feed(symbol):
         """Proxy VCI IQ news/events API for a given tab type."""
         try:
@@ -128,6 +171,14 @@ def register(stock_bp: Blueprint) -> None:
             if cached:
                 return jsonify(cached)
 
+            # Prefer SQLite cache (vci_news_events.sqlite) over live API
+            sqlite_items = _query_news_events_sqlite(clean_symbol, tab, limit=50)
+            if sqlite_items:
+                result = {"success": True, "tab": tab, "data": sqlite_items}
+                cache_set(cache_key, result)
+                return jsonify(result)
+
+            # Fallback: live VCI IQ API
             cfg = _TAB_CONFIG[tab]
             today = date.today()
             from_date = "20100101"

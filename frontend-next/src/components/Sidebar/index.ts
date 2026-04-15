@@ -6,4 +6,3 @@ export { default as CryptoPrices } from './CryptoPrices';
 export { default as FFWorldMarkets } from './FFWorldMarkets';
 export { default as FFForexRates } from './FFForexRates';
 export { default as WatchlistCard } from './WatchlistCard';
-export { default as PolymarketEvents } from './PolymarketEvents';

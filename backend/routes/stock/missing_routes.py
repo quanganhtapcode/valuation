@@ -30,6 +30,7 @@ from backend.db_path import (
     resolve_vci_company_db_path,
     resolve_vci_financial_statement_db_path,
     resolve_vci_screening_db_path,
+    resolve_vci_stats_financial_db_path,
 )
 from backend.extensions import get_provider, get_stock_service, get_financial_service, get_valuation_service
 from backend.utils import validate_stock_symbol
@@ -187,6 +188,7 @@ def register(stock_bp: Blueprint) -> None:
     # GET /api/financial-report/<symbol>                                    #
     # ------------------------------------------------------------------ #
     @stock_bp.route("/financial-report/<symbol>")
+    @stock_bp.route("/stock/<symbol>/financial-report")
     def api_financial_report(symbol: str):
         """
         Return financial statements for a symbol.
@@ -207,10 +209,6 @@ def register(stock_bp: Blueprint) -> None:
         cached = _cache_get(cache_key)
         if cached:
             return jsonify(cached)
-
-        db_path = resolve_stocks_db_path()
-        if not db_path or not os.path.exists(db_path):
-            return jsonify({"error": "Database not found"}), 503
 
         table_map = {
             "income": "income_statement",
@@ -328,6 +326,94 @@ def register(stock_bp: Blueprint) -> None:
             logger.info(f"Note report for {clean_symbol}: returning empty (VCI FS DB not available or no data)")
             return jsonify([])
 
+        # ── Ratio tab: read from vci_stats_financial_history ──────────────── #
+        if report_type == "ratio":
+            sf_path = resolve_vci_stats_financial_db_path()
+            if sf_path and os.path.exists(sf_path):
+                try:
+                    conn = sqlite3.connect(sf_path, timeout=5)
+                    conn.row_factory = sqlite3.Row
+                    # quarter_report=5 means annual in VCI convention
+                    if period == "year":
+                        qfilter = "quarter_report = 5"
+                    else:
+                        qfilter = "quarter_report IN (1,2,3,4)"
+                    rows = conn.execute(
+                        f"""
+                        SELECT year_report, quarter_report, period_date,
+                               pe, pb, ps, price_to_cash_flow, ev_to_ebitda,
+                               roe, roa, roic,
+                               gross_margin, ebit_margin, pre_tax_margin, after_tax_margin,
+                               current_ratio, quick_ratio, cash_ratio,
+                               debt_to_equity, financial_leverage, asset_turnover,
+                               dividend_yield, market_cap, shares,
+                               day_sale_outstanding, days_inventory_outstanding, days_payable_outstanding,
+                               net_interest_margin, cir, car, casa_ratio, npl, ldr,
+                               loans_growth, deposit_growth
+                        FROM stats_financial_history
+                        WHERE ticker = ? AND {qfilter}
+                        ORDER BY year_report DESC, quarter_report DESC
+                        LIMIT ?
+                        """,
+                        (clean_symbol, limit),
+                    ).fetchall()
+                    conn.close()
+
+                    if rows:
+                        data = []
+                        for r in rows:
+                            row_data = {
+                                "year": r["year_report"],
+                                "quarter": r["quarter_report"] if period != "year" else 0,
+                                "period_date": r["period_date"],
+                                # Valuation multiples
+                                "pe": r["pe"],
+                                "pb": r["pb"],
+                                "ps": r["ps"],
+                                "price_to_cash_flow": r["price_to_cash_flow"],
+                                "ev_to_ebitda": r["ev_to_ebitda"],
+                                # Profitability
+                                "roe": r["roe"],
+                                "roa": r["roa"],
+                                "roic": r["roic"],
+                                "gross_profit_margin": r["gross_margin"],
+                                "gross_margin": r["gross_margin"],
+                                "ebit_margin": r["ebit_margin"],
+                                "pre_tax_margin": r["pre_tax_margin"],
+                                "net_profit_margin": r["after_tax_margin"],
+                                "after_tax_margin": r["after_tax_margin"],
+                                # Liquidity / leverage
+                                "current_ratio": r["current_ratio"],
+                                "quick_ratio": r["quick_ratio"],
+                                "cash_ratio": r["cash_ratio"],
+                                "debt_to_equity": r["debt_to_equity"],
+                                "financial_leverage": r["financial_leverage"],
+                                "asset_turnover": r["asset_turnover"],
+                                # Market
+                                "dividend_yield": r["dividend_yield"],
+                                "market_cap": r["market_cap"],
+                                "shares": r["shares"],
+                                # Efficiency
+                                "day_sale_outstanding": r["day_sale_outstanding"],
+                                "days_inventory_outstanding": r["days_inventory_outstanding"],
+                                "days_payable_outstanding": r["days_payable_outstanding"],
+                                # Banking-specific
+                                "net_interest_margin": r["net_interest_margin"],
+                                "cir": r["cir"],
+                                "car": r["car"],
+                                "casa_ratio": r["casa_ratio"],
+                                "npl": r["npl"],
+                                "ldr": r["ldr"],
+                                "loans_growth": r["loans_growth"],
+                                "deposit_growth": r["deposit_growth"],
+                            }
+                            data.append(row_data)
+                        _cache_set(cache_key, data)
+                        return jsonify(data)
+                except Exception as exc:
+                    logger.warning(f"vci_stats_financial ratio query failed for {clean_symbol}: {exc}")
+            return jsonify([])
+
         try:
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
@@ -367,6 +453,7 @@ def register(stock_bp: Blueprint) -> None:
     # GET /api/financial-report-metrics/<symbol>                         #
     # ------------------------------------------------------------------ #
     @stock_bp.route("/financial-report-metrics/<symbol>")
+    @stock_bp.route("/stock/<symbol>/financial-report-metrics")
     def api_financial_report_metrics(symbol: str):
         """Return mapping for VCI field codes (isa1/bsa1/cfa1 -> label)."""
         is_valid, clean_symbol = validate_stock_symbol(symbol)

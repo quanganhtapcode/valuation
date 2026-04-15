@@ -406,16 +406,17 @@ const RATIOS_SECTIONS = [
     {
         title: 'Trailing Valuation',
         rows: [
-            { key: 'pe', label: 'P/E Ratio' },
-            { key: 'price_to_earnings', label: 'P/E Ratio' },
-            { key: 'pb', label: 'P/B Ratio' },
-            { key: 'price_to_book', label: 'P/B Ratio' },
-            { key: 'ps', label: 'P/S Ratio' },
-            { key: 'price_to_sales', label: 'P/S Ratio' },
-            { key: 'pcf', label: 'P/CF Ratio' },
-            { key: 'p_cash_flow', label: 'Price to Cash Flow' },
-            { key: 'ev_to_ebitda', label: 'EV/EBITDA' },
-            { key: 'ev_ebitda', label: 'EV/EBITDA' },
+            { key: 'pe', label: 'P/E Ratio', isMultiple: true },
+            { key: 'price_to_earnings', label: 'P/E Ratio', isMultiple: true },
+            { key: 'pb', label: 'P/B Ratio', isMultiple: true },
+            { key: 'price_to_book', label: 'P/B Ratio', isMultiple: true },
+            { key: 'ps', label: 'P/S Ratio', isMultiple: true },
+            { key: 'price_to_sales', label: 'P/S Ratio', isMultiple: true },
+            { key: 'pcf', label: 'P/CF Ratio', isMultiple: true },
+            { key: 'p_cash_flow', label: 'Price to Cash Flow', isMultiple: true },
+            { key: 'price_to_cash_flow', label: 'Price to Cash Flow', isMultiple: true },
+            { key: 'ev_to_ebitda', label: 'EV/EBITDA', isMultiple: true },
+            { key: 'ev_ebitda', label: 'EV/EBITDA', isMultiple: true },
             { key: 'dividend_yield', label: 'Dividend Yield', isPct: true },
             { key: 'buyback_yield', label: 'Buyback Yield', isPct: true },
             { key: 'fcf_yield', label: 'FCF Yield', isPct: true },
@@ -436,16 +437,16 @@ const RATIOS_SECTIONS = [
     {
         title: 'Financial Health',
         rows: [
-            { key: 'current_ratio', label: 'Current Ratio' },
-            { key: 'quick_ratio', label: 'Quick Ratio' },
-            { key: 'cash_ratio', label: 'Cash Ratio' },
-            { key: 'debt_to_equity', label: 'Debt-to-Equity' },
-            { key: 'debt_equity', label: 'Debt/Equity' },
-            { key: 'financial_leverage', label: 'Financial Leverage' },
-            { key: 'interest_coverage', label: 'Interest Coverage' },
-            { key: 'asset_turnover', label: 'Asset Turnover' },
-            { key: 'inventory_turnover', label: 'Inventory Turnover' },
-            { key: 'receivables_turnover', label: 'Receivables Turnover' },
+            { key: 'current_ratio', label: 'Current Ratio', isMultiple: true },
+            { key: 'quick_ratio', label: 'Quick Ratio', isMultiple: true },
+            { key: 'cash_ratio', label: 'Cash Ratio', isMultiple: true },
+            { key: 'debt_to_equity', label: 'Debt-to-Equity', isMultiple: true },
+            { key: 'debt_equity', label: 'Debt/Equity', isMultiple: true },
+            { key: 'financial_leverage', label: 'Financial Leverage', isMultiple: true },
+            { key: 'interest_coverage', label: 'Interest Coverage', isMultiple: true },
+            { key: 'asset_turnover', label: 'Asset Turnover', isMultiple: true },
+            { key: 'inventory_turnover', label: 'Inventory Turnover', isMultiple: true },
+            { key: 'receivables_turnover', label: 'Receivables Turnover', isMultiple: true },
         ]
     },
     {
@@ -591,7 +592,7 @@ function SectionedTable({
     displayUnit,
     fieldLabels,
 }: {
-    sections: { title: string; rows: { key: string; label: string; isTotal?: boolean; isGrandTotal?: boolean; isPct?: boolean; indent?: boolean }[]; isPctSection?: boolean }[];
+    sections: { title: string; rows: { key: string; label: string; isTotal?: boolean; isGrandTotal?: boolean; isPct?: boolean; isMultiple?: boolean; indent?: boolean }[]; isPctSection?: boolean }[];
     rows: any[];
     displayUnit: DisplayUnit;
     fieldLabels?: Record<string, string>;
@@ -603,10 +604,18 @@ function SectionedTable({
     const sortedRows = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
     const displayRows = sortedRows.slice(0, 8);
 
-    const getDisplayValue = (row: any, key: string, forcePct?: boolean): string => {
+    const getDisplayValue = (row: any, key: string, forcePct?: boolean, forceMultiple?: boolean): string => {
         const v = Number(row[key]);
-        if (Number.isNaN(v) || Math.abs(v) < 0.01) return '-';
-        if (forcePct) return fmtPct(v);
+        if (Number.isNaN(v)) return '-';
+        if (forcePct) {
+            if (Math.abs(v) < 0.0001) return '-';
+            return fmtPct(v);
+        }
+        if (forceMultiple) {
+            if (Math.abs(v) < 0.001) return '-';
+            return v % 1 === 0 ? v.toFixed(0) : v.toFixed(2);
+        }
+        if (Math.abs(v) < 0.01) return '-';
         const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000;
         return fmt(v / divisor);
     };
@@ -647,15 +656,17 @@ function SectionedTable({
                                 </td>
                             </tr>
                             {section.rows.map((rowDef, rowIdx) => {
+                                const isMultipleRow = (rowDef as any).isMultiple ?? false;
                                 const hasData = displayRows.some(r => {
                                     const v = Number(r[rowDef.key]);
-                                    return !Number.isNaN(v) && Math.abs(v) > 0.01;
+                                    return !Number.isNaN(v) && Math.abs(v) > (isMultipleRow ? 0.001 : 0.01);
                                 });
                                 if (!hasData) return null;
 
                                 const isGrandTotal = rowDef.isGrandTotal ?? false;
                                 const isTotal = rowDef.isTotal ?? false;
                                 const isPct = rowDef.isPct ?? section.isPctSection ?? false;
+                                const isMultiple = (rowDef as any).isMultiple ?? false;
                                 const isIndented = rowDef.indent ?? false;
 
                                 const bgClass = isIndented
@@ -686,7 +697,7 @@ function SectionedTable({
                                                 bgClass,
                                                 isGrandTotal ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-slate-300',
                                             )}>
-                                                {getDisplayValue(row, rowDef.key, isPct)}
+                                                {getDisplayValue(row, rowDef.key, isPct, isMultiple)}
                                             </td>
                                         ))}
                                     </tr>
@@ -878,9 +889,9 @@ export default function FinancialsTab({
     // Fetch field labels
     useEffect(() => {
         Promise.allSettled([
-            fetch(`/api/financial-report-metrics/${symbol}?type=income`).then(r => r.json()),
-            fetch(`/api/financial-report-metrics/${symbol}?type=balance`).then(r => r.json()),
-            fetch(`/api/financial-report-metrics/${symbol}?type=cashflow`).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report-metrics?type=income`).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report-metrics?type=balance`).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report-metrics?type=cashflow`).then(r => r.json()),
         ]).then(([incomeMeta, balanceMeta, cashflowMeta]) => {
             const unwrap = (res: PromiseSettledResult<any>) => {
                 if (res.status !== 'fulfilled' || !res.value) return {};
@@ -898,10 +909,10 @@ export default function FinancialsTab({
         setReportLoading(true);
 
         Promise.allSettled([
-            fetch(`/api/financial-report/${symbol}?type=income&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/financial-report/${symbol}?type=balance&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/financial-report/${symbol}?type=cashflow&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/financial-report/${symbol}?type=ratio&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=income&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=balance&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=cashflow&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=ratio&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
         ]).then(([income, balance, cashflow, ratio]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
