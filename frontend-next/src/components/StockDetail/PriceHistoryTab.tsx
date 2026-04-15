@@ -4,6 +4,7 @@ import React, { useEffect, useState, useTransition } from 'react';
 import { fetchPriceHistory } from '@/lib/stockApi';
 import { formatNumber } from '@/lib/api';
 import type { PriceData } from '@/lib/types';
+import TradingViewChart from './TradingViewChart';
 
 interface PriceHistoryTabProps {
     symbol: string;
@@ -110,10 +111,26 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
 
     return (
         <div className="space-y-6 pb-8" style={{ fontFamily: 'Inter, sans-serif' }}>
+
+            {/* ── OHLC Candlestick Chart (Vietcap gap-adjusted source) ── */}
+            <div className="bg-white dark:bg-gray-950 rounded-xl border border-tremor-border dark:border-dark-tremor-border p-4">
+                <TradingViewChart
+                    data={allPriceData.map(d => ({
+                        time: (d as any).time || (d as any).date || '',
+                        open: (d as any).open || 0,
+                        high: (d as any).high || 0,
+                        low: (d as any).low || 0,
+                        close: (d as any).close || 0,
+                        volume: (d as any).volume || 0,
+                    }))}
+                    isLoading={isLoading}
+                />
+            </div>
+
             <div className="flex items-center justify-between gap-4">
                 {/* Title */}
                 <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
-                    Price History
+                    Lịch sử giá
                 </h3>
 
                 {/* Toolbar */}
@@ -156,8 +173,7 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
                 </div>
             </div>
 
-
-            {/* Content Content */}
+            {/* Data table */}
             {isLoading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
                     <div className="spinner" />
