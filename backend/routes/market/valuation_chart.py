@@ -444,13 +444,36 @@ def fetch_vci_index_valuation_payload(
 ) -> dict[str, Any]:
     cutoff = _time_frame_to_cutoff(time_frame)
 
-    # SQLite path (VNINDEX only) — filter in SQL, return flat unified rows
+    # SQLite path (VNINDEX only) — use as base, then patch with live Vietcap OHLC for recent missing bars
     if com_group_code.upper() == "VNINDEX":
         sqlite_data = _read_valuation_from_sqlite(cutoff_date=cutoff)
         if sqlite_data:
+            existing_dates = {row["date"] for row in sqlite_data["data"]}
+            # Fetch recent Vietcap OHLC to fill today / yesterday if not in SQLite
+            try:
+                recent_ohlc = _fetch_vnindex_ohlc_series(count_back=5)
+                for bar in _attach_ema50(recent_ohlc):
+                    d = bar["date"]
+                    if d not in existing_dates:
+                        sqlite_data["data"].append({
+                            "date":    d,
+                            "vnindex": bar.get("value"),
+                            "open":    bar.get("open"),
+                            "high":    bar.get("high"),
+                            "low":     bar.get("low"),
+                            "close":   bar.get("close"),
+                            "ema50":   bar.get("ema50"),
+                            "pe":      None,
+                            "pb":      None,
+                            "volume":  bar.get("volume"),
+                        })
+                if recent_ohlc:
+                    sqlite_data["data"].sort(key=lambda r: r["date"])
+            except Exception as exc:
+                logger.debug("Vietcap OHLC patch skipped: %s", exc)
             return {
                 "success": True,
-                "source": "SQLite",
+                "source": "SQLite+Vietcap",
                 "index": com_group_code,
                 "timeFrame": time_frame,
                 "stats": sqlite_data["stats"],
