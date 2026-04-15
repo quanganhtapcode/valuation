@@ -539,15 +539,52 @@ export default function StockDetailPage() {
 
                 {priceData && (
                     <div className={styles.priceCompact}>
+                        {/* Price + change */}
                         <div className={styles.priceRowCompact}>
-                            <span className="text-tremor-content-strong dark:text-dark-tremor-content-strong" style={{ fontSize: '1.5rem', fontWeight: 700, lineHeight: 1 }}>
+                            <span style={{
+                                fontSize: '1.5rem', fontWeight: 700, lineHeight: 1,
+                                color: priceData.ceiling > 0 && priceData.price >= priceData.ceiling ? '#7c3aed'
+                                     : priceData.floor > 0 && priceData.price <= priceData.floor ? '#0891b2'
+                                     : priceData.ref > 0 && priceData.price > priceData.ref ? '#16a34a'
+                                     : priceData.ref > 0 && priceData.price < priceData.ref ? '#dc2626'
+                                     : priceData.ref > 0 ? '#d97706' : undefined,
+                            }}>
                                 {formatNumber(priceData.price)}
                             </span>
                             <span className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle" style={{ fontSize: '0.75rem', fontWeight: 500 }}>VND</span>
-                            <span style={{ fontSize: '1rem', fontWeight: 600, color: priceData.change >= 0 ? '#10b981' : '#ef4444' }}>
-                                {priceData.change > 0 ? '+' : ''}{formatNumber(priceData.change)} <span style={{ opacity: 0.7 }}>({formatPercentChange(priceData.changePercent)})</span>
+                            <span style={{
+                                fontSize: '0.95rem', fontWeight: 600,
+                                color: priceData.change > 0 ? '#16a34a' : priceData.change < 0 ? '#dc2626' : '#d97706',
+                            }}>
+                                {priceData.change > 0 ? '+' : ''}{formatNumber(priceData.change)}{' '}
+                                <span style={{ opacity: 0.75 }}>({formatPercentChange(priceData.changePercent)})</span>
                             </span>
                         </div>
+
+                        {/* Ceiling / Ref / Floor chips */}
+                        {(priceData.ceiling > 0 || priceData.ref > 0 || priceData.floor > 0) && (
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                {priceData.ceiling > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+                                        style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
+                                        ▲ {formatNumber(priceData.ceiling)}
+                                    </span>
+                                )}
+                                {priceData.ref > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+                                        style={{ background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
+                                        ▬ {formatNumber(priceData.ref)}
+                                    </span>
+                                )}
+                                {priceData.floor > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+                                        style={{ background: 'rgba(8,145,178,0.1)', color: '#0891b2' }}>
+                                        ▼ {formatNumber(priceData.floor)}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
                         <div className={styles.klcpCompact}>
                             KLCP: {financials?.sharesOutstanding ? formatNumber(financials.sharesOutstanding) : '-'}
                         </div>

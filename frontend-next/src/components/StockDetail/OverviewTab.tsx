@@ -190,11 +190,11 @@ export default function OverviewTab({
     epsHistory = [],
 }: OverviewTabProps) {
     const stats = [
-        { label: 'Mở cửa', value: formatSessionPrice(priceData?.open ?? 0) },
-        { label: 'Cao',     value: formatSessionPrice(priceData?.high ?? 0) },
-        { label: 'Thấp',    value: formatSessionPrice(priceData?.low ?? 0) },
-        { label: 'Tổng KL', value: formatVol(priceData?.volume ?? 0) },
-        { label: 'Tổng GT', value: formatValue(priceData?.value ?? 0) },
+        { label: 'Mở cửa', value: formatSessionPrice(priceData?.open ?? 0),   color: undefined },
+        { label: 'Cao',     value: formatSessionPrice(priceData?.high ?? 0),   color: 'text-emerald-600 dark:text-emerald-400' },
+        { label: 'Thấp',    value: formatSessionPrice(priceData?.low ?? 0),    color: 'text-red-500 dark:text-red-400' },
+        { label: 'Tổng KL', value: formatVol(priceData?.volume ?? 0),          color: undefined },
+        { label: 'Tổng GT', value: formatValue(priceData?.value ?? 0),         color: undefined },
     ];
 
     return (
@@ -211,14 +211,14 @@ export default function OverviewTab({
 
                     {/* Session stats bar */}
                     {priceData && (priceData.open > 0 || priceData.volume > 0) && (
-                        <div className="mb-3 grid grid-cols-5 gap-0 rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden text-center">
+                        <div className="mb-3 grid grid-cols-5 gap-0 rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden text-center bg-slate-50/50 dark:bg-slate-800/30">
                             {stats.map((s, i) => (
                                 <div
                                     key={s.label}
-                                    className={`py-1.5 px-1 ${i < stats.length - 1 ? 'border-r border-slate-100 dark:border-slate-800' : ''}`}
+                                    className={`py-2 px-1 ${i < stats.length - 1 ? 'border-r border-slate-100 dark:border-slate-800' : ''}`}
                                 >
-                                    <div className="text-[9px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500 mb-0.5">{s.label}</div>
-                                    <div className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 tabular-nums leading-tight">{s.value}</div>
+                                    <div className="text-[9px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500 mb-0.5 leading-none">{s.label}</div>
+                                    <div className={`text-[12px] font-bold tabular-nums leading-tight ${s.color ?? 'text-slate-700 dark:text-slate-200'}`}>{s.value}</div>
                                 </div>
                             ))}
                         </div>
