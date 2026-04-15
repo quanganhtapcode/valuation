@@ -71,7 +71,11 @@ function periodSortKey(row: Record<string, any>): number {
 }
 
 function isBankStock(symbol: string, overviewData: any): boolean {
+    // Primary: vci_company.sqlite isbank flag, already included in overviewData
+    if (overviewData?.isbank) return true;
+    // Secondary: hardcoded set as fallback before overviewData loads
     if (BANK_SYMBOLS.has(symbol)) return true;
+    // Tertiary: NIM > 0 from vci_stats_financial
     const nim = overviewData?.nim ?? overviewData?.net_interest_margin;
     if (nim !== null && nim !== undefined && Number(nim) > 0) return true;
     return false;
@@ -109,17 +113,20 @@ const NORMAL_KEY_METRICS: { key: string; label: string; section: string; isPct?:
 
 const BANK_KEY_METRICS: { key: string; label: string; section: string; isPct?: boolean; indent?: boolean }[] = [
     { key: 'market_cap', label: 'Market Cap', section: 'overview' },
-    { key: 'cash', label: 'Cash', section: 'overview' },
-    { key: 'total_debt', label: 'Debt', section: 'overview' },
     { key: 'enterprise_value', label: 'Enterprise Value', section: 'overview' },
+    { key: 'net_income', label: 'Net Income', section: 'income' },
     { key: 'nim', label: 'NIM', isPct: true, section: 'income' },
-    { key: 'cir', label: 'CIR', isPct: true, section: 'income' },
-    { key: 'casa', label: 'CASA', isPct: true, section: 'balance' },
-    { key: 'npl', label: 'NPL', isPct: true, section: 'balance' },
+    { key: 'cir', label: 'CIR (Cost-to-Income)', isPct: true, section: 'income' },
+    { key: 'eps', label: 'EPS (TTM)', section: 'income' },
+    { key: 'profit_growth', label: '  Profit Growth', isPct: true, indent: true, section: 'income' },
+    { key: 'casa', label: 'CASA Ratio', isPct: true, section: 'balance' },
+    { key: 'npl', label: 'NPL Ratio', isPct: true, section: 'balance' },
+    { key: 'ldr', label: 'LDR (Loans/Deposits)', isPct: true, section: 'balance' },
     { key: 'roe', label: 'ROE', isPct: true, section: 'ratios' },
     { key: 'roa', label: 'ROA', isPct: true, section: 'ratios' },
-    { key: 'car', label: 'CAR', isPct: true, section: 'ratios' },
-    { key: 'ldr', label: 'LDR', isPct: true, section: 'ratios' },
+    { key: 'car', label: 'CAR (Capital Adequacy)', isPct: true, section: 'ratios' },
+    { key: 'pe', label: 'P/E Ratio', section: 'ratios' },
+    { key: 'pb', label: 'P/B Ratio', section: 'ratios' },
 ];
 
 // ── Section Definitions for Reports ───────────────────────────────────────────
@@ -246,6 +253,133 @@ const CASHFLOW_SECTIONS = [
             { key: 'cfa30', label: 'Dividends Paid' },
             { key: 'cfa31', label: 'Other Financing Cash Flows' },
             { key: 'cfa32', label: 'Cash from Financing', isTotal: true },
+        ]
+    },
+    {
+        title: 'Summary',
+        rows: [
+            { key: 'cfa33', label: 'Net Change in Cash', isTotal: true },
+            { key: 'cfa34', label: 'Cash at Beginning of Period' },
+            { key: 'cfa35', label: 'Cash at End of Period', isGrandTotal: true },
+        ]
+    }
+];
+
+// ── Bank-specific Section Definitions ────────────────────────────────────────
+// Banks use isb*/bsb*/cfb* columns instead of the standard isa*/bsa*/cfa*.
+
+const BANK_INCOME_SECTIONS = [
+    {
+        title: 'Kết quả kinh doanh ngân hàng',
+        rows: [
+            { key: 'isb25', label: 'Interest and Similar Income' },
+            { key: 'isb26', label: 'Interest and Similar Expenses' },
+            { key: 'isb27', label: 'Net Interest Income', isTotal: true },
+            { key: 'isb28', label: 'Fee and Commission Income' },
+            { key: 'isb29', label: 'Fee and Commission Expenses' },
+            { key: 'isb30', label: 'Net Fee and Commission Income', isTotal: true },
+            { key: 'isb31', label: 'Net FX & Gold Gain/(Loss)' },
+            { key: 'isb32', label: 'Net Gain from Trading Securities' },
+            { key: 'isb33', label: 'Net Gain from Investment Securities' },
+            { key: 'isb36', label: 'Net Other Operating Income' },
+            { key: 'isb37', label: 'Dividend Income' },
+            { key: 'isb38', label: 'Total Operating Income', isTotal: true },
+            { key: 'isb39', label: 'General and Admin Expenses' },
+            { key: 'isb40', label: 'Operating Profit Before Provisions', isTotal: true },
+            { key: 'isb41', label: 'Provision for Credit Losses' },
+        ]
+    },
+    {
+        title: 'Lợi nhuận',
+        rows: [
+            { key: 'isa19', label: 'Corporate Income Tax' },
+            { key: 'isa20', label: 'Net Profit After Tax', isTotal: true },
+            { key: 'isa21', label: 'Minority Interests' },
+            { key: 'isa22', label: 'Net Profit (Parent)', isGrandTotal: true },
+            { key: 'isa23', label: 'EPS (Basic)' },
+            { key: 'isa24', label: 'EPS (Diluted)' },
+        ]
+    }
+];
+
+const BANK_BALANCE_SECTIONS = [
+    {
+        title: 'Assets',
+        rows: [
+            { key: 'bsb97',  label: 'Balances with the SBV' },
+            { key: 'bsb258', label: 'Balances with Other Credit Institutions' },
+            { key: 'bsb259', label: 'Loans to Other Credit Institutions' },
+            { key: 'bsb98',  label: 'Placements with Other Credit Institutions (net)' },
+            { key: 'bsb99',  label: 'Trading Securities, Net' },
+            { key: 'bsb102', label: 'Derivatives and Other Financial Assets' },
+            { key: 'bsb104', label: 'Loans and Advances to Customers (gross)' },
+            { key: 'bsb105', label: 'Provision for Loan Losses' },
+            { key: 'bsb103', label: 'Loans and Advances to Customers (net)', isTotal: true },
+            { key: 'bsb106', label: 'Investment Securities' },
+            { key: 'bsb110', label: 'Other Assets' },
+            { key: 'bsa53',  label: 'Total Assets', isGrandTotal: true },
+        ]
+    },
+    {
+        title: 'Liabilities',
+        rows: [
+            { key: 'bsb111', label: 'Loans from Gov and SBV' },
+            { key: 'bsb112', label: 'Deposits & Loans from Other Credit Institutions' },
+            { key: 'bsb113', label: 'Deposits from Customers' },
+            { key: 'bsb114', label: 'Derivatives and Other Financial Liabilities' },
+            { key: 'bsb116', label: 'Bonds and Valuable Papers Issued' },
+            { key: 'bsb117', label: 'Other Liabilities' },
+            { key: 'bsa54',  label: 'Total Liabilities', isGrandTotal: true },
+        ]
+    },
+    {
+        title: 'Equity',
+        rows: [
+            { key: 'bsb118', label: 'Charter Capital' },
+            { key: 'bsb121', label: 'Reserves' },
+            { key: 'bsa78',  label: "Owner's Equity (Total)", isTotal: true },
+            { key: 'bsa96',  label: 'Total Resources', isGrandTotal: true },
+        ]
+    }
+];
+
+const BANK_CASHFLOW_SECTIONS = [
+    {
+        title: 'Operating Activities',
+        rows: [
+            { key: 'cfb75', label: 'Interest and Similar Receipts' },
+            { key: 'cfb76', label: 'Interest and Similar Payments' },
+            { key: 'cfb77', label: 'Fee and Commission Receipts' },
+            { key: 'cfb78', label: 'FX, Gold and Securities Dealing' },
+            { key: 'cfb81', label: 'Payments to Employees & Operating Expenses' },
+            { key: 'cfb48', label: 'Change in Compulsory Reserves (SBV)' },
+            { key: 'cfb49', label: 'Change in Placements with Other Banks' },
+            { key: 'cfb52', label: 'Change in Loans and Advances to Customers' },
+            { key: 'cfb55', label: 'Change in Other Operating Assets' },
+            { key: 'cfb56', label: 'Change in Loans from SBV' },
+            { key: 'cfb57', label: 'Change in Placements from Other Banks' },
+            { key: 'cfb58', label: 'Change in Deposits from Customers' },
+            { key: 'cfb63', label: 'Change in Other Operating Liabilities' },
+            { key: 'cfb64', label: 'Net Cash from Operating Activities', isTotal: true },
+        ]
+    },
+    {
+        title: 'Investing Activities',
+        rows: [
+            { key: 'cfb67', label: 'Proceeds from Disposal of Fixed Assets' },
+            { key: 'cfb68', label: 'Purchases of Investment Properties' },
+            { key: 'cfb69', label: 'Proceeds from Investment Properties' },
+            { key: 'cfa24', label: 'Net Cash from Investing', isTotal: true },
+        ]
+    },
+    {
+        title: 'Financing Activities',
+        rows: [
+            { key: 'cfb71', label: 'Proceeds from Convertible Bonds' },
+            { key: 'cfb72', label: 'Payments for Convertible Bonds' },
+            { key: 'cfb73', label: 'Purchase of Treasury Shares' },
+            { key: 'cfb74', label: 'Proceeds from Selling Treasury Shares' },
+            { key: 'cfa32', label: 'Net Cash from Financing', isTotal: true },
         ]
     },
     {
@@ -469,12 +603,14 @@ function KeyStatsTable({
         return fmt(v / divisor);
     };
 
-    const sections = ['overview', 'income', 'eps', 'cashflow'];
+    const sections = Array.from(new Set(metrics.map(m => m.section)));
     const sectionLabels: Record<string, string> = {
         overview: 'Overview',
         income: 'Income & Margins',
         eps: 'EPS',
         cashflow: 'Cash Flow',
+        balance: 'Balance Sheet Metrics',
+        ratios: 'Ratios',
     };
 
     return (
@@ -724,8 +860,20 @@ export default function FinancialsTab({
             {/* ── Tab Bar + Controls ──────────────────────────────────────── */}
             <div className="bg-white rounded-lg border border-gray-200 p-3">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
-                    {/* Tabs */}
-                    <div className="flex items-center gap-1 overflow-x-auto">
+                    {/* Mobile: dropdown select */}
+                    <div className="sm:hidden">
+                        <select
+                            value={activeTab}
+                            onChange={e => setActiveTab(e.target.value as ReportType)}
+                            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {TABS.map(tab => (
+                                <option key={tab.id} value={tab.id}>{tab.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {/* Desktop: tab buttons */}
+                    <div className="hidden sm:flex items-center gap-1 overflow-x-auto">
                         {TABS.map(tab => (
                             <button
                                 key={tab.id}
@@ -825,7 +973,7 @@ export default function FinancialsTab({
                         {/* Income Statement */}
                         {activeTab === 'income' && (
                             <SectionedTable
-                                sections={INCOME_SECTIONS}
+                                sections={isBank ? BANK_INCOME_SECTIONS : INCOME_SECTIONS}
                                 rows={reportData.income}
                                 displayUnit={displayUnit}
                                 fieldLabels={fieldLabels}
@@ -835,7 +983,7 @@ export default function FinancialsTab({
                         {/* Balance Sheet */}
                         {activeTab === 'balance' && (
                             <SectionedTable
-                                sections={BALANCE_SECTIONS}
+                                sections={isBank ? BANK_BALANCE_SECTIONS : BALANCE_SECTIONS}
                                 rows={reportData.balance}
                                 displayUnit={displayUnit}
                                 fieldLabels={fieldLabels}
@@ -845,7 +993,7 @@ export default function FinancialsTab({
                         {/* Cash Flow */}
                         {activeTab === 'cashflow' && (
                             <SectionedTable
-                                sections={CASHFLOW_SECTIONS}
+                                sections={isBank ? BANK_CASHFLOW_SECTIONS : CASHFLOW_SECTIONS}
                                 rows={reportData.cashflow}
                                 displayUnit={displayUnit}
                                 fieldLabels={fieldLabels}
