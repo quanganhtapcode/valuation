@@ -572,96 +572,52 @@ export default function StockDetailPage() {
                         : isUp ? '#16a34a' : isDown ? '#ef4444' : isRef ? '#d97706' : '#0f172a';
                     const changeColor = isUp ? '#16a34a' : isDown ? '#ef4444' : '#d97706';
 
-                    const hasHLV = priceData.high > 0 || priceData.low > 0 || priceData.volume > 0;
-                    const hasChips = priceData.ceiling > 0 || priceData.ref > 0 || priceData.floor > 0;
-
                     const targetPct = targetPrice && priceData.price > 0
                         ? ((targetPrice - priceData.price) / priceData.price * 100)
                         : null;
 
+                    // formatPercentChange already adds sign, so only prepend + for positive to avoid ++
+                    const pctStr = formatPercentChange(priceData.changePercent);
+                    const changeStr = `${isUp ? '+' : ''}${formatNumber(priceData.change)}`;
+
                     return (
-                        <div className="px-4 py-3 flex items-start justify-between gap-4">
-                            {/* LEFT — price block */}
-                            <div className="flex flex-col gap-1">
-                                {/* Price + % change on same row (Vietcap style) */}
+                        <div className="px-4 py-3 flex items-center justify-between gap-4">
+                            {/* LEFT — price + change */}
+                            <div className="flex flex-col gap-1 min-w-0">
                                 <div className="flex items-baseline gap-3 flex-wrap">
                                     <span className="text-[2rem] font-bold tabular-nums leading-none" style={{ color: priceColor }}>
                                         {formatNumber(priceData.price)}
                                     </span>
                                     <div className="flex items-baseline gap-1.5 tabular-nums font-bold" style={{ color: changeColor }}>
-                                        <span className="text-[1.15rem]">
-                                            {isUp ? '+' : ''}{formatPercentChange(priceData.changePercent)}
-                                        </span>
-                                        <span className="text-[12px] font-semibold opacity-75">
-                                            ({isUp ? '+' : ''}{formatNumber(priceData.change)})
-                                        </span>
+                                        <span className="text-[1.15rem]">{pctStr}</span>
+                                        <span className="text-[12px] font-semibold opacity-75">({changeStr})</span>
                                     </div>
-
-                                    {/* Target return badge */}
-                                    {targetPct !== null && (
-                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border"
-                                            style={{
-                                                background: targetPct >= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.08)',
-                                                borderColor: targetPct >= 0 ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)',
-                                                color: targetPct >= 0 ? '#16a34a' : '#ef4444',
-                                            }}>
-                                            <span className="font-medium">{formatNumber(targetPrice!)}</span>
-                                            <span>{targetPct >= 0 ? '▲' : '▼'} {Math.abs(targetPct).toFixed(1)}%</span>
-                                        </div>
-                                    )}
                                 </div>
-
-                                {/* Meta row */}
-                                <div className="flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                    {priceData.volume > 0 && (
-                                        <span>KL <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(priceData.volume, { maximumFractionDigits: 0 })}</span></span>
-                                    )}
-                                    {financials?.sharesOutstanding ? (
-                                        <span>KLCP <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(financials.sharesOutstanding)}</span></span>
-                                    ) : null}
-                                </div>
+                                {priceData.volume > 0 && (
+                                    <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                                        KL <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(priceData.volume, { maximumFractionDigits: 0 })}</span>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* RIGHT — ceiling/ref/floor + Cao/Thấp */}
+                            {/* RIGHT — target badge + KLCP */}
                             <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                                {hasChips && (
-                                    <div className="flex items-center gap-1">
-                                        {priceData.ceiling > 0 && (
-                                            <span className="rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none"
-                                                style={{ background: 'rgba(147,51,234,0.1)', color: '#9333ea' }}>
-                                                ▲ {formatNumber(priceData.ceiling)}
-                                            </span>
-                                        )}
-                                        {priceData.ref > 0 && (
-                                            <span className="rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none"
-                                                style={{ background: 'rgba(217,119,6,0.12)', color: '#d97706' }}>
-                                                — {formatNumber(priceData.ref)}
-                                            </span>
-                                        )}
-                                        {priceData.floor > 0 && (
-                                            <span className="rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none"
-                                                style={{ background: 'rgba(8,145,178,0.1)', color: '#0891b2' }}>
-                                                ▼ {formatNumber(priceData.floor)}
-                                            </span>
-                                        )}
+                                {targetPct !== null && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold border"
+                                        style={{
+                                            background: targetPct >= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.08)',
+                                            borderColor: targetPct >= 0 ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)',
+                                            color: targetPct >= 0 ? '#16a34a' : '#ef4444',
+                                        }}>
+                                        <span className="text-slate-400 dark:text-slate-500 font-medium text-[10px]">Mức Sinh Lời</span>
+                                        <span>{targetPct >= 0 ? '▲' : '▼'} {Math.abs(targetPct).toFixed(1)}%</span>
                                     </div>
                                 )}
-                                {hasHLV && (
-                                    <div className="text-right space-y-0.5">
-                                        <div className="text-[11px] flex items-center justify-end gap-1.5">
-                                            <span className="text-slate-400 dark:text-slate-500">Cao</span>
-                                            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                                                {priceData.high > 0 ? formatNumber(priceData.high) : '—'}
-                                            </span>
-                                        </div>
-                                        <div className="text-[11px] flex items-center justify-end gap-1.5">
-                                            <span className="text-slate-400 dark:text-slate-500">Thấp</span>
-                                            <span className="font-semibold text-red-500 dark:text-red-400 tabular-nums">
-                                                {priceData.low > 0 ? formatNumber(priceData.low) : '—'}
-                                            </span>
-                                        </div>
+                                {financials?.sharesOutstanding ? (
+                                    <div className="text-[11px] text-slate-400 dark:text-slate-500">
+                                        KLCP <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(financials.sharesOutstanding)}</span>
                                     </div>
-                                )}
+                                ) : null}
                             </div>
                         </div>
                     );
