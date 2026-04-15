@@ -89,26 +89,25 @@ const DISPLAY_UNITS: { id: DisplayUnit; label: string; divisor: number }[] = [
 ];
 
 // ── Key Metrics Config ────────────────────────────────────────────────────────
+// Keys are computed in buildKeyStatsData() — some come from overviewData,
+// others are derived from the latest income/balance/cashflow rows.
 
 const NORMAL_KEY_METRICS: { key: string; label: string; section: string; isPct?: boolean; indent?: boolean }[] = [
-    { key: 'market_cap', label: 'Market Cap', section: 'overview' },
-    { key: 'cash', label: 'Cash', section: 'overview' },
-    { key: 'total_debt', label: 'Debt', section: 'overview' },
-    { key: 'enterprise_value', label: 'Enterprise Value', section: 'overview' },
-    { key: 'revenue', label: 'Revenue', section: 'income' },
-    { key: 'revenue_growth', label: '  Revenue Growth', isPct: true, indent: true, section: 'income' },
-    { key: 'gross_profit', label: 'Gross Profit', section: 'income' },
-    { key: 'gross_margin', label: '  Gross Margin', isPct: true, indent: true, section: 'income' },
-    { key: 'ebitda', label: 'EBITDA', section: 'income' },
-    { key: 'ebitda_margin', label: '  EBITDA Margin', isPct: true, indent: true, section: 'income' },
-    { key: 'net_income', label: 'Net Income', section: 'income' },
-    { key: 'net_profit_margin', label: '  Net Margin', isPct: true, indent: true, section: 'income' },
-    { key: 'eps', label: 'Diluted EPS', section: 'eps' },
-    { key: 'eps_ttm', label: 'EPS (TTM)', section: 'eps' },
-    { key: 'profit_growth', label: '  Profit Growth', isPct: true, indent: true, section: 'eps' },
-    { key: 'operating_cash_flow', label: 'Operating Cash Flow', section: 'cashflow' },
-    { key: 'capex', label: 'CapEx', section: 'cashflow' },
-    { key: 'free_cash_flow', label: 'Free Cash Flow', section: 'cashflow' },
+    { key: 'market_cap',          label: 'Market Cap',          section: 'overview' },
+    { key: '_cash',               label: 'Cash',                section: 'overview' },
+    { key: '_total_debt',         label: 'Debt',                section: 'overview' },
+    { key: '_enterprise_value',   label: 'Enterprise Value',    section: 'overview' },
+    { key: '_revenue',            label: 'Revenue',             section: 'income' },
+    { key: 'revenue_growth',      label: '% Growth',            isPct: true, indent: true, section: 'income' },
+    { key: '_gross_profit',       label: 'Gross Profit',        section: 'income' },
+    { key: 'gross_margin',        label: '% Margin',            isPct: true, indent: true, section: 'income' },
+    { key: '_net_income',         label: 'Net Income',          section: 'income' },
+    { key: 'net_profit_margin',   label: '% Margin',            isPct: true, indent: true, section: 'income' },
+    { key: 'eps',                 label: 'EPS',                 section: 'eps' },
+    { key: 'profit_growth',       label: '% Growth',            isPct: true, indent: true, section: 'eps' },
+    { key: '_operating_cf',       label: 'Operating Cash Flow', section: 'cashflow' },
+    { key: '_capex',              label: 'CapEx',               section: 'cashflow' },
+    { key: '_free_cash_flow',     label: 'Free Cash Flow',      section: 'cashflow' },
 ];
 
 const BANK_KEY_METRICS: { key: string; label: string; section: string; isPct?: boolean; indent?: boolean }[] = [
@@ -613,7 +612,7 @@ function SectionedTable({
     };
 
     return (
-        <div className="overflow-x-auto -mx-4 px-0">
+        <div className="overflow-x-auto -mx-4">
             <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                     <tr className="border-b border-gray-100 dark:border-slate-800">
@@ -701,26 +700,72 @@ function SectionedTable({
     );
 }
 
+// ── Build Key Stats Data ──────────────────────────────────────────────────────
+// Merges overviewData (ratios/price) with derived values from the latest
+// income / balance / cashflow rows. Keys prefixed with _ are computed here.
+
+function buildKeyStatsData(
+    overviewData: any,
+    income: any[],
+    balance: any[],
+    cashflow: any[],
+): Record<string, number | null> {
+    const inc = income[0] ?? {};
+    const bal = balance[0] ?? {};
+    const cf  = cashflow[0] ?? {};
+
+    const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : null; };
+
+    const cash       = n(bal.bsa2);
+    const stDebt     = n(bal.bsa56) ?? 0;
+    const ltDebt     = n(bal.bsa71) ?? 0;
+    const totalDebt  = stDebt + ltDebt || null;
+    const marketCap  = n(overviewData?.market_cap);
+    const ev         = (marketCap != null && cash != null && totalDebt != null)
+                       ? marketCap - cash + totalDebt : null;
+
+    // Revenue: prefer net sales (isa3), fallback to total sales (isa1)
+    const revenue    = n(inc.isa3) ?? n(inc.isa1);
+    const grossProfit= n(inc.isa5);
+    const netIncome  = n(inc.isa22) ?? n(inc.isa20);
+    const opCF       = n(cf.cfa17);
+    const capex      = n(cf.cfa18); // usually negative
+    const fcf        = (opCF != null && capex != null) ? opCF + capex : null;
+
+    return {
+        ...overviewData,
+        _cash:             cash,
+        _total_debt:       totalDebt,
+        _enterprise_value: ev,
+        _revenue:          revenue,
+        _gross_profit:     grossProfit,
+        _net_income:       netIncome,
+        _operating_cf:     opCF,
+        _capex:            capex,
+        _free_cash_flow:   fcf,
+    };
+}
+
 // ── Key Stats Table ───────────────────────────────────────────────────────────
 
 function KeyStatsTable({
     metrics,
-    overviewData,
+    data,
     displayUnit,
 }: {
     metrics: typeof NORMAL_KEY_METRICS;
-    overviewData: any;
+    data: Record<string, any>;
     displayUnit: DisplayUnit;
 }) {
-    if (!overviewData) {
+    if (!data) {
         return <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu</div>;
     }
 
-    const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000;
+    const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000_000;
 
     const getValue = (key: string, isPct?: boolean): string => {
-        const v = Number(overviewData[key]);
-        if (Number.isNaN(v) || Math.abs(v) < 0.01) return '-';
+        const v = Number(data[key]);
+        if (Number.isNaN(v) || !Number.isFinite(v) || Math.abs(v) < 0.001) return '-';
         if (isPct) return fmtPct(v);
         return fmt(v / divisor);
     };
@@ -736,8 +781,8 @@ function KeyStatsTable({
     };
 
     return (
-        <div className="-mx-4">
-            <div className="flex items-center border-b border-gray-100 dark:border-slate-800 px-4 pb-2.5 mb-0">
+        <div>
+            <div className="flex items-center border-b border-gray-100 dark:border-slate-800 pb-2.5">
                 <span className="text-[12px] font-medium text-gray-400 dark:text-slate-500 flex-1">Chỉ tiêu</span>
                 <span className="text-[12px] font-medium text-gray-400 dark:text-slate-500">Giá trị</span>
             </div>
@@ -747,7 +792,7 @@ function KeyStatsTable({
 
                 return (
                     <React.Fragment key={sectionId}>
-                        <div className="px-4 pt-4 pb-1.5">
+                        <div className="pt-4 pb-1.5">
                             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                                 {sectionLabels[sectionId]}
                             </span>
@@ -759,8 +804,8 @@ function KeyStatsTable({
                                 <div
                                     key={metric.key}
                                     className={cx(
-                                        'flex items-center justify-between border-b border-gray-100 dark:border-slate-800/60 py-2.5 px-4',
-                                        isIndented ? 'bg-gray-50 dark:bg-slate-800/40' : 'bg-white dark:bg-[#111827]',
+                                        'flex items-center justify-between border-b border-gray-100 dark:border-slate-800/60 py-2.5 -mx-4 px-4',
+                                        isIndented ? 'bg-gray-50 dark:bg-slate-800/40' : '',
                                     )}
                                 >
                                     <span className={cx(
@@ -932,7 +977,7 @@ export default function FinancialsTab({
             </div>
 
             {/* ── Content Area ────────────────────────────────────────────── */}
-            <div className="bg-white dark:bg-[#111827] rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden py-1">
+            <div className="bg-white dark:bg-[#111827] rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden px-4 py-1">
                 {reportLoading ? (
                     <div className="flex items-center justify-center p-12">
                         <div className="spinner" />
@@ -943,7 +988,7 @@ export default function FinancialsTab({
                         {activeTab === 'key_stats' && (
                             <KeyStatsTable
                                 metrics={isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS}
-                                overviewData={overviewData}
+                                data={buildKeyStatsData(overviewData, reportData.income, reportData.balance, reportData.cashflow)}
                                 displayUnit={displayUnit}
                             />
                         )}
