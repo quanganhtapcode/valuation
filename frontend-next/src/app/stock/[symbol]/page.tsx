@@ -431,21 +431,28 @@ export default function StockDetailPage() {
                         if (mapped.length > 0) {
                             const latest = mapped[mapped.length - 1];
                             const prevClose = mapped.length > 1 ? mapped[mapped.length - 2].close : latest.open;
-                            const change = latest.close - prevClose;
-                            const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+                            const histChange = latest.close - prevClose;
+                            const histChangePercent = prevClose > 0 ? (histChange / prevClose) * 100 : 0;
 
-                            setPriceData(prev => ({
-                                ...prev!,
-                                // Do not overwrite a newer realtime quote.
-                                // Only fallback to latest close when price is still missing.
-                                price: (prev?.price && prev.price > 0) ? prev.price : latest.close,
-                                open: latest.open,
-                                high: latest.high,
-                                low: latest.low,
-                                volume: latest.volume,
-                                change: change,
-                                changePercent: changePercent,
-                            }));
+                            setPriceData(prev => {
+                                if (!prev) return prev;
+                                const currentPrice = (prev.price && prev.price > 0) ? prev.price : latest.close;
+                                // If we already have a ref price from the realtime API, use it for change
+                                // (gap-adjusted history gives wrong prev-close vs actual session ref price)
+                                const refPrice = prev.ref > 0 ? prev.ref : 0;
+                                const change = refPrice > 0 ? currentPrice - refPrice : histChange;
+                                const changePercent = refPrice > 0 ? (change / refPrice) * 100 : histChangePercent;
+                                return {
+                                    ...prev,
+                                    price: currentPrice,
+                                    open: latest.open,
+                                    high: latest.high,
+                                    low: latest.low,
+                                    volume: latest.volume,
+                                    change,
+                                    changePercent,
+                                };
+                            });
                         }
                     }
                 }
@@ -491,120 +498,148 @@ export default function StockDetailPage() {
 
     return (
         <div className={styles.container}>
-            {/* ── SSI-style stock header ─────────────────────────────────────── */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 mb-5 overflow-hidden">
+            {/* ── Stock header ─────────────────────────────────────── */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] mb-0 overflow-hidden">
 
-                {/* Identity strip */}
-                <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                {/* Top identity bar */}
+                <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-0">
                     {/* Logo */}
-                    <div className="relative w-11 h-11 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <div className="relative w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={siteConfig.stockLogoUrl(symbol)}
                             alt={symbol}
-                            className="w-full h-full object-contain p-1"
+                            className="w-full h-full object-contain p-0.5"
                             onError={(e) => {
                                 const t = e.target as HTMLImageElement;
                                 if (!t.src.includes('/logos/')) { t.src = `/logos/${symbol}.jpg`; }
                                 else { t.style.display = 'none'; }
                             }}
                         />
-                        <div className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-white rounded-lg"
+                        <div className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white rounded-md"
                             style={{ background: 'linear-gradient(135deg,#2563eb,#3b82f6)', zIndex: -1 }}>
                             {symbol.slice(0, 2)}
                         </div>
                     </div>
 
-                    {/* Symbol + company + tags */}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-[18px] font-bold text-slate-900 dark:text-white leading-none">{symbol}</h1>
-                            {stockInfo?.exchange && (
-                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 leading-none">
-                                    {stockInfo.exchange}
-                                </span>
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => toggleWatchlist(symbol)}
-                                title={isWatchlisted ? 'Xoá khỏi Watchlist' : 'Thêm vào Watchlist'}
-                                className="p-0.5 rounded-full transition-colors hover:bg-amber-50 dark:hover:bg-amber-950 ml-auto flex-shrink-0"
-                            >
-                                {isWatchlisted
-                                    ? <RiStarFill className="h-5 w-5 text-amber-400" />
-                                    : <RiStarLine className="h-5 w-5 text-slate-400 dark:text-slate-500 hover:text-amber-400" />}
-                            </button>
-                        </div>
-                        <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5 leading-snug">
-                            {stockInfo?.companyName}
-                        </p>
-                        {stockInfo?.sector && (
-                            <span className="inline-block text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 mt-1 leading-none">
-                                {stockInfo.sector}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {/* Price section — 2-column SSI layout */}
-                {priceData && (() => {
-                    const pc = priceData.ceiling > 0 && priceData.price >= priceData.ceiling ? '#7c3aed'
-                             : priceData.floor   > 0 && priceData.price <= priceData.floor   ? '#0891b2'
-                             : priceData.ref     > 0 && priceData.price >  priceData.ref     ? '#16a34a'
-                             : priceData.ref     > 0 && priceData.price <  priceData.ref     ? '#dc2626'
-                             : priceData.ref     > 0                                         ? '#d97706'
-                             : '#0f172a';
-                    const cc = priceData.change > 0 ? '#16a34a' : priceData.change < 0 ? '#dc2626' : '#d97706';
-                    const hasHLV = priceData.high > 0 || priceData.low > 0 || priceData.volume > 0;
-                    const hasChips = priceData.ceiling > 0 || priceData.ref > 0 || priceData.floor > 0;
-                    return (
-                        <div className="px-4 py-3 flex items-start justify-between gap-4">
-
-                            {/* LEFT — big price + change */}
-                            <div className="flex flex-col gap-1 min-w-0">
-                                <span className="text-[1.9rem] font-bold leading-none tabular-nums" style={{ color: pc }}>
-                                    {formatNumber(priceData.price)}
-                                </span>
-                                <div className="flex items-center gap-1 text-[13px] font-semibold tabular-nums" style={{ color: cc }}>
-                                    <span>{priceData.change > 0 ? '▲' : priceData.change < 0 ? '▼' : '▬'}</span>
-                                    <span>{priceData.change > 0 ? '+' : ''}{formatNumber(priceData.change)}</span>
-                                    <span className="opacity-80">({formatPercentChange(priceData.changePercent)})</span>
-                                </div>
-                                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                    KLCP: {financials?.sharesOutstanding ? formatNumber(financials.sharesOutstanding) : '—'}
-                                </div>
-                                {targetPrice != null && targetPrice > 0 && priceData.price > 0 && (
-                                    <div className="inline-flex items-center gap-1.5 mt-1 px-2 py-1 rounded-lg text-[11px] font-semibold border"
-                                        style={{
-                                            background: targetPrice >= priceData.price ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)',
-                                            borderColor: targetPrice >= priceData.price ? 'rgba(22,163,74,0.25)' : 'rgba(220,38,38,0.25)',
-                                            color: targetPrice >= priceData.price ? '#16a34a' : '#dc2626',
-                                        }}>
-                                        <span className="text-slate-400 dark:text-slate-500 font-semibold uppercase text-[9px] tracking-wider">Target</span>
-                                        <span className="tabular-nums">{formatNumber(targetPrice)}</span>
-                                        <span>{targetPrice >= priceData.price ? '▲' : '▼'} {Math.abs((targetPrice - priceData.price) / priceData.price * 100).toFixed(1)}%</span>
-                                    </div>
+                    {/* Symbol + exchange + sector */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <h1 className="text-[15px] font-bold text-slate-900 dark:text-white leading-none tracking-tight">{symbol}</h1>
+                        {(stockInfo?.exchange || stockInfo?.sector) && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                {stockInfo?.exchange && (
+                                    <span className="border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 font-semibold leading-none">
+                                        {stockInfo.exchange}
+                                    </span>
+                                )}
+                                {stockInfo?.exchange && stockInfo?.sector && (
+                                    <span className="text-slate-300 dark:text-slate-600">·</span>
+                                )}
+                                {stockInfo?.sector && (
+                                    <span className="truncate max-w-[180px]">{stockInfo.sector}</span>
                                 )}
                             </div>
+                        )}
+                    </div>
 
-                            {/* RIGHT — ceiling/ref/floor chips + Cao/Thấp/KL */}
+                    {/* Watchlist star */}
+                    <button
+                        type="button"
+                        onClick={() => toggleWatchlist(symbol)}
+                        title={isWatchlisted ? 'Xoá khỏi Watchlist' : 'Thêm vào Watchlist'}
+                        className="p-1 rounded-full transition-colors hover:bg-amber-50 dark:hover:bg-amber-950/40 flex-shrink-0"
+                    >
+                        {isWatchlisted
+                            ? <RiStarFill className="h-4.5 w-4.5 text-amber-400" />
+                            : <RiStarLine className="h-4.5 w-4.5 text-slate-400 dark:text-slate-500 hover:text-amber-400" />}
+                    </button>
+                </div>
+
+                {/* Company name */}
+                <p className="px-4 pt-0.5 pb-0 text-[12px] text-slate-500 dark:text-slate-400 truncate leading-snug">
+                    {stockInfo?.companyName || '—'}
+                </p>
+
+                {/* Price section */}
+                {priceData && (() => {
+                    const isCeiling = priceData.ceiling > 0 && priceData.price >= priceData.ceiling;
+                    const isFloor = priceData.floor > 0 && priceData.price <= priceData.floor;
+                    const isUp = priceData.change > 0;
+                    const isDown = priceData.change < 0;
+                    const isRef = !isUp && !isDown && priceData.ref > 0;
+
+                    const priceColor = isCeiling ? '#9333ea' : isFloor ? '#0891b2'
+                        : isUp ? '#16a34a' : isDown ? '#ef4444' : isRef ? '#d97706' : '#0f172a';
+                    const changeColor = isUp ? '#16a34a' : isDown ? '#ef4444' : '#d97706';
+
+                    const hasHLV = priceData.high > 0 || priceData.low > 0 || priceData.volume > 0;
+                    const hasChips = priceData.ceiling > 0 || priceData.ref > 0 || priceData.floor > 0;
+
+                    const targetPct = targetPrice && priceData.price > 0
+                        ? ((targetPrice - priceData.price) / priceData.price * 100)
+                        : null;
+
+                    return (
+                        <div className="px-4 py-3 flex items-start justify-between gap-4">
+                            {/* LEFT — price block */}
+                            <div className="flex flex-col gap-1">
+                                {/* Price + % change on same row (Vietcap style) */}
+                                <div className="flex items-baseline gap-3 flex-wrap">
+                                    <span className="text-[2rem] font-bold tabular-nums leading-none" style={{ color: priceColor }}>
+                                        {formatNumber(priceData.price)}
+                                    </span>
+                                    <div className="flex items-baseline gap-1.5 tabular-nums font-bold" style={{ color: changeColor }}>
+                                        <span className="text-[1.15rem]">
+                                            {isUp ? '+' : ''}{formatPercentChange(priceData.changePercent)}
+                                        </span>
+                                        <span className="text-[12px] font-semibold opacity-75">
+                                            ({isUp ? '+' : ''}{formatNumber(priceData.change)})
+                                        </span>
+                                    </div>
+
+                                    {/* Target return badge */}
+                                    {targetPct !== null && (
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border"
+                                            style={{
+                                                background: targetPct >= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.08)',
+                                                borderColor: targetPct >= 0 ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)',
+                                                color: targetPct >= 0 ? '#16a34a' : '#ef4444',
+                                            }}>
+                                            <span className="font-medium">{formatNumber(targetPrice!)}</span>
+                                            <span>{targetPct >= 0 ? '▲' : '▼'} {Math.abs(targetPct).toFixed(1)}%</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Meta row */}
+                                <div className="flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                                    {priceData.volume > 0 && (
+                                        <span>KL <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(priceData.volume, { maximumFractionDigits: 0 })}</span></span>
+                                    )}
+                                    {financials?.sharesOutstanding ? (
+                                        <span>KLCP <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(financials.sharesOutstanding)}</span></span>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            {/* RIGHT — ceiling/ref/floor + Cao/Thấp */}
                             <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                                 {hasChips && (
                                     <div className="flex items-center gap-1">
                                         {priceData.ceiling > 0 && (
-                                            <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-bold tabular-nums leading-none"
-                                                style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
+                                            <span className="rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none"
+                                                style={{ background: 'rgba(147,51,234,0.1)', color: '#9333ea' }}>
                                                 ▲ {formatNumber(priceData.ceiling)}
                                             </span>
                                         )}
                                         {priceData.ref > 0 && (
-                                            <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-bold tabular-nums leading-none"
+                                            <span className="rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none"
                                                 style={{ background: 'rgba(217,119,6,0.12)', color: '#d97706' }}>
-                                                ▬ {formatNumber(priceData.ref)}
+                                                — {formatNumber(priceData.ref)}
                                             </span>
                                         )}
                                         {priceData.floor > 0 && (
-                                            <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-bold tabular-nums leading-none"
+                                            <span className="rounded px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none"
                                                 style={{ background: 'rgba(8,145,178,0.1)', color: '#0891b2' }}>
                                                 ▼ {formatNumber(priceData.floor)}
                                             </span>
@@ -618,11 +653,6 @@ export default function StockDetailPage() {
                                             <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
                                                 {priceData.high > 0 ? formatNumber(priceData.high) : '—'}
                                             </span>
-                                            <span className="text-slate-300 dark:text-slate-600">·</span>
-                                            <span className="text-slate-400 dark:text-slate-500">KL</span>
-                                            <span className="font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
-                                                {priceData.volume > 0 ? formatNumber(priceData.volume, { maximumFractionDigits: 0 }) : '—'}
-                                            </span>
                                         </div>
                                         <div className="text-[11px] flex items-center justify-end gap-1.5">
                                             <span className="text-slate-400 dark:text-slate-500">Thấp</span>
@@ -633,48 +663,43 @@ export default function StockDetailPage() {
                                     </div>
                                 )}
                             </div>
-
                         </div>
                     );
                 })()}
-            </div>
 
-            {/* Tab Navigation */}
-            <div className="border-b border-tremor-border dark:border-dark-tremor-border">
-                <div className="px-2 sm:px-4">
-                    <div className="flex h-14 overflow-x-auto scrollbar-hide">
-                        <nav className="-mb-px flex space-x-6 min-w-max" aria-label="Tabs">
-                            {[
-                                { id: 'overview', label: 'Overview' },
-                                { id: 'financials', label: 'Financials' },
-                                { id: 'holders', label: 'Holders' },
-                                { id: 'priceHistory', label: 'Price History' },
-                                { id: 'news', label: 'News' },
-                                { id: 'analysis', label: 'Analysis' },
-                                { id: 'valuation', label: 'Valuation' }
-                            ].map(tab => (
-                                <button
-                                    key={tab.id}
-                                    type="button"
-                                    onClick={() => handleTabChange(tab.id as 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news')}
-                                    className={classNames(
-                                        activeTab === tab.id
-                                            ? 'border-tremor-brand text-tremor-brand dark:border-dark-tremor-brand dark:text-dark-tremor-brand'
-                                            : 'border-transparent text-tremor-content-emphasis hover:border-tremor-content-subtle hover:text-tremor-content-strong dark:text-dark-tremor-content-emphasis hover:dark:border-dark-tremor-content-subtle hover:dark:text-dark-tremor-content-strong',
-                                        'inline-flex items-center whitespace-nowrap border-b-2 px-2 text-tremor-default font-medium'
-                                    )}
-                                    aria-current={activeTab === tab.id ? 'page' : undefined}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </nav>
-                    </div>
+                {/* Tab Navigation — Vietcap underline style */}
+                <div className="border-t border-slate-100 dark:border-slate-800/60 mt-0">
+                    <nav className="flex overflow-x-auto scrollbar-hide px-1" aria-label="Tabs">
+                        {[
+                            { id: 'overview', label: 'Tổng Quan' },
+                            { id: 'financials', label: 'Tài Chính' },
+                            { id: 'holders', label: 'Cổ Đông' },
+                            { id: 'priceHistory', label: 'Lịch Sử Giá' },
+                            { id: 'news', label: 'Tin Tức' },
+                            { id: 'analysis', label: 'Phân Tích' },
+                            { id: 'valuation', label: 'Định Giá' },
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => handleTabChange(tab.id as 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news')}
+                                className={classNames(
+                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] font-medium transition-colors',
+                                    activeTab === tab.id
+                                        ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                )}
+                                aria-current={activeTab === tab.id ? 'page' : undefined}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </nav>
                 </div>
             </div>
 
             {/* Main Content with Persistent Tabs (Lazy Loaded) */}
-            <div className={styles.mainContentFull}>
+            <div className={`${styles.mainContentFull} mt-4`}>
                 {/* Overview - Always keep mounted if visited, typically visited first */}
                 <div className={activeTab !== 'overview' ? 'hidden' : undefined}>
                     <OverviewTab

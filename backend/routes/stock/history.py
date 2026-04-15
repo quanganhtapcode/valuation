@@ -228,21 +228,24 @@ def register(stock_bp: Blueprint) -> None:
 
                 # Primary: Vietcap gap-adjusted API (handles stock splits)
                 history_data = get_price_history_from_vietcap(symbol, count_back)
+                data_source = "vietcap"
 
                 # Fallback 1: SQLite DB
                 if not history_data:
                     logger.info(f"Vietcap unavailable for {symbol}, falling back to DB")
                     history_data = get_price_history_from_db(symbol, start_date, end_date)
+                    data_source = "sqlite"
 
                 # Fallback 2: VCI API
                 if not history_data:
                     logger.info(f"No DB data for {symbol}, falling back to VCI API")
                     history_data = get_price_history_from_vci(symbol, start_date, end_date)
+                    data_source = "vci_api"
 
                 if not history_data:
                     return jsonify({"success": False, "message": "No historical data available"}), 404
 
-                return jsonify({"symbol": symbol, "data": history_data, "count": len(history_data), "success": True})
+                return jsonify({"symbol": symbol, "data": history_data, "count": len(history_data), "success": True, "source": data_source})
             except Exception as e:
                 logger.error(f"Error fetching history for {symbol}: {e}")
                 return jsonify({"success": False, "error": str(e)}), 500
