@@ -81,7 +81,7 @@ def register(stock_bp: Blueprint) -> None:
         in_session = (vn_hour == 9 and vn_minute >= 0) or \
                      (10 <= vn_hour <= 14) or \
                      (vn_hour == 15 and vn_minute <= 30)
-        return 15 * 60 if in_session else 60 * 60
+        return 60
 
     def get_price_history_from_vietcap(symbol: str, count_back: int, time_frame: str = "ONE_DAY") -> List[Dict]:
         """
