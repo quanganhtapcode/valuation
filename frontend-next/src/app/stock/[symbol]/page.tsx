@@ -491,116 +491,152 @@ export default function StockDetailPage() {
 
     return (
         <div className={styles.container}>
-            {/* Header Compact */}
-            <div className={styles.stockHeaderCompact}>
-                <div className={styles.identityCompact}>
-                    <div className={styles.logoWrapper} style={{ width: '56px', height: '56px', backgroundColor: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            {/* ── SSI-style stock header ─────────────────────────────────────── */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 mb-5 overflow-hidden">
+
+                {/* Identity strip */}
+                <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                    {/* Logo */}
+                    <div className="relative w-11 h-11 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={siteConfig.stockLogoUrl(symbol)}
                             alt={symbol}
-                            className={styles.logoCompact}
-                            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }}
+                            className="w-full h-full object-contain p-1"
                             onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                if (!target.src.includes('/logos/')) {
-                                    target.src = `/logos/${symbol}.jpg`;
-                                } else {
-                                    target.style.display = 'none';
-                                }
+                                const t = e.target as HTMLImageElement;
+                                if (!t.src.includes('/logos/')) { t.src = `/logos/${symbol}.jpg`; }
+                                else { t.style.display = 'none'; }
                             }}
                         />
-                        <div className={styles.fallbackLogo} style={{ width: '56px', height: '56px', fontSize: '1.25rem' }}>{symbol.slice(0, 2)}</div>
+                        <div className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-white rounded-lg"
+                            style={{ background: 'linear-gradient(135deg,#2563eb,#3b82f6)', zIndex: -1 }}>
+                            {symbol.slice(0, 2)}
+                        </div>
                     </div>
 
-                    <div className={styles.stockMetaCompact}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <h1 className="text-tremor-content-strong dark:text-dark-tremor-content-strong" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>{symbol}</h1>
+                    {/* Symbol + company + tags */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-[18px] font-bold text-slate-900 dark:text-white leading-none">{symbol}</h1>
+                            {stockInfo?.exchange && (
+                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 leading-none">
+                                    {stockInfo.exchange}
+                                </span>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => toggleWatchlist(symbol)}
                                 title={isWatchlisted ? 'Xoá khỏi Watchlist' : 'Thêm vào Watchlist'}
-                                className="p-1 rounded-full transition-colors hover:bg-amber-50 dark:hover:bg-amber-950"
+                                className="p-0.5 rounded-full transition-colors hover:bg-amber-50 dark:hover:bg-amber-950 ml-auto flex-shrink-0"
                             >
                                 {isWatchlisted
                                     ? <RiStarFill className="h-5 w-5 text-amber-400" />
-                                    : <RiStarLine className="h-5 w-5 text-tremor-content dark:text-dark-tremor-content hover:text-amber-400" />}
+                                    : <RiStarLine className="h-5 w-5 text-slate-400 dark:text-slate-500 hover:text-amber-400" />}
                             </button>
                         </div>
-                        <div className="text-tremor-content dark:text-dark-tremor-content" style={{ fontSize: '0.85rem', lineHeight: '1.4', marginTop: '2px' }}>
+                        <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5 leading-snug">
                             {stockInfo?.companyName}
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                            <span className={styles.tag} style={{ fontSize: '10px', padding: '2px 6px' }}>{stockInfo?.exchange}</span>
-                            <span className={styles.tag} style={{ fontSize: '10px', padding: '2px 6px' }}>{stockInfo?.sector}</span>
-                        </div>
+                        </p>
+                        {stockInfo?.sector && (
+                            <span className="inline-block text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 mt-1 leading-none">
+                                {stockInfo.sector}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                {priceData && (
-                    <div className={styles.priceCompact}>
-                        {/* Price + change */}
-                        <div className={styles.priceRowCompact}>
-                            <span style={{
-                                fontSize: '1.5rem', fontWeight: 700, lineHeight: 1,
-                                color: priceData.ceiling > 0 && priceData.price >= priceData.ceiling ? '#7c3aed'
-                                     : priceData.floor > 0 && priceData.price <= priceData.floor ? '#0891b2'
-                                     : priceData.ref > 0 && priceData.price > priceData.ref ? '#16a34a'
-                                     : priceData.ref > 0 && priceData.price < priceData.ref ? '#dc2626'
-                                     : priceData.ref > 0 ? '#d97706' : undefined,
-                            }}>
-                                {formatNumber(priceData.price)}
-                            </span>
-                            <span className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle" style={{ fontSize: '0.75rem', fontWeight: 500 }}>VND</span>
-                            <span style={{
-                                fontSize: '0.95rem', fontWeight: 600,
-                                color: priceData.change > 0 ? '#16a34a' : priceData.change < 0 ? '#dc2626' : '#d97706',
-                            }}>
-                                {priceData.change > 0 ? '+' : ''}{formatNumber(priceData.change)}{' '}
-                                <span style={{ opacity: 0.75 }}>({formatPercentChange(priceData.changePercent)})</span>
-                            </span>
-                        </div>
+                {/* Price section — 2-column SSI layout */}
+                {priceData && (() => {
+                    const pc = priceData.ceiling > 0 && priceData.price >= priceData.ceiling ? '#7c3aed'
+                             : priceData.floor   > 0 && priceData.price <= priceData.floor   ? '#0891b2'
+                             : priceData.ref     > 0 && priceData.price >  priceData.ref     ? '#16a34a'
+                             : priceData.ref     > 0 && priceData.price <  priceData.ref     ? '#dc2626'
+                             : priceData.ref     > 0                                         ? '#d97706'
+                             : '#0f172a';
+                    const cc = priceData.change > 0 ? '#16a34a' : priceData.change < 0 ? '#dc2626' : '#d97706';
+                    const hasHLV = priceData.high > 0 || priceData.low > 0 || priceData.volume > 0;
+                    const hasChips = priceData.ceiling > 0 || priceData.ref > 0 || priceData.floor > 0;
+                    return (
+                        <div className="px-4 py-3 flex items-start justify-between gap-4">
 
-                        {/* Ceiling / Ref / Floor chips */}
-                        {(priceData.ceiling > 0 || priceData.ref > 0 || priceData.floor > 0) && (
-                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                {priceData.ceiling > 0 && (
-                                    <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
-                                        style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
-                                        ▲ {formatNumber(priceData.ceiling)}
-                                    </span>
-                                )}
-                                {priceData.ref > 0 && (
-                                    <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
-                                        style={{ background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
-                                        ▬ {formatNumber(priceData.ref)}
-                                    </span>
-                                )}
-                                {priceData.floor > 0 && (
-                                    <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
-                                        style={{ background: 'rgba(8,145,178,0.1)', color: '#0891b2' }}>
-                                        ▼ {formatNumber(priceData.floor)}
-                                    </span>
+                            {/* LEFT — big price + change */}
+                            <div className="flex flex-col gap-1 min-w-0">
+                                <span className="text-[1.9rem] font-bold leading-none tabular-nums" style={{ color: pc }}>
+                                    {formatNumber(priceData.price)}
+                                </span>
+                                <div className="flex items-center gap-1 text-[13px] font-semibold tabular-nums" style={{ color: cc }}>
+                                    <span>{priceData.change > 0 ? '▲' : priceData.change < 0 ? '▼' : '▬'}</span>
+                                    <span>{priceData.change > 0 ? '+' : ''}{formatNumber(priceData.change)}</span>
+                                    <span className="opacity-80">({formatPercentChange(priceData.changePercent)})</span>
+                                </div>
+                                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                                    KLCP: {financials?.sharesOutstanding ? formatNumber(financials.sharesOutstanding) : '—'}
+                                </div>
+                                {targetPrice != null && targetPrice > 0 && priceData.price > 0 && (
+                                    <div className="inline-flex items-center gap-1.5 mt-1 px-2 py-1 rounded-lg text-[11px] font-semibold border"
+                                        style={{
+                                            background: targetPrice >= priceData.price ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)',
+                                            borderColor: targetPrice >= priceData.price ? 'rgba(22,163,74,0.25)' : 'rgba(220,38,38,0.25)',
+                                            color: targetPrice >= priceData.price ? '#16a34a' : '#dc2626',
+                                        }}>
+                                        <span className="text-slate-400 dark:text-slate-500 font-semibold uppercase text-[9px] tracking-wider">Target</span>
+                                        <span className="tabular-nums">{formatNumber(targetPrice)}</span>
+                                        <span>{targetPrice >= priceData.price ? '▲' : '▼'} {Math.abs((targetPrice - priceData.price) / priceData.price * 100).toFixed(1)}%</span>
+                                    </div>
                                 )}
                             </div>
-                        )}
 
-                        <div className={styles.klcpCompact}>
-                            KLCP: {financials?.sharesOutstanding ? formatNumber(financials.sharesOutstanding) : '-'}
-                        </div>
-                        {targetPrice != null && targetPrice > 0 && priceData.price > 0 && (
-                            <div className={styles.targetPriceRow}>
-                                <span className={styles.targetPriceLabel}>Target</span>
-                                <span className={`${styles.targetPriceValue} ${targetPrice >= priceData.price ? styles.targetPriceUp : styles.targetPriceDown}`}>
-                                    {formatNumber(targetPrice)}
-                                </span>
-                                <span className={`${styles.targetPricePct} ${targetPrice >= priceData.price ? styles.targetPriceUp : styles.targetPriceDown}`}>
-                                    {targetPrice >= priceData.price ? '▲' : '▼'} {Math.abs((targetPrice - priceData.price) / priceData.price * 100).toFixed(1)}%
-                                </span>
+                            {/* RIGHT — ceiling/ref/floor chips + Cao/Thấp/KL */}
+                            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                {hasChips && (
+                                    <div className="flex items-center gap-1">
+                                        {priceData.ceiling > 0 && (
+                                            <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-bold tabular-nums leading-none"
+                                                style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
+                                                ▲ {formatNumber(priceData.ceiling)}
+                                            </span>
+                                        )}
+                                        {priceData.ref > 0 && (
+                                            <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-bold tabular-nums leading-none"
+                                                style={{ background: 'rgba(217,119,6,0.12)', color: '#d97706' }}>
+                                                ▬ {formatNumber(priceData.ref)}
+                                            </span>
+                                        )}
+                                        {priceData.floor > 0 && (
+                                            <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-bold tabular-nums leading-none"
+                                                style={{ background: 'rgba(8,145,178,0.1)', color: '#0891b2' }}>
+                                                ▼ {formatNumber(priceData.floor)}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                                {hasHLV && (
+                                    <div className="text-right space-y-0.5">
+                                        <div className="text-[11px] flex items-center justify-end gap-1.5">
+                                            <span className="text-slate-400 dark:text-slate-500">Cao</span>
+                                            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                                {priceData.high > 0 ? formatNumber(priceData.high) : '—'}
+                                            </span>
+                                            <span className="text-slate-300 dark:text-slate-600">·</span>
+                                            <span className="text-slate-400 dark:text-slate-500">KL</span>
+                                            <span className="font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
+                                                {priceData.volume > 0 ? formatNumber(priceData.volume, { maximumFractionDigits: 0 }) : '—'}
+                                            </span>
+                                        </div>
+                                        <div className="text-[11px] flex items-center justify-end gap-1.5">
+                                            <span className="text-slate-400 dark:text-slate-500">Thấp</span>
+                                            <span className="font-semibold text-red-500 dark:text-red-400 tabular-nums">
+                                                {priceData.low > 0 ? formatNumber(priceData.low) : '—'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                )}
+
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Tab Navigation */}

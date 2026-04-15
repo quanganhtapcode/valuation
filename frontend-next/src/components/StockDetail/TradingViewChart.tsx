@@ -27,8 +27,8 @@ type Interval = 'D' | 'W' | 'M';
 const INTERVAL_LABELS: Record<Interval, string> = { D: '1D', W: '1W', M: '1M' };
 const INTERVAL_CYCLE: Record<Interval, Interval> = { D: 'W', W: 'M', M: 'D' };
 
-// Default bars to show per interval
-const INTERVAL_BARS: Record<Interval, number> = { D: 120, W: 52, M: 24 };
+// Default bars to show per interval (~3 months D, ~1 year W, ~2 years M)
+const INTERVAL_BARS: Record<Interval, number> = { D: 75, W: 52, M: 24 };
 
 interface TradingViewChartProps {
     data: HistoricalData[];
