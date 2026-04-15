@@ -6,7 +6,7 @@ import { cx } from '@/lib/utils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DisplayMode = 'annual' | 'quarterly' | 'ttm';
+type DisplayMode = 'annual' | 'quarterly';
 type ReportType = 'key_stats' | 'income' | 'balance' | 'cashflow' | 'ratios';
 type DisplayUnit = 'billions' | 'trillions';
 
@@ -846,7 +846,10 @@ export default function FinancialsTab({
     const [loading, setLoading] = useState(false);
     const [reportLoading, setReportLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<ReportType>('key_stats');
-    const [displayMode, setDisplayMode] = useState<DisplayMode>('annual');
+    // Initialise from parent prop; 'year' maps to 'annual', 'quarter' to 'quarterly'
+    const [displayMode, setDisplayModeState] = useState<DisplayMode>(
+        period === 'quarter' ? 'quarterly' : 'annual'
+    );
     const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('billions');
     const [overviewData, setOverviewData] = useState<any>(null);
     const [reportData, setReportData] = useState({
@@ -857,7 +860,14 @@ export default function FinancialsTab({
     });
     const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
 
-    const effectivePeriod = period || (displayMode === 'annual' || displayMode === 'ttm' ? 'year' : 'quarter');
+    // Keep parent period in sync when user changes mode
+    const setDisplayMode = (m: DisplayMode) => {
+        setDisplayModeState(m);
+        setPeriod?.(m === 'annual' ? 'year' : 'quarter');
+    };
+
+    // Source of truth for API calls — no longer overridden by the parent prop
+    const effectivePeriod = displayMode === 'annual' ? 'year' : 'quarter';
 
     // ── Fetch data ────────────────────────────────────────────────────────────
 
@@ -925,7 +935,7 @@ export default function FinancialsTab({
 
     const isBank = isBankStock(symbol, overviewData);
     const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Key Stats';
-    const periodLabel = displayMode === 'annual' ? 'Năm' : displayMode === 'quarterly' ? 'Quý' : 'TTM';
+    const periodLabel = displayMode === 'annual' ? 'Năm' : 'Quý';
 
     return (
         <div className="space-y-3">
@@ -946,7 +956,7 @@ export default function FinancialsTab({
 
                 {/* Period pill dropdown */}
                 <PillDropdown label={periodLabel}>
-                    {([['annual', 'Năm'], ['quarterly', 'Quý'], ['ttm', 'TTM']] as [DisplayMode, string][]).map(([m, lbl]) => (
+                    {([['annual', 'Năm'], ['quarterly', 'Quý']] as [DisplayMode, string][]).map(([m, lbl]) => (
                         <PillDropdownItem
                             key={m}
                             active={displayMode === m}
