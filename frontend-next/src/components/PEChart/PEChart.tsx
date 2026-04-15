@@ -13,7 +13,7 @@ import {
     MouseEventParams,
 } from 'lightweight-charts';
 
-import { fetchPEChart, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
+import { fetchPEChart, fetchPEChartByRange, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
 
 type ActiveChart = 'vnindex' | 'pe' | 'pb';
 
@@ -505,19 +505,20 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         if (activeStats.minusTwoSD != null) add(activeStats.minusTwoSD, '#3b82f6', `−2σ ${activeStats.minusTwoSD.toFixed(2)}`);
     }, [activeStats]);
 
-    // ── Data fetching — always load ALL data ─────────────────────────────────
+    // ── Data fetching ─────────────────────────────────────────────────────────
     useEffect(() => {
         if (externalData.length > 0) {
             setResult(r => ({ ...r, series: externalData }));
             setIsLoading(false);
             return;
         }
-        if (initialData.length > 0 || useExternalOnly) return;
+        if (initialData.length > 0) return;
 
         const ctrl = new AbortController();
         abortRef.current = ctrl;
-        // Fetch all available data
-        fetchPEChart('both', { signal: ctrl.signal })
+        // Fetch 6M data immediately for fast initial render; external data will
+        // replace it if/when the parent's bundled overview-refresh completes.
+        fetchPEChartByRange('6M', 'both', { signal: ctrl.signal })
             .then(r => { setResult(r); setIsLoading(false); })
             .catch(() => setIsLoading(false));
         return () => ctrl.abort();

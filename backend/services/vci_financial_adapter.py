@@ -2,7 +2,7 @@
 Adapter: read financial data from VCI financial statement DB (wide-format, VCI field codes).
 Returns rows with raw VCI field codes (isa*, bsa*, cfa*) — NO translation to English names.
 
-Mapping is handled in frontend via vci_financial_statement_metrics_hose_hnx.json.
+Mapping is handled in frontend via fetch_sqlite/vci_field_codes.json.
 """
 
 import sqlite3

@@ -27,6 +27,7 @@ from flask import Blueprint, jsonify, request
 
 from backend.db_path import (
     resolve_stocks_db_path,
+    resolve_vci_company_db_path,
     resolve_vci_financial_statement_db_path,
     resolve_vci_screening_db_path,
 )
@@ -83,27 +84,26 @@ def register(stock_bp: Blueprint) -> None:
         if cached:
             return jsonify(cached)
 
-        db_path = resolve_stocks_db_path()
+        company_path = resolve_vci_company_db_path()
         screening_path = resolve_vci_screening_db_path()
         try:
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(company_path)
             conn.row_factory = sqlite3.Row
             conn.execute(f"ATTACH DATABASE '{screening_path}' AS scr")
             cur = conn.cursor()
 
             q = """
-                SELECT s.ticker AS symbol, s.organ_name AS name,
-                       COALESCE(sc.exchange, 'HOSE') AS exchange,
-                       COALESCE(sc.enSector, co.icb_name3, '') AS industry
-                FROM stocks s
-                LEFT JOIN scr.screening_data sc ON sc.ticker = s.ticker
-                LEFT JOIN company_overview co ON co.symbol = s.ticker
+                SELECT c.ticker AS symbol, c.organ_name AS name,
+                       COALESCE(sc.exchange, c.floor, 'HOSE') AS exchange,
+                       COALESCE(sc.viSector, c.icb_name4, c.icb_name3, '') AS industry
+                FROM companies c
+                LEFT JOIN scr.screening_data sc ON UPPER(sc.ticker) = UPPER(c.ticker)
             """
             params: list = []
             if exchange:
-                q += " WHERE COALESCE(sc.exchange, 'HOSE') = ?"
+                q += " WHERE COALESCE(sc.exchange, c.floor, 'HOSE') = ?"
                 params.append(exchange)
-            q += " ORDER BY s.ticker LIMIT ? OFFSET ?"
+            q += " ORDER BY c.ticker LIMIT ? OFFSET ?"
             params += [limit, (page - 1) * limit]
 
             cur.execute(q, params)
@@ -153,23 +153,23 @@ def register(stock_bp: Blueprint) -> None:
         if cached:
             return jsonify(cached)
 
-        db_path = resolve_stocks_db_path()
+        company_path = resolve_vci_company_db_path()
         screening_path = resolve_vci_screening_db_path()
         try:
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(company_path)
             conn.row_factory = sqlite3.Row
             conn.execute(f"ATTACH DATABASE '{screening_path}' AS scr")
             cur = conn.cursor()
 
             cur.execute(
                 """
-                SELECT s.ticker AS symbol, s.organ_name AS name,
-                       COALESCE(sc.exchange, 'HOSE') AS exchange,
-                       sc.enSector AS industry
-                FROM stocks s
-                JOIN scr.screening_data sc ON sc.ticker = s.ticker
-                WHERE sc.enSector = ?
-                ORDER BY s.ticker
+                SELECT c.ticker AS symbol, c.organ_name AS name,
+                       COALESCE(sc.exchange, c.floor, 'HOSE') AS exchange,
+                       COALESCE(sc.viSector, c.icb_name4, c.icb_name3, '') AS industry
+                FROM companies c
+                LEFT JOIN scr.screening_data sc ON UPPER(sc.ticker) = UPPER(c.ticker)
+                WHERE COALESCE(sc.enSector, c.icb_name3, '') = ?
+                ORDER BY c.ticker
                 """,
                 (industry,),
             )
@@ -405,7 +405,7 @@ def register(stock_bp: Blueprint) -> None:
 
             if not has_metrics_table:
                 # Wide-format DB: read from bundled JSON file
-                json_path = Path(fs_db_path).parent / "vci_financial_statement_metrics_hose_hnx.json"
+                json_path = Path(fs_db_path).parent / "vci_field_codes.json"
                 if not json_path.exists():
                     return jsonify({"data": [], "field_map": {}})
                 with open(json_path, encoding="utf-8") as f:
