@@ -13,7 +13,7 @@ export * from './stockApi';
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // Sync price refresh cadence with backend VCI polling loop (3 seconds).
-export const PRICE_SYNC_INTERVAL_MS = 3000;
+export const PRICE_SYNC_INTERVAL_MS = 15000;
 export const IDLE_REFRESH_INTERVAL_MS = 60000;
 
 // API Endpoints
