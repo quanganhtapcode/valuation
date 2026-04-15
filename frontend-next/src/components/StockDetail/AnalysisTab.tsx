@@ -20,14 +20,12 @@ import { cx } from '@/lib/utils';
 interface Peer {
     symbol: string;
     name: string;
-    industry?: string | null;
     pe: number | null;
     pb: number | null;
     roe: number | null;
     roa: number | null;
+    evEbitda: number | null;
     marketCap: number | null;
-    netMargin: number | null;
-    profitGrowth: number | null;
     isCurrent: boolean;
 }
 
@@ -39,13 +37,13 @@ interface AnalysisTabProps {
     isLoading?: boolean;
 }
 
-type MetricKey = 'marketCap' | 'pe' | 'pb' | 'roe' | 'roa' | 'netMargin' | 'profitGrowth';
+type MetricKey = 'marketCap' | 'pe' | 'pb' | 'roe' | 'roa' | 'evEbitda';
 type MetricTone = 'best' | 'worst' | 'neutral';
 
-const PERCENT_METRICS = new Set<MetricKey>(['roe', 'roa', 'netMargin', 'profitGrowth']);
+const PERCENT_METRICS = new Set<MetricKey>(['roe', 'roa']);
 const METRIC_DIRECTION: Record<MetricKey, 'higher' | 'lower'> = {
     marketCap: 'higher', pe: 'lower', pb: 'lower',
-    roe: 'higher', roa: 'higher', netMargin: 'higher', profitGrowth: 'higher',
+    roe: 'higher', roa: 'higher', evEbitda: 'lower',
 };
 
 function toNumberOrNull(value: unknown): number | null {
@@ -71,14 +69,12 @@ function normalizePeer(rawPeer: any): Peer {
     return {
         symbol: String(rawPeer?.symbol || '').toUpperCase(),
         name: rawPeer?.name || rawPeer?.symbol || '-',
-        industry: rawPeer?.industry || null,
         pe: toNumberOrNull(rawPeer?.pe),
         pb: toNumberOrNull(rawPeer?.pb),
         roe: toNumberOrNull(rawPeer?.roe),
         roa: toNumberOrNull(rawPeer?.roa),
+        evEbitda: toNumberOrNull(rawPeer?.evEbitda ?? rawPeer?.ev_to_ebitda ?? rawPeer?.evToEbitda),
         marketCap: toNumberOrNull(rawPeer?.marketCap ?? rawPeer?.market_cap),
-        netMargin: toNumberOrNull(rawPeer?.netMargin ?? rawPeer?.net_profit_margin),
-        profitGrowth: toNumberOrNull(rawPeer?.profitGrowth ?? rawPeer?.profit_growth ?? rawPeer?.netProfitGrowth ?? rawPeer?.net_profit_growth),
         isCurrent: Boolean(rawPeer?.isCurrent),
     };
 }
@@ -126,13 +122,13 @@ function topeHistory(res: any): { period: string; 'P/E': number; 'P/B': number }
 
 // ── component ─────────────────────────────────────────────────────────────────
 
-const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading = false }: AnalysisTabProps) => {
+const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: AnalysisTabProps) => {
     const [peers, setPeers] = useState<Peer[]>([]);
     const [peHistory, setPeHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [medianPe, setMedianPe] = useState<number | null>(null);
-    // Track which (symbol, sector) pair has already been fetched to prevent re-fetching
-    const fetchedKeyRef = useRef<string>('');
+    const [industryName, setIndustryName] = useState<string>('');
+    const fetchedSymbolRef = useRef<string>('');
 
     // Populate from initialHistory prop when it arrives
     useEffect(() => {
@@ -141,19 +137,16 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
         }
     }, [initialHistory]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Main fetch: only runs when symbol/sector/isLoading change, never re-triggers on state writes
+    // Main fetch: runs when symbol changes, uses VCI data source for peers
     useEffect(() => {
-        if (isLoading) return;                     // wait for parent history fetch
-        if (!sector || sector === 'Unknown') return; // wait for sector to resolve
-        const fetchKey = `${symbol}::${sector}`;
-        if (fetchedKeyRef.current === fetchKey) return; // already fetched for this pair
-        fetchedKeyRef.current = fetchKey;
+        if (isLoading) return;
+        if (fetchedSymbolRef.current === symbol) return;
+        fetchedSymbolRef.current = symbol;
 
         let cancelled = false;
         setLoading(true);
 
-        const peersPromise = fetch(`/api/stock/peers/${symbol}?industry=${encodeURIComponent(sector)}`)
-            .then(r => r.json());
+        const peersPromise = fetch(`/api/stock/peers-vci/${symbol}`).then(r => r.json());
 
         const historyPromise = (initialHistory == null)
             ? fetch(`/api/stock/${symbol}/historical-chart-data?period=quarter`).then(r => r.json())
@@ -163,8 +156,9 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
             .then(([peersRes, historyRes]) => {
                 if (cancelled) return;
                 if (peersRes?.success) {
-                    setPeers((peersRes.data || peersRes.peers || []).map(normalizePeer));
+                    setPeers((peersRes.data || []).map(normalizePeer));
                     setMedianPe(toNumberOrNull(peersRes.medianPe));
+                    if (peersRes.industry) setIndustryName(peersRes.industry);
                 }
                 if (historyRes?.success) {
                     setPeHistory(topeHistory(historyRes));
@@ -174,14 +168,14 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
             .finally(() => { if (!cancelled) setLoading(false); });
 
         return () => { cancelled = true; };
-    }, [symbol, sector, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [symbol, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const metricExtremes = useMemo(() => {
-        const metricKeys: MetricKey[] = ['marketCap', 'pe', 'pb', 'roe', 'roa', 'netMargin', 'profitGrowth'];
+        const metricKeys: MetricKey[] = ['marketCap', 'pe', 'pb', 'roe', 'roa', 'evEbitda'];
         return metricKeys.reduce((acc, key) => {
             const values = peers
                 .map(peer => normalizeMetricValue(key, peer[key]))
-                .filter((value): value is number => value !== null);
+                .filter((value): value is number => value !== null && value > 0);
             if (values.length === 0) { acc[key] = { best: null, worst: null }; return acc; }
             const minValue = Math.min(...values);
             const maxValue = Math.max(...values);
@@ -191,11 +185,7 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
         }, {} as Record<MetricKey, { best: number | null; worst: number | null }>);
     }, [peers]);
 
-    const displayIndustry = useMemo(() => {
-        const rawSector = String(sector || '').trim();
-        if (rawSector && rawSector.toLowerCase() !== 'unknown') return rawSector;
-        return peers.map(p => String(p.industry || '').trim()).find(v => v && v.toLowerCase() !== 'unknown') || 'Unknown';
-    }, [sector, peers]);
+    const displayIndustry = industryName || sector || 'Unknown';
 
     if (loading) {
         return (
@@ -251,16 +241,16 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
                     <div className="sm:flex sm:items-center sm:justify-between sm:space-x-10">
                         <div>
                             <h3 className="text-lg font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                Industry Comparison
+                                So sánh ngành
                             </h3>
                             <p className="mt-1 text-tremor-default leading-6 text-tremor-content dark:text-dark-tremor-content">
-                                Comparison with top {displayIndustry} peers ranked by Market Cap.
+                                {peers.length} công ty · {displayIndustry} · sắp xếp theo vốn hóa
                             </p>
                         </div>
                         {medianPe !== null && (
                             <div className="mt-4 sm:mt-0">
                                 <span className="inline-flex items-center rounded-tremor-small bg-blue-50 px-3 py-1.5 text-tremor-default font-bold text-blue-700 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/20">
-                                    Industry Median P/E: {medianPe.toFixed(2)}
+                                    Median P/E ngành: {medianPe.toFixed(2)}
                                 </span>
                             </div>
                         )}
@@ -270,14 +260,13 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
                     <Table className="h-[450px] [&>table]:border-separate [&>table]:border-spacing-0">
                         <TableHead>
                             <TableRow>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Symbol</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Market Cap (B)</TableHeaderCell>
+                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Mã CK</TableHeaderCell>
+                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Vốn hóa</TableHeaderCell>
                                 <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/E</TableHeaderCell>
                                 <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/B</TableHeaderCell>
                                 <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROE (%)</TableHeaderCell>
                                 <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROA (%)</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Net Margin (%)</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Growth (%)</TableHeaderCell>
+                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">EV/EBITDA</TableHeaderCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -287,16 +276,21 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
                                 const pb = toNumberOrNull(item.pb);
                                 const roe = toNumberOrNull(item.roe);
                                 const roa = toNumberOrNull(item.roa);
-                                const netMargin = toNumberOrNull(item.netMargin);
-                                const profitGrowth = toNumberOrNull(item.profitGrowth);
+                                const evEbitda = toNumberOrNull(item.evEbitda);
 
                                 const marketCapTone = getMetricTone(metricExtremes, 'marketCap', marketCap);
                                 const peTone = getMetricTone(metricExtremes, 'pe', pe);
                                 const pbTone = getMetricTone(metricExtremes, 'pb', pb);
                                 const roeTone = getMetricTone(metricExtremes, 'roe', roe);
                                 const roaTone = getMetricTone(metricExtremes, 'roa', roa);
-                                const netMarginTone = getMetricTone(metricExtremes, 'netMargin', netMargin);
-                                const growthTone = getMetricTone(metricExtremes, 'profitGrowth', profitGrowth);
+                                const evEbitdaTone = getMetricTone(metricExtremes, 'evEbitda', evEbitda);
+
+                                const fmtCap = (v: number | null) => {
+                                    if (v === null || v <= 0) return '-';
+                                    if (v >= 1e12) return `${(v / 1e12).toFixed(1)}N`;
+                                    if (v >= 1e9) return `${(v / 1e9).toFixed(1)}T`;
+                                    return `${(v / 1e6).toFixed(0)}M`;
+                                };
 
                                 return (
                                     <TableRow key={item.symbol} className={cx(
@@ -307,7 +301,7 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
                                                 {item.isCurrent ? (
                                                     <span className="font-bold text-tremor-default text-blue-600 dark:text-blue-400">
                                                         {item.symbol}
-                                                        <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full dark:bg-blue-800 dark:text-blue-200 uppercase">Current</span>
+                                                        <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full dark:bg-blue-800 dark:text-blue-200 uppercase">Hiện tại</span>
                                                     </span>
                                                 ) : (
                                                     <Link href={`/stock/${item.symbol}`}
@@ -319,13 +313,13 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
                                             </div>
                                         </TableCell>
                                         <TableCell className={cx('text-right font-bold border-b border-tremor-border dark:border-dark-tremor-border', metricToneClass(marketCapTone))}>
-                                            {marketCap !== null ? `${formatNumber(marketCap / 1e9)}B` : '-'}
+                                            {fmtCap(marketCap)}
                                         </TableCell>
                                         <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx('font-medium', metricToneClass(peTone))}>{pe !== null ? pe.toFixed(2) : '-'}</span>
+                                            <span className={cx('font-medium', metricToneClass(peTone))}>{pe !== null && pe > 0 ? `${pe.toFixed(1)}×` : '-'}</span>
                                         </TableCell>
                                         <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx('font-medium', metricToneClass(pbTone))}>{pb !== null ? pb.toFixed(2) : '-'}</span>
+                                            <span className={cx('font-medium', metricToneClass(pbTone))}>{pb !== null && pb > 0 ? `${pb.toFixed(2)}×` : '-'}</span>
                                         </TableCell>
                                         <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
                                             <span className={cx('font-medium', metricToneClass(roeTone))}>{formatPercentByKey('roe', roe)}</span>
@@ -334,19 +328,7 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
                                             <span className={cx('font-medium', metricToneClass(roaTone))}>{formatPercentByKey('roa', roa)}</span>
                                         </TableCell>
                                         <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx('font-medium', metricToneClass(netMarginTone))}>{formatPercentByKey('netMargin', netMargin)}</span>
-                                        </TableCell>
-                                        <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx(
-                                                'inline-flex items-center rounded-tremor-small px-2 py-0.5 text-xs font-semibold ring-1 ring-inset',
-                                                growthTone === 'best'
-                                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/20'
-                                                    : growthTone === 'worst'
-                                                        ? 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-400/10 dark:text-rose-400 dark:ring-rose-400/20'
-                                                        : 'bg-gray-50 text-gray-700 ring-gray-600/20 dark:bg-gray-400/10 dark:text-gray-400 dark:ring-gray-400/20'
-                                            )}>
-                                                {formatPercentByKey('profitGrowth', profitGrowth)}
-                                            </span>
+                                            <span className={cx('font-medium', metricToneClass(evEbitdaTone))}>{evEbitda !== null && evEbitda > 0 ? `${evEbitda.toFixed(1)}×` : '-'}</span>
                                         </TableCell>
                                     </TableRow>
                                 );
@@ -360,5 +342,5 @@ const AnalysisTab = ({ symbol, sector, initialPeers, initialHistory, isLoading =
 };
 
 export default React.memo(AnalysisTab, (prev, next) =>
-    prev.symbol === next.symbol && prev.sector === next.sector && prev.isLoading === next.isLoading
+    prev.symbol === next.symbol && prev.isLoading === next.isLoading
 );
