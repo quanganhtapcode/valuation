@@ -30,12 +30,12 @@ const TAPE_ITEMS: TapeItem[] = [
 
 export default function TickerTape() {
   const pathname = usePathname();
+  const isStockPage = pathname?.startsWith('/stock/') ?? false;
   const [prices, setPrices] = useState<Map<string, FFPrice>>(new Map());
 
-  // Hide on stock detail pages
-  if (pathname?.startsWith('/stock/')) return null;
-
+  // Always call hooks in same order — skip subscription on stock pages
   useEffect(() => {
+    if (isStockPage) return;
     const ws = getFFWS();
     const unsubs = TAPE_ITEMS.map(item =>
       ws.subscribe(item.channel, (snap: FFPrice) => {
@@ -43,7 +43,10 @@ export default function TickerTape() {
       })
     );
     return () => unsubs.forEach(fn => fn());
-  }, []);
+  }, [isStockPage]);
+
+  // Hide on stock detail pages (after all hooks)
+  if (isStockPage) return null;
 
   const activeItems = TAPE_ITEMS.filter(it => prices.has(it.channel));
 
