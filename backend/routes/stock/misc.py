@@ -8,12 +8,29 @@ import statistics
 
 from flask import Blueprint, jsonify
 
-from backend.db_path import resolve_vci_company_db_path, resolve_vci_stats_financial_db_path
+from backend.db_path import resolve_vci_stats_financial_db_path
 from backend.extensions import get_provider
 from backend.utils import validate_stock_symbol
 
 
 logger = logging.getLogger(__name__)
+
+_TICKER_DATA_CACHE: dict | None = None
+
+
+def _load_ticker_data() -> dict[str, dict]:
+    """Load ticker_data.json and return a dict keyed by symbol."""
+    global _TICKER_DATA_CACHE
+    if _TICKER_DATA_CACHE is not None:
+        return _TICKER_DATA_CACHE
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    ticker_file = os.path.join(root_dir, "frontend-next", "public", "ticker_data.json")
+    if not os.path.exists(ticker_file):
+        return {}
+    with open(ticker_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    _TICKER_DATA_CACHE = {t["symbol"]: t for t in data.get("tickers", [])}
+    return _TICKER_DATA_CACHE
 
 
 def register(stock_bp: Blueprint) -> None:
@@ -32,53 +49,40 @@ def register(stock_bp: Blueprint) -> None:
 
     @stock_bp.route("/stock/peers-vci/<symbol>")
     def api_stock_peers_vci(symbol):
-        """Get peer stocks with VCI stats financial data (PE, PB, ROE, ROA, EV/EBITDA)."""
+        """Get peer stocks with VCI stats financial data (PE, PB, ROE, ROA, EV/EBITDA).
+
+        Uses ticker_data.json for sector grouping, then vci_stats_financial.sqlite for metrics.
+        """
         try:
             is_valid, clean_symbol = validate_stock_symbol(symbol)
             if not is_valid:
                 return jsonify({"success": False, "error": clean_symbol}), 400
 
-            company_db = resolve_vci_company_db_path()
-            stats_db = resolve_vci_stats_financial_db_path()
+            ticker_map = _load_ticker_data()
+            sym_info = ticker_map.get(clean_symbol)
+            if not sym_info or not sym_info.get("sector") or sym_info.get("sector") == "Unknown":
+                return jsonify({"success": True, "data": [], "medianPe": None, "industry": None})
 
-            # Get industry code for this symbol
-            with sqlite3.connect(company_db) as conn:
+            sector = sym_info["sector"]
+
+            # Find all tickers in the same sector from ticker_data.json
+            peer_tickers = [s for s, info in ticker_map.items() if info.get("sector") == sector]
+            ticker_names = {s: ticker_map[s].get("name", s) for s in peer_tickers}
+
+            if not peer_tickers:
+                return jsonify({"success": True, "data": [], "medianPe": None, "industry": sector})
+
+            stats_db = resolve_vci_stats_financial_db_path()
+            placeholders = ",".join(["?" for _ in peer_tickers])
+            with sqlite3.connect(stats_db) as conn:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
                 cur.execute(
-                    "SELECT icb_code3, icb_name3 FROM companies WHERE ticker=?",
-                    (clean_symbol,),
-                )
-                sym_row = cur.fetchone()
-                if not sym_row or not sym_row["icb_code3"]:
-                    return jsonify({"success": True, "data": [], "medianPe": None, "industry": None})
-
-                icb_code3 = sym_row["icb_code3"]
-                industry_name = sym_row["icb_name3"]
-
-                # Get all peers in the same industry
-                cur.execute(
-                    "SELECT ticker, organ_name FROM companies WHERE icb_code3=? ORDER BY ticker",
-                    (icb_code3,),
-                )
-                company_rows = cur.fetchall()
-
-            ticker_names = {r["ticker"]: r["organ_name"] for r in company_rows}
-            tickers = list(ticker_names.keys())
-            if not tickers:
-                return jsonify({"success": True, "data": [], "medianPe": None, "industry": industry_name})
-
-            # Get stats financial for all tickers
-            placeholders = ",".join(["?" for _ in tickers])
-            with sqlite3.connect(stats_db) as conn2:
-                conn2.row_factory = sqlite3.Row
-                cur2 = conn2.cursor()
-                cur2.execute(
                     f"SELECT ticker, pe, pb, roe, roa, ev_to_ebitda, market_cap"
                     f" FROM stats_financial WHERE ticker IN ({placeholders})",
-                    tickers,
+                    peer_tickers,
                 )
-                stats_rows = cur2.fetchall()
+                stats_rows = cur.fetchall()
 
             peers = []
             for r in stats_rows:
@@ -105,8 +109,7 @@ def register(stock_bp: Blueprint) -> None:
                 "success": True,
                 "data": peers,
                 "medianPe": median_pe,
-                "industry": industry_name,
-                "icbCode": icb_code3,
+                "industry": sector,
             })
         except Exception as exc:
             logger.exception("peers-vci error for %s", symbol)

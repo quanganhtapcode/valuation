@@ -87,7 +87,7 @@ def _query_vci_history(db_path: str, symbol: str, period: str) -> list[dict]:
                 """
                 rows = cur.execute(query, (symbol,)).fetchall()
             else:
-                # Yearly: aggregate quarterly data
+                # Yearly: average Q1-Q4 only (exclude Q5/TTM to avoid mixing TTM into yearly avg)
                 query = """
                     SELECT year_report as year,
                            AVG(pe) as pe, AVG(pb) as pb,
@@ -95,7 +95,7 @@ def _query_vci_history(db_path: str, symbol: str, period: str) -> list[dict]:
                            AVG(after_tax_margin) as net_margin,
                            AVG(net_interest_margin) as nim
                     FROM stats_financial_history
-                    WHERE ticker = ?
+                    WHERE ticker = ? AND quarter_report BETWEEN 1 AND 4
                     GROUP BY year_report
                     ORDER BY year_report ASC
                 """
@@ -111,7 +111,8 @@ def _query_vci_history(db_path: str, symbol: str, period: str) -> list[dict]:
                 q = d.get("quarter")
                 label = str(int(y)) if y else "Unknown"
                 if period == "quarter" and q is not None:
-                    label = f"Q{int(q)} '{str(y)[-2:]}"
+                    # Quarter 5 is VCI's TTM (trailing twelve months)
+                    label = f"TTM '{str(y)[-2:]}" if int(q) == 5 else f"Q{int(q)} '{str(y)[-2:]}"
 
                 roe = d.get("roe")
                 roa = d.get("roa")
