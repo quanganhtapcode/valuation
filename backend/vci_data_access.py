@@ -352,6 +352,9 @@ class VCIDataAccess:
                         "casa": d.get("casa_ratio"),
                         "npl": d.get("npl"),
                         "ldr": d.get("ldr"),
+                        # VCI stores costToIncome as negative (net-income/total-income sign),
+                        # take abs() so frontend can display it as a positive CIR %.
+                        "cir": abs(d.get("cir")) if d.get("cir") is not None else None,
                     })
 
         # 3. Company info (name, sector detail)

@@ -110,22 +110,21 @@ const NORMAL_KEY_METRICS: { key: string; label: string; section: string; isPct?:
     { key: '_free_cash_flow',     label: 'Free Cash Flow',      section: 'cashflow' },
 ];
 
-const BANK_KEY_METRICS: { key: string; label: string; section: string; isPct?: boolean; indent?: boolean }[] = [
+const BANK_KEY_METRICS: { key: string; label: string; section: string; isPct?: boolean; indent?: boolean; isMultiple?: boolean }[] = [
     { key: 'market_cap', label: 'Market Cap', section: 'overview' },
     { key: 'enterprise_value', label: 'Enterprise Value', section: 'overview' },
-    { key: 'net_income', label: 'Net Income', section: 'income' },
+    { key: '_net_income', label: 'Net Income', section: 'income' },
     { key: 'nim', label: 'NIM', isPct: true, section: 'income' },
     { key: 'cir', label: 'CIR (Cost-to-Income)', isPct: true, section: 'income' },
-    { key: 'eps', label: 'EPS (TTM)', section: 'income' },
+    { key: 'eps', label: 'EPS (TTM)', isMultiple: true, section: 'income' },
     { key: 'profit_growth', label: '  Profit Growth', isPct: true, indent: true, section: 'income' },
     { key: 'casa', label: 'CASA Ratio', isPct: true, section: 'balance' },
     { key: 'npl', label: 'NPL Ratio', isPct: true, section: 'balance' },
     { key: 'ldr', label: 'LDR (Loans/Deposits)', isPct: true, section: 'balance' },
     { key: 'roe', label: 'ROE', isPct: true, section: 'ratios' },
     { key: 'roa', label: 'ROA', isPct: true, section: 'ratios' },
-    { key: 'car', label: 'CAR (Capital Adequacy)', isPct: true, section: 'ratios' },
-    { key: 'pe', label: 'P/E Ratio', section: 'ratios' },
-    { key: 'pb', label: 'P/B Ratio', section: 'ratios' },
+    { key: 'pe', label: 'P/E Ratio', isMultiple: true, section: 'ratios' },
+    { key: 'pb', label: 'P/B Ratio', isMultiple: true, section: 'ratios' },
 ];
 
 // ── Section Definitions for Reports ───────────────────────────────────────────
@@ -774,10 +773,16 @@ function KeyStatsTable({
 
     const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000_000;
 
-    const getValue = (key: string, isPct?: boolean): string => {
+    const getValue = (key: string, isPct?: boolean, isMultiple?: boolean): string => {
         const v = Number(data[key]);
         if (Number.isNaN(v) || !Number.isFinite(v) || Math.abs(v) < 0.001) return '-';
         if (isPct) return fmtPct(v);
+        if (isMultiple) {
+            // Ratios, multiples, and per-share amounts: display raw without unit divisor
+            return v % 1 === 0
+                ? formatNumber(v, { maximumFractionDigits: 0 })
+                : v.toFixed(2);
+        }
         return fmt(v / divisor);
     };
 
@@ -809,7 +814,7 @@ function KeyStatsTable({
                             </span>
                         </div>
                         {sectionMetrics.map((metric) => {
-                            const value = getValue(metric.key, metric.isPct);
+                            const value = getValue(metric.key, metric.isPct, metric.isMultiple);
                             const isIndented = metric.indent ?? false;
                             return (
                                 <div

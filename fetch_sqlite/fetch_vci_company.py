@@ -463,6 +463,31 @@ def fetch_and_store(db_path: Path, *, dry_run: bool = False) -> None:
     finally:
         conn.close()
 
+    # Regenerate ticker_data.json from the updated SQLite
+    _regenerate_ticker_data(db_path)
+
+
+def _regenerate_ticker_data(company_db: Path) -> None:
+    """Regenerate frontend-next/public/ticker_data.json from the updated SQLite."""
+    import sys
+    root = Path(__file__).resolve().parents[1]
+    gen = root / "scripts" / "generate_ticker_data.py"
+    if not gen.exists():
+        log.warning("generate_ticker_data.py not found at %s — skipping", gen)
+        return
+    try:
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, str(gen)],
+            capture_output=True, text=True, cwd=str(root)
+        )
+        if result.returncode == 0:
+            log.info("ticker_data.json regenerated: %s", result.stderr.strip().splitlines()[-1] if result.stderr else "ok")
+        else:
+            log.warning("ticker_data.json generation failed:\n%s", result.stderr)
+    except Exception as e:
+        log.warning("Could not regenerate ticker_data.json: %s", e)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
