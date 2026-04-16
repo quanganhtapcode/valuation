@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 
 interface TapeItem {
@@ -28,7 +29,11 @@ const TAPE_ITEMS: TapeItem[] = [
 ];
 
 export default function TickerTape() {
+  const pathname = usePathname();
   const [prices, setPrices] = useState<Map<string, FFPrice>>(new Map());
+
+  // Hide on stock detail pages
+  if (pathname?.startsWith('/stock/')) return null;
 
   useEffect(() => {
     const ws = getFFWS();
