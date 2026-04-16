@@ -26,8 +26,11 @@ import { getTickerData } from "@/lib/tickerCache"
 interface Ticker {
     symbol: string;
     name: string;
+    en_name?: string;
     sector: string;
+    en_sector?: string;
     exchange: string;
+    isbank?: boolean;
 }
 
 interface TickerData {
@@ -148,7 +151,11 @@ export function Navbar() {
         const upper = debouncedQuery.toUpperCase();
         const lower = debouncedQuery.toLowerCase();
         const filtered = allTickers.filter(t =>
-            t && ((t.symbol || '').toUpperCase().includes(upper) || (t.name || '').toLowerCase().includes(lower))
+            t && (
+                (t.symbol || '').toUpperCase().includes(upper) ||
+                (t.name || '').toLowerCase().includes(lower) ||
+                (t.en_name || '').toLowerCase().includes(lower)
+            )
         ).sort((a, b) => {
             const sa = (a?.symbol || '').toUpperCase();
             const sb = (b?.symbol || '').toUpperCase();
@@ -372,7 +379,12 @@ export function Navbar() {
                                                             <span className="hidden text-[10px] font-bold text-gray-600 dark:text-gray-400">{result.symbol[0]}</span>
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
-                                                            <span className="font-bold text-gray-900 dark:text-gray-50 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">{result.symbol}</span>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="font-bold text-gray-900 dark:text-gray-50 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{result.symbol}</span>
+                                                                {result.isbank && (
+                                                                    <span className="rounded bg-blue-100 px-1 py-0.5 text-[9px] font-semibold text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 leading-none">BANK</span>
+                                                                )}
+                                                            </div>
                                                             <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[200px]">{result.name}</span>
                                                         </div>
                                                     </div>

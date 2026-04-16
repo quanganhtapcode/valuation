@@ -87,7 +87,7 @@ _SUMMARY_FIELDS = [
     # Leverage
     "debt_to_equity", "financial_leverage", "current_ratio", "quick_ratio",
     # Banking
-    "nim", "npl", "ldr", "cir",
+    "nim", "npl", "ldr", "cir", "casa", "isbank",
     # Other
     "ev_to_ebitda", "asset_turnover", "inventory_turnover", "cash_ratio", "roic", "ebit_margin",
     # VCI analyst target
@@ -100,8 +100,9 @@ def _build_summary(raw: dict) -> dict:
     for field in _SUMMARY_FIELDS:
         val = raw.get(field)
         # Replace 0 with None for ratios that can't be zero
+        # Booleans (isbank) are excluded because False == 0 in Python
         if field not in ("market_cap", "shares_outstanding", "current_price", "bvps", "eps",
-                         "price_change", "price_change_percent"):
+                         "price_change", "price_change_percent", "isbank"):
             if val == 0 or val == 0.0:
                 val = None
         out[field] = val

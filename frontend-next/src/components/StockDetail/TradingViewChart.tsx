@@ -194,36 +194,39 @@ function IntervalSelector({ interval, setInterval }: { interval: Interval; setIn
     );
 }
 
-// ── OHLCV Stats bar ───────────────────────────────────────────────────────────
-function OHLCVBar({ bar }: { bar: BarDisplay | null }) {
+// ── OHLCV overlay tooltip (only shown while hovering/touching) ────────────────
+function OHLCVOverlay({ bar }: { bar: BarDisplay | null }) {
     if (!bar) return null;
     const isUp = bar.change >= 0;
     return (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 py-2 text-[11px]">
-            <span className="text-slate-400 dark:text-slate-500 font-medium">{bar.time}</span>
-            <span className="flex items-center gap-1">
-                <span className="text-slate-400 dark:text-slate-500">O</span>
-                <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{formatPrice(bar.open)}</span>
-            </span>
-            <span className="flex items-center gap-1">
-                <span className="text-slate-400 dark:text-slate-500">H</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatPrice(bar.high)}</span>
-            </span>
-            <span className="flex items-center gap-1">
-                <span className="text-slate-400 dark:text-slate-500">L</span>
-                <span className="font-semibold text-red-500 dark:text-red-400 tabular-nums">{formatPrice(bar.low)}</span>
-            </span>
-            <span className="flex items-center gap-1">
-                <span className="text-slate-400 dark:text-slate-500">C</span>
-                <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{formatPrice(bar.close)}</span>
-            </span>
-            <span className="flex items-center gap-1">
-                <span className="text-slate-400 dark:text-slate-500">Vol</span>
-                <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{formatVolume(bar.volume)}</span>
-            </span>
-            <span className={`font-semibold tabular-nums ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
-                {isUp ? '+' : ''}{formatPrice(Math.abs(bar.change))} ({isUp ? '+' : ''}{bar.changePct.toFixed(2)}%)
-            </span>
+        <div className="absolute top-2 left-2 z-20 pointer-events-none">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg px-2.5 py-1.5 text-[11px]"
+                style={{ background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(6px)' }}>
+                <span className="text-slate-300 font-medium">{bar.time}</span>
+                <span className="flex items-center gap-1">
+                    <span className="text-slate-400">O</span>
+                    <span className="font-semibold text-white tabular-nums">{formatPrice(bar.open)}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                    <span className="text-slate-400">H</span>
+                    <span className="font-semibold text-emerald-400 tabular-nums">{formatPrice(bar.high)}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                    <span className="text-slate-400">L</span>
+                    <span className="font-semibold text-red-400 tabular-nums">{formatPrice(bar.low)}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                    <span className="text-slate-400">C</span>
+                    <span className="font-semibold text-white tabular-nums">{formatPrice(bar.close)}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                    <span className="text-slate-400">Vol</span>
+                    <span className="font-semibold text-white tabular-nums">{formatVolume(bar.volume)}</span>
+                </span>
+                <span className={`font-semibold tabular-nums ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isUp ? '+' : ''}{formatPrice(Math.abs(bar.change))} ({isUp ? '+' : ''}{bar.changePct.toFixed(2)}%)
+                </span>
+            </div>
         </div>
     );
 }
@@ -237,7 +240,7 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
     const [interval, setIntervalState] = useState<Interval>('D');
     const intervalRef = useRef<Interval>('D');
 
-    // Bar displayed in the OHLCV footer (null = show latestBar)
+    // Bar displayed in the OHLCV overlay (null = hidden, only shown while hovering/touching)
     const [hoveredBar, setHoveredBar] = useState<BarDisplay | null>(null);
 
     // Dark mode
@@ -246,21 +249,6 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
 
     const normalizedData = useMemo(() => normalizeData(data), [data]);
     const aggregatedData = useMemo(() => aggregateData(normalizedData, interval), [normalizedData, interval]);
-
-    const latestBar = useMemo<BarDisplay | null>(() => {
-        if (!aggregatedData.length) return null;
-        const latest = aggregatedData[aggregatedData.length - 1];
-        const prev   = aggregatedData.length > 1 ? aggregatedData[aggregatedData.length - 2] : latest;
-        const change    = latest.close - prev.close;
-        const changePct = prev.close > 0 ? (change / prev.close) * 100 : 0;
-        return {
-            time: formatDate(toUTCTime(latest.time)),
-            open: latest.open, high: latest.high, low: latest.low, close: latest.close,
-            volume: latest.volume, change, changePct,
-        };
-    }, [aggregatedData]);
-
-    const displayBar = hoveredBar ?? latestBar;
 
     // keep intervalRef in sync for use inside effects
     useEffect(() => { intervalRef.current = interval; }, [interval]);
@@ -354,8 +342,14 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         });
         ro.observe(chartContainerRef.current);
 
+        // Clear overlay when user lifts finger (mobile)
+        const el = chartContainerRef.current;
+        const clearOnTouchEnd = () => setHoveredBar(null);
+        el.addEventListener('touchend', clearOnTouchEnd, { passive: true });
+
         return () => {
             ro.disconnect();
+            el.removeEventListener('touchend', clearOnTouchEnd);
             chart.remove();
             chartRef.current = null;
             candlestickSeriesRef.current = null;
@@ -447,12 +441,10 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
                     </div>
                 )}
 
-                <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '400px' }} />
-            </div>
+                {/* OHLCV overlay — only visible while hovering/touching the chart */}
+                <OHLCVOverlay bar={hoveredBar} />
 
-            {/* OHLCV footer — shows latest bar, updates live on crosshair hover */}
-            <div className="mt-1 border-t border-slate-100 dark:border-slate-800">
-                <OHLCVBar bar={displayBar} />
+                <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '400px' }} />
             </div>
         </div>
     );

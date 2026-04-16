@@ -281,7 +281,7 @@ class StockDataProvider:
                 # Update ratios from stats_financial
                 for key in ['pe', 'pb', 'ps', 'roe', 'roa', 'eps', 'bvps',
                             'net_margin', 'gross_margin', 'current_ratio', 'quick_ratio',
-                            'debt_to_equity', 'nim', 'car', 'casa', 'npl_ratio', 'ldr', 'cir']:
+                            'debt_to_equity', 'nim', 'car', 'casa', 'npl', 'ldr', 'cir']:
                     if overview.get(key) is not None:
                         data[key] = overview[key]
                 # Only use sector from overview if company didn't provide it
@@ -432,7 +432,8 @@ class StockDataProvider:
         company_info = {
             'organ_name': meta.get('name', symbol),
             'industry': meta.get('sector', 'Unknown'),
-            'exchange': meta.get('exchange', 'Unknown')
+            'exchange': meta.get('exchange', 'Unknown'),
+            'isbank': meta.get('isbank', False),
         }
         
         # Fallback to Listing API if metadata incomplete
@@ -450,6 +451,7 @@ class StockDataProvider:
                 "name": company_info['organ_name'],
                 "sector": company_info['industry'],
                 "exchange": company_info['exchange'],
+                "isbank": company_info['isbank'],
                 "data_period": period,
                 "success": True
             })
