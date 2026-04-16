@@ -203,7 +203,7 @@ export default function OverviewClient({
                 newsSize: 30,
                 heatmapLimit: 200,
                 heatmapExchange: 'HSX',
-                peTimeFrame: '6M',
+                peTimeFrame: 'ALL',
             });
 
             setNews(snapshot.news);
