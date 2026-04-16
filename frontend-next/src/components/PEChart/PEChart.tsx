@@ -179,6 +179,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const activeChartRef    = useRef<ActiveChart>('vnindex');
     const [tooltip, setTooltip] = useState<TooltipState>(null);
     const [containerWidth, setContainerWidth] = useState(600);
+    const [chartHeight, setChartHeight] = useState(420);
 
     // keep ref in sync
     useEffect(() => { activeChartRef.current = activeChart; }, [activeChart]);
@@ -373,8 +374,10 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         const ro = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const w = entry.contentRect.width;
+                const h = w < 640 ? 320 : 420;
                 setContainerWidth(w || 600);
-                chart.applyOptions({ width: w, height: w < 640 ? 320 : 420 });
+                setChartHeight(h);
+                chart.applyOptions({ width: w, height: h });
             }
         });
         ro.observe(containerRef.current);
@@ -407,8 +410,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         })));
 
         if (activeChart === 'vnindex') {
-            const total = vnTVData.length;
-            chartRef.current?.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 252), to: total + 3 });
+            chartRef.current?.timeScale().fitContent();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [vnTVData]);
@@ -418,8 +420,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         if (!lineSeriesRef.current) return;
         if (!peTVData.length || activeChart !== 'pe') return;
         lineSeriesRef.current.setData(peTVData);
-        const total = peTVData.length;
-        chartRef.current?.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 252), to: total + 3 });
+        chartRef.current?.timeScale().fitContent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [peTVData]);
 
@@ -428,8 +429,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         if (!lineSeriesRef.current) return;
         if (!pbTVData.length || activeChart !== 'pb') return;
         lineSeriesRef.current.setData(pbTVData);
-        const total = pbTVData.length;
-        chartRef.current?.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 252), to: total + 3 });
+        chartRef.current?.timeScale().fitContent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pbTVData]);
 
@@ -473,10 +473,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
             })));
         }
 
-        const total = isVN ? vnTVData.length : (activeChart === 'pe' ? peTVData.length : pbTVData.length);
-        if (total > 0) {
-            chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 252), to: total + 3 });
-        }
+        chart.timeScale().fitContent();
         setTooltip(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeChart]);
@@ -505,23 +502,41 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
         if (activeStats.minusTwoSD != null) add(activeStats.minusTwoSD, '#3b82f6', `−2σ ${activeStats.minusTwoSD.toFixed(2)}`);
     }, [activeStats]);
 
-    // ── Data fetching ─────────────────────────────────────────────────────────
+    // ── External data updates ─────────────────────────────────────────────────
+    // Apply external data from parent's overview refresh when it arrives,
+    // preserving existing stats from the initial self-fetch.
     useEffect(() => {
-        if (externalData.length > 0) {
-            setResult(r => ({ ...r, series: externalData }));
-            setIsLoading(false);
-            return;
-        }
+        if (externalData.length === 0) return;
+        setResult(r => ({ ...r, series: externalData }));
+        setIsLoading(false);
+    }, [externalData]);
+
+    // ── Data fetching (progressive) ───────────────────────────────────────────
+    // Phase 1: fetch 1Y quickly so the chart appears fast.
+    // Phase 2: silently extend to ALL history in the background.
+    // External data from the parent's overview refresh (ALL) will replace both
+    // when it arrives, so phase 2 is a no-op if the parent is fast enough.
+    useEffect(() => {
+        if (externalData.length > 0) return;
         if (initialData.length > 0) return;
 
-        const ctrl = new AbortController();
-        abortRef.current = ctrl;
-        // Fetch 6M data immediately for fast initial render; external data will
-        // replace it if/when the parent's bundled overview-refresh completes.
-        fetchPEChartByRange('6M', 'both', { signal: ctrl.signal })
-            .then(r => { setResult(r); setIsLoading(false); })
-            .catch(() => setIsLoading(false));
-        return () => ctrl.abort();
+        let ctrl2: AbortController | null = null;
+        const ctrl1 = new AbortController();
+        abortRef.current = ctrl1;
+
+        fetchPEChartByRange('1Y', 'both', { signal: ctrl1.signal })
+            .then(r1 => {
+                setResult(r1);
+                setIsLoading(false);
+                // Phase 2 — extend to full history silently
+                ctrl2 = new AbortController();
+                abortRef.current = ctrl2;
+                return fetchPEChartByRange('ALL', 'both', { signal: ctrl2.signal });
+            })
+            .then(r2 => { if (r2) setResult(r2); })
+            .catch(() => { setIsLoading(false); });
+
+        return () => { ctrl1.abort(); ctrl2?.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -634,7 +649,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                 )}
 
                 {/* Chart container — always mounted so the instance is never destroyed */}
-                <div ref={containerRef} className="w-full" style={{ height: '420px' }} />
+                <div ref={containerRef} className="w-full" style={{ height: `${chartHeight}px` }} />
             </div>
 
             {/* ── σ legend for PE/PB ── */}
