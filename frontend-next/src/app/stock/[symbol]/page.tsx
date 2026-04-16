@@ -655,7 +655,7 @@ export default function StockDetailPage() {
             </div>
 
             {/* Main Content with Persistent Tabs (Lazy Loaded) */}
-            <div className={`${styles.mainContentFull} mt-2`}>
+            <div className={`${styles.mainContentFull} mt-3`}>
                 {/* Overview - Always keep mounted if visited, typically visited first */}
                 <div className={activeTab !== 'overview' ? 'hidden' : undefined}>
                     <OverviewTab
