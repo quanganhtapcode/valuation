@@ -356,3 +356,16 @@ def resolve_vci_news_events_db_path(explicit_path: Optional[str] = None) -> str:
             Path("/var/www/store/fetch_sqlite/vci_news_events.sqlite"),
         ],
     )
+
+
+def resolve_vci_valuation_db_path(explicit_path: Optional[str] = None) -> str:
+    """Return absolute path to VCI valuation history SQLite DB (PE/PB/VNINDEX history)."""
+    return _resolve_db_path(
+        explicit_path,
+        "VCI_VALUATION_DB_PATH",
+        Path("fetch_sqlite") / "vci_valuation.sqlite",
+        extra_candidates=[
+            Path("/var/www/valuation/fetch_sqlite/vci_valuation.sqlite"),
+            Path("/var/www/store/fetch_sqlite/vci_valuation.sqlite"),
+        ],
+    )

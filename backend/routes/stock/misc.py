@@ -1,36 +1,17 @@
 from __future__ import annotations
 
-import json
 import logging
-import os
 import sqlite3
 import statistics
 
 from flask import Blueprint, jsonify
 
-from backend.db_path import resolve_vci_stats_financial_db_path
+from backend.db_path import resolve_vci_company_db_path, resolve_vci_stats_financial_db_path
 from backend.extensions import get_provider
 from backend.utils import validate_stock_symbol
 
 
 logger = logging.getLogger(__name__)
-
-_TICKER_DATA_CACHE: dict | None = None
-
-
-def _load_ticker_data() -> dict[str, dict]:
-    """Load ticker_data.json and return a dict keyed by symbol."""
-    global _TICKER_DATA_CACHE
-    if _TICKER_DATA_CACHE is not None:
-        return _TICKER_DATA_CACHE
-    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    ticker_file = os.path.join(root_dir, "frontend-next", "public", "ticker_data.json")
-    if not os.path.exists(ticker_file):
-        return {}
-    with open(ticker_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    _TICKER_DATA_CACHE = {t["symbol"]: t for t in data.get("tickers", [])}
-    return _TICKER_DATA_CACHE
 
 
 def register(stock_bp: Blueprint) -> None:
@@ -51,23 +32,36 @@ def register(stock_bp: Blueprint) -> None:
     def api_stock_peers_vci(symbol):
         """Get peer stocks with VCI stats financial data (PE, PB, ROE, ROA, EV/EBITDA).
 
-        Uses ticker_data.json for sector grouping, then vci_stats_financial.sqlite for metrics.
+        Uses vci_company.sqlite (icb_name2) for sector grouping, then vci_stats_financial.sqlite for metrics.
         """
         try:
             is_valid, clean_symbol = validate_stock_symbol(symbol)
             if not is_valid:
                 return jsonify({"success": False, "error": clean_symbol}), 400
 
-            ticker_map = _load_ticker_data()
-            sym_info = ticker_map.get(clean_symbol)
-            if not sym_info or not sym_info.get("sector") or sym_info.get("sector") == "Unknown":
+            company_db = resolve_vci_company_db_path()
+            with sqlite3.connect(company_db) as conn:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    "SELECT icb_name2, organ_name FROM companies WHERE UPPER(ticker) = ?",
+                    (clean_symbol.upper(),),
+                ).fetchone()
+
+            if not row or not row["icb_name2"]:
                 return jsonify({"success": True, "data": [], "medianPe": None, "industry": None})
 
-            sector = sym_info["sector"]
+            sector = row["icb_name2"]
 
-            # Find all tickers in the same sector from ticker_data.json
-            peer_tickers = [s for s, info in ticker_map.items() if info.get("sector") == sector]
-            ticker_names = {s: ticker_map[s].get("name", s) for s in peer_tickers}
+            # Find all peer tickers in the same icb_name2 sector
+            with sqlite3.connect(company_db) as conn:
+                conn.row_factory = sqlite3.Row
+                peer_rows = conn.execute(
+                    "SELECT ticker, organ_name FROM companies WHERE icb_name2 = ?",
+                    (sector,),
+                ).fetchall()
+
+            peer_tickers = [r["ticker"] for r in peer_rows]
+            ticker_names = {r["ticker"]: r["organ_name"] or r["ticker"] for r in peer_rows}
 
             if not peer_tickers:
                 return jsonify({"success": True, "data": [], "medianPe": None, "industry": sector})
@@ -76,13 +70,11 @@ def register(stock_bp: Blueprint) -> None:
             placeholders = ",".join(["?" for _ in peer_tickers])
             with sqlite3.connect(stats_db) as conn:
                 conn.row_factory = sqlite3.Row
-                cur = conn.cursor()
-                cur.execute(
+                stats_rows = conn.execute(
                     f"SELECT ticker, pe, pb, roe, roa, ev_to_ebitda, market_cap"
                     f" FROM stats_financial WHERE ticker IN ({placeholders})",
                     peer_tickers,
-                )
-                stats_rows = cur.fetchall()
+                ).fetchall()
 
             peers = []
             for r in stats_rows:

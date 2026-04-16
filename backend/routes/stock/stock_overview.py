@@ -21,17 +21,16 @@ import numpy as np
 import pandas as pd
 from flask import Blueprint, jsonify, request
 
+from backend.db_path import resolve_vci_company_db_path
 from backend.extensions import get_provider
 
 
 logger = logging.getLogger(__name__)
 
-_VCI_COMPANY_DB = os.path.join(os.path.dirname(__file__), "../../../fetch_sqlite/vci_company.sqlite")
-
 
 def _read_vci_company(symbol: str) -> dict:
     """Read target_price and company_profile from vci_company.sqlite."""
-    db = os.environ.get("VCI_COMPANY_DB_PATH") or _VCI_COMPANY_DB
+    db = resolve_vci_company_db_path()
     if not db or not os.path.exists(db):
         return {}
     try:

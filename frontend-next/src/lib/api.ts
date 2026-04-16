@@ -296,6 +296,14 @@ export interface ScreenerItem {
     name: string;
     exchange: string | null;
     sector: string | null;
+    icbName1: string | null;
+    icbName2: string | null;
+    icbName3: string | null;
+    icbName4: string | null;
+    icbCode1: string | null;
+    icbCode2: string | null;
+    icbCode3: string | null;
+    icbCode4: string | null;
     marketPrice: number | null;
     marketCap: number | null;
     dailyPriceChangePercent: number | null;
@@ -310,7 +318,13 @@ export interface ScreenerItem {
     accumulatedVolume: number | null;
     intrinsicValue: number | null;
     upsidePct: number | null;
-    qualityGrade: string | null;
+}
+
+export interface IcbSector {
+    icb_name1: string;
+    icb_name2: string;
+    icb_code1: string;
+    icb_code2: string;
 }
 
 export interface ScreenerResponse {
@@ -754,6 +768,13 @@ export async function fetchEma50Breadth(days = 260): Promise<EmaBreadthPoint[]> 
         })
         .filter((row: EmaBreadthPoint | null): row is EmaBreadthPoint => row !== null)
         .sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+export async function fetchScreenerIcbSectors(): Promise<IcbSector[]> {
+    const data = await fetchAPI<{ success: boolean; sectors: IcbSector[] }>(
+        `${API_BASE}/market/screener/icb-sectors`
+    );
+    return data.sectors || [];
 }
 
 export async function fetchScreener(params: {
