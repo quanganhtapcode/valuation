@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   fetchScreener,
+  fetchScreenerIcbSectors,
+  IcbSector,
   ScreenerFilters,
   ScreenerItem,
   ScreenerSortKey,
@@ -113,8 +115,7 @@ export default function ScreenerPage() {
   const [sortBy, setSortBy]                   = useState<ScreenerSortKey>('market_cap');
   const [sortOrder, setSortOrder]             = useState<'asc' | 'desc'>('desc');
   const [selectedSector, setSelectedSector]   = useState('');
-  const [sectors, setSectors]                 = useState<string[]>([]);
-  const [sectorTickerMap, setSectorTickerMap] = useState<Record<string, string[]>>({});
+  const [icbSectors, setIcbSectors]           = useState<IcbSector[]>([]);
 
   // Valuation tab
   const [peRange, setPeRange]         = useState<SliderRange>({ min: PE_RANGE.min,            max: PE_RANGE.max            });
@@ -145,9 +146,7 @@ export default function ScreenerPage() {
     upside_pct_min:       upsideRange.min > UPSIDE_PCT_RANGE.min ? upsideRange.min         : undefined,
     upside_pct_max:       upsideRange.max < UPSIDE_PCT_RANGE.max ? upsideRange.max         : undefined,
     exchange:             exchanges.size < 3 ? [...exchanges].join(',') : undefined,
-    tickers:              selectedSector && sectorTickerMap[selectedSector]?.length
-                            ? sectorTickerMap[selectedSector].join(',')
-                            : undefined,
+    sector:               selectedSector || undefined,
     roe_min:              roeRange.min > ROE_RANGE.min           ? roeRange.min            : undefined,
     roe_max:              roeRange.max < ROE_RANGE.max           ? roeRange.max            : undefined,
     net_margin_min:       netMarginRange.min > NET_MARGIN_RANGE.min   ? netMarginRange.min   : undefined,
@@ -158,7 +157,7 @@ export default function ScreenerPage() {
     revenue_growth_max:   revGrowthRange.max < REVENUE_GROWTH_RANGE.max    ? revGrowthRange.max    : undefined,
     net_profit_growth_min: npGrowthRange.min > NET_PROFIT_GROWTH_RANGE.min ? npGrowthRange.min     : undefined,
     net_profit_growth_max: npGrowthRange.max < NET_PROFIT_GROWTH_RANGE.max ? npGrowthRange.max     : undefined,
-  }), [peRange, pbRange, priceRange, mcapRange, upsideRange, roeRange, netMarginRange, grossMarginRange, revGrowthRange, npGrowthRange, exchanges, selectedSector, sectorTickerMap]);
+  }), [peRange, pbRange, priceRange, mcapRange, upsideRange, roeRange, netMarginRange, grossMarginRange, revGrowthRange, npGrowthRange, exchanges, selectedSector]);
 
   // Per-tab active counts for badges
   const tabCounts = useMemo(() => ({
@@ -179,23 +178,10 @@ export default function ScreenerPage() {
 
   const totalActiveFilters = tabCounts.valuation + tabCounts.quality + tabCounts.growth + (selectedSector ? 1 : 0);
 
-  // Load sectors from ticker_data.json
+  // Load ICB sectors from VCI company DB
   useEffect(() => {
-    fetch('/ticker_data.json')
-      .then((r) => r.json())
-      .then((data: { tickers: Array<{ symbol: string; sector: string }> }) => {
-        const map: Record<string, string[]> = {};
-        for (const t of data.tickers || []) {
-          const s = (t.sector || '').trim();
-          if (s && s !== 'Unknown') {
-            if (!map[s]) map[s] = [];
-            map[s].push(t.symbol);
-          }
-        }
-        const sorted = Object.keys(map).sort((a, b) => a.localeCompare(b, 'vi'));
-        setSectors(sorted);
-        setSectorTickerMap(map);
-      })
+    fetchScreenerIcbSectors()
+      .then(setIcbSectors)
       .catch(() => {/* ignore */});
   }, []);
 
@@ -312,25 +298,38 @@ export default function ScreenerPage() {
 
         {/* Filter panel */}
         <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden ${filtersOpen ? 'block' : 'hidden md:block'}`}>
-          {/* Industry filter */}
-          {sectors.length > 0 && (
+          {/* Industry filter (ICB) */}
+          {icbSectors.length > 0 && (
             <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">Industry</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">Ngành</span>
               <select
                 value={selectedSector}
                 onChange={(e) => { setSelectedSector(e.target.value); setPage(1); }}
                 className="input flex-1 max-w-xs"
               >
-                <option value="">All industries</option>
-                {sectors.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                <option value="">Tất cả ngành</option>
+                {(() => {
+                  // Group icbSectors by icb_name1
+                  const groups: Record<string, IcbSector[]> = {};
+                  for (const s of icbSectors) {
+                    const g = s.icb_name1 || 'Khác';
+                    if (!groups[g]) groups[g] = [];
+                    groups[g].push(s);
+                  }
+                  return Object.entries(groups).map(([group, items]) => (
+                    <optgroup key={group} label={group}>
+                      {items.map((s) => (
+                        <option key={s.icb_code2} value={s.icb_name2}>{s.icb_name2}</option>
+                      ))}
+                    </optgroup>
+                  ));
+                })()}
               </select>
               {selectedSector && (
                 <button
                   onClick={() => { setSelectedSector(''); setPage(1); }}
                   className="text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                  title="Clear industry filter"
+                  title="Xóa lọc ngành"
                 >✕</button>
               )}
             </div>
@@ -470,27 +469,6 @@ export default function ScreenerPage() {
                       {hasValuationData && (
                         <td className="py-2 px-2 text-right tabular-nums text-slate-500 dark:text-slate-400">
                           {row.intrinsicValue != null ? fmtNum(row.intrinsicValue, 0) : '—'}
-                          {row.qualityGrade && row.intrinsicValue != null && (() => {
-                            const g = row.qualityGrade;
-                            const cls =
-                              g === 'A' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' :
-                              g === 'B' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
-                              g === 'C' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
-                              g === 'D' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' :
-                                          'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
-                            const desc =
-                              g === 'A' ? 'High quality data (≥85%)' :
-                              g === 'B' ? 'Good quality data (≥70%)' :
-                              g === 'C' ? 'Moderate quality data (≥55%)' :
-                              g === 'D' ? 'Low quality data (≥40%)' :
-                                          'Very limited data (<40%)';
-                            return (
-                              <span
-                                className={`ml-1 inline-block rounded px-1 py-0.5 text-[10px] font-bold leading-none ${cls}`}
-                                title={`Data quality grade: ${desc}`}
-                              >{g}</span>
-                            );
-                          })()}
                         </td>
                       )}
                       {hasValuationData && (

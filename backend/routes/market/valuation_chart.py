@@ -11,9 +11,11 @@ import requests as http_requests
 from flask import Blueprint, jsonify, request
 
 from backend.db_path import (
+    resolve_vci_company_db_path,
     resolve_vci_ratio_daily_db_path,
     resolve_vci_screening_db_path,
     resolve_vci_stats_financial_db_path,
+    resolve_vci_valuation_db_path,
     resolve_valuation_cache_db_path,
 )
 from backend.data_sources.vci import VCIClient
@@ -31,9 +33,7 @@ _VCI_OHLC_URL = "https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart"
 _VCI_BREADTH_URL = "https://iq.vietcap.com.vn/api/iq-insight-service/v1/market-watch/breadth"
 
 # SQLite written daily by fetch_sqlite/fetch_vci_valuation.py
-_VALUATION_SQLITE = (
-    Path(__file__).resolve().parents[3] / "fetch_sqlite" / "vci_valuation.sqlite"
-)
+_VALUATION_SQLITE = Path(resolve_vci_valuation_db_path())
 
 
 _INDEX_ID_TO_VCI_SYMBOL = {
@@ -65,7 +65,7 @@ _SCREENER_SORT_COLUMNS = {
     "value": "s.accumulatedValue",
     "volume": "s.accumulatedVolume",
     "exchange": "s.exchange",
-    "sector": "s.viSector",
+    "sector": "COALESCE(c.icb_name2, s.viSector)",
     "upside_pct": "v.upside_pct",
 }
 
@@ -593,6 +593,38 @@ def register(market_bp: Blueprint) -> None:
             logger.error("EMA50 breadth error: %s", exc)
             return jsonify({"success": False, "data": []}), 500
 
+    @market_bp.route('/screener/icb-sectors')
+    def api_market_screener_icb_sectors():
+        """Return distinct ICB sector hierarchy from vci_company.sqlite."""
+        company_db_path = resolve_vci_company_db_path()
+        if not company_db_path or not os.path.exists(company_db_path):
+            return jsonify({"success": False, "error": "Company DB not found"}), 500
+        try:
+            with sqlite3.connect(company_db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    """
+                    SELECT DISTINCT
+                        icb_name1, icb_name2, icb_code1, icb_code2
+                    FROM companies
+                    WHERE icb_name2 IS NOT NULL AND icb_name2 != ''
+                    ORDER BY icb_name1, icb_name2
+                    """
+                ).fetchall()
+            sectors = [
+                {
+                    "icb_name1": r["icb_name1"],
+                    "icb_name2": r["icb_name2"],
+                    "icb_code1": r["icb_code1"],
+                    "icb_code2": r["icb_code2"],
+                }
+                for r in rows
+            ]
+            return jsonify({"success": True, "sectors": sectors})
+        except Exception as exc:
+            logger.error("ICB sectors error: %s", exc)
+            return jsonify({"success": False, "error": str(exc)}), 500
+
     @market_bp.route('/screener')
     def api_market_screener():
         db_path = resolve_vci_screening_db_path()
@@ -605,6 +637,8 @@ def register(market_bp: Blueprint) -> None:
         has_ratio_db = bool(ratio_db_path and os.path.exists(ratio_db_path))
         stats_db_path = resolve_vci_stats_financial_db_path()
         has_stats_db = bool(stats_db_path and os.path.exists(stats_db_path))
+        company_db_path = resolve_vci_company_db_path()
+        has_company_db = bool(company_db_path and os.path.exists(company_db_path))
 
 
         try:
@@ -642,9 +676,8 @@ def register(market_bp: Blueprint) -> None:
 
         sector = (request.args.get("sector", "") or "").strip()
         if sector:
-            where_clauses.append("(UPPER(s.viSector) LIKE ? OR UPPER(s.enSector) LIKE ?)")
-            s_like = f"%{sector.upper()}%"
-            params.extend([s_like, s_like])
+            where_clauses.append("c.icb_name2 = ?")
+            params.append(sector)
 
         tickers_param = (request.args.get("tickers", "") or "").strip()
         if tickers_param:
@@ -676,11 +709,13 @@ def register(market_bp: Blueprint) -> None:
             attach_statements.append(f"ATTACH DATABASE '{ratio_db_path}' AS rd")
         if has_stats_db:
             attach_statements.append(f"ATTACH DATABASE '{stats_db_path}' AS sf")
+        if has_company_db:
+            attach_statements.append(f"ATTACH DATABASE '{company_db_path}' AS co")
 
         valuation_join = (
             "LEFT JOIN vc.valuations v ON UPPER(s.ticker) = v.symbol"
             if has_valuation_cache
-            else "LEFT JOIN (SELECT NULL AS symbol, NULL AS upside_pct, NULL AS intrinsic_value, NULL AS quality_grade WHERE 0) v ON 0"
+            else "LEFT JOIN (SELECT NULL AS symbol, NULL AS upside_pct, NULL AS intrinsic_value WHERE 0) v ON 0"
         )
         ratio_join = (
             """
@@ -728,7 +763,12 @@ def register(market_bp: Blueprint) -> None:
             if has_stats_db
             else "LEFT JOIN (SELECT NULL AS ticker, NULL AS pe, NULL AS pb, NULL AS roe, NULL AS gross_margin, NULL AS after_tax_margin, NULL AS market_cap WHERE 0) sf_latest ON 0"
         )
-        from_clause = f"FROM screening_data s {valuation_join} {ratio_join} {stats_join}"
+        company_join = (
+            "LEFT JOIN co.companies c ON UPPER(s.ticker) = UPPER(c.ticker)"
+            if has_company_db
+            else "LEFT JOIN (SELECT NULL AS ticker, NULL AS icb_name1, NULL AS icb_name2, NULL AS icb_name3, NULL AS icb_name4, NULL AS icb_code1, NULL AS icb_code2, NULL AS icb_code3, NULL AS icb_code4 WHERE 0) c ON 0"
+        )
+        from_clause = f"FROM screening_data s {valuation_join} {ratio_join} {stats_join} {company_join}"
 
         try:
             with sqlite3.connect(db_path) as conn:
@@ -752,7 +792,9 @@ def register(market_bp: Blueprint) -> None:
                         {_SCREENER_NET_MARGIN_EXPR} AS netMargin, {_SCREENER_GROSS_MARGIN_EXPR} AS grossMargin,
                         s.npatmiGrowthYoyQm1, s.revenueGrowthYoy, s.accumulatedValue, s.accumulatedVolume,
                         s.viOrganShortName, s.enOrganShortName, s.viSector, s.enSector,
-                        v.intrinsic_value, v.upside_pct, v.quality_grade
+                        c.icb_name1, c.icb_name2, c.icb_name3, c.icb_name4,
+                        c.icb_code1, c.icb_code2, c.icb_code3, c.icb_code4,
+                        v.intrinsic_value, v.upside_pct
                     {from_clause}
                     WHERE {where_sql}
                     ORDER BY {sort_col} {sort_order_sql} NULLS LAST, s.ticker ASC
@@ -768,7 +810,15 @@ def register(market_bp: Blueprint) -> None:
                         "ticker": r["ticker"],
                         "name": r["viOrganShortName"] or r["enOrganShortName"] or r["ticker"],
                         "exchange": r["exchange"],
-                        "sector": r["viSector"] or r["enSector"],
+                        "sector": r["icb_name2"] or r["viSector"] or r["enSector"],
+                        "icbName1": r["icb_name1"],
+                        "icbName2": r["icb_name2"],
+                        "icbName3": r["icb_name3"],
+                        "icbName4": r["icb_name4"],
+                        "icbCode1": r["icb_code1"],
+                        "icbCode2": r["icb_code2"],
+                        "icbCode3": r["icb_code3"],
+                        "icbCode4": r["icb_code4"],
                         "marketPrice": r["marketPrice"],
                         "marketCap": r["marketCap"],
                         "dailyPriceChangePercent": r["dailyPriceChangePercent"],
@@ -783,7 +833,6 @@ def register(market_bp: Blueprint) -> None:
                         "accumulatedVolume": r["accumulatedVolume"],
                         "intrinsicValue": r["intrinsic_value"],
                         "upsidePct": r["upside_pct"],
-                        "qualityGrade": r["quality_grade"],
                     }
                 )
 

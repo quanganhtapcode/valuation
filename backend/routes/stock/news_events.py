@@ -9,6 +9,7 @@ from datetime import date
 import requests
 from flask import Blueprint, jsonify, request
 
+from backend.db_path import resolve_vci_news_events_db_path
 from backend.services.news_service import NewsService
 from backend.utils import validate_stock_symbol
 from backend.services.vci_news_sqlite import query_news_for_symbol, default_news_db_path
@@ -16,22 +17,9 @@ from backend.routes.market.http_headers import VCI_HEADERS
 from backend.cache_utils import cache_get, cache_set
 
 
-def _news_events_db_path() -> str:
-    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    candidates = [
-        os.path.join(root, "fetch_sqlite", "vci_news_events.sqlite"),
-        "/var/www/valuation/fetch_sqlite/vci_news_events.sqlite",
-        "/var/www/store/fetch_sqlite/vci_news_events.sqlite",
-    ]
-    for p in candidates:
-        if os.path.exists(p):
-            return p
-    return candidates[0]
-
-
 def _query_news_events_sqlite(symbol: str, tab: str, limit: int = 50) -> list:
     """Query vci_news_events.sqlite for a given symbol+tab. Returns list of dicts from raw_json."""
-    db_path = _news_events_db_path()
+    db_path = resolve_vci_news_events_db_path()
     if not os.path.exists(db_path):
         return []
     try:
