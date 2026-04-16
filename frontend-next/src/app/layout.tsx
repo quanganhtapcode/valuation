@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
+import MainWrapper from "@/components/ui/MainWrapper";
 import { ThemeProvider } from "next-themes";
 import { TickerTape } from "@/components/TickerTape";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -138,9 +139,7 @@ export default function RootLayout({
             <Navbar />
             <TickerTape />
             <ErrorBoundary>
-              <main className="pt-[112px] md:pt-[140px] min-h-[calc(100vh-400px)]">{/* Adjusted padding for new TickerTape position */}
-                {children}
-              </main>
+              <MainWrapper>{children}</MainWrapper>
             </ErrorBoundary>
             <Footer />
           </WatchlistProvider>
