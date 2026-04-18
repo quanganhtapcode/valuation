@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 import sqlite3
@@ -43,6 +45,7 @@ _INDEX_ID_TO_VCI_SYMBOL = {
     '11': 'VN30',
 }
 
+# SELECT-level expressions (used in CTE definition)
 _SCREENER_PE_EXPR = "COALESCE(s.ttmPe, rd_latest.pe, sf_latest.pe)"
 _SCREENER_PB_EXPR = "COALESCE(s.ttmPb, rd_latest.pb, sf_latest.pb)"
 _SCREENER_ROE_EXPR = "COALESCE(s.ttmRoe, CASE WHEN sf_latest.roe IS NOT NULL THEN sf_latest.roe * 100.0 END)"
@@ -50,25 +53,27 @@ _SCREENER_NET_MARGIN_EXPR = "COALESCE(s.netMargin, CASE WHEN sf_latest.after_tax
 _SCREENER_GROSS_MARGIN_EXPR = "COALESCE(s.grossMargin, CASE WHEN sf_latest.gross_margin IS NOT NULL THEN sf_latest.gross_margin * 100.0 END)"
 _SCREENER_MCAP_EXPR = "COALESCE(s.marketCap, sf_latest.market_cap)"
 
+# ORDER BY uses CTE aliases, not raw expressions — enables correct sorting
 _SCREENER_SORT_COLUMNS = {
-    "ticker": "s.ticker",
-    "price": "s.marketPrice",
-    "market_cap": _SCREENER_MCAP_EXPR,
-    "pe": _SCREENER_PE_EXPR,
-    "pb": _SCREENER_PB_EXPR,
-    "roe": _SCREENER_ROE_EXPR,
-    "net_margin": _SCREENER_NET_MARGIN_EXPR,
-    "gross_margin": _SCREENER_GROSS_MARGIN_EXPR,
-    "net_profit_growth": "s.npatmiGrowthYoyQm1",
-    "revenue_growth": "s.revenueGrowthYoy",
-    "daily_change": "s.dailyPriceChangePercent",
-    "value": "s.accumulatedValue",
-    "volume": "s.accumulatedVolume",
-    "exchange": "s.exchange",
-    "sector": "COALESCE(c.icb_name2, s.viSector)",
-    "upside_pct": "v.upside_pct",
+    "ticker": "ticker",
+    "price": "marketPrice",
+    "market_cap": "marketCap",
+    "pe": "ttmPe",
+    "pb": "ttmPb",
+    "roe": "ttmRoe",
+    "net_margin": "netMargin",
+    "gross_margin": "grossMargin",
+    "net_profit_growth": "npatmiGrowthYoyQm1",
+    "revenue_growth": "revenueGrowthYoy",
+    "daily_change": "dailyPriceChangePercent",
+    "value": "accumulatedValue",
+    "volume": "accumulatedVolume",
+    "exchange": "exchange",
+    "sector": "sector",
+    "upside_pct": "upside_pct",
 }
 
+# WHERE-clause filter expressions (must use table/join aliases, not CTE aliases)
 _SCREENER_NUMERIC_FILTER_COLUMNS = {
     "price": "s.marketPrice",
     "market_cap": _SCREENER_MCAP_EXPR,
@@ -653,7 +658,7 @@ def register(market_bp: Blueprint) -> None:
         offset = (page - 1) * page_size
 
         sort_key = (request.args.get("sort_by", "market_cap") or "market_cap").strip().lower()
-        sort_col = _SCREENER_SORT_COLUMNS.get(sort_key, "s.marketCap")
+        sort_col = _SCREENER_SORT_COLUMNS.get(sort_key, "marketCap")
         sort_order = (request.args.get("sort_order", "desc") or "desc").strip().lower()
         sort_order_sql = "ASC" if sort_order == "asc" else "DESC"
 
@@ -712,65 +717,36 @@ def register(market_bp: Blueprint) -> None:
         if has_company_db:
             attach_statements.append(f"ATTACH DATABASE '{company_db_path}' AS co")
 
+        # Direct JOINs (both tables have unique ticker as PK — no ROW_NUMBER needed)
         valuation_join = (
-            "LEFT JOIN vc.valuations v ON UPPER(s.ticker) = v.symbol"
+            "LEFT JOIN vc.valuations v ON s.ticker = v.symbol"
             if has_valuation_cache
             else "LEFT JOIN (SELECT NULL AS symbol, NULL AS upside_pct, NULL AS intrinsic_value WHERE 0) v ON 0"
         )
         ratio_join = (
-            """
-            LEFT JOIN (
-                SELECT ticker, pe, pb
-                FROM (
-                    SELECT
-                        ticker,
-                        pe,
-                        pb,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY UPPER(ticker)
-                            ORDER BY COALESCE(trading_date, '') DESC, COALESCE(fetched_at, '') DESC, rowid DESC
-                        ) AS rn
-                    FROM rd.ratio_daily
-                )
-                WHERE rn = 1
-            ) rd_latest ON UPPER(s.ticker) = UPPER(rd_latest.ticker)
-            """
+            "LEFT JOIN rd.ratio_daily rd_latest ON s.ticker = rd_latest.ticker"
             if has_ratio_db
             else "LEFT JOIN (SELECT NULL AS ticker, NULL AS pe, NULL AS pb WHERE 0) rd_latest ON 0"
         )
         stats_join = (
-            """
-            LEFT JOIN (
-                SELECT ticker, pe, pb, roe, gross_margin, after_tax_margin, market_cap
-                FROM (
-                    SELECT
-                        ticker,
-                        pe,
-                        pb,
-                        roe,
-                        gross_margin,
-                        after_tax_margin,
-                        market_cap,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY UPPER(ticker)
-                            ORDER BY COALESCE(period_date, '') DESC, COALESCE(fetched_at, '') DESC, rowid DESC
-                        ) AS rn
-                    FROM sf.stats_financial
-                )
-                WHERE rn = 1
-            ) sf_latest ON UPPER(s.ticker) = UPPER(sf_latest.ticker)
-            """
+            "LEFT JOIN sf.stats_financial sf_latest ON s.ticker = sf_latest.ticker"
             if has_stats_db
             else "LEFT JOIN (SELECT NULL AS ticker, NULL AS pe, NULL AS pb, NULL AS roe, NULL AS gross_margin, NULL AS after_tax_margin, NULL AS market_cap WHERE 0) sf_latest ON 0"
         )
         company_join = (
-            "LEFT JOIN co.companies c ON UPPER(s.ticker) = UPPER(c.ticker)"
+            "LEFT JOIN co.companies c ON s.ticker = c.ticker"
             if has_company_db
             else "LEFT JOIN (SELECT NULL AS ticker, NULL AS icb_name1, NULL AS icb_name2, NULL AS icb_name3, NULL AS icb_name4, NULL AS icb_code1, NULL AS icb_code2, NULL AS icb_code3, NULL AS icb_code4 WHERE 0) c ON 0"
         )
         from_clause = f"FROM screening_data s {valuation_join} {ratio_join} {stats_join} {company_join}"
 
-        try:
+        # Cache key based on all request params (120s TTL)
+        cache_params = {k: v for k, v in request.args.items()}
+        cache_key = "screener_" + hashlib.md5(
+            json.dumps(cache_params, sort_keys=True).encode()
+        ).hexdigest()[:12]
+
+        def _run_query():
             with sqlite3.connect(db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 for attach_stmt in attach_statements:
@@ -779,38 +755,62 @@ def register(market_bp: Blueprint) -> None:
                     except Exception as exc:
                         logger.warning("Could not attach sqlite database (%s): %s", attach_stmt, exc)
 
-                total = conn.execute(
-                    f"SELECT COUNT(1) AS c {from_clause} WHERE {where_sql}",
+                # CTE materialises computed columns once; ORDER BY uses aliases — fixes sort by PE/PB/etc.
+                cte_sql = f"""
+                    WITH base AS (
+                        SELECT
+                            s.ticker,
+                            s.exchange,
+                            s.marketPrice,
+                            {_SCREENER_MCAP_EXPR} AS marketCap,
+                            s.dailyPriceChangePercent,
+                            {_SCREENER_PE_EXPR} AS ttmPe,
+                            {_SCREENER_PB_EXPR} AS ttmPb,
+                            {_SCREENER_ROE_EXPR} AS ttmRoe,
+                            {_SCREENER_NET_MARGIN_EXPR} AS netMargin,
+                            {_SCREENER_GROSS_MARGIN_EXPR} AS grossMargin,
+                            s.npatmiGrowthYoyQm1,
+                            s.revenueGrowthYoy,
+                            s.accumulatedValue,
+                            s.accumulatedVolume,
+                            s.viOrganShortName,
+                            s.enOrganShortName,
+                            s.viSector,
+                            s.enSector,
+                            c.icb_name1, c.icb_name2, c.icb_name3, c.icb_name4,
+                            c.icb_code1, c.icb_code2, c.icb_code3, c.icb_code4,
+                            COALESCE(c.icb_name2, s.viSector) AS sector,
+                            v.intrinsic_value,
+                            v.upside_pct
+                        {from_clause}
+                        WHERE {where_sql}
+                    )
+                """
+
+                total_row = conn.execute(
+                    cte_sql + "SELECT COUNT(1) AS c FROM base",
                     params,
-                ).fetchone()["c"]
+                ).fetchone()
+                total_count = total_row["c"]
 
                 rows = conn.execute(
-                    f"""
-                    SELECT
-                        s.ticker, s.exchange, s.marketPrice, {_SCREENER_MCAP_EXPR} AS marketCap, s.dailyPriceChangePercent,
-                        {_SCREENER_PE_EXPR} AS ttmPe, {_SCREENER_PB_EXPR} AS ttmPb, {_SCREENER_ROE_EXPR} AS ttmRoe,
-                        {_SCREENER_NET_MARGIN_EXPR} AS netMargin, {_SCREENER_GROSS_MARGIN_EXPR} AS grossMargin,
-                        s.npatmiGrowthYoyQm1, s.revenueGrowthYoy, s.accumulatedValue, s.accumulatedVolume,
-                        s.viOrganShortName, s.enOrganShortName, s.viSector, s.enSector,
-                        c.icb_name1, c.icb_name2, c.icb_name3, c.icb_name4,
-                        c.icb_code1, c.icb_code2, c.icb_code3, c.icb_code4,
-                        v.intrinsic_value, v.upside_pct
-                    {from_clause}
-                    WHERE {where_sql}
-                    ORDER BY {sort_col} {sort_order_sql} NULLS LAST, s.ticker ASC
+                    cte_sql + f"""
+                    SELECT * FROM base
+                    ORDER BY {sort_col} {sort_order_sql} NULLS LAST, ticker ASC
                     LIMIT ? OFFSET ?
                     """,
                     [*params, page_size, offset],
                 ).fetchall()
 
-            items = []
+            # Convert Row objects to dicts before connection closes (cache-safe)
+            items_out = []
             for r in rows:
-                items.append(
+                items_out.append(
                     {
                         "ticker": r["ticker"],
                         "name": r["viOrganShortName"] or r["enOrganShortName"] or r["ticker"],
                         "exchange": r["exchange"],
-                        "sector": r["icb_name2"] or r["viSector"] or r["enSector"],
+                        "sector": r["sector"] or r["enSector"],
                         "icbName1": r["icb_name1"],
                         "icbName2": r["icb_name2"],
                         "icbName3": r["icb_name3"],
@@ -835,6 +835,10 @@ def register(market_bp: Blueprint) -> None:
                         "upsidePct": r["upside_pct"],
                     }
                 )
+            return total_count, items_out
+
+        try:
+            (total, items), _cached = cache_func()(cache_key, 120, _run_query)
 
             return jsonify(
                 {
