@@ -214,7 +214,7 @@ export default function OverviewTab({
 
                     {/* Session stats bar */}
                     {priceData && (priceData.open > 0 || priceData.volume > 0) && (
-                        <div className="mb-3 grid grid-cols-5 gap-0 rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden text-center bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="mb-5 grid grid-cols-5 gap-0 rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden text-center bg-slate-50/50 dark:bg-slate-800/30">
                             {stats.map((s, i) => (
                                 <div
                                     key={s.label}
