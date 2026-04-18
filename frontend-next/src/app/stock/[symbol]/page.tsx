@@ -17,6 +17,8 @@ import VciNewsFeed from '@/components/StockDetail/VciNewsFeed';
 import { Select, SelectItem } from '@tremor/react';
 import { getTickerData } from '@/lib/tickerCache';
 import { siteConfig } from '@/app/siteConfig';
+import { useLanguage } from "@/lib/languageContext";
+import { translations } from "@/lib/translations";
 
 function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
@@ -82,6 +84,8 @@ interface FinancialData {
 export default function StockDetailPage() {
     const params = useParams();
     const symbol = (params.symbol as string)?.toUpperCase() || '';
+    const { lang } = useLanguage()
+    const t = translations[lang]
 
     const [stockInfo, setStockInfo] = useState<StockInfo | null>(null);
     const [priceData, setPriceData] = useState<PriceData | null>(null);
@@ -199,8 +203,8 @@ export default function StockDetailPage() {
                     if (ticker) {
                         baseInfo = {
                             symbol: ticker.symbol,
-                            companyName: ticker.name,
-                            sector: ticker.sector,
+                            companyName: lang === "en" && ticker.en_name ? ticker.en_name : ticker.name,
+                            sector: lang === "en" && ticker.en_sector ? ticker.en_sector : ticker.sector,
                             exchange: ticker.exchange,
                         };
                     }
@@ -338,7 +342,7 @@ export default function StockDetailPage() {
         }
 
         loadData();
-    }, [symbol]);
+    }, [symbol, lang]);
 
     // ── WebSocket: Real-time price stream (VCI) ────────────────────────────
     const wsSymbolRef = useRef<string>('');
@@ -480,7 +484,7 @@ export default function StockDetailPage() {
             <div className={styles.container}>
                 <div className={styles.loading}>
                     <div className="spinner" />
-                    <span>Đang tải dữ liệu {symbol}...</span>
+                    <span>{t.stock.loading(symbol)}</span>
                 </div>
             </div>
         );
@@ -546,7 +550,7 @@ export default function StockDetailPage() {
                     <button
                         type="button"
                         onClick={() => toggleWatchlist(symbol)}
-                        title={isWatchlisted ? 'Xoá khỏi Watchlist' : 'Thêm vào Watchlist'}
+                        title={isWatchlisted ? t.stock.removeWatchlist : t.stock.addWatchlist}
                         className="p-1 rounded-full transition-colors hover:bg-amber-50 dark:hover:bg-amber-950/40 flex-shrink-0"
                     >
                         {isWatchlisted
@@ -609,13 +613,13 @@ export default function StockDetailPage() {
                                             borderColor: targetPct >= 0 ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)',
                                             color: targetPct >= 0 ? '#16a34a' : '#ef4444',
                                         }}>
-                                        <span className="text-slate-400 dark:text-slate-500 font-medium text-[10px]">Mức Sinh Lời</span>
+                                        <span className="text-slate-400 dark:text-slate-500 font-medium text-[10px]">{t.stock.upside}</span>
                                         <span>{targetPct >= 0 ? '▲' : '▼'} {Math.abs(targetPct).toFixed(1)}%</span>
                                     </div>
                                 )}
                                 {financials?.sharesOutstanding ? (
                                     <div className="text-[11px] text-slate-400 dark:text-slate-500">
-                                        KLCP <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(financials.sharesOutstanding)}</span>
+                                        {t.stock.shares} <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(financials.sharesOutstanding)}</span>
                                     </div>
                                 ) : null}
                             </div>
@@ -627,13 +631,13 @@ export default function StockDetailPage() {
                 <div className="border-t border-slate-100 dark:border-slate-800/60 mt-0">
                     <nav className="flex overflow-x-auto scrollbar-hide px-1" aria-label="Tabs">
                         {[
-                            { id: 'overview', label: 'Tổng Quan' },
-                            { id: 'financials', label: 'Tài Chính' },
-                            { id: 'holders', label: 'Cổ Đông' },
-                            { id: 'priceHistory', label: 'Lịch Sử Giá' },
-                            { id: 'news', label: 'Tin Tức' },
-                            { id: 'analysis', label: 'Phân Tích' },
-                            { id: 'valuation', label: 'Định Giá' },
+                            { id: 'overview', label: t.stock.tabs.overview },
+                            { id: 'financials', label: t.stock.tabs.financials },
+                            { id: 'holders', label: t.stock.tabs.holders },
+                            { id: 'priceHistory', label: t.stock.tabs.priceHistory },
+                            { id: 'news', label: t.stock.tabs.news },
+                            { id: 'analysis', label: t.stock.tabs.analysis },
+                            { id: 'valuation', label: t.stock.tabs.valuation },
                         ].map(tab => (
                             <button
                                 key={tab.id}
