@@ -3,6 +3,8 @@
 import { siteConfig } from "@/app/siteConfig"
 import useScroll from "@/lib/use-scroll"
 import { cx, focusInput } from "@/lib/utils"
+import { useLanguage } from "@/lib/languageContext"
+import { translations } from "@/lib/translations"
 import {
     RiArrowDownSLine,
     RiBuilding2Line,
@@ -37,27 +39,6 @@ interface TickerData {
     tickers: Ticker[];
 }
 
-const NAV_GROUPS = [
-    {
-        id: "market",
-        label: "Market",
-        items: [
-            { label: "Overview", href: "/", icon: RiPieChartLine, desc: "Indices & movers" },
-            { label: "Foreign", href: "/foreign", icon: RiGlobalLine, desc: "Foreign investor flows" },
-            { label: "Macro", href: "/macro", icon: RiLineChartLine, desc: "FX, commodities & CPI" },
-            { label: "Events", href: "/events", icon: RiCalendarEventLine, desc: "Dividends, AGMs & more" },
-        ],
-    },
-    {
-        id: "stocks",
-        label: "Stocks",
-        items: [
-            { label: "Company", href: "/stock/VCB", icon: RiBuilding2Line, desc: "Financials & valuation" },
-            { label: "Screener", href: "/screener", icon: RiFilterLine, desc: "Filter by fundamentals" },
-        ],
-    },
-] as const;
-
 // Height constants for dynamic mobile menu sizing
 const HEADER_ROW_H = 56;
 const NAV_MARGIN_H = 48;  // my-6 top + bottom
@@ -65,6 +46,30 @@ const GROUP_BTN_H = 48;
 const SUB_ITEM_H = 44;
 
 export function Navbar() {
+    const { lang } = useLanguage()
+    const t = translations[lang].nav
+
+    const NAV_GROUPS = [
+        {
+            id: "market",
+            label: t.market,
+            items: [
+                { label: t.overview, href: "/", icon: RiPieChartLine, desc: t.overviewDesc },
+                { label: t.foreign, href: "/foreign", icon: RiGlobalLine, desc: t.foreignDesc },
+                { label: t.macro, href: "/macro", icon: RiLineChartLine, desc: t.macroDesc },
+                { label: t.events, href: "/events", icon: RiCalendarEventLine, desc: t.eventsDesc },
+            ],
+        },
+        {
+            id: "stocks",
+            label: t.stocks,
+            items: [
+                { label: t.company, href: "/stock/VCB", icon: RiBuilding2Line, desc: t.companyDesc },
+                { label: t.screener, href: "/screener", icon: RiFilterLine, desc: t.screenerDesc },
+            ],
+        },
+    ]
+
     const scrolled = useScroll(15)
     const [open, setOpen] = React.useState(false)
     const [mobileExpanded, setMobileExpanded] = useState<string | null>(null)
@@ -325,7 +330,7 @@ export function Navbar() {
                                         "w-32 lg:w-48 rounded-full border border-gray-200 bg-gray-50/50 py-1.5 pl-9 pr-4 text-sm outline-none transition-all placeholder:text-gray-500 focus:w-64 lg:focus:w-72 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus:border-blue-500",
                                         focusInput
                                     )}
-                                    placeholder="Search..."
+                                    placeholder={t.searchPlaceholder}
                                     value={searchQuery}
                                     onChange={handleSearch}
                                     onKeyDown={(e) => {
@@ -347,7 +352,7 @@ export function Navbar() {
                             {searchOpen && searchQuery && (
                                 <div className="absolute right-0 top-full mt-2 w-[320px] lg:w-[400px] rounded-xl border border-gray-200 bg-white p-2 shadow-2xl shadow-blue-500/10 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/95 overflow-hidden">
                                     <div className="px-2 py-1 mb-1">
-                                        <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Search Results</span>
+                                        <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">{t.searchResults}</span>
                                     </div>
                                     <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                                         {searchResults.length > 0 ? (
@@ -385,7 +390,9 @@ export function Navbar() {
                                                                     <span className="rounded bg-blue-100 px-1 py-0.5 text-[9px] font-semibold text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 leading-none">BANK</span>
                                                                 )}
                                                             </div>
-                                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[200px]">{result.name}</span>
+                                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                                                                {lang === "en" && result.en_name ? result.en_name : result.name}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                     <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">{result.exchange}</span>
@@ -393,7 +400,7 @@ export function Navbar() {
                                             ))
                                         ) : (
                                             <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                                                <p className="text-sm">No results found for &quot;{searchQuery}&quot;</p>
+                                                <p className="text-sm">{t.noResults} &quot;{searchQuery}&quot;</p>
                                             </div>
                                         )}
                                     </div>
@@ -472,7 +479,7 @@ export function Navbar() {
                                         "w-full rounded-md border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm outline-none transition-all placeholder:text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-400",
                                         focusInput
                                     )}
-                                    placeholder="Search stock symbol..."
+                                    placeholder={t.searchPlaceholder}
                                     value={searchQuery}
                                     onChange={handleSearch}
                                     onFocus={() => { if (!tickersLoaded) void ensureTickersLoaded(); }}
@@ -492,7 +499,9 @@ export function Navbar() {
                                                 <span className="font-semibold text-gray-900 dark:text-gray-50">{result.symbol}</span>
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">{result.exchange}</span>
                                             </div>
-                                            <span className="truncate text-xs text-gray-500 dark:text-gray-400 max-w-[120px]">{result.name}</span>
+                                            <span className="truncate text-xs text-gray-500 dark:text-gray-400 max-w-[120px]">
+                                                {lang === "en" && result.en_name ? result.en_name : result.name}
+                                            </span>
                                         </Link>
                                     ))}
                                 </div>
