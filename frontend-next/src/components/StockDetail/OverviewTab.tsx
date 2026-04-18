@@ -3,16 +3,18 @@ import styles from '../../app/stock/[symbol]/page.module.css';
 import TradingViewChart from './TradingViewChart';
 import OrderBook from './OrderBook';
 import BankLoanBreakdown from './BankLoanBreakdown';
+import { useLanguage } from "@/lib/languageContext"
+import { translations } from "@/lib/translations"
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, tOv: typeof translations.vi.overview): string {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr.slice(0, 10);
     const diff = Math.floor((Date.now() - date.getTime()) / 86400000);
-    if (diff === 0) return 'Hôm nay';
-    if (diff === 1) return 'Hôm qua';
-    if (diff < 7) return `${diff} ngày trước`;
-    return date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' });
+    if (diff === 0) return tOv.today;
+    if (diff === 1) return tOv.yesterday;
+    if (diff < 7) return tOv.daysAgo(diff);
+    return date.toLocaleDateString(tOv.locale, { day: 'numeric', month: 'numeric', year: 'numeric' });
 }
 
 // Source logo mapping
@@ -160,11 +162,11 @@ interface OverviewTabProps {
     isBank?: boolean;
 }
 
-function formatValue(v: number): string {
+function formatValue(v: number, tOv: typeof translations.vi.overview): string {
     if (!v) return '—';
-    if (v >= 1e9) return `${(v / 1e9).toFixed(1)} tỷ`;
-    if (v >= 1e6) return `${(v / 1e6).toFixed(1)} tr`;
-    return v.toLocaleString('vi-VN');
+    if (v >= 1e9) return `${(v / 1e9).toFixed(1)} ${tOv.billion}`;
+    if (v >= 1e6) return `${(v / 1e6).toFixed(1)} ${tOv.million}`;
+    return v.toLocaleString(tOv.locale);
 }
 
 function formatVol(v: number): string {
@@ -192,12 +194,15 @@ export default function OverviewTab({
     epsHistory = [],
     isBank = false,
 }: OverviewTabProps) {
+    const { lang } = useLanguage()
+    const tOv = translations[lang].overview
+
     const stats = [
-        { label: 'Mở cửa', value: formatSessionPrice(priceData?.open ?? 0),   color: undefined },
-        { label: 'Cao',     value: formatSessionPrice(priceData?.high ?? 0),   color: 'text-emerald-600 dark:text-emerald-400' },
-        { label: 'Thấp',    value: formatSessionPrice(priceData?.low ?? 0),    color: 'text-red-500 dark:text-red-400' },
-        { label: 'Tổng KL', value: formatVol(priceData?.volume ?? 0),          color: undefined },
-        { label: 'Tổng GT', value: formatValue(priceData?.value ?? 0),         color: undefined },
+        { label: tOv.open,   value: formatSessionPrice(priceData?.open ?? 0),        color: undefined },
+        { label: tOv.high,   value: formatSessionPrice(priceData?.high ?? 0),        color: 'text-emerald-600 dark:text-emerald-400' },
+        { label: tOv.low,    value: formatSessionPrice(priceData?.low ?? 0),         color: 'text-red-500 dark:text-red-400' },
+        { label: tOv.volume, value: formatVol(priceData?.volume ?? 0),               color: undefined },
+        { label: tOv.value,  value: formatValue(priceData?.value ?? 0, tOv),         color: undefined },
     ];
 
     return (
@@ -208,7 +213,7 @@ export default function OverviewTab({
                 <section className={`${styles.section} ${styles.sectionChart} mt-2 sm:mt-0`}>
                     <div className="mb-3 flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                            Biểu đồ giá
+                            {tOv.priceChart}
                         </h3>
                     </div>
 
@@ -288,7 +293,7 @@ export default function OverviewTab({
                                             <div className={styles.newsCardMeta}>
                                                 {source && <SourceBadge source={source} />}
                                                 {date && (
-                                                    <span className={styles.newsDate}>{formatRelativeTime(date)}</span>
+                                                    <span className={styles.newsDate}>{formatRelativeTime(date, tOv)}</span>
                                                 )}
                                             </div>
                                         </div>
