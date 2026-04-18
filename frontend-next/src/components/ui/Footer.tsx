@@ -1,28 +1,35 @@
+"use client"
 import { RiArrowRightUpLine } from "@remixicon/react"
 import Link from "next/link"
 import { DatabaseLogo } from "@/components/DatabaseLogo"
 import ThemeSwitch from "@/components/ThemeSwitch"
-
-const navigation = {
-    product: [
-        { name: "Market Overview", href: "/", external: false },
-        { name: "Stock Analysis", href: "/stock/VCB", external: false },
-    ],
-    resources: [
-        { name: "Disclaimer", href: "/disclaimer", external: false },
-        { name: "Download Data", href: "/downloads", external: false },
-        { name: "GitHub", href: "https://github.com/quanganhtapcode", external: true },
-    ],
-    company: [
-        { name: "Contact", href: "/contact", external: false },
-    ],
-    legal: [
-        { name: "Privacy", href: "/privacy", external: false },
-        { name: "Terms", href: "/terms", external: false },
-    ],
-}
+import LanguageSwitch from "@/components/LanguageSwitch"
+import { useLanguage } from "@/lib/languageContext"
+import { translations } from "@/lib/translations"
 
 export default function Footer() {
+    const { lang } = useLanguage()
+    const t = translations[lang].footer
+
+    const navigation = {
+        product: [
+            { name: t.marketOverview, href: "/", external: false },
+            { name: t.stockAnalysis, href: "/stock/VCB", external: false },
+        ],
+        resources: [
+            { name: t.disclaimer, href: "/disclaimer", external: false },
+            { name: t.downloadData, href: "/downloads", external: false },
+            { name: "GitHub", href: "https://github.com/quanganhtapcode", external: true },
+        ],
+        company: [
+            { name: t.contact, href: "/contact", external: false },
+        ],
+        legal: [
+            { name: t.privacy, href: "/privacy", external: false },
+            { name: t.terms, href: "/terms", external: false },
+        ],
+    }
+
     return (
         <footer id="footer">
             <div className="mx-auto max-w-6xl px-3 pb-8 pt-16 sm:pt-24 lg:pt-32">
@@ -30,9 +37,10 @@ export default function Footer() {
                     <div className="space-y-8">
                         <DatabaseLogo className="w-32 sm:w-40" />
                         <p className="text-sm leading-6 text-gray-600 dark:text-gray-400">
-                            Professional stock analysis platform for the Vietnam market.
+                            {t.description}
                         </p>
-                        <div className="flex space-x-6">
+                        <div className="flex items-center gap-3">
+                            <LanguageSwitch />
                             <ThemeSwitch />
                         </div>
                         <div></div>
@@ -41,7 +49,7 @@ export default function Footer() {
                         <div className="grid grid-cols-2 gap-8">
                             <div>
                                 <h3 className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50">
-                                    Product
+                                    {t.product}
                                 </h3>
                                 <ul
                                     role="list"
@@ -73,7 +81,7 @@ export default function Footer() {
                             </div>
                             <div>
                                 <h3 className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50">
-                                    Resources
+                                    {t.resources}
                                 </h3>
                                 <ul
                                     role="list"
@@ -107,7 +115,7 @@ export default function Footer() {
                         <div className="grid grid-cols-2 gap-8">
                             <div>
                                 <h3 className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50">
-                                    Company
+                                    {t.company}
                                 </h3>
                                 <ul
                                     role="list"
@@ -139,7 +147,7 @@ export default function Footer() {
                             </div>
                             <div>
                                 <h3 className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50">
-                                    Legal
+                                    {t.legal}
                                 </h3>
                                 <ul
                                     role="list"
@@ -174,8 +182,7 @@ export default function Footer() {
                 </div>
                 <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 sm:mt-20 sm:flex-row lg:mt-24 dark:border-gray-800">
                     <p className="text-sm leading-5 text-gray-500 dark:text-gray-400">
-                        &copy; {new Date().getFullYear()} Quang Anh. All rights
-                        reserved.
+                        &copy; {new Date().getFullYear()} Quang Anh. {t.allRightsReserved}
                     </p>
                     <div className="rounded-full border border-gray-200 py-1 pl-1 pr-2 dark:border-gray-800">
                         <div className="flex items-center gap-1.5">
@@ -184,7 +191,7 @@ export default function Footer() {
                                 <div className="absolute inset-1 rounded-full bg-emerald-600 dark:bg-emerald-500" />
                             </div>
                             <span className="text-xs text-gray-700 dark:text-gray-50">
-                                All systems operational
+                                {t.systemsOperational}
                             </span>
                         </div>
                     </div>
