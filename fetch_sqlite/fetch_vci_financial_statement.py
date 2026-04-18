@@ -46,6 +46,14 @@ DEVICE_ID = "".join(f"{random.randrange(256):02x}" for _ in range(12))
 HTTP_LOCK = threading.Lock()
 FIELD_CODE_RE = re.compile(r"^[a-z]{3}\d+$", re.IGNORECASE)
 
+# Wide-format table names per section (mirrors vci_financials.sqlite schema)
+SECTION_TABLE_MAP: dict[str, str] = {
+    "BALANCE_SHEET": "balance_sheet",
+    "INCOME_STATEMENT": "income_statement",
+    "CASH_FLOW": "cash_flow",
+    "NOTE": "note",
+}
+
 
 def _headers() -> dict[str, str]:
     return {
@@ -522,6 +530,108 @@ def _trim_period_rows(
     return sorted_rows[:cap]
 
 
+def _ensure_wide_table(conn: sqlite3.Connection, table: str, fields: list[str]) -> None:
+    """Create wide-format table if it doesn't exist, then add any new field columns."""
+    col_defs = ",\n  ".join(f'"{f}" REAL' for f in fields)
+    conn.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {table} (
+          ticker         TEXT NOT NULL,
+          period_kind    TEXT NOT NULL,
+          year_report    INTEGER NOT NULL,
+          quarter_report INTEGER NOT NULL,
+          length_report  INTEGER,
+          public_date    TEXT,
+          create_date    TEXT,
+          update_date    TEXT,
+          fetched_at     TEXT NOT NULL,
+          {col_defs},
+          PRIMARY KEY (ticker, period_kind, year_report, quarter_report)
+        )
+        """
+    )
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    for f in fields:
+        if f not in existing:
+            conn.execute(f'ALTER TABLE {table} ADD COLUMN "{f}" REAL')
+    conn.commit()
+
+
+def convert_normalized_to_wide(conn: sqlite3.Connection) -> None:
+    """Pivot statement_periods + statement_values into wide-format per-section tables.
+
+    Wide-format tables (balance_sheet, income_statement, cash_flow, note) have one row
+    per (ticker, period_kind, year_report, quarter_report) with each field code as its
+    own column — matching the original vci_financials.sqlite schema consumed by the backend.
+    """
+    log.info("Converting normalized data → wide format …")
+    for section, table in SECTION_TABLE_MAP.items():
+        # All known field codes for this section
+        fields: list[str] = [
+            row[0]
+            for row in conn.execute(
+                "SELECT field FROM statement_metrics WHERE section=? ORDER BY field",
+                (section,),
+            ).fetchall()
+        ]
+        if not fields:
+            log.info("  [%s] no fields in statement_metrics — skipping", table)
+            continue
+
+        _ensure_wide_table(conn, table, fields)
+
+        # Period metadata rows
+        periods = conn.execute(
+            """
+            SELECT ticker, period_kind, year_report, quarter_report,
+                   length_report, public_date, create_date, update_date, fetched_at
+            FROM statement_periods
+            WHERE section = ?
+            """,
+            (section,),
+        ).fetchall()
+
+        if not periods:
+            log.info("  [%s] no periods — skipping", table)
+            continue
+
+        log.info("  [%s] loading values for %d periods …", table, len(periods))
+
+        # Load all values for the section at once → lookup dict
+        val_map: dict[tuple[str, str, int, int], dict[str, Any]] = {}
+        for row in conn.execute(
+            "SELECT ticker, period_kind, year_report, quarter_report, field, value "
+            "FROM statement_values WHERE section = ?",
+            (section,),
+        ):
+            key = (row[0], row[1], row[2], row[3])
+            if key not in val_map:
+                val_map[key] = {}
+            val_map[key][row[4]] = row[5]
+
+        # Build batch upsert
+        field_cols = ", ".join(f'"{f}"' for f in fields)
+        placeholders = ", ".join("?" for _ in fields)
+        insert_sql = (
+            f"INSERT OR REPLACE INTO {table} "
+            f"(ticker, period_kind, year_report, quarter_report, "
+            f"length_report, public_date, create_date, update_date, fetched_at, "
+            f"{field_cols}) "
+            f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {placeholders})"
+        )
+
+        batch = []
+        for ticker, pk, yr, qr, lr, pub, cre, upd, fat in periods:
+            fvs = val_map.get((ticker, pk, yr, qr), {})
+            batch.append([ticker, pk, yr, qr, lr, pub, cre, upd, fat, *[fvs.get(f) for f in fields]])
+
+        conn.executemany(insert_sql, batch)
+        conn.commit()
+        log.info("  [%s] upserted %d wide rows", table, len(batch))
+
+    log.info("Wide-format conversion done.")
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Fetch VCI financial statement + metrics into SQLite and mapping JSON."
@@ -589,6 +699,16 @@ def _parse_args() -> argparse.Namespace:
         help="Symbols snapshot JSON path. Default: <out-dir>/symbols_search_bar.json",
     )
     parser.add_argument("--test-only", action="store_true", help="Fetch only mapping symbol(s) (ignores list).")
+    parser.add_argument(
+        "--no-wide-convert",
+        action="store_true",
+        help="Skip converting normalized data to wide-format tables after fetch.",
+    )
+    parser.add_argument(
+        "--convert-only",
+        action="store_true",
+        help="Skip fetching — only run wide-format conversion from existing normalized data.",
+    )
     return parser.parse_args()
 
 
@@ -605,6 +725,12 @@ def main() -> int:
     conn = sqlite3.connect(str(db_path))
     ensure_schema(conn)
     fetched_at = dt.datetime.now(dt.timezone.utc).isoformat()
+
+    # --convert-only: skip all fetching, just rebuild wide tables from existing data
+    if args.convert_only:
+        convert_normalized_to_wide(conn)
+        conn.close()
+        return 0
 
     mapping_symbols = [
         s.strip().upper()
@@ -747,6 +873,10 @@ def main() -> int:
     conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", ("last_run_failed", str(failed)))
     conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", ("last_run_seconds", f"{elapsed:.2f}"))
     conn.commit()
+
+    if not args.no_wide_convert:
+        convert_normalized_to_wide(conn)
+
     conn.close()
 
     log.info(

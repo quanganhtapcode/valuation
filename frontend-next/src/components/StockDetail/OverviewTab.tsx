@@ -2,6 +2,7 @@ import React from 'react';
 import styles from '../../app/stock/[symbol]/page.module.css';
 import TradingViewChart from './TradingViewChart';
 import OrderBook from './OrderBook';
+import BankLoanBreakdown from './BankLoanBreakdown';
 
 function formatRelativeTime(dateStr: string): string {
     if (!dateStr) return '';
@@ -156,6 +157,7 @@ interface OverviewTabProps {
     isLoading: boolean;
     news?: NewsItem[];
     epsHistory?: EpsHistoryItem[];
+    isBank?: boolean;
 }
 
 function formatValue(v: number): string {
@@ -188,6 +190,7 @@ export default function OverviewTab({
     isLoading,
     news = [],
     epsHistory = [],
+    isBank = false,
 }: OverviewTabProps) {
     const stats = [
         { label: 'Mở cửa', value: formatSessionPrice(priceData?.open ?? 0),   color: undefined },
@@ -293,6 +296,13 @@ export default function OverviewTab({
                                 );
                             })}
                         </div>
+                    </section>
+                )}
+
+                {/* Bank loan breakdown — only for bank stocks */}
+                {isBank && (
+                    <section className={styles.section}>
+                        <BankLoanBreakdown symbol={_symbol} />
                     </section>
                 )}
 

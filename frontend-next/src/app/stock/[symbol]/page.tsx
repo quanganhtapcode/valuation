@@ -669,6 +669,13 @@ export default function StockDetailPage() {
                         isLoading={isChartLoading}
                         news={news}
                         epsHistory={epsHistory}
+                        isBank={
+                            (stockInfo as any)?.isbank === true ||
+                            stockInfo?.sector === 'Ngân hàng' ||
+                            ['VCB','BID','CTG','VPB','MBB','TCB','ACB','HDB','VIB','STB',
+                             'TPB','MSB','LPB','SHB','OCB','VBB','BAB','BVB','EIB','KLB',
+                             'SGB','PGB','NVB','VAB'].includes(symbol)
+                        }
                     />
                 </div>
 
