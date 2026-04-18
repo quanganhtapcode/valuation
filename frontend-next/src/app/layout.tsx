@@ -8,7 +8,8 @@ import { ThemeProvider } from "next-themes";
 import { TickerTape } from "@/components/TickerTape";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { siteConfig } from "@/app/siteConfig";
-import { WatchlistProvider } from "@/lib/watchlistContext";
+import { WatchlistProvider } from "@/lib/watchlistContext"
+import { LanguageProvider } from "@/lib/languageContext";
 
 const inter = Inter({
   subsets: ["latin", "vietnamese"],
@@ -135,14 +136,16 @@ export default function RootLayout({
           defaultTheme="system"
           disableTransitionOnChange
         >
-          <WatchlistProvider>
-            <Navbar />
-            <TickerTape />
-            <ErrorBoundary>
-              <MainWrapper>{children}</MainWrapper>
-            </ErrorBoundary>
-            <Footer />
-          </WatchlistProvider>
+          <LanguageProvider>
+            <WatchlistProvider>
+              <Navbar />
+              <TickerTape />
+              <ErrorBoundary>
+                <MainWrapper>{children}</MainWrapper>
+              </ErrorBoundary>
+              <Footer />
+            </WatchlistProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>
