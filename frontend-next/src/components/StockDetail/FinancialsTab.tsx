@@ -3,6 +3,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { formatNumber } from '@/lib/api';
 import { cx } from '@/lib/utils';
+import { useLanguage } from "@/lib/languageContext"
+import { translations } from "@/lib/translations"
+import { getFieldCodes } from "@/lib/fieldCodesCache"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -21,14 +24,7 @@ interface FinancialsTabProps {
 }
 
 // ── Tab Configuration ─────────────────────────────────────────────────────────
-
-const TABS: { id: ReportType; label: string }[] = [
-    { id: 'key_stats', label: 'Key Stats' },
-    { id: 'income', label: 'Income Statement' },
-    { id: 'balance', label: 'Balance Sheet' },
-    { id: 'cashflow', label: 'Cash Flow' },
-    { id: 'ratios', label: 'Ratios' },
-];
+// TABS and DISPLAY_UNITS are defined inside the component to support i18n
 
 const BANK_SYMBOLS = new Set([
     'VCB','BID','CTG','TCB','MBB','ACB','VPB','HDB','SHB','STB',
@@ -80,13 +76,6 @@ function isBankStock(symbol: string, overviewData: any): boolean {
     if (nim !== null && nim !== undefined && Number(nim) > 0) return true;
     return false;
 }
-
-// ── Display Unit Config ───────────────────────────────────────────────────────
-
-const DISPLAY_UNITS: { id: DisplayUnit; label: string; divisor: number }[] = [
-    { id: 'billions', label: 'Tỷ', divisor: 1_000_000 },
-    { id: 'trillions', label: 'Nghìn tỷ', divisor: 1_000_000_000 },
-];
 
 // ── Key Metrics Config ────────────────────────────────────────────────────────
 // Keys are computed in buildKeyStatsData() — some come from overviewData,
@@ -535,9 +524,11 @@ function PillDropdownItem({
 function SettingsPopover({
     displayUnit,
     setDisplayUnit,
+    units,
 }: {
     displayUnit: DisplayUnit;
     setDisplayUnit: (u: DisplayUnit) => void;
+    units: { id: DisplayUnit; label: string; divisor: number }[];
 }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -564,7 +555,7 @@ function SettingsPopover({
                 <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg py-3 px-4">
                     <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">Đơn vị hiển thị</p>
                     <div className="space-y-1">
-                        {DISPLAY_UNITS.map(unit => (
+                        {units.map(unit => (
                             <label key={unit.id} className="flex items-center gap-2 cursor-pointer py-0.5">
                                 <input
                                     type="radio"
@@ -590,11 +581,17 @@ function SectionedTable({
     rows,
     displayUnit,
     fieldLabels,
+    getRowLabel,
+    getSectionTitle,
+    divisor,
 }: {
     sections: { title: string; rows: { key: string; label: string; isTotal?: boolean; isGrandTotal?: boolean; isPct?: boolean; isMultiple?: boolean; indent?: boolean }[]; isPctSection?: boolean }[];
     rows: any[];
     displayUnit: DisplayUnit;
     fieldLabels?: Record<string, string>;
+    getRowLabel?: (key: string, fallback: string) => string;
+    getSectionTitle?: (rawTitle: string) => string;
+    divisor?: number;
 }) {
     if (!rows || rows.length === 0) {
         return <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu</div>;
@@ -615,8 +612,8 @@ function SectionedTable({
             return v % 1 === 0 ? v.toFixed(0) : v.toFixed(2);
         }
         if (Math.abs(v) < 0.01) return '-';
-        const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000;
-        return fmt(v / divisor);
+        const effectiveDivisor = divisor ?? 1_000_000;
+        return fmt(v / effectiveDivisor);
     };
 
     return (
@@ -651,7 +648,7 @@ function SectionedTable({
                         <React.Fragment key={sectionIdx}>
                             <tr>
                                 <td colSpan={displayRows.length + 1} className="px-4 pt-4 pb-1.5">
-                                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{section.title}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{getSectionTitle ? getSectionTitle(section.title) : section.title}</span>
                                 </td>
                             </tr>
                             {section.rows.map((rowDef, rowIdx) => {
@@ -688,7 +685,7 @@ function SectionedTable({
                                             !isTotal && !isGrandTotal ? 'text-gray-700 dark:text-slate-300' : '',
                                             isIndented ? 'pl-8 italic text-gray-500 dark:text-slate-400' : '',
                                         )}>
-                                            {rowDef.label}
+                                            {getRowLabel ? getRowLabel(rowDef.key, rowDef.label) : rowDef.label}
                                         </td>
                                         {displayRows.map((row, i) => (
                                             <td key={i} className={cx(
@@ -762,16 +759,20 @@ function KeyStatsTable({
     metrics,
     data,
     displayUnit,
+    getMetricLabel,
+    divisor,
 }: {
     metrics: typeof NORMAL_KEY_METRICS;
     data: Record<string, any>;
     displayUnit: DisplayUnit;
+    getMetricLabel?: (key: string, fallback: string) => string;
+    divisor?: number;
 }) {
     if (!data) {
         return <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu</div>;
     }
 
-    const divisor = DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor ?? 1_000_000_000;
+    const effectiveDivisor = divisor ?? 1_000_000_000;
 
     const getValue = (key: string, isPct?: boolean, isMultiple?: boolean): string => {
         const v = Number(data[key]);
@@ -783,7 +784,7 @@ function KeyStatsTable({
                 ? formatNumber(v, { maximumFractionDigits: 0 })
                 : v.toFixed(2);
         }
-        return fmt(v / divisor);
+        return fmt(v / effectiveDivisor);
     };
 
     const sectionIds = Array.from(new Set(metrics.map(m => m.section)));
@@ -830,7 +831,7 @@ function KeyStatsTable({
                                             ? 'pl-4 italic text-gray-500 dark:text-slate-400'
                                             : 'text-gray-700 dark:text-slate-300',
                                     )}>
-                                        {metric.label}
+                                        {getMetricLabel ? getMetricLabel(metric.key, metric.label) : metric.label}
                                     </span>
                                     <span className={cx(
                                         'text-[13px] tabular-nums',
@@ -875,6 +876,77 @@ export default function FinancialsTab({
         ratios: [],
     });
     const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
+
+    // ── i18n ─────────────────────────────────────────────────────────────────
+
+    const { lang } = useLanguage()
+    const tFin = translations[lang].financials
+
+    const TABS: { id: ReportType; label: string }[] = [
+        { id: 'key_stats', label: tFin.tabs.key_stats },
+        { id: 'income',    label: tFin.tabs.income },
+        { id: 'balance',   label: tFin.tabs.balance },
+        { id: 'cashflow',  label: tFin.tabs.cashflow },
+        { id: 'ratios',    label: tFin.tabs.ratios },
+    ]
+
+    const DISPLAY_UNITS: { id: DisplayUnit; label: string; divisor: number }[] = [
+        { id: 'billions',  label: tFin.units.billions,  divisor: 1_000_000 },
+        { id: 'trillions', label: tFin.units.trillions, divisor: 1_000_000_000 },
+    ]
+
+    const [fieldMap, setFieldMap] = useState<Record<string, { vi: string; en: string }>>({})
+
+    useEffect(() => {
+        getFieldCodes().then(setFieldMap)
+    }, [])
+
+    const rowLabel = (key: string, fallback: string): string => {
+        const entry = fieldMap[key]
+        if (!entry) return fallback
+        return lang === "vi" ? entry.vi : entry.en
+    }
+
+    const metricLabel = (key: string, fallback: string): string => {
+        const labels = tFin.keyMetrics as Record<string, string>
+        return labels[key] ?? fallback
+    }
+
+    const sectionTitle = (rawTitle: string): string => {
+        const map: Record<string, keyof typeof tFin.sections> = {
+            'Báo cáo kết quả kinh doanh': 'incomeStatement',
+            'Income Statement': 'incomeStatement',
+            'Kết quả kinh doanh ngân hàng': 'bankIncome',
+            'Bank Income Statement': 'bankIncome',
+            'Lợi nhuận': 'bankProfit',
+            'Profit': 'bankProfit',
+            'Margins': 'margins',
+            'Biên lợi nhuận': 'margins',
+            'Assets': 'assets',
+            'Tài sản': 'assets',
+            'Liabilities': 'liabilities',
+            'Nợ phải trả': 'liabilities',
+            'Equity': 'equity',
+            'Vốn chủ sở hữu': 'equity',
+            'Operating Activities': 'operatingActivities',
+            'Hoạt động kinh doanh': 'operatingActivities',
+            'Investing Activities': 'investingActivities',
+            'Hoạt động đầu tư': 'investingActivities',
+            'Financing Activities': 'financingActivities',
+            'Hoạt động tài chính': 'financingActivities',
+            'Summary': 'summary',
+            'Tóm tắt': 'summary',
+            'Valuation': 'valuation',
+            'Trailing Valuation': 'trailingValuation',
+            'Growth Rates': 'growthRates',
+            'Profitability': 'profitability',
+            'Liquidity': 'liquidity',
+            'Leverage': 'leverage',
+            'Efficiency': 'efficiency',
+        }
+        const key = map[rawTitle]
+        return key ? tFin.sections[key] : rawTitle
+    }
 
     // Keep parent period in sync when user changes mode
     const setDisplayMode = (m: DisplayMode) => {
@@ -984,7 +1056,7 @@ export default function FinancialsTab({
                 </PillDropdown>
 
                 {/* Settings (units) */}
-                <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} />
+                <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} />
 
                 {/* Download */}
                 {onDownloadExcel && (
@@ -1016,6 +1088,8 @@ export default function FinancialsTab({
                                 metrics={isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS}
                                 data={buildKeyStatsData(overviewData, reportData.income, reportData.balance, reportData.cashflow)}
                                 displayUnit={displayUnit}
+                                getMetricLabel={metricLabel}
+                                divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                             />
                         )}
 
@@ -1026,6 +1100,9 @@ export default function FinancialsTab({
                                 rows={reportData.income}
                                 displayUnit={displayUnit}
                                 fieldLabels={fieldLabels}
+                                getRowLabel={rowLabel}
+                                getSectionTitle={sectionTitle}
+                                divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                             />
                         )}
 
@@ -1036,6 +1113,9 @@ export default function FinancialsTab({
                                 rows={reportData.balance}
                                 displayUnit={displayUnit}
                                 fieldLabels={fieldLabels}
+                                getRowLabel={rowLabel}
+                                getSectionTitle={sectionTitle}
+                                divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                             />
                         )}
 
@@ -1046,6 +1126,9 @@ export default function FinancialsTab({
                                 rows={reportData.cashflow}
                                 displayUnit={displayUnit}
                                 fieldLabels={fieldLabels}
+                                getRowLabel={rowLabel}
+                                getSectionTitle={sectionTitle}
+                                divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                             />
                         )}
 
@@ -1056,6 +1139,9 @@ export default function FinancialsTab({
                                 rows={reportData.ratios}
                                 displayUnit={displayUnit}
                                 fieldLabels={fieldLabels}
+                                getRowLabel={rowLabel}
+                                getSectionTitle={sectionTitle}
+                                divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                             />
                         )}
                     </>
