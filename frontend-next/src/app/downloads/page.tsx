@@ -31,6 +31,16 @@ const today = () => new Date().toISOString().slice(0, 10);
 const DATE_FIELD_HINT       = /(date|time|timestamp|trading|ngay)/i;
 const DATE_FIELD_CANDIDATES = ['date', 'tradingDate', 'trading_date', 'time', 'timestamp', 'datetime', 'published_at', 'created_at'];
 
+function slugifyForFilename(input: string): string {
+    const slug = input
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .toLowerCase();
+    return slug || 'unknown';
+}
+
 // ── Market datasets ───────────────────────────────────────────────────────────
 
 const MARKET_DATASETS: Dataset[] = [
@@ -212,6 +222,16 @@ const STOCK_DATASETS: StockDataset[] = [
         filename: (f, s) => `${s}_snapshot_${today()}.${f.toLowerCase()}`,
         badge: 'Tổng quan',
         badgeColor: 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700',
+    },
+    {
+        id: 'stats-financial',
+        title: 'Thông số VCI (stats_financial)',
+        description: 'Bản ghi mới nhất từ bảng vci_stats_financial.stats_financial: PE/PB/ROE/ROA, NIM, NPL, LDR, market cap, shares...',
+        endpoint: (s) => `/api/stock/${s}/stats-financial`,
+        filename: (f, s) => `${s}_stats_financial_${today()}.${f.toLowerCase()}`,
+        badge: 'Tài chính',
+        badgeColor: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30',
+        notes: 'CSV xuất UTF-8 (kèm BOM) để mở đúng tiếng Việt trong Excel.',
     },
     {
         id: 'news-sentiment',
@@ -674,12 +694,25 @@ function StockTab() {
     const [symbol,  setSymbol]  = useState('');
     const [tickers, setTickers] = useState<Ticker[]>([]);
     const [showSug, setShowSug] = useState(false);
+    const [icbL3Sectors, setIcbL3Sectors] = useState<string[]>([]);
+    const [selectedIcbL3, setSelectedIcbL3] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         fetch('/api/tickers', { cache: 'force-cache' })
             .then(r => r.json())
             .then(d => setTickers((d as { tickers?: Ticker[] }).tickers ?? d))
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        fetch('/api/stock/stats-financial/icb-l3-sectors', { cache: 'force-cache' })
+            .then(r => r.json())
+            .then((d: { sectors?: string[] }) => {
+                const sectors = Array.isArray(d?.sectors) ? d.sectors : [];
+                setIcbL3Sectors(sectors);
+                setSelectedIcbL3(prev => prev || sectors[0] || '');
+            })
             .catch(() => {});
     }, []);
 
@@ -715,6 +748,11 @@ function StockTab() {
         setSymbol(query.toUpperCase().trim());
         setShowSug(false);
     };
+
+    const statsBySectorEndpoint = selectedIcbL3
+        ? `/api/stock/stats-financial?icb_l3=${encodeURIComponent(selectedIcbL3)}`
+        : '/api/stock/stats-financial';
+    const statsBySectorSlug = selectedIcbL3 ? slugifyForFilename(selectedIcbL3) : 'all';
 
     return (
         <div>
@@ -785,6 +823,37 @@ function StockTab() {
                     <p className="text-xs text-slate-300 dark:text-slate-600">Lịch sử giá, tài chính, valuation, cổ đông, tin tức…</p>
                 </div>
             )}
+
+            <section className="mt-8">
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        vci_stats_financial theo ngành (ICB level 3)
+                    </p>
+                    <select
+                        value={selectedIcbL3}
+                        onChange={(e) => setSelectedIcbL3(e.target.value)}
+                        className="min-w-[280px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        {icbL3Sectors.length === 0 ? (
+                            <option value="">Đang tải danh sách ngành…</option>
+                        ) : (
+                            icbL3Sectors.map((sector) => (
+                                <option key={sector} value={sector}>{sector}</option>
+                            ))
+                        )}
+                    </select>
+                </div>
+                <DatasetCard
+                    key={`stats-financial-icb3-${selectedIcbL3 || 'all'}`}
+                    title="Thông số VCI theo ngành (ICB level 3)"
+                    description="Tải dữ liệu từ vci_stats_financial.stats_financial theo ngành ICB level 3 đã chọn."
+                    endpoint={statsBySectorEndpoint}
+                    filename={(f) => `stats_financial_icb_l3_${statsBySectorSlug}_${today()}.${f.toLowerCase()}`}
+                    badge="Tài chính"
+                    badgeColor="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30"
+                    notes="CSV xuất UTF-8 (kèm BOM), mở Excel hiển thị tiếng Việt đúng encoding."
+                />
+            </section>
         </div>
     );
 }
