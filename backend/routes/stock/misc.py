@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import logging
+import os
 import sqlite3
 import statistics
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from backend.db_path import resolve_vci_company_db_path, resolve_vci_stats_financial_db_path
 from backend.extensions import get_provider
@@ -105,6 +107,131 @@ def register(stock_bp: Blueprint) -> None:
             })
         except Exception as exc:
             logger.exception("peers-vci error for %s", symbol)
+            return jsonify({"success": False, "error": str(exc)}), 500
+
+    @stock_bp.route("/stock/<symbol>/stats-financial")
+    def api_stock_stats_financial(symbol):
+        """Return latest stats_financial row from vci_stats_financial.sqlite for one ticker."""
+        try:
+            is_valid, clean_symbol = validate_stock_symbol(symbol)
+            if not is_valid:
+                return jsonify({"success": False, "error": clean_symbol}), 400
+
+            stats_db = resolve_vci_stats_financial_db_path()
+            with sqlite3.connect(stats_db) as conn:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    "SELECT * FROM stats_financial WHERE UPPER(ticker) = ? LIMIT 1",
+                    (clean_symbol.upper(),),
+                ).fetchone()
+
+            if not row:
+                return jsonify({"success": False, "error": f"Không tìm thấy dữ liệu stats_financial cho {clean_symbol}"}), 404
+
+            return jsonify({
+                "success": True,
+                "symbol": clean_symbol.upper(),
+                "data": [dict(row)],
+            })
+        except Exception as exc:
+            logger.exception("stats-financial error for %s", symbol)
+            return jsonify({"success": False, "error": str(exc)}), 500
+
+    @stock_bp.route("/stock/stats-financial/icb-l3-sectors")
+    def api_stats_financial_icb_l3_sectors():
+        """Return available ICB level-3 sectors from vci_company.sqlite."""
+        try:
+            company_db = resolve_vci_company_db_path()
+            with sqlite3.connect(company_db) as conn:
+                rows = conn.execute(
+                    """
+                    SELECT DISTINCT TRIM(icb_name3) AS icb_l3
+                    FROM companies
+                    WHERE icb_name3 IS NOT NULL AND TRIM(icb_name3) != ''
+                    ORDER BY icb_l3
+                    """
+                ).fetchall()
+            sectors = [r[0] for r in rows if r and r[0]]
+            return jsonify({"success": True, "sectors": sectors})
+        except Exception as exc:
+            logger.exception("stats-financial icb-l3 sectors error")
+            return jsonify({"success": False, "error": str(exc)}), 500
+
+    @stock_bp.route("/stock/stats-financial")
+    def api_stats_financial_by_sector():
+        """Return stats_financial rows, optionally filtered by ICB level-3 sector."""
+        try:
+            icb_l3 = (request.args.get("icb_l3") or "").strip()
+
+            company_db = resolve_vci_company_db_path()
+            stats_db = resolve_vci_stats_financial_db_path()
+
+            with sqlite3.connect(company_db) as conn:
+                conn.row_factory = sqlite3.Row
+                if icb_l3:
+                    company_rows = conn.execute(
+                        """
+                        SELECT UPPER(ticker) AS ticker, organ_name, icb_name1, icb_name2, icb_name3, icb_name4
+                        FROM companies
+                        WHERE icb_name3 = ?
+                        """,
+                        (icb_l3,),
+                    ).fetchall()
+                else:
+                    company_rows = conn.execute(
+                        """
+                        SELECT UPPER(ticker) AS ticker, organ_name, icb_name1, icb_name2, icb_name3, icb_name4
+                        FROM companies
+                        """
+                    ).fetchall()
+
+            company_map = {
+                r["ticker"]: {
+                    "company_name": r["organ_name"],
+                    "icb_name1": r["icb_name1"],
+                    "icb_name2": r["icb_name2"],
+                    "icb_name3": r["icb_name3"],
+                    "icb_name4": r["icb_name4"],
+                }
+                for r in company_rows
+            }
+
+            tickers = list(company_map.keys()) if icb_l3 else None
+            if icb_l3 and not tickers:
+                return jsonify({"success": True, "count": 0, "icb_l3": icb_l3, "data": []})
+
+            with sqlite3.connect(stats_db) as conn:
+                conn.row_factory = sqlite3.Row
+                if tickers:
+                    placeholders = ",".join(["?"] * len(tickers))
+                    stats_rows = conn.execute(
+                        f"""
+                        SELECT * FROM stats_financial
+                        WHERE UPPER(ticker) IN ({placeholders})
+                        ORDER BY ticker
+                        """,
+                        tickers,
+                    ).fetchall()
+                else:
+                    stats_rows = conn.execute(
+                        "SELECT * FROM stats_financial ORDER BY ticker"
+                    ).fetchall()
+
+            data = []
+            for row in stats_rows:
+                item = dict(row)
+                meta = company_map.get((item.get("ticker") or "").upper(), {})
+                item.update(meta)
+                data.append(item)
+
+            return jsonify({
+                "success": True,
+                "count": len(data),
+                "icb_l3": icb_l3 or None,
+                "data": data,
+            })
+        except Exception as exc:
+            logger.exception("stats-financial sector download error")
             return jsonify({"success": False, "error": str(exc)}), 500
 
     @stock_bp.route("/tickers")
