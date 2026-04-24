@@ -315,6 +315,7 @@ export default function StockDetailPage() {
 
                     // Backend normalizes all prices to full VND
                     const newPrice = data.current_price || data.price || 0;
+                    const ob = data.orderbook;
 
                     // Only update price if we got a valid realtime price
                     // Preserve history-based open/high/low/change if API doesn't provide them
@@ -330,6 +331,12 @@ export default function StockDetailPage() {
                             ceiling: data.ceiling || data.priceHigh || 0,
                             floor: data.floor || data.priceLow || 0,
                             ref: data.ref_price || data.ref || 0,
+                            ...(ob && {
+                                orderbook: {
+                                    bid: (ob.bid || []).slice(0, 3).map((b: any) => ({ price: b?.price || 0, volume: b?.volume || 0 })),
+                                    ask: (ob.ask || []).slice(0, 3).map((a: any) => ({ price: a?.price || 0, volume: a?.volume || 0 })),
+                                },
+                            }),
                         }));
                     }
                 }
