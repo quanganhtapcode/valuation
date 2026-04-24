@@ -569,30 +569,47 @@ export function subscribePricesStream(options: {
     onStatus?: (status: IndicesStreamStatus) => void;
 }): () => void {
     const { onData, onStatus } = options;
-    if (!isTradingHours()) {
-        // Outside trading hours: prices don't change, skip the socket
-        onStatus?.('closed');
-        return () => {};
-    }
-    const ws = new WebSocket(getPricesWsUrl());
+    let ws: WebSocket | null = null;
+    let destroyed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryDelay = 1000;
 
-    ws.onopen = () => onStatus?.('open');
-    ws.onerror = () => onStatus?.('error');
-    ws.onclose = () => onStatus?.('closed');
+    const connect = () => {
+        if (destroyed) return;
+        ws = new WebSocket(getPricesWsUrl());
 
-    ws.onmessage = (event) => {
-        try {
-            const payload = JSON.parse(String(event.data));
-            if (payload?.type?.startsWith('prices_') && payload?.data) {
-                onData(payload.data, payload.type);
+        ws.onopen = () => {
+            retryDelay = 1000;
+            onStatus?.('open');
+        };
+        ws.onerror = () => onStatus?.('error');
+        ws.onclose = () => {
+            if (destroyed) return;
+            onStatus?.('closed');
+            retryTimer = setTimeout(() => {
+                retryDelay = Math.min(retryDelay * 2, 30_000);
+                connect();
+            }, retryDelay);
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const payload = JSON.parse(String(event.data));
+                if (payload?.type?.startsWith('prices_') && payload?.data) {
+                    onData(payload.data, payload.type);
+                }
+            } catch {
+                // ignore malformed payloads
             }
-        } catch {
-            // ignore malformed payloads
-        }
+        };
     };
 
+    connect();
+
     return () => {
-        try { ws.close(); } catch {}
+        destroyed = true;
+        if (retryTimer) clearTimeout(retryTimer);
+        try { ws?.close(); } catch {}
     };
 }
 
