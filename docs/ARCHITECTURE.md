@@ -1,189 +1,163 @@
-# Kiến trúc Hệ thống
+# System Architecture
 
-## Tổng quan
+> Current data architecture: `fetch_sqlite/*.sqlite` is canonical. Legacy
+> monolithic DBs such as `stocks_optimized.db` and `stocks_optimized.new.db`
+> are deprecated.
 
-```
-                    ┌─────────────────────────────────────┐
-                    │          VPS (203.55.176.10)         │
-                    │                                     │
-  18:00 daily  ─── │  systemd stock-fetch.timer           │
-                    │    └─► run_pipeline.py               │
-                    │          └─► backend/updater/        │  ─► vietnam_stocks.db
-                    │              (vnstock API)           │
-                    │                                     │
-  cron */5min  ─── │  fetch_vci_screener.py               │  ─► vci_screening.sqlite
-  cron */5min  ─── │  fetch_vci_news.py                   │  ─► vci_ai_news.sqlite
-  cron */15min ─── │  fetch_vci.py                        │  ─► index_history.sqlite
-  cron */15min ─── │  fetch_vci_standouts.py              │  ─► vci_ai_standouts.sqlite
-                    │                                     │
-  always-on    ─── │  backend/server.py (gunicorn)        │
-                    │    ├── routes/stock_routes.py        │  ◄── reads vietnam_stocks.db
-                    │    ├── routes/market/               │  ◄── reads index_history.sqlite
-                    │    ├── routes/valuation_routes.py   │  ◄── reads vci_screening.sqlite
-                    │    └── routes/download_routes.py    │  ◄── Cloudflare R2
-                    └─────────────────────────────────────┘
-                                  │
-                              nginx proxy
-                                  │
-                         ┌────────┴────────┐
-                         │   Vercel CDN    │
-                         │  frontend-next  │
-                         └─────────────────┘
-```
+## High-Level Flow
 
----
-
-## Hai luồng dữ liệu độc lập
-
-### Luồng 1: Real-time (crontab)
-
-Chạy liên tục, không phụ thuộc `run_pipeline.py`.
-
-```
-VCI API (iq.vietcap.com.vn / ai.vietcap.com.vn)
-  │
-  ├─ fetch_vci.py           → index_history.sqlite
-  ├─ fetch_vci_screener.py  → vci_screening.sqlite
-  ├─ fetch_vci_news.py      → vci_ai_news.sqlite
-  └─ fetch_vci_standouts.py → vci_ai_standouts.sqlite
+```text
+External APIs
+  VCI / Vietcap
+  FireAnt
+        |
+        v
+fetch_sqlite/*.py and selected backend batch jobs
+        |
+        v
+fetch_sqlite/*.sqlite
+        |
+        v
+Flask backend on VPS :8000
+        |
+        +-- REST: /api/*
+        +-- WebSocket: /ws/*
+        |
+        v
+nginx api.quanganh.org/v1/valuation/*
+        |
+        v
+Next.js frontend on Vercel
 ```
 
-### Luồng 2: Daily BCTC (systemd 18:00)
+## Production Routing
 
-Dùng vnstock API (cần `VNSTOCK_API_KEY`).
-
-```
-vnstock API (VCI source)
-  │
-  └─ run_pipeline.py
-       ├─ Step 1: backend/updater/pipeline_steps.py → update_financials()
-       │           └─ FinancialUpdater               → balance_sheet
-       │                (smart-skip nếu updated         income_statement
-       │                 < SKIP_IF_UPDATED_WITHIN_DAYS)  cash_flow_statement
-       │                                            → vietnam_stocks.db
-       │
-       ├─ Step 2 (Chủ nhật): update_companies()
-       │           └─ CompanyUpdater                → company_overview
-       │
-       └─ Step 3: scripts/create_compat_views.py   → refresh views
-```
-
-#### Smart-skip logic
-
-`FinancialUpdater._was_recently_updated(symbol, table)` kiểm tra `updated_at` trong bảng `balance_sheet`. Nếu mã đã được cập nhật trong vòng `SKIP_IF_UPDATED_WITHIN_DAYS` ngày (mặc định 30), bỏ qua để tiết kiệm API quota.
-
----
-
-## Cấu trúc thư mục
-
-```
-├── backend/
-│   ├── server.py                  Flask app entry point
-│   ├── extensions.py              Global service instances (init_provider)
-│   ├── db_path.py                 DB path resolution logic
-│   ├── models.py                  Valuation models (DCF, PE, PB)
-│   ├── utils.py                   Shared utilities
-│   ├── cache_utils.py             Cache helpers
-│   ├── r2_client.py               Cloudflare R2 client
-│   ├── stock_provider.py          Legacy StockDataProvider (backward compat)
-│   │
-│   ├── data_sources/
-│   │   ├── financial_repository.py  Low-level DB reader
-│   │   ├── sqlite_db.py             SQLite connection wrapper
-│   │   └── vci.py                   VCI real-time data client
-│   │
-│   ├── services/
-│   │   ├── valuation_service.py     DCF + peer comparison
-│   │   ├── financial_service.py     Financial statement queries
-│   │   ├── stock_service.py         Stock overview queries
-│   │   ├── news_service.py          News aggregation
-│   │   ├── gold.py                  Gold price service
-│   │   ├── vci_news_sqlite.py       VCI news from SQLite
-│   │   └── vci_standouts_sqlite.py  VCI standouts from SQLite
-│   │
-│   ├── routes/
-│   │   ├── stock_routes.py          /api/stock/*
-│   │   ├── valuation_routes.py      /api/valuation/*
-│   │   ├── health_routes.py         /health
-│   │   ├── download_routes.py       /api/download/*
-│   │   ├── market.py                Blueprint aggregator cho /api/market/*
-│   │   ├── market/                  Market sub-modules
-│   │   │   ├── vci_indices.py, gold.py, news.py, movers.py, ...
-│   │   ├── stock/                   Stock sub-modules
-│   │   │   ├── financial_dashboard.py, charts.py, profile.py, ...
-│   │   └── handlers/                Standalone route handlers
-│   │       ├── index_history.py, lottery_rss.py, ...
-│   │
-│   └── updater/                   Daily pipeline (was: db_updater/)
-│       ├── database.py            StockDatabase class + schema
-│       ├── updaters.py            FinancialUpdater, CompanyUpdater
-│       └── pipeline_steps.py     update_financials(), update_companies()
-│
-├── fetch_sqlite/                  Real-time VCI data fetchers (cron)
-├── scripts/
-│   ├── create_compat_views.py     Refresh DB views post-pipeline
-│   ├── test_local.ps1             Pre-deploy test suite
-│   └── sync_overview.py           Sync overview table
-├── automation/
-│   ├── deploy.ps1                 Windows deploy script
-│   └── *.sh / *.service / *.timer systemd & shell automation
-├── run_pipeline.py                Pipeline entry point (systemd)
-└── docs/
-    ├── ARCHITECTURE.md            This file
-    └── RUNBOOK.md                 Operations guide
-```
-
----
-
-## Database (vietnam_stocks.db)
-
-Tất cả 3 env vars đều trỏ về 1 file:
-- `VIETNAM_STOCK_DB_PATH` — dùng bởi `run_pipeline.py` + `backend/updater/`
-- `STOCKS_DB_PATH` — dùng bởi Flask backend
-- Cả hai mặc định về `/var/www/valuation/vietnam_stocks.db` trên VPS
-
-### Bảng thật (pipeline viết)
-
-| Bảng | Mô tả |
-|---|---|
-| `stocks` | Danh sách cổ phiếu niêm yết |
-| `company_overview` | Hồ sơ công ty |
-| `balance_sheet` | CĐKT năm/quý |
-| `income_statement` | KQKD năm/quý |
-| `cash_flow_statement` | LCTT năm/quý |
-| `financial_ratios` | Tỷ số tài chính |
-| `update_log` | Lịch sử cập nhật |
-
-### Views tương thích (tạo sau mỗi pipeline)
-
-| View | Backend dùng |
-|---|---|
-| `overview` | `/api/stock/`, `/api/valuation/` |
-| `ratio_wide` | `/api/stock/VCB` financial data |
-| `company` | `/api/stock/VCB` profile |
-| `fin_stmt` | `/api/stock/VCB/revenue-profit` |
-
----
-
-## Backend API endpoints
-
-| Prefix | File | Mô tả |
+| Traffic | Path | Notes |
 |---|---|---|
-| `/api/stock/` | `routes/stock_routes.py` + `routes/stock/` | Dữ liệu cổ phiếu |
-| `/api/market/` | `routes/market.py` + `routes/market/` | Index, news, screener |
-| `/api/valuation/` | `routes/valuation_routes.py` | DCF, so sánh ngành |
-| `/api/download/` | `routes/download_routes.py` | Export Excel (R2) |
-| `/health` | `routes/health_routes.py` | System health check |
+| REST | `stock.quanganh.org/api/*` -> Next.js proxy -> `api.quanganh.org/v1/valuation/*` -> Flask `/api/*` | Same-origin frontend calls, centralized proxy/cache behavior |
+| WebSocket | Browser -> `wss://api.quanganh.org/v1/valuation/ws/*` -> Flask `/ws/*` | Direct to VPS; Vercel does not proxy WS |
 
----
+## Data Stores
 
-## Môi trường biến quan trọng
+```text
+fetch_sqlite/
+  vci_company.sqlite             company/profile/industry
+  vci_financials.sqlite          VCI financial statements
+  vci_screening.sqlite           live market snapshot
+  vci_stats_financial.sqlite     TTM ratios and banking KPIs
+  vci_ratio_daily.sqlite         daily PE/PB
+  vci_shareholders.sqlite        holders
+  vci_ai_news.sqlite             AI news cache
+  vci_news_events.sqlite         per-symbol news/events/dividends
+  vci_foreign.sqlite             foreign flow
+  vci_valuation.sqlite           VNINDEX PE/PB and EMA breadth
+  index_history.sqlite           market index history
+  macro_history.sqlite           VCI macro
+  fireant_macro.sqlite           FireAnt macro
+  valuation_cache.sqlite         computed valuation cache
+  price_history.sqlite           daily stock OHLCV
+```
 
-| Biến | Mặc định | Mô tả |
+Deprecated:
+
+```text
+stocks_optimized.db
+stocks_optimized.new.db
+vietnam_stocks.db
+```
+
+These files are not the source of truth. Any code still depending on them should
+be treated as migration debt.
+
+## Refresh Jobs
+
+Active cron jobs from `automation/setup_cron_vps.sh`:
+
+| Schedule | Script | DB |
 |---|---|---|
-| `VNSTOCK_API_KEY` | — | **Bắt buộc** cho daily pipeline |
-| `STOCKS_DB_PATH` | auto-resolve | Override đường dẫn DB |
-| `SKIP_IF_UPDATED_WITHIN_DAYS` | `30` | Smart-skip threshold |
-| `FETCH_PERIOD` | `year` | `year` hoặc `quarter` |
-| `FETCH_DELAY_SECONDS` | `0` | Extra inter-symbol delay (giây) |
-| `R2_*` | — | Cloudflare R2 (tuỳ chọn) |
+| `*/7 * * * *` | `fetch_sqlite/fetch_vci_screener.py` | `vci_screening.sqlite` |
+| `5 * * * *` | `fetch_sqlite/fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` |
+| `*/10 * * * *` | `fetch_sqlite/fetch_vci_news.py` | `vci_ai_news.sqlite` |
+| `30 11 * * *` | `PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history` | `fetch_sqlite/price_history.sqlite` |
+| `10 13 * * *` | `fetch_sqlite/fetch_vci_shareholders.py` | `vci_shareholders.sqlite` |
+| `35 13 * * *` | `fetch_sqlite/fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` |
+| `30 18 * * *` | `fetch_sqlite/fetch_vci_valuation.py` | `vci_valuation.sqlite` |
+| `*/2 9-15 * * 1-5` | `fetch_sqlite/fetch_vci_foreign.py` | `vci_foreign.sqlite` |
+| Sunday 02:00, even ISO weeks | `fetch_sqlite/fetch_vci_company.py` | `vci_company.sqlite` |
+
+Scripts available but requiring explicit scheduling if production freshness is
+needed:
+
+| Script | DB |
+|---|---|
+| `fetch_sqlite/fetch_vci.py` | `index_history.sqlite` |
+| `fetch_sqlite/fetch_macro_history.py` | `macro_history.sqlite` |
+| `fetch_sqlite/fetch_fireant_macro.py` | `fireant_macro.sqlite` |
+| `fetch_sqlite/fetch_vci_financial_statement.py` | `vci_financials.sqlite` |
+
+## Backend Layers
+
+```text
+backend/
+  server.py                  Flask app and WebSocket setup
+  db_path.py                 DB path resolvers; legacy fallbacks should be migrated out
+  data_sources/
+    vci.py                   VCI real-time REST/WebSocket client
+    sqlite_db.py             SQLite helper
+    financial_repository.py  Financial statement reader helpers
+  services/
+    source_priority.py       PE/PB and ratio source priority
+    valuation_service.py     DCF/comparable valuation
+    vci_news_sqlite.py       AI news cache reader
+    vci_standouts_sqlite.py  standouts cache reader
+  routes/
+    market/                  market endpoints
+    stock/                   per-stock endpoints
+    handlers/                shared route handlers
+```
+
+## Frontend Layers
+
+```text
+frontend-next/src/
+  app/                       Next.js routes
+  app/api/[...path]/route.ts Backend proxy
+  components/                UI components
+  components/StockDetail/    stock detail tabs
+  components/Sidebar/        market widgets
+  lib/api.ts                 shared API and WebSocket clients
+  lib/stockApi.ts            stock-specific fetchers
+  lib/types.ts               shared TypeScript types
+```
+
+## Source Priority
+
+PE/PB:
+
+```text
+vci_ratio_daily.sqlite
+  -> vci_stats_financial.sqlite
+  -> vci_screening.sqlite
+```
+
+Company/industry:
+
+```text
+vci_company.sqlite
+  -> vci_screening.sqlite
+```
+
+Financial statements:
+
+```text
+vci_financials.sqlite
+  -> legacy financial_statement_data only while migration is incomplete
+```
+
+## Operational Boundary
+
+- Fetch scripts own writes to their own DBs.
+- Backend routes should not mutate canonical DBs during request handling.
+- Runtime DB files are not code artifacts and should not be committed.
+- New features should document their source DB and fallback chain in
+  `docs/SQLITE_DATABASES.md`.

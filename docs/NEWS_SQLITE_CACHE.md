@@ -1,71 +1,122 @@
-# News SQLite Cache (VCI AI)
+# News SQLite Cache
 
-Mục tiêu: giảm latency và tránh gọi upstream (ai.vietcap.com.vn) mỗi request bằng cách **prefetch news định kỳ** và phục vụ API từ SQLite.
+`fetch_sqlite/vci_ai_news.sqlite` is the canonical market news cache. It avoids
+calling `ai.vietcap.com.vn` on every API request and keeps market/news widgets
+fast.
 
-## Files chuẩn
+## Files
 
-- SQLite DB (ưu tiên): `fetch_sqlite/vci_ai_news.sqlite`
-- Legacy DB (fallback): `fetch_sqlite/vci_news.sqlite`
-- Fetcher script: `fetch_sqlite/fetch_vci_news.py`
-- Backend reader: `backend/services/vci_news_sqlite.py`
-- API endpoints:
-  - `/api/market/news` đọc SQLite trước, stale thì fallback upstream
-  - `/api/stock/news/<symbol>` đọc SQLite trước, fallback upstream
+| Item | Path |
+|---|---|
+| Canonical DB | `fetch_sqlite/vci_ai_news.sqlite` |
+| Legacy fallback DB | `fetch_sqlite/vci_news.sqlite` |
+| Fetcher | `fetch_sqlite/fetch_vci_news.py` |
+| Backend reader | `backend/services/vci_news_sqlite.py` |
 
-## Fetch định kỳ (5 phút)
+`VCI_NEWS_DB_PATH` can override the DB path. If it is not set, the backend checks
+`vci_ai_news.sqlite` first and then the legacy `vci_news.sqlite`.
 
-Trên VPS dùng cron (xem `automation/setup_cron_vps.sh`):
+## API Behavior
+
+| Endpoint | Behavior |
+|---|---|
+| `/api/market/news` | Reads SQLite first; upstream fallback only when cache is missing/stale |
+| `/api/stock/news/<symbol>` | Reads ticker-specific rows from SQLite first; upstream fallback when needed |
+
+The backend reads `raw_json` and normalizes fields into both legacy title-case
+keys (`Title`, `Link`, `PublishDate`) and modern keys (`title`, `url`,
+`publish_date`).
+
+## Active Cron
+
+Current cron from `automation/setup_cron_vps.sh`:
 
 ```bash
-*/5 * * * * cd /var/www/valuation && .venv/bin/python fetch_sqlite/fetch_vci_news.py \
+*/10 * * * * cd /var/www/valuation && bash automation/vci_safe_run.sh \
+  --name ai_news \
   --db fetch_sqlite/vci_ai_news.sqlite \
-  --pages 5 --page-size 50 --days-back 30 \
-  --workers 10 --insecure \
+  --retries 3 \
+  --retry-sleep 20 \
+  --drop-total-pct 0.30 \
+  --keep-ratio 0.70 \
+  --command ".venv/bin/python fetch_sqlite/fetch_vci_news.py --db fetch_sqlite/vci_ai_news.sqlite --pages 5 --page-size 50 --days-back 30 --prune-days 90 --workers 2 --retries 6 --backoff 1.3 --insecure" \
   >> fetch_sqlite/cron_vci_ai_news.log 2>&1
 ```
 
-## Prefill “backup sẵn” (10 trang, worker 10)
+## Manual Refresh
 
-Chạy thủ công:
+```bash
+cd /var/www/valuation
+source .venv/bin/activate
+
+python fetch_sqlite/fetch_vci_news.py \
+  --db fetch_sqlite/vci_ai_news.sqlite \
+  --pages 5 \
+  --page-size 50 \
+  --days-back 30 \
+  --prune-days 90 \
+  --workers 2 \
+  --retries 6 \
+  --backoff 1.3 \
+  --insecure
+```
+
+For a deeper prefill:
 
 ```bash
 python fetch_sqlite/fetch_vci_news.py \
   --db fetch_sqlite/vci_ai_news.sqlite \
-  --pages 10 --page-size 50 --days-back 30 \
-  --workers 10 --insecure
-`vci_ai_news_YYYYmmdd_HHMMSSZ.sqlite`
+  --pages 10 \
+  --page-size 50 \
+  --days-back 60 \
+  --prune-days 120 \
+  --workers 2 \
+  --insecure
+```
 
 ## Schema
 
-- Table: `news_items`
-  - `id` (PRIMARY KEY)
-  - `ticker`, `update_date`, `news_title`, `news_source_link`, ...
-  - `raw_json` lưu full JSON để backend trả ra nguyên bản (dễ forward/đổi UI mà không phải migrate schema).
-- Table: `news_meta`
-  - `last_fetch_utc`: ISO timestamp
-  - `last_fetch_ticker`: ticker đã fetch (empty = market news)
+| Table | Purpose |
+|---|---|
+| `news_items` | Cached upstream news rows plus `raw_json` |
+| `news_meta` | Fetch metadata such as `last_fetch_utc` |
 
-## Duplicate & retention
+Important `news_items` fields:
 
-- Duplicate: `news_items.id` là PRIMARY KEY nên fetch lại cùng 1 bài sẽ **upsert** (update row), không tạo row trùng.
-- Retention: mặc định **không tự xoá** bài cũ. Trên VPS cron nên bật `--prune-days` để DB không phình mãi.
+| Column | Notes |
+|---|---|
+| `id` | Primary key/upsert key |
+| `ticker` | Empty or ticker-specific depending on upstream item |
+| `update_date` | Sort key for latest news |
+| `news_title` | Upstream title |
+| `news_source_link` | Upstream URL |
+| `raw_json` | Full upstream payload for forward compatibility |
+| `fetched_at_utc` | Local fetch timestamp |
 
-Ví dụ giữ 60 ngày gần nhất (theo `fetched_at_utc`):
+## Duplicate and Retention
+
+- `news_items.id` is the primary key, so repeated fetches upsert rows instead of
+  duplicating them.
+- Use `--prune-days` in cron to keep the DB bounded. Current production command
+  keeps 90 days by `fetched_at_utc`.
+
+## Debug
 
 ```bash
-python fetch_sqlite/fetch_vci_news.py --db fetch_sqlite/vci_ai_news.sqlite \
-  --pages 5 --page-size 50 --days-back 30 --workers 10 --insecure \
-  --prune-days 60
+sqlite3 fetch_sqlite/vci_ai_news.sqlite "SELECT COUNT(*) FROM news_items;"
+sqlite3 fetch_sqlite/vci_ai_news.sqlite "SELECT key, value FROM news_meta ORDER BY key;"
+sqlite3 fetch_sqlite/vci_ai_news.sqlite "
+  SELECT ticker, update_date, news_title
+  FROM news_items
+  ORDER BY update_date DESC
+  LIMIT 20;
+"
+
+tail -100 fetch_sqlite/cron_vci_ai_news.log
 ```
 
-## Debug nhanh
+## SSL Note
 
-```sql
-SELECT COUNT(*) FROM news_items;
-SELECT value FROM news_meta WHERE key='last_fetch_utc';
-SELECT ticker, update_date, news_title FROM news_items ORDER BY update_date DESC LIMIT 20;
-```
-
-## Note về SSL
-
-`--insecure` sẽ tắt verify SSL (match behavior hiện tại trong `NewsService`). Nếu server upstream ổn định SSL, có thể bỏ `--insecure`.
+`--insecure` disables SSL verification to match current upstream behavior in the
+service layer. Remove it only after confirming Vietcap SSL is stable from the
+VPS.
