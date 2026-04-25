@@ -198,7 +198,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         if (!info) return;
         setIdxLoad(true);
         setIdxBars([]);
-        fetch(`${API_BASE}/market/index-history?index=${info.vciSymbol}&days=500`)
+        fetch(`${API_BASE}/market/index-history?index=${info.vciSymbol}&days=2500`)
             .then(r => r.json())
             .then((rows: any[]) => {
                 if (!Array.isArray(rows)) return;
@@ -314,7 +314,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             priceFormat:      { type: 'volume' },
             priceScaleId:     '',
             // @ts-ignore — scaleMargins works at runtime in lightweight-charts v5
-            scaleMargins:     { top: 0.82, bottom: 0 },
+            scaleMargins:     { top: 0.90, bottom: 0 },
             priceLineVisible: false,
             lastValueVisible: false,
         });
