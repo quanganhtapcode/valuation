@@ -217,19 +217,26 @@ def _build_indices_payload() -> dict:
 def ws_market_indices(ws):
     """Internal WS stream for frontend: pushes market index updates when data changes."""
     logger.info("WS client connected: /ws/market/indices")
-    last_fingerprint = None
+
+    def _build_fingerprint(payload):
+        data = payload.get('data', {})
+        src = payload.get('source', 'EMPTY')
+        fp_parts = [src]
+        for key in ('1', '2', '9', '11'):
+            item = data.get(key, {})
+            fp_parts.append(f"{key}:{item.get('CurrentIndex', 0)}:{item.get('PrevIndex', 0)}")
+        return '|'.join(fp_parts)
+
     last_ping = time.time()
     try:
+        # Send snapshot immediately on connect so client doesn't wait for first change
+        initial = _build_indices_payload()
+        ws.send(json.dumps(initial, ensure_ascii=False))
+        last_fingerprint = _build_fingerprint(initial)
+
         while True:
             payload = _build_indices_payload()
-            data = payload.get('data', {})
-            src = payload.get('source', 'EMPTY')
-
-            fp_parts = [src]
-            for key in ('1', '2', '9', '11'):
-                item = data.get(key, {})
-                fp_parts.append(f"{key}:{item.get('CurrentIndex', 0)}:{item.get('PrevIndex', 0)}")
-            fingerprint = '|'.join(fp_parts)
+            fingerprint = _build_fingerprint(payload)
 
             now = time.time()
             if fingerprint != last_fingerprint:
