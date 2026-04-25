@@ -402,6 +402,12 @@ function normalizeToRows(payload: unknown): FlatRow[] {
     }
     if (isObjectRecord(payload)) {
         const obj = payload as Record<string, unknown>;
+        if (Array.isArray(obj.data)) {
+            return (obj.data as unknown[]).map((item, idx) => {
+                if (isObjectRecord(item)) return flattenObject(item);
+                return { value: valueToString(item), index: idx };
+            });
+        }
         // Look for main array key
         const arrayKey = DATE_FIELD_CANDIDATES
             .map(c => Object.keys(obj).find(k => k.toLowerCase() === c.toLowerCase()))
@@ -750,8 +756,8 @@ function StockTab() {
     };
 
     const statsBySectorEndpoint = selectedIcbL3
-        ? `/api/stock/stats-financial?icb_l3=${encodeURIComponent(selectedIcbL3)}`
-        : '/api/stock/stats-financial';
+        ? `/api/stock/stats-financial?icb_l3=${encodeURIComponent(selectedIcbL3)}&cache=no-store`
+        : '/api/stock/stats-financial?cache=no-store';
     const statsBySectorSlug = selectedIcbL3 ? slugifyForFilename(selectedIcbL3) : 'all';
 
     return (

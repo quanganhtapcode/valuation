@@ -121,7 +121,18 @@ def register(stock_bp: Blueprint) -> None:
             with sqlite3.connect(stats_db) as conn:
                 conn.row_factory = sqlite3.Row
                 row = conn.execute(
-                    "SELECT * FROM stats_financial WHERE UPPER(ticker) = ? LIMIT 1",
+                    """
+                    SELECT
+                        ticker, pe, pb, ps, price_to_cash_flow, ev_to_ebitda,
+                        roe, roa, gross_margin, pre_tax_margin, after_tax_margin,
+                        net_interest_margin, cir, car, casa_ratio, npl, ldr,
+                        loans_growth, deposit_growth, debt_to_equity, financial_leverage,
+                        current_ratio, quick_ratio, cash_ratio, asset_turnover,
+                        market_cap, shares, period_date, fetched_at
+                    FROM stats_financial
+                    WHERE UPPER(ticker) = ?
+                    LIMIT 1
+                    """,
                     (clean_symbol.upper(),),
                 ).fetchone()
 
@@ -162,67 +173,36 @@ def register(stock_bp: Blueprint) -> None:
         """Return stats_financial rows, optionally filtered by ICB level-3 sector."""
         try:
             icb_l3 = (request.args.get("icb_l3") or "").strip()
+            include_raw = (request.args.get("include_raw") or "").strip().lower() in {"1", "true", "yes"}
 
             company_db = resolve_vci_company_db_path()
             stats_db = resolve_vci_stats_financial_db_path()
 
-            with sqlite3.connect(company_db) as conn:
-                conn.row_factory = sqlite3.Row
-                if icb_l3:
-                    company_rows = conn.execute(
-                        """
-                        SELECT UPPER(ticker) AS ticker, organ_name, icb_name1, icb_name2, icb_name3, icb_name4
-                        FROM companies
-                        WHERE icb_name3 = ?
-                        """,
-                        (icb_l3,),
-                    ).fetchall()
-                else:
-                    company_rows = conn.execute(
-                        """
-                        SELECT UPPER(ticker) AS ticker, organ_name, icb_name1, icb_name2, icb_name3, icb_name4
-                        FROM companies
-                        """
-                    ).fetchall()
-
-            company_map = {
-                r["ticker"]: {
-                    "company_name": r["organ_name"],
-                    "icb_name1": r["icb_name1"],
-                    "icb_name2": r["icb_name2"],
-                    "icb_name3": r["icb_name3"],
-                    "icb_name4": r["icb_name4"],
-                }
-                for r in company_rows
-            }
-
-            tickers = list(company_map.keys()) if icb_l3 else None
-            if icb_l3 and not tickers:
-                return jsonify({"success": True, "count": 0, "icb_l3": icb_l3, "data": []})
-
             with sqlite3.connect(stats_db) as conn:
                 conn.row_factory = sqlite3.Row
-                if tickers:
-                    placeholders = ",".join(["?"] * len(tickers))
-                    stats_rows = conn.execute(
-                        f"""
-                        SELECT * FROM stats_financial
-                        WHERE UPPER(ticker) IN ({placeholders})
-                        ORDER BY ticker
-                        """,
-                        tickers,
-                    ).fetchall()
-                else:
-                    stats_rows = conn.execute(
-                        "SELECT * FROM stats_financial ORDER BY ticker"
-                    ).fetchall()
+                conn.execute(f"ATTACH DATABASE '{company_db}' AS cmp")
+                raw_col = ", s.raw_json" if include_raw else ""
+                stats_rows = conn.execute(
+                    f"""
+                    SELECT
+                        s.ticker, s.pe, s.pb, s.ps, s.price_to_cash_flow, s.ev_to_ebitda,
+                        s.roe, s.roa, s.gross_margin, s.pre_tax_margin, s.after_tax_margin,
+                        s.net_interest_margin, s.cir, s.car, s.casa_ratio, s.npl, s.ldr,
+                        s.loans_growth, s.deposit_growth, s.debt_to_equity, s.financial_leverage,
+                        s.current_ratio, s.quick_ratio, s.cash_ratio, s.asset_turnover,
+                        s.market_cap, s.shares, s.period_date, s.fetched_at,
+                        c.organ_name AS company_name, c.icb_name1, c.icb_name2, c.icb_name3, c.icb_name4
+                        {raw_col}
+                    FROM stats_financial s
+                    LEFT JOIN cmp.companies c ON UPPER(c.ticker) = UPPER(s.ticker)
+                    WHERE (? = '' OR TRIM(COALESCE(c.icb_name3, '')) = TRIM(?))
+                    ORDER BY s.ticker
+                    """,
+                    (icb_l3, icb_l3),
+                ).fetchall()
+                conn.execute("DETACH DATABASE cmp")
 
-            data = []
-            for row in stats_rows:
-                item = dict(row)
-                meta = company_map.get((item.get("ticker") or "").upper(), {})
-                item.update(meta)
-                data.append(item)
+            data = [dict(row) for row in stats_rows]
 
             return jsonify({
                 "success": True,
