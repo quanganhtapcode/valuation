@@ -16,6 +16,7 @@ const WS_PATH = '/ws/market/ff-prices';
 class FFWSManager {
   private ws: WebSocket | null = null;
   private listeners = new Map<string, Set<Listener>>();
+  private cache = new Map<string, FFPrice>();
   private failedConnects = 0;
   private destroyed = false;
 
@@ -26,7 +27,6 @@ class FFWSManager {
       this.ws = new WebSocket(url);
       this.ws.onopen = () => {
         this.failedConnects = 0;
-        console.log('[FF] connected to VPS proxy');
       };
       this.ws.onmessage = (e) => this.onMessage(e);
       this.ws.onclose = () => {
@@ -57,6 +57,7 @@ class FFWSManager {
   }
 
   private emit(channel: string, price: FFPrice) {
+    this.cache.set(channel, price);
     const set = this.listeners.get(channel);
     if (set) for (const fn of set) fn(price);
   }
@@ -64,6 +65,11 @@ class FFWSManager {
   subscribe(channel: string, listener: Listener): () => void {
     if (!this.listeners.has(channel)) this.listeners.set(channel, new Set());
     this.listeners.get(channel)!.add(listener);
+
+    // Deliver cached price immediately so late subscribers don't wait for next update
+    const cached = this.cache.get(channel);
+    if (cached) listener(cached);
+
     return () => {
       const set = this.listeners.get(channel);
       if (!set) return;

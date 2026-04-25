@@ -242,13 +242,27 @@ def _run_ws() -> None:
         try:
             if curl_requests is not None:
                 with curl_requests.Session() as session:
-                    session.get("https://www.forexfactory.com", impersonate=FF_IMPERSONATE, timeout=20)
-                    ws = session.ws_connect(
-                        FF_WS_URL,
-                        headers=FF_HEADERS,
-                        impersonate=FF_IMPERSONATE,
-                        timeout=25,
-                    )
+                    # Try direct WS connect first (faster); fall back to HTTP warmup if rejected
+                    ws = None
+                    try:
+                        ws = session.ws_connect(
+                            FF_WS_URL,
+                            headers=FF_HEADERS,
+                            impersonate=FF_IMPERSONATE,
+                            timeout=15,
+                        )
+                    except Exception:
+                        # Warmup cookies then retry
+                        try:
+                            session.get("https://www.forexfactory.com", impersonate=FF_IMPERSONATE, timeout=15)
+                        except Exception:
+                            pass
+                        ws = session.ws_connect(
+                            FF_WS_URL,
+                            headers=FF_HEADERS,
+                            impersonate=FF_IMPERSONATE,
+                            timeout=15,
+                        )
                     on_open()
                     for ch in CHANNELS:
                         ws.send(json.dumps({"type": "subscribe", "channel": ch}))
