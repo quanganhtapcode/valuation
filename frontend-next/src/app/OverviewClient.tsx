@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import IndexCard from '@/components/IndexCard';
-import PEChart from '@/components/PEChart';
+import HeroIndexCard from '@/components/HeroIndexCard';
 import NewsSection from '@/components/NewsSection';
 
 import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard } from '@/components/Sidebar';
@@ -22,7 +21,6 @@ import {
     NewsItem,
     TopMoverItem,
     GoldPriceItem,
-    PEChartData
 } from '@/lib/api';
 import styles from './page.module.css';
 
@@ -57,7 +55,7 @@ interface OverviewClientProps {
     initialLosers: TopMoverItem[];
     initialGoldPrices: GoldPriceItem[];
     initialGoldUpdated?: string;
-    initialPEData: PEChartData[];
+    initialPEData: any[];
 }
 
 function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
@@ -79,28 +77,6 @@ function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
     return true;
 }
 
-function samePESeries(a: PEChartData[], b: PEChartData[]): boolean {
-    if (a === b) return true;
-    if (!a || !b || a.length !== b.length) return false;
-    if (a.length === 0) return true;
-
-    const getSig = (row: PEChartData) => [
-        row.date instanceof Date ? row.date.getTime() : new Date(row.date as any).getTime(),
-        Number(row.pe ?? 0),
-        Number(row.pb ?? 0),
-        Number(row.vnindex ?? 0),
-    ].join('|');
-
-    // Compare only edge samples to avoid O(n) deep compare on each refresh.
-    const headA = getSig(a[0]);
-    const headB = getSig(b[0]);
-    const tailA = getSig(a[a.length - 1]);
-    const tailB = getSig(b[b.length - 1]);
-    if (headA !== headB || tailA !== tailB) return false;
-
-    const mid = Math.floor(a.length / 2);
-    return getSig(a[mid]) === getSig(b[mid]);
-}
 
 export default function OverviewClient({
     initialIndices,
@@ -109,7 +85,6 @@ export default function OverviewClient({
     initialLosers,
     initialGoldPrices,
     initialGoldUpdated,
-    initialPEData
 }: OverviewClientProps) {
 
     // State for indices
@@ -119,7 +94,6 @@ export default function OverviewClient({
     const [news, setNews] = useState<NewsItem[]>(initialNews);
     const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
     const [newsError, setNewsError] = useState<string | null>(null);
-    const [livePEData, setLivePEData] = useState<PEChartData[]>(initialPEData);
     const [liveHeatmapData, setLiveHeatmapData] = useState<any>(null);
     const [watchlistPrices, setWatchlistPrices] = useState<Record<string, { price: number; changePercent: number }>>({});
 
@@ -207,7 +181,6 @@ export default function OverviewClient({
             });
 
             setNews(snapshot.news);
-            setLivePEData((prev) => (samePESeries(prev, snapshot.peData) ? prev : snapshot.peData));
             setLiveHeatmapData(snapshot.heatmap);
 
             const nextPrices: Record<string, { price: number; changePercent: number }> = {};
@@ -342,42 +315,31 @@ export default function OverviewClient({
                 {/* Left Column - Main Content */}
                 <div className={styles.leftColumn}>
 
-                    {/* Indices Grid - 2x2 layout, no title */}
-                    <div className={styles.indicesGrid}>
-                        {/* Always render 4 cards — skeleton shows immediately, data fills in */}
-                        {PLACEHOLDER_INDICES.map((placeholder) => {
+                    {/* Hero Index Card with sub-bar switcher */}
+                    <HeroIndexCard
+                        indices={PLACEHOLDER_INDICES.map((placeholder) => {
                             const data = indices.find(d => d.id === placeholder.id);
-                            return (
-                                <IndexCard
-                                    key={placeholder.id}
-                                    id={placeholder.id}
-                                    name={placeholder.name}
-                                    value={data?.value ?? 0}
-                                    change={data?.change ?? 0}
-                                    percentChange={data?.percentChange ?? 0}
-                                    chartData={data?.chartData ?? []}
-                                    advances={data?.advances ?? 0}
-                                    declines={data?.declines ?? 0}
-                                    noChanges={data?.noChanges ?? 0}
-                                    ceilings={data?.ceilings ?? 0}
-                                    floors={data?.floors ?? 0}
-                                    totalShares={data?.totalShares ?? 0}
-                                    totalValue={data?.totalValue ?? 0}
-                                    isLoading={!data}
-                                />
-                            );
+                            return {
+                                id: placeholder.id,
+                                name: placeholder.name,
+                                value: data?.value ?? 0,
+                                change: data?.change ?? 0,
+                                percentChange: data?.percentChange ?? 0,
+                                advances: data?.advances,
+                                declines: data?.declines,
+                                noChanges: data?.noChanges,
+                                ceilings: data?.ceilings,
+                                floors: data?.floors,
+                                totalShares: data?.totalShares,
+                                totalValue: data?.totalValue,
+                            };
                         })}
-                    </div>
+                    />
 
 
 
                     {/* VN30 Heatmap */}
                     <HeatmapVN30 externalData={liveHeatmapData} useExternalOnly />
-
-                    {/* P/E Chart */}
-                    <div className="order-1">
-                        <PEChart initialData={initialPEData} externalData={livePEData} useExternalOnly />
-                    </div>
 
                     {/* News Section */}
                     <div className="order-2">
