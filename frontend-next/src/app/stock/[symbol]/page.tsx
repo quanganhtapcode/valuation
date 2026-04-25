@@ -378,19 +378,31 @@ export default function StockDetailPage() {
                 const changePercent = refPrice > 0 ? (change / refPrice) * 100 : 0;
 
                 setPriceData(prev => {
-                    if (!prev) return prev;
+                    const obFormatted = ob ? {
+                        bid: (ob.bid || []).slice(0, 3).map((b: any) => ({ price: b?.price || 0, volume: b?.volume || 0 })),
+                        ask: (ob.ask || []).slice(0, 3).map((a: any) => ({ price: a?.price || 0, volume: a?.volume || 0 })),
+                    } : undefined;
+
+                    if (!prev) {
+                        // Bootstrap from WS snapshot before HTTP fetch completes
+                        if (curPrice <= 0 && refPrice <= 0) return prev;
+                        return {
+                            price: curPrice,
+                            change,
+                            changePercent,
+                            open: 0, high: 0, low: 0,
+                            volume: vo ?? 0,
+                            value: 0, ceiling: 0, floor: 0,
+                            ref: refPrice,
+                            ...(obFormatted && { orderbook: obFormatted }),
+                        };
+                    }
                     return {
                         ...prev,
                         ...(curPrice > 0 && { price: curPrice }),
                         ...(refPrice > 0 && { ref: refPrice }),
                         ...(vo != null && { volume: vo }),
-                        ...(ob && {
-                            orderbook: {
-                                bid: (ob.bid || []).slice(0, 3).map((b: any) => ({ price: b?.price || 0, volume: b?.volume || 0 })),
-                                ask: (ob.ask || []).slice(0, 3).map((a: any) => ({ price: a?.price || 0, volume: a?.volume || 0 })),
-                            },
-                        }),
-                        // Recompute change from ref
+                        ...(obFormatted && { orderbook: obFormatted }),
                         ...(change !== 0 && { change }),
                         ...(changePercent !== 0 && { changePercent }),
                     };
