@@ -96,12 +96,10 @@ export default function CryptoPrices() {
                 window.clearTimeout(reconnectTimer.current);
                 reconnectTimer.current = null;
             }
-            if (wsRef.current) {
-                try {
-                    wsRef.current.close();
-                } catch {
-                    // ignore
-                }
+            const ws = wsRef.current;
+            if (ws) {
+                ws.onopen = ws.onclose = ws.onerror = ws.onmessage = null;
+                try { ws.close(); } catch {}
                 wsRef.current = null;
             }
         }

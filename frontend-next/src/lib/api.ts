@@ -542,7 +542,11 @@ export function subscribeIndicesStream(options: {
     return () => {
         destroyed = true;
         if (retryTimer) clearTimeout(retryTimer);
-        try { ws?.close(); } catch {}
+        if (ws) {
+            ws.onopen = ws.onclose = ws.onerror = ws.onmessage = null;
+            try { ws.close(); } catch {}
+            ws = null;
+        }
     };
 }
 
@@ -609,7 +613,11 @@ export function subscribePricesStream(options: {
     return () => {
         destroyed = true;
         if (retryTimer) clearTimeout(retryTimer);
-        try { ws?.close(); } catch {}
+        if (ws) {
+            ws.onopen = ws.onclose = ws.onerror = ws.onmessage = null;
+            try { ws.close(); } catch {}
+            ws = null;
+        }
     };
 }
 
