@@ -81,7 +81,7 @@ _SUMMARY_FIELDS = [
     # Valuation
     "pe", "pb", "ps", "pcf_ratio", "eps", "dividend_yield",
     # Quality
-    "roe", "roa", "net_profit_margin", "gross_margin", "pre_tax_margin",
+    "roe", "roa", "net_profit_margin", "after_tax_margin", "net_margin", "gross_margin", "pre_tax_margin",
     # Growth
     "profit_growth", "revenue_growth",
     # Leverage

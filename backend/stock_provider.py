@@ -247,9 +247,9 @@ class StockDataProvider:
         """Fetch stock data from VCI SQLite databases (replaces stocks_optimized.db).
         
         Data sources:
-        - vci_company.sqlite        → name, sector, exchange, logo
-        - vci_screening.sqlite      → price, market cap, price change
-        - vci_stats_financial.sqlite → PE, PB, ROE, ROA, banking KPIs
+        - vci_company.sqlite         → name, sector, exchange, logo (primary identity)
+        - vci_stats_financial.sqlite → PE, PB, ROE, ROA, banking KPIs (primary metrics)
+        - vci_screening.sqlite       → snapshot fallback for missing market fields
         - vci_stats_financial.sqlite (history) → ratio chart series
         - vci_financials.sqlite     → income statement, balance sheet, cash flow
         - price_history.sqlite      → OHLCV
@@ -270,10 +270,10 @@ class StockDataProvider:
                     'isbank': company.get('isbank', False),
                 })
 
-            # 2. Overview data (screening + stats_financial) - DON'T override sector if company has it
+            # 2. Overview data (stats/company primary, screening fallback)
             overview = self.vci.get_overview_data(symbol)
             if overview:
-                # Update price/market data from screening
+                # Snapshot market fields (screening only when primary sources are missing)
                 for key in ['current_price', 'ref_price', 'ceiling', 'floor_price', 'market_cap',
                             'price_change_pct', 'accumulated_volume', 'accumulated_value']:
                     if overview.get(key) is not None:
@@ -284,6 +284,10 @@ class StockDataProvider:
                             'debt_to_equity', 'nim', 'car', 'casa', 'npl', 'ldr', 'cir']:
                     if overview.get(key) is not None:
                         data[key] = overview[key]
+                # Keep margin aliases in sync for downstream summary builders/frontend.
+                if overview.get('net_margin') is not None:
+                    data['after_tax_margin'] = overview['net_margin']
+                    data['net_profit_margin'] = overview['net_margin']
                 # Only use sector from overview if company didn't provide it
                 if not data.get('sector') and overview.get('sector'):
                     data['sector'] = overview['sector']
@@ -374,7 +378,7 @@ class StockDataProvider:
             try:
                 import json
                 from pathlib import Path
-                profile_path = Path(__file__).resolve().parents[1] / "company_profile_export.json"
+                profile_path = Path(__file__).resolve().parents[1] / "exports" / "company_profile_export.json"
                 if profile_path.exists():
                     with open(profile_path, "r", encoding="utf-8") as f:
                         profiles = json.load(f)

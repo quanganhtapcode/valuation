@@ -66,6 +66,7 @@ export function Navbar() {
             items: [
                 { label: t.company, href: "/stock/VCB", icon: RiBuilding2Line, desc: t.companyDesc },
                 { label: t.screener, href: "/screener", icon: RiFilterLine, desc: t.screenerDesc },
+                { label: t.news, href: "https://stock.quanganh.org/news", icon: RiCalendarEventLine, desc: t.newsDesc },
             ],
         },
     ]

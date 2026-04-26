@@ -296,36 +296,17 @@ class VCIDataAccess:
 
     # ── Combined overview (replaces old 'overview' table) ───────────────
     def get_overview_data(self, symbol: str) -> dict:
-        """Combined overview: screening + stats_financial + company info.
-        
-        Replaces: SELECT * FROM overview WHERE symbol = ?
+        """Combined overview with stats/company as primary and screening as fallback.
+
+        Primary for stock-detail:
+        - vci_stats_financial.sqlite: ratios, shares/market_cap
+        - vci_company.sqlite: identity/sector/exchange
+        Fallback:
+        - vci_screening.sqlite: snapshot market fields if missing
         """
         result: dict = {"symbol": symbol}
 
-        # 1. Screening data (price, market cap, sector)
-        screen_db = resolve_vci_screening_db_path()
-        with _connect(screen_db) as conn:
-            if conn is not None:
-                row = conn.execute(
-                    "SELECT * FROM screening_data WHERE ticker = ?", (symbol,)
-                ).fetchone()
-                if row:
-                    d = dict(row)
-                    result.update({
-                        "exchange": d.get("exchange"),
-                        "current_price": d.get("marketPrice"),
-                        "ref_price": d.get("refPrice"),
-                        "ceiling": d.get("ceiling"),
-                        "floor": d.get("floor"),
-                        "market_cap": d.get("marketCap"),
-                        "price_change_pct": d.get("dailyPriceChangePercent"),
-                        "accumulated_volume": d.get("accumulatedVolume"),
-                        "accumulated_value": d.get("accumulatedValue"),
-                        "sector": d.get("enSector") or d.get("viSector"),
-                        "icb_code": d.get("icbCodeLv3") or d.get("icbCodeLv2"),
-                    })
-
-        # 2. Stats financial (PE, PB, ROE, etc.)
+        # 1. Stats financial (PE, PB, ROE, etc.) as primary metrics source
         stats_db = resolve_vci_stats_financial_db_path()
         with _connect(stats_db) as conn:
             if conn is not None:
@@ -357,7 +338,7 @@ class VCIDataAccess:
                         "cir": abs(d.get("cir")) if d.get("cir") is not None else None,
                     })
 
-        # 3. Company info (name, sector detail)
+        # 2. Company info (name, sector detail) as primary identity source
         company = self.get_company_info(symbol)
         if company:
             # Company info has better sector data (icb_name3/4) - use it for sector
@@ -372,5 +353,32 @@ class VCIDataAccess:
                 'logo_url': company.get('logo_url'),
                 'isbank': company.get('isbank'),
             })
+
+        # 3. Screening snapshot fallback (only fill missing fields)
+        screen_db = resolve_vci_screening_db_path()
+        with _connect(screen_db) as conn:
+            if conn is not None:
+                row = conn.execute(
+                    "SELECT * FROM screening_data WHERE ticker = ?", (symbol,)
+                ).fetchone()
+                if row:
+                    d = dict(row)
+                    snapshot = {
+                        "exchange": d.get("exchange"),
+                        "current_price": d.get("marketPrice"),
+                        "ref_price": d.get("refPrice"),
+                        "ceiling": d.get("ceiling"),
+                        "floor": d.get("floor"),
+                        "floor_price": d.get("floor"),
+                        "market_cap": d.get("marketCap"),
+                        "price_change_pct": d.get("dailyPriceChangePercent"),
+                        "accumulated_volume": d.get("accumulatedVolume"),
+                        "accumulated_value": d.get("accumulatedValue"),
+                        "sector": d.get("enSector") or d.get("viSector"),
+                        "icb_code": d.get("icbCodeLv3") or d.get("icbCodeLv2"),
+                    }
+                    for key, value in snapshot.items():
+                        if result.get(key) is None and value is not None:
+                            result[key] = value
 
         return result
