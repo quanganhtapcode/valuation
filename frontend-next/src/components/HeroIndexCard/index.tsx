@@ -165,6 +165,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const [vnLoad,   setVnLoad]   = useState(false);
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
+    const idxCache = useRef<Map<string, SimpleBar[]>>(new Map());
 
     // ── Chart refs ────────────────────────────────────────────────────────────
     const wrapRef   = useRef<HTMLDivElement>(null);
@@ -196,22 +197,26 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         if (isVN) return;
         const info = Object.values(INDEX_MAP).find(i => i.id === selectedId);
         if (!info) return;
+
+        const cached = idxCache.current.get(selectedId);
+        if (cached) { setIdxBars(cached); return; }
+
         setIdxLoad(true);
         setIdxBars([]);
         fetch(`${API_BASE}/market/index-history?index=${info.vciSymbol}&days=2500`)
             .then(r => r.json())
             .then((rows: any[]) => {
                 if (!Array.isArray(rows)) return;
-                setIdxBars(
-                    rows
-                        .filter(r => r.tradingDate && r.closeIndex)
-                        .map(r => ({
-                            date:   String(r.tradingDate).slice(0, 10),
-                            close:  Number(r.closeIndex),
-                            volume: Number(r.totalVolume || r.totalMatchVolume || 0),
-                        }))
-                        .sort((a, b) => a.date.localeCompare(b.date)),
-                );
+                const bars = rows
+                    .filter(r => r.tradingDate && r.closeIndex)
+                    .map(r => ({
+                        date:   String(r.tradingDate).slice(0, 10),
+                        close:  Number(r.closeIndex),
+                        volume: Number(r.totalVolume || r.totalMatchVolume || 0),
+                    }))
+                    .sort((a, b) => a.date.localeCompare(b.date));
+                idxCache.current.set(selectedId, bars);
+                setIdxBars(bars);
             })
             .catch(console.error)
             .finally(() => setIdxLoad(false));
