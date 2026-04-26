@@ -10,8 +10,6 @@ const ITEMS = [
     { channel: 'USD/JPY', label: 'USD/JPY', fmt: (p: number) => p.toFixed(2) },
     { channel: 'AUD/USD', label: 'AUD/USD', fmt: (p: number) => p.toFixed(4) },
     { channel: 'USD/CHF', label: 'USD/CHF', fmt: (p: number) => p.toFixed(4) },
-    { channel: 'USD/CAD', label: 'USD/CAD', fmt: (p: number) => p.toFixed(4) },
-    { channel: 'NZD/USD', label: 'NZD/USD', fmt: (p: number) => p.toFixed(4) },
 ];
 
 export default function FFForexRates() {

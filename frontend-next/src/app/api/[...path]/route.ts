@@ -47,6 +47,7 @@ const MEDIUM_CACHE_PATH_PREFIXES = [
     'app-data/',
     'market/pe-chart',
     'market/lottery',
+    'market/index-history',
 ];
 
 const LONG_CACHE_PATH_PREFIXES = [
