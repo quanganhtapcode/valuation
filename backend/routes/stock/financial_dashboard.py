@@ -337,11 +337,11 @@ def register(stock_bp: Blueprint) -> None:
 
         try:
             provider = get_provider()
-            if not hasattr(provider, "db") or provider.db is None:
-                return jsonify({"success": True, "data": {"series": [], "waterfall": None, "position": None}})
-
-            income_rows = provider.db.get_financial_statement(symbol, "income", period) or []
-            balance_rows = provider.db.get_financial_statement(symbol, "balance", period) or []
+            income_rows = provider.vci.get_financial_statement(symbol, "income", limit=limit * 4) or []
+            balance_rows = provider.vci.get_financial_statement(symbol, "balance", limit=limit * 4) or []
+            # VCI format uses year_report/quarter_report as period keys and flat field codes as data
+            income_rows = [{"year": r.get("year_report"), "quarter": r.get("quarter_report") or 0, "data": r} for r in income_rows]
+            balance_rows = [{"year": r.get("year_report"), "quarter": r.get("quarter_report") or 0, "data": r} for r in balance_rows]
 
             income_map = {
                 (int(item["year"]), int(item.get("quarter") or 0)): _parse_income_statement(item.get("data") or {})

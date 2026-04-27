@@ -26,7 +26,6 @@ from pathlib import Path
 from flask import Blueprint, jsonify, request
 
 from backend.db_path import (
-    resolve_stocks_db_path,
     resolve_vci_company_db_path,
     resolve_vci_financial_statement_db_path,
     resolve_vci_screening_db_path,
@@ -610,66 +609,20 @@ def register(stock_bp: Blueprint) -> None:
     # ------------------------------------------------------------------ #
     @stock_bp.route("/db/stats")
     def api_db_stats():
-        """Return high-level statistics about the local SQLite database."""
+        """Return high-level statistics about VCI SQLite sources."""
         cache_key = "db_stats"
         cached = _cache_get(cache_key)
         if cached:
             return jsonify(cached)
 
-        db_path = resolve_stocks_db_path()
-        if not db_path or not os.path.exists(db_path):
-            return jsonify({"error": "Database not found"}), 503
-
         try:
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            cur = conn.cursor()
-
-            stats: dict = {"db_path": os.path.basename(db_path)}
-
-            # File size
-            stats["db_size_mb"] = round(os.path.getsize(db_path) / 1_048_576, 2)
-
-            # Table row-counts for key tables
-            for tbl in (
-                "stocks",
-                "financial_ratios",
-                "income_statement",
-                "balance_sheet",
-                "cash_flow_statement",
-                "overview",
-                "news",
-            ):
-                try:
-                    cur.execute(
-                        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tbl,)
-                    )
-                    if cur.fetchone():
-                        cnt = cur.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
-                        stats[f"{tbl}_count"] = cnt
-                except Exception:
-                    pass
-
-            # Distinct symbols with financial data
-            try:
-                cur.execute(
-                    "SELECT COUNT(DISTINCT symbol) FROM financial_ratios"
-                )
-                row = cur.fetchone()
-                stats["symbols_with_ratios"] = row[0] if row else 0
-            except Exception:
-                pass
-
-            # Latest update timestamp
-            try:
-                row = cur.execute(
-                    "SELECT MAX(updated_at) FROM stocks"
-                ).fetchone()
-                stats["latest_stock_update"] = row[0] if row else None
-            except Exception:
-                pass
-
-            conn.close()
+            screening_path = resolve_vci_screening_db_path()
+            stats: dict = {}
+            with sqlite3.connect(screening_path) as conn:
+                row = conn.execute("SELECT COUNT(DISTINCT ticker) FROM screening_data").fetchone()
+                stats["symbols_count"] = row[0] if row else 0
+                row = conn.execute("SELECT MAX(fetched_at) FROM screening_data").fetchone()
+                stats["screening_updated_at"] = row[0] if row else None
             stats["generated_at"] = datetime.utcnow().isoformat() + "Z"
             _cache_set(cache_key, stats)
             return jsonify(stats)
@@ -682,88 +635,35 @@ def register(stock_bp: Blueprint) -> None:
     # ------------------------------------------------------------------ #
     @stock_bp.route("/stock/<symbol>/freshness")
     def api_stock_freshness(symbol: str):
-        """
-        Return data-freshness metadata for a symbol:
-        when was price / financial data / news last updated in the local DB.
-        """
+        """Return data-freshness metadata for a symbol from VCI sources."""
         is_valid, clean_symbol = validate_stock_symbol(symbol)
         if not is_valid:
             return jsonify({"error": clean_symbol}), 400
 
-        db_path = resolve_stocks_db_path()
-        if not db_path or not os.path.exists(db_path):
-            return jsonify({"symbol": clean_symbol, "fresh": False, "error": "DB not found"}), 503
-
         try:
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            cur = conn.cursor()
-
+            from backend.db_path import resolve_price_history_db_path, resolve_vci_stats_financial_db_path
             freshness: dict = {"symbol": clean_symbol}
 
-            # Stock record update
             try:
-                row = cur.execute(
-                    "SELECT updated_at FROM stocks WHERE ticker = ? LIMIT 1",
-                    (clean_symbol,),
-                ).fetchone()
-                freshness["stock_updated_at"] = row["updated_at"] if row else None
+                with sqlite3.connect(resolve_price_history_db_path()) as conn:
+                    row = conn.execute(
+                        "SELECT MAX(time) FROM stock_price_history WHERE symbol = ?",
+                        (clean_symbol,),
+                    ).fetchone()
+                    freshness["price_latest_date"] = row[0] if row else None
             except Exception:
                 pass
 
-            # Latest financial ratio year/quarter
             try:
-                row = cur.execute(
-                    """
-                    SELECT year, quarter, updated_at
-                    FROM financial_ratios
-                    WHERE symbol = ?
-                    ORDER BY year DESC, quarter DESC NULLS LAST
-                    LIMIT 1
-                    """,
-                    (clean_symbol,),
-                ).fetchone()
-                if row:
-                    freshness["ratios_year"] = row["year"]
-                    freshness["ratios_quarter"] = row["quarter"]
-                    freshness["ratios_updated_at"] = row["updated_at"]
+                with sqlite3.connect(resolve_vci_stats_financial_db_path()) as conn:
+                    row = conn.execute(
+                        "SELECT fetched_at FROM stats_financial WHERE ticker = ? LIMIT 1",
+                        (clean_symbol,),
+                    ).fetchone()
+                    freshness["ratios_updated_at"] = row[0] if row else None
             except Exception:
                 pass
 
-            # Latest income statement
-            try:
-                row = cur.execute(
-                    """
-                    SELECT year, quarter, updated_at
-                    FROM income_statement
-                    WHERE symbol = ?
-                    ORDER BY year DESC, quarter DESC NULLS LAST
-                    LIMIT 1
-                    """,
-                    (clean_symbol,),
-                ).fetchone()
-                if row:
-                    freshness["income_year"] = row["year"]
-                    freshness["income_quarter"] = row["quarter"]
-                    freshness["income_updated_at"] = row["updated_at"]
-            except Exception:
-                pass
-
-            # Latest news
-            try:
-                row = cur.execute(
-                    """
-                    SELECT MAX(published_at) as latest
-                    FROM news
-                    WHERE symbol = ?
-                    """,
-                    (clean_symbol,),
-                ).fetchone()
-                freshness["news_latest_at"] = row["latest"] if row else None
-            except Exception:
-                pass
-
-            conn.close()
             freshness["checked_at"] = datetime.utcnow().isoformat() + "Z"
             return jsonify(freshness)
         except Exception as exc:

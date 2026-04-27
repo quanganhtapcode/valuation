@@ -24,7 +24,7 @@
 | `vci_stats_financial.sqlite` | `fetch_vci_stats_financial.py` | `stats_financial`, `stats_financial_history`, `meta` | TTM ratios, shares, market cap, banking KPIs | hourly |
 | `vci_ratio_daily.sqlite` | `fetch_vci_ratio_daily.py` | `ratio_daily`, `meta` | Highest-priority daily PE/PB | daily 13:35 |
 | `vci_shareholders.sqlite` | `fetch_vci_shareholders.py` | `shareholders`, `meta` | Shareholders by ticker | daily 13:10 |
-| `vci_ai_news.sqlite` | `fetch_vci_news.py` | `news_items`, `news_meta` | Prefetched market/AI news cache | every 10 min |
+| `vci_market_news.sqlite` | `fetch_vci_market_news.py` | `news_items`, `news_meta` | Prefetched market/AI news cache | every 10 min |
 | `vci_news_events.sqlite` | `backend/updater/batch_news.py` | `items`, `fetch_meta` | Per-symbol news, events and dividend tabs | batch/incremental |
 | `vci_foreign.sqlite` | `fetch_vci_foreign.py` | `foreign_net_snapshot`, `foreign_volume_minute` | Foreign trading flow | every 2 min in market hours |
 | `vci_valuation.sqlite` | `fetch_vci_valuation.py` | `valuation_history`, `valuation_stats`, `ema_breadth_history`, `meta` | VNINDEX PE/PB chart, valuation bands, EMA breadth | daily 18:30 |
@@ -55,7 +55,7 @@ Prefer the specific env var for the DB being read:
 | `VCI_STATS_FINANCIAL_DB_PATH` | `fetch_sqlite/vci_stats_financial.sqlite` |
 | `VCI_RATIO_DAILY_DB_PATH` | `fetch_sqlite/vci_ratio_daily.sqlite` |
 | `VCI_SHAREHOLDERS_DB_PATH` | `fetch_sqlite/vci_shareholders.sqlite` |
-| `VCI_NEWS_DB_PATH` | `fetch_sqlite/vci_ai_news.sqlite` |
+| `VCI_MARKET_NEWS_DB_PATH` | `fetch_sqlite/vci_market_news.sqlite` |
 | `VCI_NEWS_EVENTS_DB_PATH` | `fetch_sqlite/vci_news_events.sqlite` |
 | `VCI_VALUATION_DB_PATH` | `fetch_sqlite/vci_valuation.sqlite` |
 | `INDEX_HISTORY_DB_PATH` | `fetch_sqlite/index_history.sqlite` |
@@ -126,7 +126,7 @@ Used for market-wide pages, peer grouping and fallback valuation inputs.
 
 This is the highest-priority PE/PB source.
 
-### `vci_ai_news.sqlite`
+### `vci_market_news.sqlite`
 
 | Table | Notes |
 |---|---|
@@ -180,7 +180,7 @@ snake/lower-case fields.
 |---|---|---|
 | `*/7 * * * *` | `fetch_vci_screener.py` | `vci_screening.sqlite` |
 | `5 * * * *` | `fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` |
-| `*/10 * * * *` | `fetch_vci_news.py` | `vci_ai_news.sqlite` |
+| `*/10 * * * *` | `fetch_vci_market_news.py` | `vci_market_news.sqlite` |
 | `30 11 * * *` | `PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history` | `fetch_sqlite/price_history.sqlite` |
 | `10 13 * * *` | `fetch_vci_shareholders.py` | `vci_shareholders.sqlite` |
 | `35 13 * * *` | `fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` |
@@ -195,7 +195,7 @@ sqlite3 /var/www/valuation/fetch_sqlite/vci_company.sqlite "SELECT COUNT(*) FROM
 sqlite3 /var/www/valuation/fetch_sqlite/vci_screening.sqlite "SELECT COUNT(*) FROM screening_data;"
 sqlite3 /var/www/valuation/fetch_sqlite/vci_stats_financial.sqlite "SELECT COUNT(*) FROM stats_financial;"
 sqlite3 /var/www/valuation/fetch_sqlite/vci_ratio_daily.sqlite "SELECT COUNT(*) FROM ratio_daily;"
-sqlite3 /var/www/valuation/fetch_sqlite/vci_ai_news.sqlite "SELECT key, value FROM news_meta;"
+sqlite3 /var/www/valuation/fetch_sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta;"
 sqlite3 /var/www/valuation/fetch_sqlite/price_history.sqlite "SELECT COUNT(*) FROM stock_price_history;"
 ```
 
@@ -207,7 +207,7 @@ rg -n "stocks_optimized|stocks_optimized\\.new|vietnam_stocks|STOCKS_DB_PATH|VIE
 
 ## Maintenance
 
-- Use `--prune-days` for `vci_ai_news.sqlite` to keep the news cache bounded.
+- Use `--prune-days` for `vci_market_news.sqlite` to keep the news cache bounded.
 - Vacuum large DBs during quiet hours after major deletes.
 - For full rebuilds, write to a temp DB in `fetch_sqlite/`, validate it, then
   atomically move it into place.

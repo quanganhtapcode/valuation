@@ -7,8 +7,10 @@ Type=simple
 User=root
 WorkingDirectory=/var/www/valuation
 Environment="PYTHONUNBUFFERED=1"
+Environment="EXCEL_DOWNLOAD_WORKERS=5"
+Environment="EXCEL_UPLOAD_WORKERS=5"
 EnvironmentFile=/var/www/valuation/.env
-ExecStart=/var/www/valuation/.venv/bin/python3 /var/www/valuation/update_excel_data.py --listen
+ExecStart=/var/www/valuation/.venv/bin/python3 /var/www/valuation/automation/update_excel_data.py --listen
 Restart=always
 RestartSec=10
 StandardOutput=journal

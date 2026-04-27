@@ -222,44 +222,10 @@ def register(stock_bp: Blueprint) -> None:
             ticker_file = os.path.join(root_dir, "frontend-next", "public", "ticker_data.json")
             if not os.path.exists(ticker_file):
                 ticker_file = os.path.join(root_dir, "frontend", "ticker_data.json")
-
-            if os.path.exists(ticker_file):
-                with open(ticker_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return jsonify(data)
-
-            provider = get_provider()
-            conn = provider.db._get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT symbol, name, industry, exchange
-                FROM company
-                ORDER BY symbol
-                """
-            )
-            rows = cursor.fetchall()
-            conn.close()
-
-            tickers = [
-                {
-                    "symbol": row[0],
-                    "name": row[1] or row[0],
-                    "sector": row[2] or "Unknown",
-                    "exchange": row[3] or "Unknown",
-                }
-                for row in rows
-            ]
-
-            from datetime import datetime
-
-            return jsonify(
-                {
-                    "last_updated": datetime.now().isoformat(),
-                    "count": len(tickers),
-                    "tickers": tickers,
-                    "source": "database",
-                }
-            )
+            if not os.path.exists(ticker_file):
+                return jsonify({"error": "ticker_data.json not found"}), 503
+            with open(ticker_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return jsonify(data)
         except Exception as e:
             return jsonify({"error": str(e)}), 500

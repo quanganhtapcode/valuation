@@ -16,46 +16,6 @@ def _project_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def resolve_stocks_db_path(explicit_path: Optional[str] = None) -> str:
-    """Return an absolute path to the SQLite DB file.
-
-    Precedence:
-    1) explicit_path argument
-    2) env STOCKS_DB_PATH
-    3) stocks_optimized.new.db / stocks_optimized.db in project root
-    4) default to <project_root>/stocks_optimized.db (even if missing)
-    """
-
-    candidates: list[Path] = []
-
-    if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
-
-    env_path = os.getenv("STOCKS_DB_PATH")
-    if env_path:
-        candidates.append(Path(env_path).expanduser())
-
-    root = _project_root()
-    candidates.append(root / "stocks_optimized.new.db")
-    candidates.append(root / "stocks_optimized.db")
-
-    for path in candidates:
-        try:
-            path = path.resolve()
-        except Exception:
-            pass
-        if path.exists():
-            return str(path)
-
-    return str((root / "stocks_optimized.db").resolve())
-
-
-def iter_candidate_db_paths() -> Iterable[str]:
-    """Yield paths worth checking when diagnosing 'multiple DB versions'."""
-    root = _project_root()
-    yield str((root / "stocks_optimized.new.db").resolve())
-    yield str((root / "stocks_optimized.db").resolve())
-
 
 def resolve_vci_screening_db_path(explicit_path: Optional[str] = None) -> str:
     """Return an absolute path to the VCI screening SQLite DB (vci_screening.sqlite).
@@ -180,7 +140,9 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
+    candidates.append(root / "fetch_sqlite" / "price_history.sqlite")
     candidates.append(root / "price_history.sqlite")
+    candidates.append(Path("/var/www/valuation/fetch_sqlite/price_history.sqlite"))
     candidates.append(Path("/var/www/valuation/price_history.sqlite"))
     candidates.append(Path("/var/www/store/price_history.sqlite"))
 
@@ -192,7 +154,7 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
         if path.exists():
             return str(path)
 
-    return str((root / "price_history.sqlite").resolve())
+    return str((root / "fetch_sqlite" / "price_history.sqlite").resolve())
 
 
 def resolve_valuation_cache_db_path(explicit_path: Optional[str] = None) -> str:

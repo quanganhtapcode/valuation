@@ -95,7 +95,7 @@ calc_metrics() {
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM stats_financial;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN (roe IS NOT NULL OR pe IS NOT NULL OR pb IS NOT NULL) THEN 1 ELSE 0 END) FROM stats_financial;")"
       ;;
-    vci_ai_news.sqlite)
+    vci_market_news.sqlite)
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM news_items;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN news_title IS NOT NULL AND TRIM(news_title) <> '' THEN 1 ELSE 0 END) FROM news_items;")"
       ;;

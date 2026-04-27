@@ -6,7 +6,7 @@ from backend.services.valuation_service import ValuationService
 from backend.services.financial_service import FinancialService
 from backend.services.stock_service import StockService
 from backend.data_sources.sqlite_db import SQLiteDB
-from backend.db_path import resolve_stocks_db_path
+from backend.db_path import resolve_vci_screening_db_path
 
 # Global instances — protected by _init_lock to prevent race conditions
 _init_lock = threading.Lock()
@@ -22,7 +22,7 @@ def init_provider():
 
     with _init_lock:
         if not _resolved_db_path:
-            _resolved_db_path = resolve_stocks_db_path()
+            _resolved_db_path = resolve_vci_screening_db_path()
         db_path = _resolved_db_path
 
         if stock_provider is None:

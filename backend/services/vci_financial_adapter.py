@@ -289,6 +289,146 @@ def load_latest_financial_components(symbol: str) -> dict:
     return result
 
 
+def load_ttm_eps(symbol: str) -> float:
+    """TTM EPS: sum isa23 from last 4 quarters. Fallback: latest annual isa23."""
+    symbol = symbol.upper()
+    db_path = _get_db_path()
+    if not db_path:
+        return 0.0
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT isa23 FROM income_statement
+            WHERE ticker = ? AND period_kind != 'YEAR'
+              AND isa23 IS NOT NULL AND isa23 > 0
+            ORDER BY year_report DESC, quarter_report DESC
+            LIMIT 4
+            """,
+            (symbol,),
+        ).fetchall()
+        conn.close()
+        if len(rows) >= 4:
+            ttm = sum(float(r['isa23']) for r in rows)
+            if ttm > 0:
+                return ttm
+    except Exception as exc:
+        logger.debug(f"TTM EPS quarterly failed for {symbol}: {exc}")
+    # Fallback: latest annual
+    annual = get_income_statement(symbol, annual_only=True, limit=1)
+    if annual:
+        val = annual[0].get('isa23')
+        if val and float(val) > 0:
+            return float(val)
+    return 0.0
+
+
+def load_ttm_financial_components(symbol: str) -> dict:
+    """TTM financials: sum last 4 quarters of income + cashflow.
+
+    Falls back to load_latest_financial_components when quarterly data insufficient.
+    """
+    symbol = symbol.upper()
+    db_path = _get_db_path()
+    if not db_path:
+        return load_latest_financial_components(symbol)
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+
+        inc_rows = conn.execute(
+            """
+            SELECT year_report, isa20, isa22, isa7
+            FROM income_statement
+            WHERE ticker = ? AND period_kind != 'YEAR'
+            ORDER BY year_report DESC, quarter_report DESC
+            LIMIT 4
+            """,
+            (symbol,),
+        ).fetchall()
+
+        cf_rows = conn.execute(
+            """
+            SELECT cfa2, cfa9, cfa10, cfa11, cfa18, cfa19, cfa27, cfa28
+            FROM cash_flow
+            WHERE ticker = ?
+            ORDER BY year_report DESC, quarter_report DESC
+            LIMIT 4
+            """,
+            (symbol,),
+        ).fetchall()
+        conn.close()
+
+        if len(inc_rows) < 4 or len(cf_rows) < 4:
+            return load_latest_financial_components(symbol)
+
+        def _s(rows, col):
+            return sum(float(r[col] or 0) for r in rows)
+
+        net_income_parent = _s(inc_rows, 'isa22')
+        net_income_total = _s(inc_rows, 'isa20')
+        net_income = net_income_parent if net_income_parent > 0 else net_income_total
+        financial_expense = _s(inc_rows, 'isa7')
+        depreciation = _s(cf_rows, 'cfa2')
+        dr = _s(cf_rows, 'cfa9')
+        di = _s(cf_rows, 'cfa10')
+        dp = _s(cf_rows, 'cfa11')
+        pfa = _s(cf_rows, 'cfa18')
+        pdfa = _s(cf_rows, 'cfa19')
+        pb = _s(cf_rows, 'cfa27')
+        rb = _s(cf_rows, 'cfa28')
+        capex_out = abs(pfa)
+        latest_year = inc_rows[0]['year_report'] if inc_rows else None
+
+        return {
+            'net_income': float(net_income),
+            'period_year': latest_year,
+            'period_quarter': 'TTM',
+            'financial_expense': float(financial_expense),
+            'depreciation': float(depreciation),
+            'depreciation_fixed_assets': float(depreciation),
+            'delta_receivables': float(dr),
+            'delta_inventory': float(di),
+            'delta_payables': float(dp),
+            'delta_working_capital': float(dr + di - dp),
+            'purchase_fixed_assets_raw': float(pfa),
+            'proceeds_disposal_fixed_assets': float(pdfa),
+            'capex_purchase_outflow': float(capex_out),
+            'capex_net': max(0.0, capex_out - max(0.0, abs(pdfa))),
+            'proceeds_borrowings': float(pb),
+            'repayments_borrowings': float(rb),
+            'net_borrowing': float(pb + rb),
+            'source': f'vci_fs.ttm (4 quarters, latest year {latest_year})',
+        }
+    except Exception as exc:
+        logger.debug(f"TTM financial components failed for {symbol}: {exc}")
+        return load_latest_financial_components(symbol)
+
+
+def load_eps_cagr(symbol: str, years: int = 5) -> dict:
+    """EPS growth CAGR from annual history.
+
+    Returns {'cagr': float|None, 'n_years': int, 'eps_start': float, 'eps_end': float}
+    """
+    history = load_eps_history_yearly(symbol, limit=years + 2)
+    if len(history) < 2:
+        return {'cagr': None, 'n_years': 0, 'eps_start': None, 'eps_end': None, 'years_used': []}
+    eps_start = history[0]['eps']
+    eps_end = history[-1]['eps']
+    n_years = history[-1]['year'] - history[0]['year']
+    if n_years <= 0 or eps_start <= 0 or eps_end <= 0:
+        return {'cagr': None, 'n_years': n_years, 'eps_start': eps_start, 'eps_end': eps_end, 'years_used': [h['year'] for h in history]}
+    cagr = (eps_end / eps_start) ** (1.0 / n_years) - 1.0
+    return {
+        'cagr': float(round(cagr, 4)),
+        'n_years': int(n_years),
+        'eps_start': float(eps_start),
+        'eps_end': float(eps_end),
+        'years_used': [h['year'] for h in history],
+    }
+
+
 def has_vci_financial_db() -> bool:
     """Check if VCI financial statement DB exists and is accessible."""
     path = _get_db_path()

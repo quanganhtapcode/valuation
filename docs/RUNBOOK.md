@@ -58,7 +58,7 @@ Active cron entries:
 |---|---|---|
 | `*/7 * * * *` | `vci_screening.sqlite` | `fetch_sqlite/cron_screener.log` |
 | `5 * * * *` | `vci_stats_financial.sqlite` | `fetch_sqlite/cron_stats_financial.log` |
-| `*/10 * * * *` | `vci_ai_news.sqlite` | `fetch_sqlite/cron_vci_ai_news.log` |
+| `*/10 * * * *` | `vci_market_news.sqlite` | `fetch_sqlite/cron_vci_market_news.log` |
 | `30 11 * * *` | `fetch_sqlite/price_history.sqlite` | `logs/price_history_update.log` |
 | `10 13 * * *` | `vci_shareholders.sqlite` | `fetch_sqlite/cron_shareholders.log` |
 | `35 13 * * *` | `vci_ratio_daily.sqlite` | `fetch_sqlite/cron_ratio_daily.log` |
@@ -85,7 +85,7 @@ python fetch_sqlite/fetch_vci_screener.py --db fetch_sqlite/vci_screening.sqlite
 python fetch_sqlite/fetch_vci_stats_financial.py --db fetch_sqlite/vci_stats_financial.sqlite --workers 4 --delay 0.12
 python fetch_sqlite/fetch_vci_ratio_daily.py --db fetch_sqlite/vci_ratio_daily.sqlite --workers 4 --delay 0.12
 python fetch_sqlite/fetch_vci_shareholders.py --db fetch_sqlite/vci_shareholders.sqlite --workers 4 --delay 0.12
-python fetch_sqlite/fetch_vci_news.py --db fetch_sqlite/vci_ai_news.sqlite --pages 5 --page-size 50 --days-back 30 --prune-days 90 --workers 2 --insecure
+python fetch_sqlite/fetch_vci_market_news.py --db fetch_sqlite/vci_market_news.sqlite --pages 5 --page-size 50 --days-back 30 --prune-days 90 --workers 2 --insecure
 python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite
 python fetch_sqlite/fetch_vci_valuation.py --db fetch_sqlite/vci_valuation.sqlite
 python fetch_sqlite/fetch_vci_foreign.py --db fetch_sqlite/vci_foreign.sqlite
@@ -101,7 +101,7 @@ sqlite3 fetch_sqlite/vci_company.sqlite "SELECT COUNT(*) FROM companies;"
 sqlite3 fetch_sqlite/vci_screening.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM screening_data;"
 sqlite3 fetch_sqlite/vci_stats_financial.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM stats_financial;"
 sqlite3 fetch_sqlite/vci_ratio_daily.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM ratio_daily;"
-sqlite3 fetch_sqlite/vci_ai_news.sqlite "SELECT key, value FROM news_meta ORDER BY key;"
+sqlite3 fetch_sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta ORDER BY key;"
 sqlite3 fetch_sqlite/price_history.sqlite "SELECT COUNT(*), MAX(time) FROM stock_price_history;"
 ```
 
@@ -126,7 +126,7 @@ df -h /var/www/valuation
 ```bash
 tail -50 fetch_sqlite/cron_screener.log
 tail -50 fetch_sqlite/cron_stats_financial.log
-tail -50 fetch_sqlite/cron_vci_ai_news.log
+tail -50 fetch_sqlite/cron_vci_market_news.log
 tail -50 fetch_sqlite/cron_ratio_daily.log
 tail -50 fetch_sqlite/cron_shareholders.log
 tail -50 fetch_sqlite/cron_foreign.log
@@ -173,7 +173,7 @@ Check:
 ```bash
 tail -100 fetch_sqlite/cron_screener.log
 tail -100 fetch_sqlite/cron_stats_financial.log
-tail -100 fetch_sqlite/cron_vci_ai_news.log
+tail -100 fetch_sqlite/cron_vci_market_news.log
 ```
 
 Rerun with fewer workers and delay:
@@ -187,9 +187,9 @@ python fetch_sqlite/fetch_vci_stats_financial.py \
 ### News cache stale
 
 ```bash
-sqlite3 fetch_sqlite/vci_ai_news.sqlite "SELECT key, value FROM news_meta;"
-python fetch_sqlite/fetch_vci_news.py \
-  --db fetch_sqlite/vci_ai_news.sqlite \
+sqlite3 fetch_sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta;"
+python fetch_sqlite/fetch_vci_market_news.py \
+  --db fetch_sqlite/vci_market_news.sqlite \
   --pages 5 --page-size 50 --days-back 30 --prune-days 90 --workers 2 --insecure
 ```
 
@@ -219,7 +219,7 @@ cp fetch_sqlite/vci_screening.sqlite backups/vci_screening_$(date +%Y%m%d_%H%M%S
 Vacuum during quiet hours:
 
 ```bash
-sqlite3 fetch_sqlite/vci_ai_news.sqlite "VACUUM;"
+sqlite3 fetch_sqlite/vci_market_news.sqlite "VACUUM;"
 sqlite3 fetch_sqlite/price_history.sqlite "VACUUM;"
 ```
 

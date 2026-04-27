@@ -37,7 +37,7 @@ its own SQLite file, which makes refresh, backup and rollback easier.
 | TTM ratios | `vci_stats_financial.sqlite` | Richest current ratio dataset including banking KPIs |
 | Daily PE/PB | `vci_ratio_daily.sqlite` | Highest-priority daily valuation multiples |
 | Historical price | `fetch_sqlite/price_history.sqlite` | Dedicated OHLCV store with upsert by symbol/date |
-| News cache | `vci_ai_news.sqlite` | Fast market news reads without hitting upstream per request |
+| News cache | `vci_market_news.sqlite` | Fast market news reads without hitting upstream per request |
 | News/events/dividends by symbol | `vci_news_events.sqlite` | Per-symbol tab data |
 | Shareholders | `vci_shareholders.sqlite` | Holder list by ticker |
 | Foreign trading | `vci_foreign.sqlite` | Intraday foreign flow |
@@ -74,7 +74,7 @@ vci_financials.sqlite wide tables
 ### News
 
 ```text
-vci_ai_news.sqlite for market/news widgets
+vci_market_news.sqlite for market/news widgets
 vci_news_events.sqlite for stock-specific tabs
 upstream fallback only when cache is missing or stale
 ```
@@ -133,7 +133,7 @@ sqlite3 /var/www/valuation/fetch_sqlite/vci_stats_financial.sqlite \
 sqlite3 /var/www/valuation/fetch_sqlite/vci_ratio_daily.sqlite \
   "SELECT COUNT(*), MAX(fetched_at) FROM ratio_daily;"
 
-sqlite3 /var/www/valuation/fetch_sqlite/vci_ai_news.sqlite \
+sqlite3 /var/www/valuation/fetch_sqlite/vci_market_news.sqlite \
   "SELECT key, value FROM news_meta ORDER BY key;"
 ```
 
@@ -142,7 +142,7 @@ Cron logs:
 ```bash
 tail -50 /var/www/valuation/fetch_sqlite/cron_screener.log
 tail -50 /var/www/valuation/fetch_sqlite/cron_stats_financial.log
-tail -50 /var/www/valuation/fetch_sqlite/cron_vci_ai_news.log
+tail -50 /var/www/valuation/fetch_sqlite/cron_vci_market_news.log
 tail -50 /var/www/valuation/fetch_sqlite/cron_ratio_daily.log
 tail -50 /var/www/valuation/fetch_sqlite/cron_shareholders.log
 ```

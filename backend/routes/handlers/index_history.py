@@ -68,13 +68,16 @@ def read_index_history(*, db_path: str, days: int, index: str | None = None) -> 
         # Unified DB path: filter by symbol when table supports it.
         columns = [row[1] for row in cur.execute("PRAGMA table_info(market_index_history)").fetchall()]
         has_symbol = "symbol" in columns
+        _COLS = "symbol, tradingDate, closeIndex, totalVolume, totalMatchVolume"
         if has_symbol and index_symbol:
+            aliases = _index_aliases(index_symbol)
+            placeholders = ",".join("?" * len(aliases))
             cur.execute(
-                "SELECT * FROM market_index_history WHERE UPPER(symbol)=UPPER(?) "
+                f"SELECT {_COLS} FROM market_index_history WHERE symbol IN ({placeholders}) "
                 "ORDER BY tradingDate DESC LIMIT ?",
-                (index_symbol, days),
+                (*aliases, days),
             )
         else:
-            cur.execute("SELECT * FROM market_index_history ORDER BY tradingDate DESC LIMIT ?", (days,))
+            cur.execute(f"SELECT {_COLS} FROM market_index_history ORDER BY tradingDate DESC LIMIT ?", (days,))
         rows = cur.fetchall()
     return [dict(r) for r in rows]

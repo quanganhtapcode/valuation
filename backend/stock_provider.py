@@ -20,8 +20,7 @@ import json
 import sqlite3
 from datetime import datetime, timedelta
 from backend.data_sources import VCIClient
-from backend.data_sources.sqlite_db import SQLiteDB
-from backend.db_path import resolve_stocks_db_path, resolve_vci_screening_db_path
+from backend.db_path import resolve_vci_screening_db_path
 from backend.vci_data_access import VCIDataAccess
 from backend.services.source_priority import apply_peer_source_priority, get_screening_metrics_map, get_stats_financial_metrics_map, get_ratio_daily_metrics_map
 import logging
@@ -34,12 +33,7 @@ class StockDataProvider:
         self._listing_cache = None
         self._stock_data_cache = {} # In-memory cache for stock details
         self._price_cache = {} # Short-term cache for realtime prices (TTL 30s)
-        self.db_path = resolve_stocks_db_path()
-        # DEPRECATED: self.db is the legacy SQLiteDB wrapper for stocks_optimized.db.
-        # New code should use self.vci (VCIDataAccess) which queries distributed VCI sources.
-        self.db = SQLiteDB(db_path=self.db_path)
-        
-        # VCI unified data access layer (replaces stocks_optimized.db)
+        self.db_path = resolve_vci_screening_db_path()
         self.vci = VCIDataAccess()
         
         # Load ticker metadata from public/ticker_data.json
@@ -56,7 +50,7 @@ class StockDataProvider:
         except Exception as e:
             logger.error(f"Error loading ticker_data.json: {e}")
 
-        logger.info(f"StockDataProvider initialized - using stocks.db at: {self.db_path}")
+        logger.info("StockDataProvider initialized")
 
 
 

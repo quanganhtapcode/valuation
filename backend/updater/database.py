@@ -383,13 +383,13 @@ DEFAULT_INDICES = [
 # ============================================================================
 
 def get_default_db_path() -> str:
-    """Return the resolved database path."""
-    env_path = os.environ.get("VIETNAM_STOCK_DB_PATH") or os.environ.get("STOCKS_DB_PATH")
-    if env_path:
-        return env_path
-
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.path.join(base_dir, "stocks_optimized.db")
+    """Return the resolved database path (vci_financials canonical source)."""
+    try:
+        from backend.db_path import resolve_vci_financial_statement_db_path
+        return resolve_vci_financial_statement_db_path()
+    except Exception:
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return os.path.join(base_dir, "fetch_sqlite", "vci_financials.sqlite")
 
 # ============================================================================
 # DATABASE CLASS

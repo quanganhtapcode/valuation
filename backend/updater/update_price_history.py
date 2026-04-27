@@ -18,7 +18,7 @@ from typing import List, Dict, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data_sources.vci import VCIClient
-from db_path import resolve_price_history_db_path, resolve_stocks_db_path
+from db_path import resolve_price_history_db_path, resolve_vci_screening_db_path
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -73,7 +73,7 @@ class PriceHistoryUpdater:
         retry_backoff: float = 1.5,
     ):
         self.price_db_path = resolve_price_history_db_path()
-        self.stocks_db_path = resolve_stocks_db_path()
+        self.screening_db_path = resolve_vci_screening_db_path()
         self.max_workers = max_workers
         self.delay = delay
         self.pages_per_symbol = pages_per_symbol
@@ -130,16 +130,12 @@ class PriceHistoryUpdater:
             conn.close()
 
     def get_all_symbols(self) -> List[str]:
-        """Fetch all stock symbols from the main stocks DB."""
+        """Fetch all stock symbols from vci_screening."""
         try:
-            conn = sqlite3.connect(self.stocks_db_path)
+            conn = sqlite3.connect(self.screening_db_path)
             cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='stocks'")
-            if cursor.fetchone():
-                cursor.execute("SELECT DISTINCT ticker FROM stocks WHERE status != 'delisted' ORDER BY ticker")
-            else:
-                cursor.execute("SELECT DISTINCT symbol FROM overview ORDER BY symbol")
-            symbols = [row[0] for row in cursor.fetchall()]
+            cursor.execute("SELECT DISTINCT ticker FROM screening_data ORDER BY ticker")
+            symbols = [row[0] for row in cursor.fetchall() if row[0]]
             conn.close()
             logger.info(f"Found {len(symbols)} symbols to update")
             return symbols

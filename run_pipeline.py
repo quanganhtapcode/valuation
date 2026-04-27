@@ -5,10 +5,8 @@ Master Pipeline for Stock Data Maintenance
 Steps (run daily via systemd stock-fetch.timer at 18:00 VN):
   1. Update financial reports (BCTC) for all symbols — daily, smart-skip
   2. Update stock list + company info               — weekly (Wed/Sun only)
-  3. Refresh compatibility views (overview, ratio_wide)
-  4. Update price history (OHLCV) from VCI API      — daily
-
-DB: Uses STOCKS_DB_PATH env var → falls back to stocks_optimized.db
+  3. Update price history (OHLCV) from VCI API      — daily
+  4. Batch valuations                               — daily
 """
 
 import os
@@ -20,20 +18,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 UPDATER_DIR = BASE_DIR / "backend" / "updater"
 
-# Resolve DB path: STOCKS_DB_PATH (preferred) → VIETNAM_STOCK_DB_PATH (legacy) → stocks_optimized.db
-_db_path = (
-    os.environ.get("STOCKS_DB_PATH")
-    or os.environ.get("VIETNAM_STOCK_DB_PATH")
-    or str(BASE_DIR / "stocks_optimized.db")
-)
-os.environ["VIETNAM_STOCK_DB_PATH"] = _db_path
-os.environ["STOCKS_DB_PATH"] = _db_path
-
 # Keep BCTC freshness high by default unless explicitly overridden.
 if not os.environ.get("SKIP_IF_UPDATED_WITHIN_DAYS"):
     os.environ["SKIP_IF_UPDATED_WITHIN_DAYS"] = "3"
-
-DB_PATH = _db_path
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 LOGS_DIR = BASE_DIR / "logs"
@@ -59,7 +46,7 @@ def _add_updater_to_path() -> None:
 
 
 def _load_symbols() -> list[str]:
-    """Load symbol list from symbols.txt, falling back to the DB stocks table."""
+    """Load symbol list from symbols.txt, falling back to vci_screening."""
     symbols_file = BASE_DIR / "symbols.txt"
     if symbols_file.exists():
         symbols = [
@@ -71,21 +58,21 @@ def _load_symbols() -> list[str]:
             logger.info(f"Loaded {len(symbols)} symbols from symbols.txt")
             return symbols
 
-    # Fallback: query stocks table in DB
-    logger.warning("symbols.txt not found — querying stocks table from DB")
+    logger.warning("symbols.txt not found — querying vci_screening")
     import sqlite3
     try:
-        conn = sqlite3.connect(DB_PATH)
+        from backend.db_path import resolve_vci_screening_db_path
+        conn = sqlite3.connect(resolve_vci_screening_db_path())
         rows = conn.execute(
-            "SELECT ticker FROM stocks WHERE status = 'listed' ORDER BY ticker"
+            "SELECT DISTINCT ticker FROM screening_data ORDER BY ticker"
         ).fetchall()
         conn.close()
         symbols = [r[0] for r in rows if r[0]]
         if symbols:
-            logger.info(f"Loaded {len(symbols)} symbols from DB stocks table")
+            logger.info(f"Loaded {len(symbols)} symbols from vci_screening")
             return symbols
     except Exception as e:
-        logger.error(f"Failed to load symbols from DB: {e}")
+        logger.error(f"Failed to load symbols from vci_screening: {e}")
 
     logger.error("No symbols found — aborting pipeline")
     return []
@@ -120,7 +107,7 @@ def step_update_financial_reports(symbols: list[str]) -> bool:
 
         logger.info(
             f">>> Starting: Fetching BCTC via integrated updater "
-            f"(symbols={len(symbols)}, period={period}, db={DB_PATH})"
+            f"(symbols={len(symbols)}, period={period})"
         )
         results = update_financials(symbols=symbols, period=period)
 
@@ -173,33 +160,7 @@ def step_update_company_info(symbols: list[str]) -> bool:
         return False
 
 
-# ── Step 3: Compatibility Views ───────────────────────────────────────────────
-
-def step_create_compat_views() -> bool:
-    """Always: create/refresh overview + ratio_wide views for backend compatibility."""
-    try:
-        import importlib.util
-        view_script = BASE_DIR / "scripts" / "create_compat_views.py"
-        spec = importlib.util.spec_from_file_location("create_compat_views", view_script)
-        mod = importlib.util.module_from_spec(spec)  # type: ignore
-        spec.loader.exec_module(mod)  # type: ignore
-        mod.create_views(DB_PATH)
-        # Flush WAL so the next connection (batch_valuations) sees the committed data.
-        import sqlite3 as _sqlite3
-        with _sqlite3.connect(DB_PATH) as _c:
-            _c.execute("PRAGMA wal_checkpoint(PASSIVE)")
-        logger.info("✅ Finished: Compatibility views refreshed")
-        _invalidate_cache_namespaces(
-            namespaces=['stock_routes', 'source_priority', 'decorator'],
-            reason='compat views/datamart refresh',
-        )
-        return True
-    except Exception as e:
-        logger.error(f"❌ Failed: Compatibility views — {e}")
-        return False
-
-
-# ── Step 4: Batch Valuations ──────────────────────────────────────────────────
+# ── Step 3: Batch Valuations ─────────────────────────────────────────────────
 
 def step_batch_valuations() -> bool:
     """Daily: compute intrinsic value for all stocks and cache to valuation_cache.sqlite."""
@@ -266,7 +227,6 @@ def step_update_price_history(symbols: list[str]) -> bool:
 def main() -> int:
     logger.info("=" * 60)
     logger.info("🚀 STOCK DATA MAINTENANCE PIPELINE")
-    logger.info(f"   DB: {DB_PATH}")
     logger.info("=" * 60)
 
     symbols = _load_symbols()
@@ -287,10 +247,7 @@ def main() -> int:
     else:
         logger.info("Skipping company info update (runs on Wed/Sun; set FORCE_COMPANY_UPDATE=1 to override)")
 
-    # Step 3 — compat views (always)
-    step_create_compat_views()
-
-    # Step 4 — batch valuations (daily; non-blocking)
+    # Step 3 — batch valuations (daily; non-blocking)
     step_batch_valuations()
 
     # Step 4b — batch news/events (incremental daily)

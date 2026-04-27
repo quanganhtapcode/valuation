@@ -2,7 +2,7 @@
 /health endpoint — kiểm tra nhanh trạng thái toàn bộ hệ thống.
 
 Checks:
-  - stocks_optimized.db : tồn tại, số rows, dữ liệu mới nhất
+  - price_history.sqlite : OHLCV data freshness
   - fetch_sqlite/        : index_history, screening, news, standouts freshness
   - logs/pipeline.log    : lần chạy cuối + kết quả
   - systemd timer         : lần trigger cuối / tiếp theo (đọc qua subprocess)
@@ -26,12 +26,6 @@ health_bp = Blueprint("health", __name__)
 # ─── Path helpers ─────────────────────────────────────────────────────────────
 
 BASE_DIR = Path(__file__).resolve().parents[2]   # project root
-
-
-def _resolve_db() -> Path:
-    """Tìm stocks_optimized.db theo logic của backend/db_path.py."""
-    from backend.db_path import resolve_stocks_db_path
-    return Path(resolve_stocks_db_path())
 
 
 def _fetch_sqlite_dir() -> Path:
@@ -98,32 +92,6 @@ def _overall(checks: dict) -> str:
 
 
 # ─── Individual checkers ──────────────────────────────────────────────────────
-
-def _check_main_db() -> dict:
-    db = _resolve_db()
-    age = _file_age_minutes(db)
-
-    if not db.exists():
-        return {"status": "error", "path": str(db), "message": "DB file not found"}
-
-    # Try company_overview (db_updater schema) then fall back to the legacy overview view
-    overview_count = _sqlite_query(db, "SELECT COUNT(*) FROM company_overview") \
-                     or _sqlite_query(db, "SELECT COUNT(*) FROM overview")
-    latest_bs_year = _sqlite_query(db, "SELECT MAX(year) FROM balance_sheet WHERE quarter IS NULL")
-    latest_bs_quarter = _sqlite_query(db, "SELECT MAX(year||'Q'||quarter) FROM balance_sheet WHERE quarter IS NOT NULL")
-    row_overview = overview_count or 0
-
-    # Coi là warn nếu DB chưa được sửa trong 2 ngày (48h)
-    st = "ok" if (age is not None and age < 48 * 60) else "warn"
-    return {
-        "status": st,
-        "path": str(db),
-        "last_modified": _file_mtime_iso(db),
-        "age_minutes": age,
-        "overview_rows": row_overview,
-        "latest_annual_year": latest_bs_year,
-        "latest_quarter": latest_bs_quarter,
-    }
 
 
 def _check_sqlite_file(
@@ -232,10 +200,10 @@ def _check_cron_screener_log() -> dict:
 
 
 def _check_cron_news_log() -> dict:
-    log = _fetch_sqlite_dir() / "cron_vci_ai_news.log"
+    log = _fetch_sqlite_dir() / "cron_vci_market_news.log"
     age = _file_age_minutes(log)
     if not log.exists():
-        return {"status": "warn", "message": "cron_vci_ai_news.log not found"}
+        return {"status": "warn", "message": "cron_vci_market_news.log not found"}
     st = "ok" if (age is not None and age < 15) else "warn"
     return {"status": st, "age_minutes": age, "last_modified": _file_mtime_iso(log)}
 
@@ -252,7 +220,12 @@ def health() -> tuple:
             **cache_stats(),
         },
         "latency": get_latency_metrics(top_n=15),
-        "main_db": _check_main_db(),
+        "price_history": _check_sqlite_file(
+            "price_history",
+            fetch_dir.parent / "price_history.sqlite",
+            freshness_minutes=24 * 60,
+            freshness_sql="SELECT MAX(time) FROM stock_price_history",
+        ),
         "pipeline_log": _check_pipeline_log(),
         "systemd_timer": _check_systemd_timer(),
         "index_history": _check_sqlite_file(
@@ -268,7 +241,7 @@ def health() -> tuple:
         ),
         "news": _check_sqlite_file(
             "news",
-            fetch_dir / "vci_ai_news.sqlite",
+            fetch_dir / "vci_market_news.sqlite",
             freshness_minutes=15,
             freshness_sql="SELECT MAX(published_at) FROM news",
         ),
