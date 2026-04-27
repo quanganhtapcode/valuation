@@ -14,7 +14,7 @@ from backend.db_path import _project_root
 logger = logging.getLogger(__name__)
 
 # Load company profile data from exported JSON
-_PROFILE_JSON_PATH = _project_root() / "company_profile_export.json"
+_PROFILE_JSON_PATH = _project_root() / "exports" / "company_profile_export.json"
 
 _company_profiles = {}
 

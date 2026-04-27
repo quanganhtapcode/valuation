@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import os
 
-from backend.db_path import resolve_stocks_db_path
+from backend.db_path import resolve_vci_screening_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class SQLiteDB:
     """Client for SQLite stocks database"""
     
     def __init__(self, db_path: str = None):
-        self.db_path = resolve_stocks_db_path(db_path)
+        self.db_path = db_path or resolve_vci_screening_db_path()
     
     def _get_connection(self):
         """Get a new database connection"""

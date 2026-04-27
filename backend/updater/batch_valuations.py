@@ -30,22 +30,12 @@ CREATE TABLE IF NOT EXISTS valuations (
 """
 
 
-def _resolve_main_db() -> str:
-    from backend.db_path import resolve_stocks_db_path
-    return resolve_stocks_db_path()
-
-
-def _get_symbols(db_path: str) -> list[str]:
-    """Return symbols that have enough data for a valuation."""
-    with sqlite3.connect(db_path) as conn:
+def _get_symbols() -> list[str]:
+    """Return all symbols from vci_screening."""
+    from backend.db_path import resolve_vci_screening_db_path
+    with sqlite3.connect(resolve_vci_screening_db_path()) as conn:
         rows = conn.execute(
-            """
-            SELECT DISTINCT symbol
-            FROM overview
-            WHERE eps_ttm IS NOT NULL AND eps_ttm != 0
-              AND bvps    IS NOT NULL AND bvps    != 0
-            ORDER BY symbol
-            """
+            "SELECT DISTINCT ticker FROM screening_data ORDER BY ticker"
         ).fetchall()
     return [r[0] for r in rows if r[0]]
 
@@ -69,10 +59,9 @@ def run_batch_valuations(
     """
     from backend.services.valuation_service import calculate_valuation
 
-    db_path = _resolve_main_db()
     cache_path = _ensure_cache_db()
 
-    symbols = _get_symbols(db_path)
+    symbols = _get_symbols()
     if max_symbols:
         symbols = symbols[:max_symbols]
 
@@ -81,7 +70,7 @@ def run_batch_valuations(
 
     for i, symbol in enumerate(symbols, 1):
         try:
-            val = calculate_valuation(db_path, symbol, {})
+            val = calculate_valuation(symbol, {})
             if not val.get("success"):
                 results["skipped"] += 1
                 continue

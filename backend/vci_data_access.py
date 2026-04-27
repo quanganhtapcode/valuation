@@ -20,12 +20,10 @@ from typing import Optional
 from backend.db_path import (
     resolve_vci_screening_db_path,
     resolve_vci_stats_financial_db_path,
-    resolve_vci_ratio_daily_db_path,
     resolve_vci_company_db_path,
     resolve_vci_financial_statement_db_path,
     resolve_vci_shareholders_db_path,
     resolve_price_history_db_path,
-    resolve_stocks_db_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,27 +53,6 @@ def _connect(db_path: str):
 
 class VCIDataAccess:
     """Unified access layer for all VCI SQLite databases."""
-
-    # ── Ticker list ─────────────────────────────────────────────────────
-    def get_ticker_list(self) -> list[str]:
-        """Get all tickers from vci_screening.sqlite."""
-        db_path = resolve_vci_screening_db_path()
-        with _connect(db_path) as conn:
-            if conn is None:
-                return []
-            rows = conn.execute(
-                "SELECT ticker FROM screening_data ORDER BY ticker"
-            ).fetchall()
-            return [r["ticker"] for r in rows] if rows else []
-
-    def get_all_screening_data(self) -> list[dict]:
-        """Get full screening data for all tickers (for heatmap/screener)."""
-        db_path = resolve_vci_screening_db_path()
-        with _connect(db_path) as conn:
-            if conn is None:
-                return []
-            rows = conn.execute("SELECT * FROM screening_data").fetchall()
-            return [dict(r) for r in rows] if rows else []
 
     # ── Company info ────────────────────────────────────────────────────
     def get_company_info(self, symbol: str) -> dict | None:
@@ -161,25 +138,6 @@ class VCIDataAccess:
                     "cir": d.get("cir"),
                 }
         return None
-
-    # ── Daily PE/PB ─────────────────────────────────────────────────────
-    def get_daily_ratios(self, symbol: str, days: int = 90) -> list[dict]:
-        """Get daily PE/PB history from vci_ratio_daily."""
-        db_path = resolve_vci_ratio_daily_db_path()
-        with _connect(db_path) as conn:
-            if conn is None:
-                return []
-            rows = conn.execute(
-                """
-                SELECT ticker, pe, pb, trading_date
-                FROM ratio_daily
-                WHERE ticker = ?
-                ORDER BY trading_date DESC
-                LIMIT ?
-                """,
-                (symbol, days),
-            ).fetchall()
-            return [dict(r) for r in rows] if rows else []
 
     # ── Ratio history (quarterly) ───────────────────────────────────────
     def get_ratio_history(self, symbol: str) -> list[dict]:

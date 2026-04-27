@@ -81,7 +81,7 @@ Run selected fetchers locally:
 ```bash
 python fetch_sqlite/fetch_vci_screener.py --db fetch_sqlite/vci_screening.sqlite
 python fetch_sqlite/fetch_vci_stats_financial.py --db fetch_sqlite/vci_stats_financial.sqlite
-python fetch_sqlite/fetch_vci_news.py --db fetch_sqlite/vci_ai_news.sqlite --pages 5 --page-size 50
+python fetch_sqlite/fetch_vci_market_news.py --db fetch_sqlite/vci_market_news.sqlite --pages 5 --page-size 50
 python fetch_sqlite/fetch_vci_ratio_daily.py --db fetch_sqlite/vci_ratio_daily.sqlite
 python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite
 PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history
@@ -99,7 +99,7 @@ All canonical data lives in `fetch_sqlite/`.
 | `fetch_sqlite/vci_stats_financial.sqlite` | `fetch_vci_stats_financial.py` | TTM ratios, shares, market cap and banking KPIs |
 | `fetch_sqlite/vci_ratio_daily.sqlite` | `fetch_vci_ratio_daily.py` | Highest-priority daily PE/PB |
 | `fetch_sqlite/vci_shareholders.sqlite` | `fetch_vci_shareholders.py` | Shareholders by ticker |
-| `fetch_sqlite/vci_ai_news.sqlite` | `fetch_vci_news.py` | Market AI news cache |
+| `fetch_sqlite/vci_market_news.sqlite` | `fetch_vci_market_news.py` | Market AI news cache |
 | `fetch_sqlite/vci_news_events.sqlite` | `backend/updater/batch_news.py` | Per-symbol news/events/dividends |
 | `fetch_sqlite/vci_foreign.sqlite` | `fetch_vci_foreign.py` | Foreign trading flow |
 | `fetch_sqlite/vci_valuation.sqlite` | `fetch_vci_valuation.py` | VNINDEX PE/PB chart and EMA breadth |
@@ -132,7 +132,7 @@ Active cron jobs are managed by `automation/setup_cron_vps.sh`.
 |---|---|---|
 | `*/7 * * * *` | `fetch_sqlite/fetch_vci_screener.py` | `vci_screening.sqlite` |
 | `5 * * * *` | `fetch_sqlite/fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` |
-| `*/10 * * * *` | `fetch_sqlite/fetch_vci_news.py` | `vci_ai_news.sqlite` |
+| `*/10 * * * *` | `fetch_sqlite/fetch_vci_market_news.py` | `vci_market_news.sqlite` |
 | `30 11 * * *` | `PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history` | `fetch_sqlite/price_history.sqlite` |
 | `10 13 * * *` | `fetch_sqlite/fetch_vci_shareholders.py` | `vci_shareholders.sqlite` |
 | `35 13 * * *` | `fetch_sqlite/fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` |
@@ -203,7 +203,7 @@ Backend:
 | `VCI_SHAREHOLDERS_DB_PATH` | Override for `vci_shareholders.sqlite` |
 | `VCI_FINANCIAL_STATEMENT_DB_PATH` | Override for `vci_financials.sqlite` |
 | `VCI_COMPANY_DB_PATH` | Override for `vci_company.sqlite` |
-| `VCI_NEWS_DB_PATH` | Override for `vci_ai_news.sqlite` |
+| `VCI_MARKET_NEWS_DB_PATH` | Override for `vci_market_news.sqlite` |
 | `VCI_NEWS_EVENTS_DB_PATH` | Override for `vci_news_events.sqlite` |
 | `VCI_VALUATION_DB_PATH` | Override for `vci_valuation.sqlite` |
 | `INDEX_HISTORY_DB_PATH` | Override for `index_history.sqlite` |
@@ -248,7 +248,7 @@ SQLite checks:
 sqlite3 /var/www/valuation/fetch_sqlite/vci_screening.sqlite "SELECT COUNT(*) FROM screening_data;"
 sqlite3 /var/www/valuation/fetch_sqlite/vci_stats_financial.sqlite "SELECT COUNT(*) FROM stats_financial;"
 sqlite3 /var/www/valuation/fetch_sqlite/vci_ratio_daily.sqlite "SELECT COUNT(*) FROM ratio_daily;"
-sqlite3 /var/www/valuation/fetch_sqlite/vci_ai_news.sqlite "SELECT key, value FROM news_meta;"
+sqlite3 /var/www/valuation/fetch_sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta;"
 sqlite3 /var/www/valuation/fetch_sqlite/price_history.sqlite "SELECT COUNT(*) FROM stock_price_history;"
 ```
 
@@ -273,8 +273,8 @@ crontab -l
 **News cache stale**
 
 ```bash
-tail -50 /var/www/valuation/fetch_sqlite/cron_vci_ai_news.log
-sqlite3 /var/www/valuation/fetch_sqlite/vci_ai_news.sqlite \
+tail -50 /var/www/valuation/fetch_sqlite/cron_vci_market_news.log
+sqlite3 /var/www/valuation/fetch_sqlite/vci_market_news.sqlite \
   "SELECT key, value FROM news_meta;"
 ```
 

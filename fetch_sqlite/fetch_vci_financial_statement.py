@@ -632,6 +632,44 @@ def convert_normalized_to_wide(conn: sqlite3.Connection) -> None:
     log.info("Wide-format conversion done.")
 
 
+def cleanup_normalized_values(conn: sqlite3.Connection) -> None:
+    """Drop heavy normalized rows after wide tables are refreshed.
+
+    statement_values is only an intermediate source for wide-table conversion and
+    dominates database size. Clearing it keeps runtime tables intact while cutting
+    disk footprint dramatically.
+    """
+    deleted = conn.execute("DELETE FROM statement_values").rowcount
+    conn.commit()
+    free_pages_before = 0
+    try:
+        free_pages_before = int(conn.execute("PRAGMA freelist_count").fetchone()[0] or 0)
+    except Exception:
+        pass
+    if free_pages_before > 0:
+        try:
+            # Physical shrink: deleting rows only moves pages to freelist.
+            # VACUUM rewrites the DB file and returns space to disk.
+            conn.execute("VACUUM")
+        except Exception:
+            pass
+    free_pages_after = 0
+    try:
+        free_pages_after = int(conn.execute("PRAGMA freelist_count").fetchone()[0] or 0)
+    except Exception:
+        pass
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    except Exception:
+        pass
+    log.info(
+        "Normalized cleanup done: deleted %d rows from statement_values, freelist_before=%d, freelist_after=%d",
+        deleted,
+        free_pages_before,
+        free_pages_after,
+    )
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Fetch VCI financial statement + metrics into SQLite and mapping JSON."
@@ -709,6 +747,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip fetching — only run wide-format conversion from existing normalized data.",
     )
+    parser.add_argument(
+        "--keep-normalized-values",
+        action="store_true",
+        help="Keep heavy statement_values rows after wide conversion. Default: cleanup to save disk.",
+    )
     return parser.parse_args()
 
 
@@ -729,6 +772,8 @@ def main() -> int:
     # --convert-only: skip all fetching, just rebuild wide tables from existing data
     if args.convert_only:
         convert_normalized_to_wide(conn)
+        if not args.keep_normalized_values:
+            cleanup_normalized_values(conn)
         conn.close()
         return 0
 
@@ -876,6 +921,8 @@ def main() -> int:
 
     if not args.no_wide_convert:
         convert_normalized_to_wide(conn)
+        if not args.keep_normalized_values:
+            cleanup_normalized_values(conn)
 
     conn.close()
 

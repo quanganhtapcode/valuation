@@ -47,7 +47,7 @@ fetch_sqlite/
   vci_stats_financial.sqlite     TTM ratios and banking KPIs
   vci_ratio_daily.sqlite         daily PE/PB
   vci_shareholders.sqlite        holders
-  vci_ai_news.sqlite             AI news cache
+  vci_market_news.sqlite             AI news cache
   vci_news_events.sqlite         per-symbol news/events/dividends
   vci_foreign.sqlite             foreign flow
   vci_valuation.sqlite           VNINDEX PE/PB and EMA breadth
@@ -77,7 +77,7 @@ Active cron jobs from `automation/setup_cron_vps.sh`:
 |---|---|---|
 | `*/7 * * * *` | `fetch_sqlite/fetch_vci_screener.py` | `vci_screening.sqlite` |
 | `5 * * * *` | `fetch_sqlite/fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` |
-| `*/10 * * * *` | `fetch_sqlite/fetch_vci_news.py` | `vci_ai_news.sqlite` |
+| `*/10 * * * *` | `fetch_sqlite/fetch_vci_market_news.py` | `vci_market_news.sqlite` |
 | `30 11 * * *` | `PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history` | `fetch_sqlite/price_history.sqlite` |
 | `10 13 * * *` | `fetch_sqlite/fetch_vci_shareholders.py` | `vci_shareholders.sqlite` |
 | `35 13 * * *` | `fetch_sqlite/fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` |

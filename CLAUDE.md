@@ -41,7 +41,7 @@ Representative fetchers:
 ```bash
 python fetch_sqlite/fetch_vci_screener.py --db fetch_sqlite/vci_screening.sqlite
 python fetch_sqlite/fetch_vci_stats_financial.py --db fetch_sqlite/vci_stats_financial.sqlite
-python fetch_sqlite/fetch_vci_news.py --db fetch_sqlite/vci_ai_news.sqlite --pages 5 --page-size 50
+python fetch_sqlite/fetch_vci_market_news.py --db fetch_sqlite/vci_market_news.sqlite --pages 5 --page-size 50
 python fetch_sqlite/fetch_vci_ratio_daily.py --db fetch_sqlite/vci_ratio_daily.sqlite
 python -m backend.updater.update_price_history
 ```
@@ -70,7 +70,7 @@ fetch_sqlite/vci_screening.sqlite
 fetch_sqlite/vci_stats_financial.sqlite
 fetch_sqlite/vci_ratio_daily.sqlite
 fetch_sqlite/vci_shareholders.sqlite
-fetch_sqlite/vci_ai_news.sqlite
+fetch_sqlite/vci_market_news.sqlite
 fetch_sqlite/vci_news_events.sqlite
 fetch_sqlite/vci_foreign.sqlite
 fetch_sqlite/vci_valuation.sqlite
@@ -98,7 +98,7 @@ Important current variables:
 - `VCI_RATIO_DAILY_DB_PATH`
 - `VCI_COMPANY_DB_PATH`
 - `VCI_FINANCIAL_STATEMENT_DB_PATH`
-- `VCI_NEWS_DB_PATH`
+- `VCI_MARKET_NEWS_DB_PATH`
 - `VCI_NEWS_EVENTS_DB_PATH`
 - `VCI_SHAREHOLDERS_DB_PATH`
 - `VCI_VALUATION_DB_PATH`

@@ -19,11 +19,7 @@ def register(stock_bp: Blueprint) -> None:
     @stock_bp.route("/historical-chart-data/<symbol>")
     @stock_bp.route("/stock/<symbol>/historical-chart-data")
     def api_historical_chart_data(symbol):
-        """Historical financial ratios from VCI sources.
-
-        Uses vci_stats_financial_history for PE, PB, ROE, ROA, margins.
-        Falls back to stocks_optimized.db financial_ratios if VCI data unavailable.
-        """
+        """Historical financial ratios from VCI stats_financial_history."""
         try:
             is_valid, result = validate_stock_symbol(symbol)
             if not is_valid:
@@ -36,15 +32,8 @@ def register(stock_bp: Blueprint) -> None:
             if cached:
                 return jsonify(cached)
 
-            # Primary: VCI stats_financial_history
             db_path = resolve_vci_stats_financial_db_path()
             records = _query_vci_history(db_path, symbol, period)
-
-            # Fallback: stocks_optimized.db financial_ratios
-            if not records:
-                from backend.db_path import resolve_stocks_db_path
-                fallback_path = resolve_stocks_db_path()
-                records = _query_legacy_ratios(fallback_path, symbol, period)
 
             if not records:
                 return jsonify({"success": False, "message": "No data available"}), 404
@@ -139,71 +128,3 @@ def _query_vci_history(db_path: str, symbol: str, period: str) -> list[dict]:
         return []
 
 
-def _query_legacy_ratios(db_path: str, symbol: str, period: str) -> list[dict]:
-    """Fallback: query financial_ratios from stocks_optimized.db."""
-    if not db_path or not os.path.exists(db_path):
-        return []
-
-    try:
-        with sqlite3.connect(db_path) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_ratios'")
-            if not cur.fetchone():
-                return []
-
-            if period == "quarter":
-                query = """
-                    SELECT year, quarter,
-                           roe, roa, price_to_earnings as pe, price_to_book as pb,
-                           current_ratio, quick_ratio, cash_ratio,
-                           net_profit_margin, ebit_margin as nim
-                    FROM financial_ratios
-                    WHERE symbol = ? AND quarter IS NOT NULL
-                    ORDER BY year ASC, quarter ASC
-                """
-            else:
-                query = """
-                    SELECT year,
-                           AVG(roe) as roe, AVG(roa) as roa,
-                           AVG(price_to_earnings) as pe, AVG(price_to_book) as pb,
-                           AVG(current_ratio) as current_ratio,
-                           AVG(quick_ratio) as quick_ratio,
-                           AVG(cash_ratio) as cash_ratio,
-                           AVG(net_profit_margin) as net_profit_margin,
-                           AVG(ebit_margin) as nim
-                    FROM financial_ratios
-                    WHERE symbol = ? AND (quarter IS NULL OR quarter = 0)
-                    GROUP BY year
-                    ORDER BY year ASC
-                """
-
-            df = pd.read_sql_query(query, conn, params=(symbol,))
-            if df.empty:
-                return []
-
-            records = []
-            for _, row in df.iterrows():
-                y = row.get("year")
-                q = row.get("quarter")
-                label = str(int(y)) if y is not None else "Unknown"
-                if period == "quarter" and q is not None:
-                    label = f"Q{int(q)} '{str(y)[-2:]}"
-
-                records.append({
-                    "period": label,
-                    "roe": round(row.get("roe") * 100, 2) if row.get("roe") is not None and abs(row.get("roe", 0)) < 1 else row.get("roe"),
-                    "roa": round(row.get("roa") * 100, 2) if row.get("roa") is not None and abs(row.get("roa", 0)) < 1 else row.get("roa"),
-                    "pe": row.get("pe") if pd.notna(row.get("pe")) else None,
-                    "pb": row.get("pb") if pd.notna(row.get("pb")) else None,
-                    "currentRatio": row.get("current_ratio") if pd.notna(row.get("current_ratio")) else None,
-                    "quickRatio": row.get("quick_ratio") if pd.notna(row.get("quick_ratio")) else None,
-                    "cashRatio": row.get("cash_ratio") if pd.notna(row.get("cash_ratio")) else None,
-                    "nim": round(row.get("nim") * 100, 2) if row.get("nim") is not None and abs(row.get("nim", 0)) < 1 else row.get("nim"),
-                    "netMargin": round(row.get("net_profit_margin") * 100, 2) if row.get("net_profit_margin") is not None and abs(row.get("net_profit_margin", 0)) < 1 else row.get("net_profit_margin"),
-                })
-
-            return records
-
-    except Exception as e:
-        logger.warning(f"Legacy ratios query failed for {symbol}: {e}")
-        return []
