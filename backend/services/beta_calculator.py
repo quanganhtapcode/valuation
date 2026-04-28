@@ -2,8 +2,8 @@
 Beta and WACC calculator for Vietnamese stocks.
 
 Data sources:
-- index_history.sqlite  → market_index_history (VN30 preferred, VNINDEX fallback)
-- price_history.sqlite  → stock_price_history (currently empty; fallback beta=1.0)
+- vci_index_history.sqlite  → market_index_history (VN30 preferred, VNINDEX fallback)
+- price_history.sqlite      → stock_price_history
 
 When price_history is populated, Beta becomes a real regression.
 Until then: WACC = Rf(4.5%) + 1.0 × ERP(9%) = 13.5% — reasonable for VN market.
@@ -32,11 +32,11 @@ def _get_index_closes(index_symbol: str = 'VN30', limit: int = 530) -> list[floa
         rows = conn.execute(
             """
             SELECT closeIndex FROM market_index_history
-            WHERE indexId = ? OR symbol = ?
+            WHERE symbol = ?
             ORDER BY tradingDate ASC
             LIMIT ?
             """,
-            (index_symbol, index_symbol, limit),
+            (index_symbol, limit),
         ).fetchall()
         conn.close()
         return [float(r[0]) for r in rows if r[0] is not None and float(r[0]) > 0]
