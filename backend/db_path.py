@@ -299,10 +299,10 @@ def resolve_index_history_db_path(explicit_path: Optional[str] = None) -> str:
     return _resolve_db_path(
         explicit_path,
         "INDEX_HISTORY_DB_PATH",
-        Path("fetch_sqlite") / "index_history.sqlite",
+        Path("fetch_sqlite") / "vci_index_history.sqlite",
         extra_candidates=[
-            Path("/var/www/valuation/fetch_sqlite/index_history.sqlite"),
-            Path("/var/www/store/fetch_sqlite/index_history.sqlite"),
+            Path("/var/www/valuation/fetch_sqlite/vci_index_history.sqlite"),
+            Path("/var/www/store/fetch_sqlite/vci_index_history.sqlite"),
         ],
     )
 

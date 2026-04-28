@@ -230,7 +230,7 @@ def health() -> tuple:
         "systemd_timer": _check_systemd_timer(),
         "index_history": _check_sqlite_file(
             "index_history",
-            fetch_dir / "index_history.sqlite",
+            fetch_dir / "vci_index_history.sqlite",
             freshness_minutes=30,
             freshness_sql="SELECT MAX(tradingDate) FROM market_index_history WHERE symbol='VNINDEX'",
         ),

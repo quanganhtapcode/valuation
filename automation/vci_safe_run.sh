@@ -126,7 +126,7 @@ calc_metrics() {
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM stock_price_history;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN close IS NOT NULL THEN 1 ELSE 0 END) FROM stock_price_history;")"
       ;;
-    index_history.sqlite)
+    vci_index_history.sqlite)
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM market_index_history;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN raw_json IS NOT NULL AND TRIM(raw_json) <> '' THEN 1 ELSE 0 END) FROM market_index_history;")"
       ;;
