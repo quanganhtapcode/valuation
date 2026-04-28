@@ -178,7 +178,7 @@ function formatVol(v: number): string {
 
 function formatSessionPrice(v: number): string {
     if (!v) return '—';
-    return v.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return v.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 export default function OverviewTab({

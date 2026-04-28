@@ -298,6 +298,7 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             borderDownColor:'#dc2626',
             wickUpColor:    '#16a34a',
             wickDownColor:  '#dc2626',
+            priceFormat: { type: 'price', precision: 0, minMove: 1 },
         });
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
