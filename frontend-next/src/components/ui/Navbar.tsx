@@ -227,7 +227,10 @@ export function Navbar() {
                 "fixed inset-x-2 top-2 z-50 mx-auto flex max-w-6xl transform-gpu animate-slide-down-fade justify-center overflow-visible rounded-xl border border-transparent px-3 py-2.5 md:top-4 md:px-3 md:py-3 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1.03)] will-change-transform",
                 !open && "h-14 md:h-16",
                 scrolled || open || searchOpen
-                    ? "backdrop-blur-nav max-w-4xl border-gray-100 bg-white/80 shadow-xl shadow-black/5 dark:border-white/15 dark:bg-black/70"
+                    ? cx(
+                        "backdrop-blur-nav max-w-4xl border-gray-100 shadow-xl shadow-black/5 dark:border-white/15",
+                        open ? "bg-white dark:bg-gray-900" : "bg-white/80 dark:bg-black/70"
+                    )
                     : "bg-white/0 dark:bg-gray-950/0",
             )}
             style={open ? { height: `${mobileOpenHeight}px` } : undefined}
