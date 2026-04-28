@@ -182,7 +182,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     const defaultAssumptions = {
         revenueGrowth: 8,
         terminalGrowth: 3,
-        wacc: 10.5,
+        wacc: 0,
         requiredReturn: 12,
         taxRate: 20,
         projectionYears: 5,
@@ -235,6 +235,10 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     useEffect(() => {
         if (initialData) setResult(initialData);
     }, [initialData]);
+
+    useEffect(() => {
+        setAssumptions(defaultAssumptions);
+    }, [symbol]); // eslint-disable-line
 
     const handleAssumptionChange = (key: string, value: string) => {
         setAssumptions(prev => ({ ...prev, [key]: parseFloat(value) || 0 }));
@@ -308,6 +312,11 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             if (data && data.success) {
                 setResult(data);
                 setModels(prev => normalizeEnabledModelWeights(prev, data.valuations));
+                setAssumptions(prev => ({
+                    ...prev,
+                    wacc: prev.wacc === 0 && data.wacc_used ? data.wacc_used : prev.wacc,
+                    revenueGrowth: prev.revenueGrowth === 8 && data.growth_used ? data.growth_used : prev.revenueGrowth,
+                }));
             }
         } catch (error) {
             console.error('Valuation error:', error);
