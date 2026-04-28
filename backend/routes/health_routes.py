@@ -191,7 +191,7 @@ def _check_systemd_timer() -> dict:
 
 
 def _check_cron_screener_log() -> dict:
-    log = _fetch_sqlite_dir() / "cron_screener.log"
+    log = _logs_dir() / "cron_screener.log"
     age = _file_age_minutes(log)
     if not log.exists():
         return {"status": "warn", "message": "cron_screener.log not found"}
@@ -200,7 +200,7 @@ def _check_cron_screener_log() -> dict:
 
 
 def _check_cron_news_log() -> dict:
-    log = _fetch_sqlite_dir() / "cron_vci_market_news.log"
+    log = _logs_dir() / "cron_vci_market_news.log"
     age = _file_age_minutes(log)
     if not log.exists():
         return {"status": "warn", "message": "cron_vci_market_news.log not found"}
@@ -243,7 +243,7 @@ def health() -> tuple:
             "news",
             fetch_dir / "vci_market_news.sqlite",
             freshness_minutes=15,
-            freshness_sql="SELECT MAX(published_at) FROM news",
+            freshness_sql="SELECT MAX(update_date) FROM news_items",
         ),
         "standouts": _check_sqlite_file(
             "standouts",
