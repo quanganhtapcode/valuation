@@ -13,7 +13,7 @@ import {
     MouseEventParams,
 } from 'lightweight-charts';
 
-import { fetchPEChart, fetchPEChartByRange, PEChartData, PEChartResult, ValuationStats } from '@/lib/api';
+import { fetchPEChart, fetchPEChartByRange, PEChartData, PEChartResult, ValuationStats, subscribeIndicesStream, isTradingHours } from '@/lib/api';
 
 type ActiveChart = 'vnindex' | 'pe' | 'pb';
 
@@ -177,12 +177,37 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
     const priceLinesRef     = useRef<ReturnType<ISeriesApi<'Line'>['createPriceLine']>[]>([]);
     const closeByDayRef     = useRef<Map<string, number>>(new Map());
     const activeChartRef    = useRef<ActiveChart>('vnindex');
+    const liveVnindexRef    = useRef<{ time: UTCTime; value: number } | null>(null);
+
+    const applyLivePoint = useCallback(() => {
+        if (!liveVnindexRef.current || !areaSeriesRef.current) return;
+        try { areaSeriesRef.current.update(liveVnindexRef.current); } catch {}
+    }, []);
+
     const [tooltip, setTooltip] = useState<TooltipState>(null);
     const [containerWidth, setContainerWidth] = useState(600);
     const [chartHeight, setChartHeight] = useState(420);
 
     // keep ref in sync
     useEffect(() => { activeChartRef.current = activeChart; }, [activeChart]);
+
+    // Live VNINDEX "today" point via WebSocket — only active during trading hours
+    useEffect(() => {
+        if (!isTradingHours()) return;
+        const unsubscribe = subscribeIndicesStream({
+            onData: (marketData) => {
+                const vnindex = marketData['1']; // '1' = VNINDEX
+                if (!vnindex?.CurrentIndex) return;
+                const now = new Date();
+                const vnMs = now.getTime() + now.getTimezoneOffset() * 60_000 + 7 * 3_600_000;
+                const vn = new Date(vnMs);
+                const todayTime: UTCTime = { year: vn.getFullYear(), month: vn.getMonth() + 1, day: vn.getDate() };
+                liveVnindexRef.current = { time: todayTime, value: vnindex.CurrentIndex };
+                applyLivePoint();
+            },
+        });
+        return unsubscribe;
+    }, [applyLivePoint]);
 
     // ── Derived / memoized data ───────────────────────────────────────────────
 
@@ -400,6 +425,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
 
         areaSeriesRef.current.setData(vnTVData.map(d => ({ time: d.time, value: d.close })));
         closeByDayRef.current = new Map(vnTVData.map(d => [utcDayKey(d.time), d.close]));
+        applyLivePoint();
 
         volumeSeriesRef.current.setData(vnTVData.map((d, i) => ({
             time:  d.time,
@@ -471,6 +497,7 @@ export default function PEChart({ initialData = [], externalData = [], useExtern
                     ? 'rgba(34,197,94,0.45)'
                     : 'rgba(239,68,68,0.45)',
             })));
+            applyLivePoint();
         }
 
         chart.timeScale().fitContent();
