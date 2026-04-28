@@ -456,6 +456,22 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                                 onValueChange={(v) => handleAssumptionChange('wacc', v)}
                                             />
                                         </div>
+                                        {result?.wacc_suggestion && !result.wacc_suggestion.is_fallback && (
+                                            <div className="mt-1.5 rounded-md bg-blue-50 px-2.5 py-1.5 dark:bg-blue-950/40">
+                                                <div className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400">
+                                                    <span className="font-semibold">β {result.wacc_suggestion.beta}</span>
+                                                    <span className="text-blue-400 dark:text-blue-500">·</span>
+                                                    <span>Rf {(result.wacc_suggestion.rf * 100).toFixed(1)}%</span>
+                                                    <span className="text-blue-400 dark:text-blue-500">+</span>
+                                                    <span>ERP {(result.wacc_suggestion.erp * 100).toFixed(1)}%</span>
+                                                    <span className="text-blue-400 dark:text-blue-500">→</span>
+                                                    <span className="font-semibold">Ke {(result.wacc_suggestion.ke * 100).toFixed(1)}%</span>
+                                                </div>
+                                                <div className="mt-0.5 text-[10px] text-blue-400 dark:text-blue-500">
+                                                    CAPM · nguồn {result.wacc_suggestion.beta_source === 'fireant' ? 'FireAnt' : result.wacc_suggestion.beta_source}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="text-sm text-gray-600 dark:text-gray-400">Required Return %</label>

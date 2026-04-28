@@ -2,9 +2,10 @@
 Beta and WACC calculator for Vietnamese stocks.
 
 Source priority:
-1. FireAnt API  → /symbols/{ticker}/fundamental (beta field, live, ~1yr history)
-2. OLS regression → price_history.sqlite vs vci_index_history.sqlite (VN30 preferred)
-3. Fallback 1.0
+1. fireant_macro.sqlite → beta_cache (weekly batch fetch, freshest within 8 days)
+2. FireAnt API live     → /symbols/{ticker}/fundamental (on cache miss)
+3. OLS regression       → price_history.sqlite vs vci_index_history.sqlite (VN30)
+4. Fallback 1.0
 
 WACC = Rf + β × ERP  (CAPM, simplified — no debt structure)
   Rf  = 4.5%  (VN 10-year government bond)
@@ -18,7 +19,7 @@ import sqlite3
 import time
 import urllib.request
 
-from backend.db_path import resolve_index_history_db_path, resolve_price_history_db_path
+from backend.db_path import resolve_index_history_db_path, resolve_price_history_db_path, resolve_fireant_macro_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,32 @@ _FIREANT_BEARER = (
 # Simple in-process cache: {ticker: (beta, timestamp)}
 _fireant_cache: dict[str, tuple[float, float]] = {}
 _CACHE_TTL = 86400  # 24 hours
+
+
+def _get_beta_from_sqlite(ticker: str, max_age_days: int = 8) -> float | None:
+    """Read beta from beta_cache table in fireant_macro.sqlite."""
+    try:
+        db_path = resolve_fireant_macro_db_path()
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT beta, fetched_at FROM beta_cache WHERE symbol = ?",
+            (ticker.upper(),),
+        ).fetchone()
+        conn.close()
+        if row:
+            beta, fetched_at = row
+            # Check freshness
+            from datetime import datetime, timezone
+            try:
+                ts = datetime.strptime(fetched_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+                age_days = (datetime.now(timezone.utc) - ts).days
+                if age_days <= max_age_days and 0 < beta < 10:
+                    return float(beta)
+            except Exception:
+                pass
+    except Exception as exc:
+        logger.debug("beta_cache read failed for %s: %s", ticker, exc)
+    return None
 
 
 def _get_fireant_beta(ticker: str) -> float | None:
@@ -139,7 +166,17 @@ def calculate_beta(ticker: str, lookback_days: int = 252) -> dict:
       2. OLS regression vs VN30 / VNINDEX
       3. Fallback 1.0
     """
-    # 1. FireAnt
+    # 1. SQLite beta_cache (weekly batch)
+    sqlite_beta = _get_beta_from_sqlite(ticker)
+    if sqlite_beta is not None:
+        return {
+            'beta': sqlite_beta,
+            'n_obs': 252,
+            'index_used': 'fireant',
+            'is_fallback': False,
+        }
+
+    # 2. FireAnt live (on cache miss)
     fa_beta = _get_fireant_beta(ticker)
     if fa_beta is not None:
         return {

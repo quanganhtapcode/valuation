@@ -41,6 +41,9 @@ CRON_MACRO_HISTORY="30 1 * * * cd /var/www/valuation && bash automation/vci_safe
 # Sunday 02:00
 CRON_COMPANY="0 2 * * 0 cd /var/www/valuation && bash automation/vci_safe_run.sh --name company --db fetch_sqlite/vci_company.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.20 --keep-ratio 0.80 $RCLONE --command \".venv/bin/python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite\" >> logs/cron_vci_company.log 2>&1"
 
+# Sunday 03:00
+CRON_FIREANT_BETA="0 3 * * 0 cd /var/www/valuation && bash automation/vci_safe_run.sh --name fireant_beta --db fetch_sqlite/fireant_macro.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python fetch_sqlite/fetch_fireant_beta.py --db fetch_sqlite/fireant_macro.sqlite --workers 8 --delay 0.05\" >> logs/cron_fireant_beta.log 2>&1"
+
 # ── Monitoring ────────────────────────────────────────────────────────────────
 
 CRON_TELEGRAM="*/30 * * * * /var/www/valuation/scripts/telegram_uptime_report.sh /var/www/valuation/.telegram_uptime.env >> /var/www/valuation/logs/telegram_uptime.log 2>&1"
@@ -48,7 +51,7 @@ CRON_TELEGRAM="*/30 * * * * /var/www/valuation/scripts/telegram_uptime_report.sh
 # ── Install ───────────────────────────────────────────────────────────────────
 
 (crontab -l 2>/dev/null \
-  | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_market_news\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history(\.py)?|backend\.updater\.update_price_history|backend\.updater\.batch_news|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py|fetch_vci_company\.py|fetch_vci\.py|fetch_fireant_macro\.py|fetch_macro_history\.py|automation/vci_safe_run\.sh" \
+  | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_market_news\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history(\.py)?|backend\.updater\.update_price_history|backend\.updater\.batch_news|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py|fetch_vci_company\.py|fetch_vci\.py|fetch_fireant_macro\.py|fetch_fireant_beta\.py|fetch_macro_history\.py|automation/vci_safe_run\.sh" \
   | tr -d '\r'; \
   printf '%s\n' \
     "$CRON_SCREENER" \
@@ -65,6 +68,7 @@ CRON_TELEGRAM="*/30 * * * * /var/www/valuation/scripts/telegram_uptime_report.sh
     "$CRON_FIREANT_MACRO" \
     "$CRON_MACRO_HISTORY" \
     "$CRON_COMPANY" \
+    "$CRON_FIREANT_BETA" \
     "$CRON_TELEGRAM" \
 ) | crontab -
 

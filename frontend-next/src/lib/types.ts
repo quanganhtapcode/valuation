@@ -404,9 +404,23 @@ export interface ValuationScenario {
     };
 }
 
+export interface WaccSuggestion {
+    wacc: number;
+    ke: number;
+    beta: number;
+    rf: number;
+    erp: number;
+    is_fallback: boolean;
+    beta_source: string;
+    note?: string;
+}
+
 export interface ValuationResult {
     success: boolean;
     symbol?: string;
+    wacc_used?: number;
+    growth_used?: number;
+    wacc_suggestion?: WaccSuggestion;
     valuations?: ValuationModelResult;
     fcfe_details?: { inputs?: Record<string, unknown>; [key: string]: unknown };
     fcff_details?: { inputs?: Record<string, unknown>; [key: string]: unknown };
