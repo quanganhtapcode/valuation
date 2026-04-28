@@ -74,7 +74,7 @@ fetch_sqlite/vci_market_news.sqlite
 fetch_sqlite/vci_news_events.sqlite
 fetch_sqlite/vci_foreign.sqlite
 fetch_sqlite/vci_valuation.sqlite
-fetch_sqlite/index_history.sqlite
+fetch_sqlite/vci_index_history.sqlite
 fetch_sqlite/macro_history.sqlite
 fetch_sqlite/fireant_macro.sqlite
 fetch_sqlite/valuation_cache.sqlite
