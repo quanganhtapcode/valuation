@@ -314,8 +314,8 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                 setModels(prev => normalizeEnabledModelWeights(prev, data.valuations));
                 setAssumptions(prev => ({
                     ...prev,
-                    wacc: prev.wacc === 0 && data.wacc_used ? data.wacc_used : prev.wacc,
-                    revenueGrowth: prev.revenueGrowth === 8 && data.growth_used ? data.growth_used : prev.revenueGrowth,
+                    wacc: prev.wacc === 0 && data.inputs?.wacc_used ? data.inputs.wacc_used : prev.wacc,
+                    revenueGrowth: prev.revenueGrowth === 8 && data.inputs?.growth_used ? data.inputs.growth_used : prev.revenueGrowth,
                 }));
             }
         } catch (error) {
