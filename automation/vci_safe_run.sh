@@ -15,6 +15,7 @@ Options:
   --notify-telegram <0|1>   Send Telegram summary if script exists (default: 1)
   --notify-script <path>    Telegram sender script (default: scripts/send_telegram_message.sh)
   --keep-local <n>          Number of timestamped backups to keep locally (default: 2)
+  --keep-remote <n>         Number of backups to keep on rclone remote (default: 5)
   --rclone-remote <remote>  rclone remote:path to upload backups before local pruning (e.g. onedrive:valuation-backups)
 EOF
 }
@@ -30,6 +31,7 @@ KEEP_RATIO=0.70
 NOTIFY_TELEGRAM=1
 NOTIFY_SCRIPT="scripts/send_telegram_message.sh"
 KEEP_LOCAL=2
+KEEP_REMOTE=5
 RCLONE_REMOTE=""
 
 while [[ $# -gt 0 ]]; do
@@ -45,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --notify-telegram) NOTIFY_TELEGRAM="${2:-}"; shift 2 ;;
     --notify-script) NOTIFY_SCRIPT="${2:-}"; shift 2 ;;
     --keep-local) KEEP_LOCAL="${2:-}"; shift 2 ;;
+    --keep-remote) KEEP_REMOTE="${2:-}"; shift 2 ;;
     --rclone-remote) RCLONE_REMOTE="${2:-}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[safe-run] Unknown arg: $1" >&2; usage; exit 2 ;;
@@ -119,6 +122,26 @@ calc_metrics() {
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM companies;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN (icb_code4 IS NOT NULL AND TRIM(icb_code4) <> '' AND logo_url IS NOT NULL AND TRIM(logo_url) <> '') THEN 1 ELSE 0 END) FROM companies;")"
       ;;
+    price_history.sqlite)
+      total="$(sql_scalar "$db" "SELECT COUNT(*) FROM stock_price_history;")"
+      quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN close IS NOT NULL THEN 1 ELSE 0 END) FROM stock_price_history;")"
+      ;;
+    index_history.sqlite)
+      total="$(sql_scalar "$db" "SELECT COUNT(*) FROM market_index_history;")"
+      quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN raw_json IS NOT NULL AND TRIM(raw_json) <> '' THEN 1 ELSE 0 END) FROM market_index_history;")"
+      ;;
+    fireant_macro.sqlite)
+      total="$(sql_scalar "$db" "SELECT COUNT(*) FROM macro_data;")"
+      quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN value IS NOT NULL THEN 1 ELSE 0 END) FROM macro_data;")"
+      ;;
+    macro_history.sqlite)
+      total="$(sql_scalar "$db" "SELECT COUNT(*) FROM macro_prices;")"
+      quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN close IS NOT NULL THEN 1 ELSE 0 END) FROM macro_prices;")"
+      ;;
+    vci_news_events.sqlite)
+      total="$(sql_scalar "$db" "SELECT COUNT(*) FROM items;")"
+      quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN raw_json IS NOT NULL AND TRIM(raw_json) <> '' THEN 1 ELSE 0 END) FROM items;")"
+      ;;
     *)
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';")"
       quality="$total"
@@ -158,6 +181,28 @@ prune_backups() {
     rm -f "$f"
     echo "[safe-run][$JOB_NAME] prune: deleted $(basename "$f")"
   done
+
+  # Prune remote: keep only KEEP_REMOTE newest backups for this DB
+  if [[ -n "$RCLONE_REMOTE" ]] && command -v rclone &>/dev/null; then
+    # shellcheck disable=SC2207
+    local remote_files=( $(rclone lsf "$RCLONE_REMOTE" --files-only 2>/dev/null \
+      | grep "^${db_basename}\.20[0-9]*T[0-9]*Z\.bak$" \
+      | sort -r) )
+    local remote_count=${#remote_files[@]}
+    if [[ $remote_count -gt $KEEP_REMOTE ]]; then
+      local remote_to_delete=( "${remote_files[@]:$KEEP_REMOTE}" )
+      echo "[safe-run][$JOB_NAME] prune-remote: $remote_count files on remote, keeping $KEEP_REMOTE, removing $((remote_count - KEEP_REMOTE))"
+      for rf in "${remote_to_delete[@]}"; do
+        if rclone deletefile "${RCLONE_REMOTE}/${rf}" 2>/dev/null; then
+          echo "[safe-run][$JOB_NAME] prune-remote: deleted $rf"
+        else
+          echo "[safe-run][$JOB_NAME] prune-remote: warning: failed to delete $rf"
+        fi
+      done
+    else
+      echo "[safe-run][$JOB_NAME] prune-remote: $remote_count file(s) on remote, keeping all (keep-remote=$KEEP_REMOTE)"
+    fi
+  fi
 }
 
 send_telegram_summary() {
