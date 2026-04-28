@@ -294,6 +294,19 @@ def resolve_vci_company_db_path(explicit_path: Optional[str] = None) -> str:
     )
 
 
+def resolve_fireant_macro_db_path(explicit_path: Optional[str] = None) -> str:
+    """Return absolute path to FireAnt macro SQLite DB (includes beta_cache)."""
+    return _resolve_db_path(
+        explicit_path,
+        "FIREANT_MACRO_DB_PATH",
+        Path("fetch_sqlite") / "fireant_macro.sqlite",
+        extra_candidates=[
+            Path("/var/www/valuation/fetch_sqlite/fireant_macro.sqlite"),
+            Path("/var/www/store/fetch_sqlite/fireant_macro.sqlite"),
+        ],
+    )
+
+
 def resolve_index_history_db_path(explicit_path: Optional[str] = None) -> str:
     """Return absolute path to VCI index history SQLite DB."""
     return _resolve_db_path(
