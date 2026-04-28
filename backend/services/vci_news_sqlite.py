@@ -14,19 +14,16 @@ def _project_root() -> str:
 
 def default_news_db_path() -> str:
     root = _project_root()
-    env_path = os.getenv("VCI_NEWS_DB_PATH", "").strip()
+    env_path = os.getenv("VCI_MARKET_NEWS_DB_PATH", "").strip() or os.getenv("VCI_NEWS_DB_PATH", "").strip()
     candidates = []
     if env_path:
         candidates.append(env_path)
 
     candidates.extend(
         [
-            os.path.join(root, "fetch_sqlite", "vci_ai_news.sqlite"),
-            os.path.join(root, "fetch_sqlite", "vci_news.sqlite"),
-            "/var/www/valuation/fetch_sqlite/vci_ai_news.sqlite",
-            "/var/www/valuation/fetch_sqlite/vci_news.sqlite",
-            "/var/www/store/fetch_sqlite/vci_ai_news.sqlite",
-            "/var/www/store/fetch_sqlite/vci_news.sqlite",
+            os.path.join(root, "fetch_sqlite", "vci_market_news.sqlite"),
+            "/var/www/valuation/fetch_sqlite/vci_market_news.sqlite",
+            "/var/www/store/fetch_sqlite/vci_market_news.sqlite",
         ]
     )
 
@@ -35,7 +32,7 @@ def default_news_db_path() -> str:
             return path
 
     # Keep deterministic fallback for callers that may create/populate the DB later.
-    return os.path.join(root, "fetch_sqlite", "vci_ai_news.sqlite")
+    return os.path.join(root, "fetch_sqlite", "vci_market_news.sqlite")
 
 
 def _connect(db_path: str) -> sqlite3.Connection:
