@@ -443,6 +443,9 @@ export interface ValuationResult {
         current_price?: number;
         eps_ttm?: number;
         eps_history_yearly?: Array<{ year: number; eps: number }>;
+        wacc_used?: number;
+        growth_used?: number;
+        is_bank?: boolean;
         [key: string]: unknown;
     };
     export?: {
