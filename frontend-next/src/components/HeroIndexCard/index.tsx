@@ -12,7 +12,7 @@ import {
     CrosshairMode,
     MouseEventParams,
 } from 'lightweight-charts';
-import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, ValuationStats } from '@/lib/api';
+import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, ValuationStats, isTradingHours } from '@/lib/api';
 import { cx } from '@/lib/utils';
 import { RiHistoryLine } from '@remixicon/react';
 import IndexHistoryModal from '@/components/IndexCard/IndexHistoryModal';
@@ -165,7 +165,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const [vnLoad,   setVnLoad]   = useState(false);
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
-    const idxCache = useRef<Map<string, SimpleBar[]>>(new Map());
+    const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
+    const liveVnRef = useRef<{ time: UTCTime; value: number } | null>(null);
 
     // ── Chart refs ────────────────────────────────────────────────────────────
     const wrapRef   = useRef<HTMLDivElement>(null);
@@ -429,7 +430,11 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
         })));
         chartRef.current?.timeScale().fitContent();
-    }, [priceTV]);
+        // Re-apply live today-point if already received
+        if (liveVnRef.current && isVN) {
+            try { areaRef.current.update(liveVnRef.current); } catch {}
+        }
+    }, [priceTV]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Push PE/PB data ───────────────────────────────────────────────────────
     useEffect(() => {
@@ -466,6 +471,21 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
     // ── Fit on range change ───────────────────────────────────────────────────
     useEffect(() => { chartRef.current?.timeScale().fitContent(); }, [range]);
+
+    // ── Live VNINDEX today-point via indices prop (shared WebSocket from OverviewClient) ──
+    useEffect(() => {
+        if (!isVN || !isTradingHours()) return;
+        const vnidx = indices.find(i => i.id === 'vnindex');
+        if (!vnidx?.value || !areaRef.current) return;
+        const now = new Date();
+        const vnMs = now.getTime() + now.getTimezoneOffset() * 60_000 + 7 * 3_600_000;
+        const vn = new Date(vnMs);
+        liveVnRef.current = {
+            time:  { year: vn.getFullYear(), month: vn.getMonth() + 1, day: vn.getDate() } as UTCTime,
+            value: vnidx.value,
+        };
+        try { areaRef.current.update(liveVnRef.current); } catch {}
+    }, [indices, isVN]);
 
     // ── Render ────────────────────────────────────────────────────────────────
     const isUp      = (selected?.change ?? 0) >= 0;
