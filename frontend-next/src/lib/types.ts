@@ -390,7 +390,6 @@ export interface ValuationModelResult {
     justified_pe?: number;
     justified_pb?: number;
     graham?: number;
-    justified_ps?: number;
     weighted_average?: number;
 }
 
@@ -420,6 +419,7 @@ export interface ValuationResult {
     symbol?: string;
     wacc_used?: number;
     growth_used?: number;
+    target_price?: number | null;
     wacc_suggestion?: WaccSuggestion;
     valuations?: ValuationModelResult;
     fcfe_details?: { inputs?: Record<string, unknown>; [key: string]: unknown };

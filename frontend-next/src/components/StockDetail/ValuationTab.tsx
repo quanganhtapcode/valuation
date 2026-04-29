@@ -29,7 +29,6 @@ import {
     RiScales3Line,
     RiErrorWarningFill,
     RiFileZipLine,
-    RiShoppingCart2Line,
 } from '@remixicon/react';
 import { ReportGenerator } from '@/lib/reportGenerator';
 import type { ValuationResult, StockApiData } from '@/lib/types';
@@ -46,9 +45,9 @@ interface ValuationTabProps {
     stockData?: StockApiData;
 }
 
-type ModelKey = 'fcfe' | 'fcff' | 'justified_pe' | 'justified_pb' | 'graham' | 'justified_ps';
+type ModelKey = 'fcfe' | 'fcff' | 'justified_pe' | 'justified_pb' | 'graham';
 
-const MODEL_META: Record<ModelKey, { nameVi: string; formula: string; tremorColor: 'blue' | 'indigo' | 'violet' | 'purple' | 'emerald' | 'amber' }> = {
+const MODEL_META: Record<ModelKey, { nameVi: string; formula: string; tremorColor: 'blue' | 'indigo' | 'violet' | 'purple' | 'emerald' }> = {
     fcfe: {
         nameVi: 'Dòng tiền vốn chủ',
         formula: 'NI + D&A + Net Borrowing − ΔWC − CapEx',
@@ -74,11 +73,6 @@ const MODEL_META: Record<ModelKey, { nameVi: string; formula: string; tremorColo
         formula: '√(22.5 × EPS × BVPS)',
         tremorColor: 'emerald',
     },
-    justified_ps: {
-        nameVi: 'So sánh P/S ngành',
-        formula: 'Revenue/Share × Median P/S ngành',
-        tremorColor: 'amber',
-    },
 };
 
 const DOT_CLASS: Record<ModelKey, string> = {
@@ -87,7 +81,6 @@ const DOT_CLASS: Record<ModelKey, string> = {
     justified_pe: 'bg-violet-500',
     justified_pb: 'bg-purple-500',
     graham: 'bg-emerald-500',
-    justified_ps: 'bg-amber-500',
 };
 
 const fmt = (v: number) => (v > 0 ? new Intl.NumberFormat('vi-VN').format(Math.round(v)) : '—');
@@ -193,10 +186,9 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     const initModels = useCallback(() => ({
         fcfe: { id: 'fcfe', name: 'FCFE', desc: 'Free Cash Flow to Equity', enabled: !isBank, weight: isBank ? 0 : 15, icon: RiMoneyDollarCircleLine },
         fcff: { id: 'fcff', name: 'FCFF', desc: 'Free Cash Flow to Firm', enabled: !isBank, weight: isBank ? 0 : 15, icon: RiBuildingLine },
-        justified_pe: { id: 'justified_pe', name: 'P/E Comparables', desc: 'Relative P/E Valuation', enabled: true, weight: isBank ? 40 : 20, icon: RiBarChartLine },
-        justified_pb: { id: 'justified_pb', name: 'P/B Comparables', desc: 'Relative P/B Valuation', enabled: true, weight: isBank ? 40 : 20, icon: RiBookOpenLine },
+        justified_pe: { id: 'justified_pe', name: 'P/E Comparables', desc: 'Relative P/E Valuation', enabled: true, weight: isBank ? 40 : 25, icon: RiBarChartLine },
+        justified_pb: { id: 'justified_pb', name: 'P/B Comparables', desc: 'Relative P/B Valuation', enabled: true, weight: isBank ? 40 : 25, icon: RiBookOpenLine },
         graham: { id: 'graham', name: 'Graham', desc: 'Benjamin Graham Formula', enabled: !isBank, weight: isBank ? 0 : 15, icon: RiScales3Line },
-        justified_ps: { id: 'justified_ps', name: 'P/S Comparables', desc: 'Price-to-Sales Valuation', enabled: true, weight: isBank ? 20 : 15, icon: RiShoppingCart2Line },
     }), [isBank]);
 
     const [models, setModels] = useState(initModels);
@@ -277,7 +269,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         justified_pe: models.justified_pe.enabled ? models.justified_pe.weight : 0,
         justified_pb: models.justified_pb.enabled ? models.justified_pb.weight : 0,
         graham: models.graham.enabled ? models.graham.weight : 0,
-        justified_ps: models.justified_ps.enabled ? models.justified_ps.weight : 0,
     }), [models]);
 
     const handleFullExport = async () => {
@@ -447,6 +438,17 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                             />
                                         </div>
                                     </div>
+                                    {result?.target_price && (
+                                        <div>
+                                            <label className="text-sm text-gray-600 dark:text-gray-400">Giá mục tiêu VCI</label>
+                                            <div className="mt-1 flex items-center justify-between rounded-tremor-default border border-tremor-border bg-tremor-background-subtle px-3 py-2 dark:border-dark-tremor-border dark:bg-dark-tremor-background-subtle">
+                                                <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                                    {result.target_price.toLocaleString('vi-VN')}
+                                                </span>
+                                                <UpsideBadge value={getUpside(result.target_price)} />
+                                            </div>
+                                        </div>
+                                    )}
                                     <div>
                                         <label className="text-sm text-gray-600 dark:text-gray-400">Discount Rate (WACC) %</label>
                                         <div className="mt-1">
