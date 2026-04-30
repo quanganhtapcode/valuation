@@ -5,7 +5,6 @@ import HeroIndexCard from '@/components/HeroIndexCard';
 import NewsSection from '@/components/NewsSection';
 
 import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard } from '@/components/Sidebar';
-import type { MarketCenterID } from '@/components/Sidebar/MarketPulse';
 import { HeatmapVN30 } from '@/components/HeatmapVN30';
 import {
     fetchAllIndices,
@@ -96,7 +95,6 @@ export default function OverviewClient({
     const [newsError, setNewsError] = useState<string | null>(null);
 
     // State for top movers
-    const [centerID, setCenterID] = useState<MarketCenterID>('HOSE');
     const [gainers, setGainers] = useState<TopMoverItem[]>(initialGainers);
     const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
     const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
@@ -184,15 +182,15 @@ export default function OverviewClient({
         }
     }, []);
 
-    const loadMovers = useCallback(async (exchange: MarketCenterID = centerID) => {
+    const loadMovers = useCallback(async () => {
         if (moversInFlightRef.current) return;
         const coldStart = gainers.length === 0 && losers.length === 0;
         try {
             moversInFlightRef.current = true;
             if (coldStart) setMoversLoading(true);
             const [up, down] = await Promise.all([
-                fetchTopMovers('UP', exchange),
-                fetchTopMovers('DOWN', exchange),
+                fetchTopMovers('UP'),
+                fetchTopMovers('DOWN'),
             ]);
             setGainers(prev => (sameMovers(prev, up) ? prev : up));
             setLosers(prev => (sameMovers(prev, down) ? prev : down));
@@ -202,7 +200,7 @@ export default function OverviewClient({
             moversInFlightRef.current = false;
             if (coldStart) setMoversLoading(false);
         }
-    }, [centerID, gainers.length, losers.length]);
+    }, [gainers.length, losers.length]);
 
     useEffect(() => {
         if (!initialGoldPrices || initialGoldPrices.length === 0) {
@@ -236,14 +234,6 @@ export default function OverviewClient({
             loadMovers();
         }
     }, [initialGainers, initialLosers, loadMovers]);
-
-    // Re-fetch movers when exchange tab changes
-    useEffect(() => {
-        setGainers([]);
-        setLosers([]);
-        loadMovers(centerID);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [centerID]);
 
     // Periodic refresh for movers from API snapshot (30s cadence).
     useEffect(() => {
@@ -354,8 +344,6 @@ export default function OverviewClient({
                         gainers={gainers}
                         losers={losers}
                         isLoading={moversLoading}
-                        centerID={centerID}
-                        onCenterChange={setCenterID}
                     />
 
                     {/* World Markets (FF WebSocket) */}

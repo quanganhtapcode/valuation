@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { memo, useState, useCallback } from 'react'; // useCallback used by MarketList
+import { memo, useState, useCallback } from 'react';
 import {
     Card,
 } from '@tremor/react';
@@ -9,16 +9,10 @@ import Link from 'next/link';
 import { TopMoverItem } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
 
-export type MarketCenterID = 'HOSE' | 'HNX' | 'UPCOM';
-
-const MARKET_CENTERS: MarketCenterID[] = ['HOSE', 'HNX', 'UPCOM'];
-
 interface MarketPulseProps {
     gainers: TopMoverItem[];
     losers: TopMoverItem[];
     isLoading?: boolean;
-    centerID?: MarketCenterID;
-    onCenterChange?: (centerID: MarketCenterID) => void;
 }
 
 function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
@@ -72,35 +66,12 @@ function TrendIcon({ direction, alt }: { direction: Direction; alt: string }) {
     );
 }
 
-function MarketPulse({
-    gainers,
-    losers,
-    isLoading,
-    centerID = 'HOSE',
-    onCenterChange,
-}: MarketPulseProps) {
+function MarketPulse({ gainers, losers, isLoading }: MarketPulseProps) {
     return (
         <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-xl">
-            <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+            <div className="flex items-center px-3 py-2 border-b border-gray-100 dark:border-gray-800">
                 <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">Top Movers</span>
-                <div className="grid grid-cols-3 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-900">
-                    {MARKET_CENTERS.map(center => (
-                        <button
-                            key={center}
-                            type="button"
-                            onClick={() => onCenterChange?.(center)}
-                            className={`min-w-14 rounded px-2 py-1 text-xs font-semibold transition-colors ${
-                                centerID === center
-                                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-gray-100'
-                                    : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
-                            }`}
-                        >
-                            {center}
-                        </button>
-                    ))}
-                </div>
             </div>
-            {/* Content Area */}
             <div className="p-0">
                 <MarketList
                     items1={gainers}
@@ -109,7 +80,6 @@ function MarketPulse({
                     label2="Losers"
                     type="movers"
                     isLoading={isLoading}
-                    centerID={centerID}
                 />
             </div>
         </Card>
@@ -120,7 +90,6 @@ export default memo(
     MarketPulse,
     (prev, next) =>
         prev.isLoading === next.isLoading &&
-        prev.centerID === next.centerID &&
         sameMovers(prev.gainers, next.gainers) &&
         sameMovers(prev.losers, next.losers),
 );
@@ -132,7 +101,6 @@ function MarketList({
     label2,
     type,
     isLoading,
-    centerID,
 }: {
     items1: TopMoverItem[],
     items2: TopMoverItem[],
@@ -140,9 +108,8 @@ function MarketList({
     label2: string,
     type: 'movers' | 'foreign',
     isLoading?: boolean,
-    centerID: MarketCenterID,
 }) {
-    const [subTab, setSubTab] = useState(0); // 0 or 1
+    const [subTab, setSubTab] = useState(0);
     const items = subTab === 0 ? items1 : items2;
 
     const handleSubTabChange = useCallback((nextTab: 0 | 1) => {
@@ -151,7 +118,7 @@ function MarketList({
 
     return (
         <div className="flex flex-col">
-            {/* Sub-tabs (Pills) */}
+            {/* Sub-tabs */}
             <div className="bg-gray-50 dark:bg-gray-800/50 px-3 py-2 border-b border-gray-100 dark:border-gray-800">
                 <div className="flex p-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg">
                     <button
@@ -224,7 +191,7 @@ function MarketList({
                                             <div className="flex items-center gap-1.5 text-xs text-tremor-content-subtle">
                                                 <span className="font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">{item.Symbol}</span>
                                                 <span className="text-tremor-content-subtle">·</span>
-                                                <span>{centerID}</span>
+                                                <span>HOSE</span>
                                             </div>
                                         </div>
                                     </div>
@@ -274,7 +241,6 @@ function MarketList({
                     </div>
                 )}
             </div>
-
         </div>
     );
 }
