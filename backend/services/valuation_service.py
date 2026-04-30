@@ -112,17 +112,20 @@ def _load_symbol_overview_from_vci(symbol: str) -> dict | None:
     pb = 0.0
     is_bank = False
 
-    # Industry + isbank from vci_company
+    target_price = None
+
+    # Industry + isbank + target_price from vci_company
     try:
         conn = sqlite3.connect(resolve_vci_company_db_path())
         conn.row_factory = sqlite3.Row
         row = conn.execute(
-            "SELECT icb_name4, icb_name3, icb_name2, isbank FROM companies WHERE UPPER(ticker) = ?",
+            "SELECT icb_name4, icb_name3, icb_name2, isbank, target_price FROM companies WHERE UPPER(ticker) = ?",
             (symbol,),
         ).fetchone()
         if row:
             industry = row['icb_name4'] or row['icb_name3'] or row['icb_name2'] or 'Unknown'
             is_bank = bool(row['isbank'])
+            target_price = float(row['target_price']) if row['target_price'] else None
         conn.close()
     except Exception as exc:
         logger.debug(f"VCI company lookup failed for {symbol}: {exc}")
@@ -175,6 +178,7 @@ def _load_symbol_overview_from_vci(symbol: str) -> dict | None:
         'pe': pe,
         'pb': pb,
         'is_bank': is_bank,
+        'target_price': target_price,
     }
 
 
@@ -243,59 +247,6 @@ class ScreeningIndustryComparablesCache:
 _screening_industry_cache = ScreeningIndustryComparablesCache(ttl_seconds=3600)
 
 
-class ScreeningPsCache:
-    """Cache of (symbol, ps) tuples for an ICB industry group from vci_stats_financial."""
-
-    def __init__(self, ttl_seconds: int = 3600):
-        self._ttl_seconds = ttl_seconds
-        self._lock = threading.Lock()
-        self._cache: dict[str, _IndustryCacheEntry] = {}
-
-    def get_ps_rows(self, screening_db_path: str, icb_code_lv2: str) -> list[tuple[str, float]]:
-        icb_code_lv2 = str(icb_code_lv2)
-        now = time.time()
-        entry = self._cache.get(icb_code_lv2)
-        if entry and (now - entry.created_at) < self._ttl_seconds:
-            return entry.rows  # type: ignore[return-value]
-
-        with self._lock:
-            entry = self._cache.get(icb_code_lv2)
-            if entry and (now - entry.created_at) < self._ttl_seconds:
-                return entry.rows  # type: ignore[return-value]
-
-            sf_path = resolve_vci_stats_financial_db_path()
-            rows: list[tuple[str, float]] = []
-            conn = sqlite3.connect(screening_db_path)
-            conn.row_factory = sqlite3.Row
-            try:
-                conn.execute(f"ATTACH DATABASE '{sf_path}' AS sf")
-                cur = conn.execute(
-                    """
-                    SELECT s.ticker, sf.ps
-                    FROM screening_data s
-                    JOIN sf.stats_financial sf ON UPPER(sf.ticker) = UPPER(s.ticker)
-                    WHERE s.icbCodeLv2 = ?
-                      AND sf.ps IS NOT NULL AND sf.ps > 0 AND sf.ps <= 200
-                    """,
-                    (icb_code_lv2,),
-                )
-                for r in cur.fetchall() or []:
-                    rows.append((str(r['ticker']).upper(), _to_float(r['ps'])))
-            except Exception:
-                rows = []
-            finally:
-                try:
-                    conn.execute("DETACH DATABASE sf")
-                except Exception:
-                    pass
-                conn.close()
-
-            self._cache[icb_code_lv2] = _IndustryCacheEntry(now, rows)  # type: ignore[arg-type]
-            return rows
-
-
-_screening_ps_cache = ScreeningPsCache(ttl_seconds=3600)
-
 
 def _load_eps_history_yearly(symbol: str, limit: int = 10) -> list[dict]:
     """EPS history from VCI annual income statements."""
@@ -326,61 +277,18 @@ def _load_latest_net_income(symbol: str) -> tuple[float, str]:
 def _load_latest_financial_components(symbol: str) -> dict:
     """Return income + cash flow components for FCFE calculation from VCI financial statements."""
     symbol = symbol.upper()
-
     if has_vci_financial_db():
         try:
-            vci_data = vci_load_financial_components(symbol)
-            if vci_data.get('isa20', 0) > 0 or vci_data.get('cfa2', 0) > 0:
-                # Map raw VCI codes to the expected output format
-                dr = vci_data.get('cfa9', 0.0)
-                di = vci_data.get('cfa10', 0.0)
-                dp = vci_data.get('cfa11', 0.0)
-                pfa = vci_data.get('cfa18', 0.0)
-                pdfa = vci_data.get('cfa19', 0.0)
-                pb = vci_data.get('cfa27', 0.0)
-                rb = vci_data.get('cfa28', 0.0)
-                dep = vci_data.get('cfa2', 0.0)
-
-                net_income = vci_data.get('isa22', 0.0) or vci_data.get('isa20', 0.0)
-                capex_out = abs(pfa)
-
-                return {
-                    'net_income': float(net_income),
-                    'period_year': vci_data.get('period_year'),
-                    'period_quarter': vci_data.get('period_quarter'),
-                    'financial_expense': float(vci_data.get('isa7', 0.0)),
-                    'depreciation_fixed_assets': float(dep),
-                    'depreciation': float(dep),
-                    'increase_decrease_receivables': float(dr),
-                    'increase_decrease_inventory': float(di),
-                    'increase_decrease_payables': float(dp),
-                    'purchase_purchase_fixed_assets': float(pfa),
-                    'proceeds_from_disposal_fixed_assets': float(pdfa),
-                    'proceeds_disposal_fixed_assets': float(pdfa),
-                    'proceeds_from_borrowings': float(pb),
-                    'proceeds_borrowings': float(pb),
-                    'repayments_of_borrowings': float(rb),
-                    'repayments_borrowings': float(rb),
-                    'delta_receivables': float(dr),
-                    'delta_inventory': float(di),
-                    'delta_payables': float(dp),
-                    'delta_working_capital': float(dr + di - dp),
-                    'purchase_fixed_assets_raw': float(pfa),
-                    'capex_purchase_outflow': float(capex_out),
-                    'capex_net': max(0.0, capex_out - max(0.0, abs(pdfa))),
-                    'net_borrowing': float(pb + rb),
-                    'source': 'vci_fs.income_statement + cash_flow (latest period)',
-                }
+            result = vci_load_financial_components(symbol)
+            if result.get('net_income', 0) > 0 or result.get('depreciation', 0) > 0:
+                return result
         except Exception as exc:
             logger.debug(f"VCI financial components failed for {symbol}: {exc}")
-
     return {
         'net_income': 0.0, 'period_year': None, 'period_quarter': None,
         'financial_expense': 0.0, 'depreciation': 0.0, 'depreciation_fixed_assets': 0.0,
-        'delta_receivables': 0.0, 'delta_inventory': 0.0, 'delta_payables': 0.0,
-        'delta_working_capital': 0.0, 'purchase_fixed_assets_raw': 0.0,
-        'proceeds_disposal_fixed_assets': 0.0, 'capex_purchase_outflow': 0.0,
-        'capex_net': 0.0, 'proceeds_borrowings': 0.0, 'repayments_borrowings': 0.0,
+        'operating_cf': 0.0, 'capex_net': 0.0,
+        'proceeds_borrowings': 0.0, 'repayments_borrowings': 0.0,
         'net_borrowing': 0.0, 'source': 'missing',
     }
 
@@ -661,10 +569,8 @@ def _calc_scenario(
     fcff_base_per_share: float,
     eps: float,
     bvps: float,
-    rev_per_share: float,
     pe_used: float,
     pb_used: float,
-    ps_used: float,
     graham: float,
     weights: dict,
     projection_years: int,
@@ -696,7 +602,6 @@ def _calc_scenario(
         'justified_pe': float(eps * pe_used * multiple_factor) if eps > 0 else 0.0,
         'justified_pb': float(bvps * pb_used * multiple_factor) if bvps > 0 else 0.0,
         'graham': float(graham),
-        'justified_ps': float(rev_per_share * ps_used * multiple_factor) if rev_per_share > 0 else 0.0,
     }
     weighted = _compute_weighted_average(vals, weights)
     vals['weighted_average'] = float(weighted)
@@ -724,10 +629,8 @@ def _build_default_scenarios(
     fcff_base_per_share: float,
     eps: float,
     bvps: float,
-    rev_per_share: float,
     pe_used: float,
     pb_used: float,
-    ps_used: float,
     graham: float,
     weights: dict,
     projection_years: int,
@@ -743,10 +646,8 @@ def _build_default_scenarios(
         fcff_base_per_share=fcff_base_per_share,
         eps=eps,
         bvps=bvps,
-        rev_per_share=rev_per_share,
         pe_used=pe_used,
         pb_used=pb_used,
-        ps_used=ps_used,
         graham=graham,
         weights=weights,
         projection_years=projection_years,
@@ -764,10 +665,8 @@ def _build_default_scenarios(
         fcff_base_per_share=fcff_base_per_share,
         eps=eps,
         bvps=bvps,
-        rev_per_share=rev_per_share,
         pe_used=pe_used,
         pb_used=pb_used,
-        ps_used=ps_used,
         graham=graham,
         weights=weights,
         projection_years=projection_years,
@@ -785,10 +684,8 @@ def _build_default_scenarios(
         fcff_base_per_share=fcff_base_per_share,
         eps=eps,
         bvps=bvps,
-        rev_per_share=rev_per_share,
         pe_used=pe_used,
         pb_used=pb_used,
-        ps_used=ps_used,
         graham=graham,
         weights=weights,
         projection_years=projection_years,
@@ -836,7 +733,6 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
     sf_row = _load_stats_financial_row(symbol)
     sf_pe = _to_float(sf_row['pe']) if sf_row else 0.0
     sf_pb = _to_float(sf_row['pb']) if sf_row else 0.0
-    sf_ps = _to_float(sf_row['ps']) if sf_row else 0.0
     sf_roe = _to_float(sf_row['roe']) if sf_row else 0.0
     sf_shares = _to_float(sf_row['shares']) if sf_row else 0.0
 
@@ -908,13 +804,6 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
     elif ratio_wide_row and ratio_wide_row['outstanding_share']:
         outstanding_share = _to_float(ratio_wide_row['outstanding_share'])
 
-    # P/S: vci_stats_financial.ps → ratio_wide.ps
-    ps_company = 0.0
-    if sf_ps > 0:
-        ps_company = sf_ps
-    elif ratio_wide_row and ratio_wide_row['ps']:
-        ps_company = _to_float(ratio_wide_row['ps'])
-
     market_cap_raw = _to_float((sf_row or {}).get('market_cap'))
     # TTM financial components (4-quarter sum when available)
     if has_vci_financial_db():
@@ -940,11 +829,11 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
         'is_bank': ov.get('is_bank', False),
         'current_price': float(current_price),
         'current_price_source': current_price_source,
+        'target_price': ov.get('target_price'),
         'eps_ttm': float(eps),
         'eps_source': eps_source,
         'bvps': float(bvps),
         'bvps_source': bvps_source,
-        'ps_company': float(ps_company),
         'implied_price_rw': float(implied_price_rw),
         'shares_outstanding': float(outstanding_share),
         'net_income_ttm': float(net_income_ttm),
@@ -953,6 +842,8 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
         'eps_history_yearly': eps_history_yearly,
         'eps_growth_suggestion': eps_cagr,
         'screening_roe': float(sf_roe),
+        'sf_pe': float(sf_pe),
+        'sf_pb': float(sf_pb),
     }
 
 
@@ -987,12 +878,18 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     projection_years = int(_to_float(request_data.get('projectionYears'), 5))
     projection_years = max(1, min(projection_years, 20))
 
-    # Growth: user override → EPS CAGR suggestion → 8% default
+    # Growth: user override → EPS CAGR (floored at terminal growth) → 8% default
+    # Floor prevents DCF from projecting permanent decline for cyclical stocks whose
+    # historical CAGR spans a peak-to-trough cycle (e.g. shipping/steel post-boom).
     eps_cagr_data = inputs.get('eps_growth_suggestion') or {}
     eps_cagr_val = eps_cagr_data.get('cagr')
-    default_growth_pct = round(float(eps_cagr_val) * 100, 1) if eps_cagr_val is not None else 8.0
-    growth = _to_float(request_data.get('revenueGrowth'), default_growth_pct) / 100.0
     terminal_growth = _to_float(request_data.get('terminalGrowth'), 3.0) / 100.0
+    if eps_cagr_val is not None:
+        cagr_floored = max(float(eps_cagr_val), terminal_growth)
+        default_growth_pct = round(cagr_floored * 100, 1)
+    else:
+        default_growth_pct = 8.0
+    growth = _to_float(request_data.get('revenueGrowth'), default_growth_pct) / 100.0
     required_return = _to_float(request_data.get('requiredReturn'), 12.0) / 100.0
 
     # WACC: user override → auto from Beta → 10.5% default
@@ -1013,7 +910,6 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     datamart_row = _load_valuation_datamart_row(db_path, inputs['symbol'])
 
     rows: list[tuple[str, float, float]] = []
-    ps_rows: list[tuple[str, float]] = []
     comparables_source = 'sqlite.vci_screening (icbCodeLv2 cohort; symbol excluded)'
     comparables_group = {'type': 'vci_screening.icbCodeLv2', 'key': industry}
 
@@ -1026,7 +922,6 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     if effective_screening_key:
         try:
             rows = _screening_industry_cache.get_rows(screening_db_path, str(effective_screening_key))
-            ps_rows = _screening_ps_cache.get_ps_rows(screening_db_path, str(effective_screening_key))
             comparables_group = {
                 'type': 'vci_screening.icbCodeLv2',
                 'key': str(effective_screening_key),
@@ -1034,7 +929,6 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             }
         except Exception:
             rows = []
-            ps_rows = []
 
     # PE/PB should use their own valid samples independently.
     pe_values_all = [pe for sym, pe, _pb in rows if sym != inputs['symbol'] and 0 < pe <= 80]
@@ -1060,8 +954,24 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             industry_median_pb = float(dm_pb)
             pb_sample_size = dm_pb_count
 
-    pe_used = float(industry_median_pe) if industry_median_pe is not None else 15.0
-    pb_used = float(industry_median_pb) if industry_median_pb is not None else 1.5
+    # Blend company's own PE/PB (50%) with industry median (50%) so market leaders
+    # aren't pulled down by weak peers. Fall back to pure industry median if no own multiple.
+    company_pe = _to_float((inputs.get('sf_pe') or 0.0))
+    company_pb = _to_float((inputs.get('sf_pb') or 0.0))
+
+    if industry_median_pe is not None and company_pe > 0:
+        pe_used = float(0.5 * company_pe + 0.5 * industry_median_pe)
+    elif company_pe > 0:
+        pe_used = float(company_pe)
+    else:
+        pe_used = float(industry_median_pe) if industry_median_pe is not None else 15.0
+
+    if industry_median_pb is not None and company_pb > 0:
+        pb_used = float(0.5 * company_pb + 0.5 * industry_median_pb)
+    elif company_pb > 0:
+        pb_used = float(company_pb)
+    else:
+        pb_used = float(industry_median_pb) if industry_median_pb is not None else 1.5
 
     justified_pe = float(eps * pe_used) if eps > 0 else 0.0
     justified_pb = float(bvps * pb_used) if bvps > 0 else 0.0
@@ -1070,33 +980,9 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     if eps > 0 and bvps > 0:
         graham = float((22.5 * eps * bvps) ** 0.5)
 
-    # ── P/S (Price-to-Sales) valuation ──────────────────────────────────────────
-    ps_company = float(inputs.get('ps_company', 0.0))
-    implied_price_rw = float(inputs.get('implied_price_rw', 0.0))
-    # Revenue per share derived from the company's own P/S ratio and implied price
-    # rev_per_share = price / ps  (because ps = price / rev_per_share)
-    price_for_ps = implied_price_rw if implied_price_rw > 0 else current_price
-    rev_per_share = (price_for_ps / ps_company) if (ps_company > 0 and price_for_ps > 0) else 0.0
-
-    ps_values_all = [ps for sym, ps in ps_rows if sym != inputs['symbol'] and 0 < ps <= 200]
-    industry_median_ps = _median(ps_values_all)
-    ps_sample_size = len(ps_values_all)
-
-    if datamart_row:
-        dm_ps = _to_float(datamart_row.get('ps_median'))
-        dm_ps_count = int(_to_float(datamart_row.get('ps_count')))
-        if dm_ps > 0 and dm_ps_count > 0:
-            industry_median_ps = float(dm_ps)
-            ps_sample_size = dm_ps_count
-
-    ps_used = float(industry_median_ps) if industry_median_ps is not None else 3.0
-
-    justified_ps = float(rev_per_share * ps_used) if rev_per_share > 0 else 0.0
-
     peers_detailed: list[dict] = []
     pe_peers: list[dict] = []
     pb_peers: list[dict] = []
-    ps_peers: list[dict] = []
 
     if include_lists:
         screening_peers: list[dict] = []
@@ -1118,26 +1004,20 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             for p in peers_detailed
             if _to_float(p.get('pb')) > 0 and _to_float(p.get('pb')) <= 20
         ]
-        ps_peers = [
-            {'symbol': str(p['symbol']).upper(), 'ps': float(_to_float(p.get('ps')))}
-            for p in peers_detailed
-            if _to_float(p.get('ps')) > 0 and _to_float(p.get('ps')) <= 200
-        ]
 
     cashflow_components = inputs.get('cashflow_components') or {}
-    net_income_base = _to_float(cashflow_components.get('net_income'))
-    if net_income_base == 0:
-        net_income_base = net_income_ttm
-
-    depreciation_base = _to_float(cashflow_components.get('depreciation'))
-    delta_wc_base = _to_float(cashflow_components.get('delta_working_capital'))
+    operating_cf_base = _to_float(cashflow_components.get('operating_cf'))
     capex_net_base = _to_float(cashflow_components.get('capex_net'))
     net_borrowing_base = _to_float(cashflow_components.get('net_borrowing'))
     interest_expense_base = abs(_to_float(cashflow_components.get('financial_expense')))
     interest_after_tax_base = interest_expense_base * (1.0 - tax_rate)
+    depreciation_base = _to_float(cashflow_components.get('depreciation'))
+    net_income_base = _to_float(cashflow_components.get('net_income')) or net_income_ttm
 
-    fcfe_base_total = net_income_base + depreciation_base + net_borrowing_base - delta_wc_base - capex_net_base
-    fcff_base_total = net_income_base + depreciation_base + interest_after_tax_base - delta_wc_base - capex_net_base
+    # FCFE = Operating CF (cfa1) - Capex + Net New Borrowing
+    # FCFF = Operating CF (cfa1) + After-tax Interest - Capex
+    fcfe_base_total = operating_cf_base - capex_net_base + net_borrowing_base
+    fcff_base_total = operating_cf_base - capex_net_base + interest_after_tax_base
 
     fcfe_base_per_share = (fcfe_base_total / shares_outstanding) if shares_outstanding > 0 else 0.0
     fcff_base_per_share = (fcff_base_total / shares_outstanding) if shares_outstanding > 0 else 0.0
@@ -1163,30 +1043,26 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         'justified_pe': float(justified_pe),
         'justified_pb': float(justified_pb),
         'graham': float(graham),
-        'justified_ps': float(justified_ps),
     }
 
     # Weighted average — bank model uses different weights
     weights = request_data.get('modelWeights', {}) or {}
     if not any(_to_float(w) > 0 for w in weights.values()):
         if is_bank:
-            # Banks: PB-heavy (book value is meaningful), no FCFF (debt = product not capital)
             weights = {
-                'fcfe': 10,
+                'fcfe': 15,
                 'fcff': 0,
-                'justified_pe': 20,
-                'justified_pb': 35,
+                'justified_pe': 25,
+                'justified_pb': 40,
                 'graham': 20,
-                'justified_ps': 15,
             }
         else:
             weights = {
-                'fcfe': 15,
-                'fcff': 15,
-                'justified_pe': 20,
-                'justified_pb': 20,
-                'graham': 15,
-                'justified_ps': 15,
+                'fcfe': 20,
+                'fcff': 20,
+                'justified_pe': 25,
+                'justified_pb': 25,
+                'graham': 10,
             }
 
     weighted_avg = _compute_weighted_average(valuations, weights)
@@ -1197,10 +1073,8 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         fcff_base_per_share=float(fcff_base_per_share),
         eps=float(eps),
         bvps=float(bvps),
-        rev_per_share=float(rev_per_share),
         pe_used=float(pe_used),
         pb_used=float(pb_used),
-        ps_used=float(ps_used),
         graham=float(graham),
         weights=weights,
         projection_years=int(projection_years),
@@ -1217,24 +1091,20 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             inputs=inputs,
             pe_count=pe_sample_size,
             pb_count=pb_sample_size,
-            ps_count=ps_sample_size,
+            ps_count=0,
         )
 
     pe_values_export = pe_values_all[:comparable_list_limit]
     pb_values_export = pb_values_all[:comparable_list_limit]
-    ps_values_export = ps_values_all[:comparable_list_limit]
     pe_peers_export = pe_peers[:comparable_list_limit]
     pb_peers_export = pb_peers[:comparable_list_limit]
-    ps_peers_export = ps_peers[:comparable_list_limit]
     detailed_peers_export = peers_detailed[:comparable_list_limit]
     pe_truncated = len(pe_values_all) > len(pe_values_export)
     pb_truncated = len(pb_values_all) > len(pb_values_export)
-    ps_truncated = len(ps_values_all) > len(ps_values_export)
     peers_detailed_truncated = len(peers_detailed) > len(detailed_peers_export)
 
     pe_summary = _summarize(pe_values_all, industry_median_pe)
     pb_summary = _summarize(pb_values_all, industry_median_pb)
-    ps_summary = _summarize(ps_values_all, industry_median_ps)
 
     if pe_sample_size > pe_summary.get('count', 0):
         pe_summary['count'] = int(pe_sample_size)
@@ -1242,9 +1112,6 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     if pb_sample_size > pb_summary.get('count', 0):
         pb_summary['count'] = int(pb_sample_size)
         pb_summary['median_computed'] = industry_median_pb
-    if ps_sample_size > ps_summary.get('count', 0):
-        ps_summary['count'] = int(ps_sample_size)
-        ps_summary['median_computed'] = industry_median_ps
 
     # Fair value range: ±1 std dev of industry PE applied to EPS
     pe_std = pe_summary.get('std_dev') or 0.0
@@ -1265,10 +1132,12 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
                 'pb_std':  float(round(pb_std, 2)),
             })
 
+    target_price = inputs.get('target_price')
     export = {
         'market': {
             'current_price': float(current_price),
             'current_price_source': inputs['current_price_source'],
+            'target_price': float(target_price) if target_price is not None else None,
         },
         'comparables': {
             'industry': industry,
@@ -1289,29 +1158,20 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
                 'truncated': bool(pb_truncated) if include_lists else False,
                 'filter': {'min_exclusive': 0, 'max_inclusive': 20},
             },
-            'ps': {
-                **ps_summary,
-                'used': float(ps_used),
-                'values': [float(v) for v in ps_values_export] if include_lists else [],
-                'peers': ps_peers_export if include_lists else [],
-                'truncated': bool(ps_truncated) if include_lists else False,
-                'filter': {'min_exclusive': 0, 'max_inclusive': 200},
-            },
             'peers_detailed': detailed_peers_export if include_lists else [],
             'peers_detailed_truncated': bool(peers_detailed_truncated) if include_lists else False,
-            'defaults_if_missing': {'pe_ttm': 15.0, 'pb': 1.5, 'ps': 3.0},
+            'defaults_if_missing': {'pe_ttm': 15.0, 'pb': 1.5},
             'source': comparables_source,
             'null_handling': 'PE/PB samples exclude only NULL/invalid values for each metric independently',
         },
         'calculation': {
             'dcf_fcfe': {
-                'cashflow_proxy': 'FCFE = net_income + depreciation + net_borrowing - delta_working_capital - capex_net',
+                'cashflow_proxy': 'FCFE = operating_cf (cfa1) - capex_net + net_borrowing',
+                'operating_cf': float(operating_cf_base),
                 'net_income': float(net_income_base),
-                'net_income_source': inputs.get('net_income_source', 'missing'),
                 'shares_outstanding': float(shares_outstanding),
                 'depreciation': float(depreciation_base),
                 'net_borrowing': float(net_borrowing_base),
-                'delta_working_capital': float(delta_wc_base),
                 'capex_net': float(capex_net_base),
                 'base_cashflow_total': float(fcfe_base_total),
                 'base_cashflow_per_share': float(fcfe_base_per_share),
@@ -1325,14 +1185,13 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
                 'result': float(fcfe_value),
             },
             'dcf_fcff': {
-                'cashflow_proxy': 'FCFF = net_income + depreciation + interest_after_tax - delta_working_capital - capex_net',
+                'cashflow_proxy': 'FCFF = operating_cf (cfa1) - capex_net + interest_after_tax',
+                'operating_cf': float(operating_cf_base),
                 'net_income': float(net_income_base),
-                'net_income_source': inputs.get('net_income_source', 'missing'),
                 'depreciation': float(depreciation_base),
                 'interest_expense': float(interest_expense_base),
                 'interest_after_tax': float(interest_after_tax_base),
                 'tax_rate': float(tax_rate),
-                'delta_working_capital': float(delta_wc_base),
                 'capex_net': float(capex_net_base),
                 'base_cashflow_total': float(fcff_base_total),
                 'base_cashflow_per_share': float(fcff_base_per_share),
@@ -1359,14 +1218,6 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
                 'formula': 'bvps * pb_used',
                 'result': float(justified_pb),
             },
-            'justified_ps': {
-                'ps_company': float(ps_company),
-                'rev_per_share': float(rev_per_share),
-                'ps_used': float(ps_used),
-                'formula': 'rev_per_share * industry_median_ps',
-                'industry_ps_sample_size': int(ps_sample_size),
-                'result': float(justified_ps),
-            },
         },
         'list_limit': comparable_list_limit,
         'include_lists': bool(include_lists),
@@ -1383,19 +1234,19 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     }
 
     fcfe_inputs_legacy = {
+        'operatingCF': float(operating_cf_base),
         'netIncome': float(net_income_base),
         'depreciation': float(depreciation_base),
-        'workingCapitalInvestment': float(delta_wc_base),
         'fixedCapitalInvestment': float(capex_net_base),
         'netBorrowing': float(net_borrowing_base),
         'sharesOutstanding': float(shares_outstanding),
     }
     fcff_inputs_legacy = {
+        'operatingCF': float(operating_cf_base),
         'netIncome': float(net_income_base),
         'depreciation': float(depreciation_base),
         'interestExpense': float(interest_expense_base),
         'interestAfterTax': float(interest_after_tax_base),
-        'workingCapitalInvestment': float(delta_wc_base),
         'fixedCapitalInvestment': float(capex_net_base),
         'sharesOutstanding': float(shares_outstanding),
     }
@@ -1406,6 +1257,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         'success': True,
         'symbol': inputs['symbol'],
         'is_bank': is_bank,
+        'target_price': float(target_price) if target_price is not None else None,
         'valuations': valuations,
         'fair_value_range': fair_value_range,
         'fcfe_details': fcfe_details,
@@ -1424,10 +1276,8 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             'industry_median_pb_used': float(pb_used),
             'industry_pe_sample_size': int(pe_sample_size),
             'industry_pb_sample_size': int(pb_sample_size),
-            'ps_company': float(ps_company),
-            'rev_per_share': float(rev_per_share),
-            'industry_median_ps_used': float(ps_used),
-            'industry_ps_sample_size': int(ps_sample_size),
+            'sf_pe': float(inputs.get('sf_pe') or 0.0),
+            'sf_pb': float(inputs.get('sf_pb') or 0.0),
             'shares_outstanding': float(shares_outstanding),
             'net_income_ttm': float(net_income_ttm),
             'fcfe_base_per_share': float(fcfe_base_per_share),

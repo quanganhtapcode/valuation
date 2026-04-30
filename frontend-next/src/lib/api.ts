@@ -153,6 +153,8 @@ export interface NewsItem {
     Source?: string;
     Price?: number;
     ChangePrice?: number;
+    Sentiment?: 'Positive' | 'Negative' | 'Neutral' | string;
+    Score?: number;
     // camelCase / snake_case aliases (other news sources)
     title?: string;
     url?: string;
@@ -160,6 +162,8 @@ export interface NewsItem {
     publish_date?: string;
     image_url?: string;
     symbol?: string;
+    sentiment?: 'Positive' | 'Negative' | 'Neutral' | string;
+    score?: number;
 }
 
 export interface TopMoverItem {

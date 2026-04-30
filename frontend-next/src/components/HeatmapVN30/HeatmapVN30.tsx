@@ -15,6 +15,14 @@ interface HeatmapVN30Props {
   useExternalOnly?: boolean;
 }
 
+type HeatmapExchange = 'HSX' | 'HNX' | 'UPCOM';
+
+const HEATMAP_EXCHANGES: { value: HeatmapExchange; label: string }[] = [
+  { value: 'HSX', label: 'HOSE' },
+  { value: 'HNX', label: 'HNX' },
+  { value: 'UPCOM', label: 'UPCOM' },
+];
+
 //  Squarify Treemap 
 function worstAspect(rowAreas: number[], longSide: number): number {
   if (!rowAreas.length || longSide === 0) return Infinity;
@@ -101,6 +109,7 @@ const LABEL_H = 20;     // balanced header height
 //  Component 
 export default function HeatmapVN30({ externalData = null, useExternalOnly = false }: HeatmapVN30Props) {
   const [data, setData] = useState<HeatmapData | null>(null);
+  const [exchange, setExchange] = useState<HeatmapExchange>('HSX');
   const [cw, setCw] = useState(800);
   const [ch, setCh] = useState(600); // Responsive height
   const [loading, setLoading] = useState(true);
@@ -140,12 +149,14 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`${API_BASE}/market/heatmap?exchange=HSX&limit=200`);
+      setLoading(true);
+      setHover(null);
+      const r = await fetch(`${API_BASE}/market/heatmap?exchange=${exchange}&limit=200`);
       if (!r.ok) return;
       const d: HeatmapData = await r.json();
       setData(d);
     } catch { /* silent */ } finally { setLoading(false); }
-  }, []);
+  }, [exchange]);
 
   useEffect(() => {
     if (!externalData) return;
@@ -234,6 +245,27 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
 
   return (
     <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f1117] p-0.5 shadow-sm overflow-hidden">
+      {!useExternalOnly && (
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Market Heatmap</h3>
+          <div className="grid grid-cols-3 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-900">
+            {HEATMAP_EXCHANGES.map(item => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setExchange(item.value)}
+                className={`min-w-14 rounded px-2 py-1 text-xs font-semibold transition-colors ${
+                  exchange === item.value
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Treemap */}
       <div ref={containerRef} className="relative w-full" style={{ height: ch }}>
