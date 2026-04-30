@@ -241,56 +241,65 @@ def load_latest_net_income(symbol: str) -> tuple[float, str]:
 
 
 def load_latest_financial_components(symbol: str) -> dict:
-    """Return income + cash flow components needed for FCFE calculation.
-
-    All keys are raw VCI field codes (isa*, cfa*).
-    """
-    db_path = _get_db_path()
+    """Return income + cash flow components needed for FCFE calculation (latest period fallback)."""
     result = {
-        'isa20': 0.0,  # net_profit
-        'isa22': 0.0,  # net_profit_parent
+        'net_income': 0.0,
         'period_year': None,
         'period_quarter': None,
-        'isa7': 0.0,   # financial_expense
-        'cfa2': 0.0,   # depreciation
-        'cfa9': 0.0,   # receivables change
-        'cfa10': 0.0,  # inventory change
-        'cfa11': 0.0,  # payables change
-        'cfa18': 0.0,  # purchase fixed assets
-        'cfa19': 0.0,  # proceeds disposal fixed assets
-        'cfa27': 0.0,  # proceeds borrowings
-        'cfa28': 0.0,  # repayments borrowings
+        'financial_expense': 0.0,
+        'depreciation': 0.0,
+        'depreciation_fixed_assets': 0.0,
+        'operating_cf': 0.0,
+        'capex_net': 0.0,
+        'proceeds_borrowings': 0.0,
+        'repayments_borrowings': 0.0,
+        'net_borrowing': 0.0,
         'source': 'vci_fs.income_statement + cash_flow (latest period)',
     }
 
-    # Income statement
     income_rows = get_income_statement(symbol, annual_only=False, limit=20)
     if income_rows:
         r = income_rows[0]
-        result['isa22'] = float(r.get('isa22') or 0.0)
-        result['isa20'] = float(r.get('isa20') or 0.0)
+        ni = float(r.get('isa22') or 0.0) or float(r.get('isa20') or 0.0)
+        result['net_income'] = ni
         result['period_year'] = r.get('year')
         result['period_quarter'] = r.get('quarter')
-        result['isa7'] = float(r.get('isa7') or 0.0)
+        result['financial_expense'] = float(r.get('isa7') or 0.0)
 
-    # Cash flow statement
     cf_rows = get_cash_flow_statement(symbol, limit=20)
     if cf_rows:
         r = cf_rows[0]
-        result['cfa2'] = float(r.get('cfa2') or 0.0)
-        result['cfa9'] = float(r.get('cfa9') or 0.0)
-        result['cfa10'] = float(r.get('cfa10') or 0.0)
-        result['cfa11'] = float(r.get('cfa11') or 0.0)
-        result['cfa18'] = float(r.get('cfa18') or 0.0)
-        result['cfa19'] = float(r.get('cfa19') or 0.0)
-        result['cfa27'] = float(r.get('cfa27') or 0.0)
-        result['cfa28'] = float(r.get('cfa28') or 0.0)
+        dep = float(r.get('cfa2') or 0.0)
+        op_cf = float(r.get('cfa1') or 0.0)
+        cf18 = float(r.get('cfa18') or 0.0)
+        cf19 = float(r.get('cfa19') or 0.0)
+        pb = float(r.get('cfa27') or 0.0)
+        rb = float(r.get('cfa28') or 0.0)
+
+        if cf18 <= 0:
+            capex_purchases, capex_disposal = abs(cf18), max(0.0, cf19)
+        else:
+            capex_purchases, capex_disposal = abs(min(0.0, cf19)), max(0.0, cf18)
+        capex_net = max(0.0, capex_purchases - capex_disposal)
+        if capex_net == 0.0 and dep > 0:
+            capex_net = dep
+
+        result['depreciation'] = dep
+        result['depreciation_fixed_assets'] = dep
+        result['operating_cf'] = op_cf
+        result['capex_net'] = capex_net
+        result['proceeds_borrowings'] = pb
+        result['repayments_borrowings'] = rb
+        result['net_borrowing'] = pb + rb
 
     return result
 
 
 def load_ttm_eps(symbol: str) -> float:
-    """TTM EPS: sum isa23 from last 4 quarters. Fallback: latest annual isa23."""
+    """TTM EPS: sum isa23 from last 4 quarters within a 2-year window.
+
+    Falls back to latest annual isa23 if fewer than 4 recent quarters exist.
+    """
     symbol = symbol.upper()
     db_path = _get_db_path()
     if not db_path:
@@ -303,10 +312,14 @@ def load_ttm_eps(symbol: str) -> float:
             SELECT isa23 FROM income_statement
             WHERE ticker = ? AND period_kind != 'YEAR'
               AND isa23 IS NOT NULL AND isa23 > 0
+              AND year_report >= (
+                  SELECT MAX(year_report) FROM income_statement
+                  WHERE ticker = ? AND period_kind != 'YEAR'
+              ) - 1
             ORDER BY year_report DESC, quarter_report DESC
             LIMIT 4
             """,
-            (symbol,),
+            (symbol, symbol),
         ).fetchall()
         conn.close()
         if len(rows) >= 4:
@@ -350,9 +363,9 @@ def load_ttm_financial_components(symbol: str) -> dict:
 
         cf_rows = conn.execute(
             """
-            SELECT cfa2, cfa9, cfa10, cfa11, cfa18, cfa19, cfa27, cfa28
+            SELECT cfa1, cfa2, cfa18, cfa19, cfa27, cfa28
             FROM cash_flow
-            WHERE ticker = ?
+            WHERE ticker = ? AND period_kind != 'YEAR'
             ORDER BY year_report DESC, quarter_report DESC
             LIMIT 4
             """,
@@ -370,16 +383,23 @@ def load_ttm_financial_components(symbol: str) -> dict:
         net_income_total = _s(inc_rows, 'isa20')
         net_income = net_income_parent if net_income_parent > 0 else net_income_total
         financial_expense = _s(inc_rows, 'isa7')
+        operating_cf = _s(cf_rows, 'cfa1')
         depreciation = _s(cf_rows, 'cfa2')
-        dr = _s(cf_rows, 'cfa9')
-        di = _s(cf_rows, 'cfa10')
-        dp = _s(cf_rows, 'cfa11')
-        pfa = _s(cf_rows, 'cfa18')
-        pdfa = _s(cf_rows, 'cfa19')
+        cf18 = _s(cf_rows, 'cfa18')
+        cf19 = _s(cf_rows, 'cfa19')
         pb = _s(cf_rows, 'cfa27')
         rb = _s(cf_rows, 'cfa28')
-        capex_out = abs(pfa)
         latest_year = inc_rows[0]['year_report'] if inc_rows else None
+
+        # Determine capex: the more-negative of cfa18/cfa19 is purchases, the positive is disposal.
+        # Fall back to D&A when capex resolves to zero (e.g. mixed investing flows).
+        if cf18 <= 0:
+            capex_purchases, capex_disposal = abs(cf18), max(0.0, cf19)
+        else:
+            capex_purchases, capex_disposal = abs(min(0.0, cf19)), max(0.0, cf18)
+        capex_net = max(0.0, capex_purchases - capex_disposal)
+        if capex_net == 0.0 and depreciation > 0:
+            capex_net = depreciation  # maintenance capex ≈ D&A when investing flows are ambiguous
 
         return {
             'net_income': float(net_income),
@@ -388,14 +408,8 @@ def load_ttm_financial_components(symbol: str) -> dict:
             'financial_expense': float(financial_expense),
             'depreciation': float(depreciation),
             'depreciation_fixed_assets': float(depreciation),
-            'delta_receivables': float(dr),
-            'delta_inventory': float(di),
-            'delta_payables': float(dp),
-            'delta_working_capital': float(dr + di - dp),
-            'purchase_fixed_assets_raw': float(pfa),
-            'proceeds_disposal_fixed_assets': float(pdfa),
-            'capex_purchase_outflow': float(capex_out),
-            'capex_net': max(0.0, capex_out - max(0.0, abs(pdfa))),
+            'operating_cf': float(operating_cf),
+            'capex_net': float(capex_net),
             'proceeds_borrowings': float(pb),
             'repayments_borrowings': float(rb),
             'net_borrowing': float(pb + rb),

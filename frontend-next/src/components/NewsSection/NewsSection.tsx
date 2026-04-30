@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { NewsItem, formatRelativeTime } from '@/lib/api';
 import { Card, Icon } from '@tremor/react';
 import { RiArrowRightUpLine, RiNewspaperLine } from '@remixicon/react';
@@ -12,34 +11,15 @@ interface NewsSectionProps {
     error?: string | null;
 }
 
-interface SymbolPrice {
-    price: number;
-    change: number;
-    changePercent: number;
+function sentimentColor(sentiment: string | undefined): string {
+    if (!sentiment) return 'text-gray-500 dark:text-gray-400';
+    const s = sentiment.toLowerCase();
+    if (s === 'positive') return 'text-emerald-600 dark:text-emerald-400';
+    if (s === 'negative') return 'text-rose-600 dark:text-rose-400';
+    return 'text-gray-500 dark:text-gray-400';
 }
 
 export default function NewsSection({ news, isLoading, error }: NewsSectionProps) {
-    const [prices, setPrices] = useState<Record<string, SymbolPrice>>({});
-
-    // Fetch prices for ALL news symbols in 1 single request using bulk endpoint
-    useEffect(() => {
-        if (!news || news.length === 0) return;
-
-        const uniqueSymbols = [...new Set(
-            news.map(item => item.Symbol || item.symbol || '').filter(Boolean)
-        )];
-
-        if (uniqueSymbols.length === 0) return;
-
-        // ONE request with ?symbols=FMC,SSI,VNM,... instead of N separate requests
-        fetch(`/api/market/prices?symbols=${uniqueSymbols.join(',')}`)
-            .then(r => r.ok ? r.json() : {})
-            .then((data: Record<string, SymbolPrice>) => {
-                setPrices(data);
-            })
-            .catch(() => { /* silently fail - prices are optional */ });
-    }, [news]);
-
     if (isLoading) {
         return (
             <Card className="p-4 md:p-6">
@@ -110,15 +90,8 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                     const timeFormat = pubDateStr ? formatRelativeTime(pubDateStr, 'vi-VN') : '';
                     const image = item.image_url || item.ImageThumb || item.Avatar || '';
                     const symbol = item.Symbol || item.symbol || '';
-                    const priceInfo = symbol ? prices[symbol] : undefined;
-
-                    const priceUp = priceInfo && priceInfo.change > 0;
-                    const priceDown = priceInfo && priceInfo.change < 0;
-                    const priceColor = priceUp
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : priceDown
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-gray-500';
+                    const sentiment = item.Sentiment || item.sentiment;
+                    const colorClass = sentimentColor(sentiment);
 
                     return (
                         <a
@@ -160,15 +133,9 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                                                 {timeFormat}
                                             </span>
                                         )}
-
                                         {symbol && (
-                                            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 font-bold bg-slate-100 dark:bg-slate-800 ${priceColor}`}>
+                                            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 font-bold bg-slate-100 dark:bg-slate-800 ${colorClass}`}>
                                                 {symbol}
-                                                {priceInfo?.price ? (
-                                                    <span className="ml-1 font-medium opacity-80">
-                                                        {Math.round(priceInfo.price).toLocaleString('en-US')}
-                                                    </span>
-                                                ) : null}
                                             </span>
                                         )}
                                     </div>

@@ -5,17 +5,17 @@ import HeroIndexCard from '@/components/HeroIndexCard';
 import NewsSection from '@/components/NewsSection';
 
 import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard } from '@/components/Sidebar';
+import type { MarketCenterID } from '@/components/Sidebar/MarketPulse';
 import { HeatmapVN30 } from '@/components/HeatmapVN30';
-import { useWatchlist } from '@/lib/watchlistContext';
 import {
     fetchAllIndices,
     subscribeIndicesStream,
     isTradingHours,
-    fetchOverviewRefresh,
     PRICE_SYNC_INTERVAL_MS,
     IDLE_REFRESH_INTERVAL_MS,
     fetchTopMovers,
     fetchGoldPrices,
+    fetchNews,
     INDEX_MAP,
     MarketIndexData,
     NewsItem,
@@ -94,10 +94,9 @@ export default function OverviewClient({
     const [news, setNews] = useState<NewsItem[]>(initialNews);
     const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
     const [newsError, setNewsError] = useState<string | null>(null);
-    const [liveHeatmapData, setLiveHeatmapData] = useState<any>(null);
-    const [watchlistPrices, setWatchlistPrices] = useState<Record<string, { price: number; changePercent: number }>>({});
 
     // State for top movers
+    const [centerID, setCenterID] = useState<MarketCenterID>('HOSE');
     const [gainers, setGainers] = useState<TopMoverItem[]>(initialGainers);
     const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
     const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
@@ -107,7 +106,7 @@ export default function OverviewClient({
     const [goldLoading] = useState(false);
     const [goldUpdatedAt, setGoldUpdatedAt] = useState<string>(initialGoldUpdated || new Date().toISOString());
     const [goldSource, setGoldSource] = useState<string>('Phú Quý');
-    const { watchlist } = useWatchlist();
+    const newsInFlightRef = useRef(false);
     const moversInFlightRef = useRef(false);
 
     const mapMarketDataToIndices = useCallback((marketData: Record<string, MarketIndexData>) => {
@@ -169,45 +168,31 @@ export default function OverviewClient({
         }
     }, []);
 
-    const loadOverviewSnapshot = useCallback(async () => {
+    const loadNews = useCallback(async () => {
+        if (newsInFlightRef.current) return;
         try {
+            newsInFlightRef.current = true;
             setNewsError(null);
-            const snapshot = await fetchOverviewRefresh({
-                symbols: watchlist,
-                newsSize: 30,
-                heatmapLimit: 200,
-                heatmapExchange: 'HSX',
-                peTimeFrame: 'ALL',
-            });
-
-            setNews(snapshot.news);
-            setLiveHeatmapData(snapshot.heatmap);
-
-            const nextPrices: Record<string, { price: number; changePercent: number }> = {};
-            Object.entries(snapshot.watchlistPrices || {}).forEach(([symbol, snap]) => {
-                nextPrices[symbol] = {
-                    price: snap?.price || 0,
-                    changePercent: snap?.changePercent || 0,
-                };
-            });
-            setWatchlistPrices(nextPrices);
+            const nextNews = await fetchNews(1, 30);
+            setNews(nextNews);
         } catch (error) {
-            console.error('Error loading overview snapshot:', error);
-            setNewsError('Unable to refresh overview data');
+            console.error('Error loading market news:', error);
+            setNewsError('Unable to refresh market news');
         } finally {
+            newsInFlightRef.current = false;
             setNewsLoading(false);
         }
-    }, [watchlist]);
+    }, []);
 
-    const loadMovers = useCallback(async () => {
+    const loadMovers = useCallback(async (exchange: MarketCenterID = centerID) => {
         if (moversInFlightRef.current) return;
         const coldStart = gainers.length === 0 && losers.length === 0;
         try {
             moversInFlightRef.current = true;
             if (coldStart) setMoversLoading(true);
             const [up, down] = await Promise.all([
-                fetchTopMovers('UP'),
-                fetchTopMovers('DOWN'),
+                fetchTopMovers('UP', exchange),
+                fetchTopMovers('DOWN', exchange),
             ]);
             setGainers(prev => (sameMovers(prev, up) ? prev : up));
             setLosers(prev => (sameMovers(prev, down) ? prev : down));
@@ -217,7 +202,7 @@ export default function OverviewClient({
             moversInFlightRef.current = false;
             if (coldStart) setMoversLoading(false);
         }
-    }, [gainers.length, losers.length]);
+    }, [centerID, gainers.length, losers.length]);
 
     useEffect(() => {
         if (!initialGoldPrices || initialGoldPrices.length === 0) {
@@ -233,24 +218,32 @@ export default function OverviewClient({
             if (isCancelled) return;
             const delay = isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS;
             timer = setTimeout(async () => {
-                await loadOverviewSnapshot();
+                await loadNews();
                 schedule();
             }, delay);
         };
 
-        loadOverviewSnapshot().finally(schedule);
+        loadNews().finally(schedule);
 
         return () => {
             isCancelled = true;
             if (timer) clearTimeout(timer);
         };
-    }, [loadOverviewSnapshot]);
+    }, [loadNews]);
 
     useEffect(() => {
         if (!initialGainers || !initialLosers || initialGainers.length === 0 || initialLosers.length === 0) {
             loadMovers();
         }
     }, [initialGainers, initialLosers, loadMovers]);
+
+    // Re-fetch movers when exchange tab changes
+    useEffect(() => {
+        setGainers([]);
+        setLosers([]);
+        loadMovers(centerID);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [centerID]);
 
     // Periodic refresh for movers from API snapshot (30s cadence).
     useEffect(() => {
@@ -339,7 +332,7 @@ export default function OverviewClient({
 
 
                     {/* VN30 Heatmap */}
-                    <HeatmapVN30 externalData={liveHeatmapData} useExternalOnly />
+                    <HeatmapVN30 />
 
                     {/* News Section */}
                     <div className="order-2">
@@ -354,13 +347,15 @@ export default function OverviewClient({
                 {/* Right Column - Sidebar */}
                 <aside className={styles.rightColumn}>
                     {/* Watchlist */}
-                    <WatchlistCard externalPrices={watchlistPrices} useExternalOnly />
+                    <WatchlistCard />
 
                     {/* Market Pulse (Combined Top Movers & Foreign Flow) */}
                     <MarketPulse
                         gainers={gainers}
                         losers={losers}
                         isLoading={moversLoading}
+                        centerID={centerID}
+                        onCenterChange={setCenterID}
                     />
 
                     {/* World Markets (FF WebSocket) */}
