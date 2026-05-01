@@ -117,7 +117,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
         fetchPrices();
         const interval = setInterval(fetchPrices, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
         return () => { ctrl.abort(); clearInterval(interval); };
-    }, [watchlist, enrichWithMeta, externalPrices, useExternalOnly]);
+    }, [watchlist, enrichWithMeta, useExternalOnly]);
 
     useEffect(() => {
         if (watchlist.length === 0 || Object.keys(externalPrices).length === 0) return;
