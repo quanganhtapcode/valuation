@@ -29,6 +29,7 @@ const REALTIME_PATH_PREFIXES = [
     'market/vci-indices',
     'market/top-movers',
     'market/heatmap',
+    'market/prices',
 ];
 
 const SHORT_CACHE_PATH_PREFIXES = [
