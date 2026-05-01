@@ -32,14 +32,20 @@ def register(stock_bp: Blueprint) -> None:
 
     @stock_bp.route("/stock/peers-vci/<symbol>")
     def api_stock_peers_vci(symbol):
-        """Get peer stocks with VCI stats financial data (PE, PB, ROE, ROA, EV/EBITDA).
+        """Get peer stocks with VCI stats financial data.
 
-        Uses vci_company.sqlite (icb_name2) for sector grouping, then vci_stats_financial.sqlite for metrics.
+        Query params:
+          mode=quarter (default) — latest TTM from stats_financial
+          mode=year              — latest annual from stats_financial_history (quarter_report=5)
         """
         try:
             is_valid, clean_symbol = validate_stock_symbol(symbol)
             if not is_valid:
                 return jsonify({"success": False, "error": clean_symbol}), 400
+
+            mode = request.args.get("mode", "quarter")
+            if mode not in ("quarter", "year"):
+                mode = "quarter"
 
             company_db = resolve_vci_company_db_path()
             with sqlite3.connect(company_db) as conn:
@@ -50,11 +56,10 @@ def register(stock_bp: Blueprint) -> None:
                 ).fetchone()
 
             if not row or not row["icb_name2"]:
-                return jsonify({"success": True, "data": [], "medianPe": None, "industry": None})
+                return jsonify({"success": True, "data": [], "medianPe": None, "industry": None, "period": None})
 
             sector = row["icb_name2"]
 
-            # Find all peer tickers in the same icb_name2 sector
             with sqlite3.connect(company_db) as conn:
                 conn.row_factory = sqlite3.Row
                 peer_rows = conn.execute(
@@ -66,17 +71,63 @@ def register(stock_bp: Blueprint) -> None:
             ticker_names = {r["ticker"]: r["organ_name"] or r["ticker"] for r in peer_rows}
 
             if not peer_tickers:
-                return jsonify({"success": True, "data": [], "medianPe": None, "industry": sector})
+                return jsonify({"success": True, "data": [], "medianPe": None, "industry": sector, "period": None})
 
             stats_db = resolve_vci_stats_financial_db_path()
             placeholders = ",".join(["?" for _ in peer_tickers])
-            with sqlite3.connect(stats_db) as conn:
-                conn.row_factory = sqlite3.Row
-                stats_rows = conn.execute(
-                    f"SELECT ticker, pe, pb, roe, roa, ev_to_ebitda, market_cap"
-                    f" FROM stats_financial WHERE ticker IN ({placeholders})",
-                    peer_tickers,
-                ).fetchall()
+
+            if mode == "year":
+                with sqlite3.connect(stats_db) as conn:
+                    conn.row_factory = sqlite3.Row
+                    stats_rows = conn.execute(
+                        f"""
+                        SELECT h.ticker, h.pe, h.pb, h.roe, h.roa, h.market_cap,
+                               h.net_interest_margin, h.cir, h.casa_ratio, h.npl,
+                               h.ldr, h.loans_growth, h.deposit_growth,
+                               h.year_report, h.quarter_report
+                        FROM stats_financial_history h
+                        INNER JOIN (
+                            SELECT ticker, MAX(year_report) AS max_year
+                            FROM stats_financial_history
+                            WHERE quarter_report = 5 AND ticker IN ({placeholders})
+                            GROUP BY ticker
+                        ) latest ON h.ticker = latest.ticker AND h.year_report = latest.max_year
+                        WHERE h.quarter_report = 5
+                        """,
+                        peer_tickers,
+                    ).fetchall()
+                period = None
+                if stats_rows:
+                    period = f"Năm {stats_rows[0]['year_report']}"
+            else:
+                with sqlite3.connect(stats_db) as conn:
+                    conn.row_factory = sqlite3.Row
+                    stats_rows = conn.execute(
+                        f"""
+                        SELECT ticker, pe, pb, roe, roa, market_cap,
+                               net_interest_margin, cir, casa_ratio, npl,
+                               ldr, loans_growth, deposit_growth,
+                               NULL AS year_report, NULL AS quarter_report
+                        FROM stats_financial
+                        WHERE ticker IN ({placeholders})
+                        """,
+                        peer_tickers,
+                    ).fetchall()
+                period = None
+                with sqlite3.connect(stats_db) as conn:
+                    raw = conn.execute(
+                        "SELECT raw_json FROM stats_financial WHERE ticker = ?",
+                        (clean_symbol.upper(),),
+                    ).fetchone()
+                    if raw and raw[0]:
+                        try:
+                            raw_data = json.loads(raw[0])
+                            yr = raw_data.get("year") or raw_data.get("yearReport")
+                            qt = raw_data.get("quarter")
+                            if yr and qt:
+                                period = f"TTM Q{qt}/{yr}"
+                        except Exception:
+                            pass
 
             peers = []
             for r in stats_rows:
@@ -87,8 +138,15 @@ def register(stock_bp: Blueprint) -> None:
                     "pb": r["pb"],
                     "roe": r["roe"],
                     "roa": r["roa"],
-                    "evEbitda": r["ev_to_ebitda"],
+                    "evEbitda": None,
                     "marketCap": r["market_cap"],
+                    "nim": r["net_interest_margin"],
+                    "cir": r["cir"],
+                    "casa": r["casa_ratio"],
+                    "npl": r["npl"],
+                    "ldr": r["ldr"],
+                    "loansGrowth": r["loans_growth"],
+                    "depositGrowth": r["deposit_growth"],
                     "isCurrent": r["ticker"] == clean_symbol,
                 })
 
@@ -104,6 +162,7 @@ def register(stock_bp: Blueprint) -> None:
                 "data": peers,
                 "medianPe": median_pe,
                 "industry": sector,
+                "period": period,
             })
         except Exception as exc:
             logger.exception("peers-vci error for %s", symbol)
