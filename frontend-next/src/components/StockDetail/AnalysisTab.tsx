@@ -16,6 +16,7 @@ import {
 import { LineChart } from '@tremor/react';
 import { formatNumber } from '@/lib/api';
 import { cx } from '@/lib/utils';
+import BankingPeerTable from './BankingPeerTable';
 
 interface Peer {
     symbol: string;
@@ -128,6 +129,7 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
     const [loading, setLoading] = useState(true);
     const [medianPe, setMedianPe] = useState<number | null>(null);
     const [industryName, setIndustryName] = useState<string>('');
+    const [rawPeersRes, setRawPeersRes] = useState<any>(null);
     const fetchedSymbolRef = useRef<string>('');
 
     // Populate from initialHistory prop when it arrives
@@ -156,6 +158,7 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
             .then(([peersRes, historyRes]) => {
                 if (cancelled) return;
                 if (peersRes?.success) {
+                    setRawPeersRes(peersRes);
                     setPeers((peersRes.data || []).map(normalizePeer));
                     setMedianPe(toNumberOrNull(peersRes.medianPe));
                     if (peersRes.industry) setIndustryName(peersRes.industry);
@@ -236,107 +239,116 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
             </Card>
 
             {/* Peer comparison */}
-            <Card className="p-0 overflow-hidden">
-                <div className="p-6 border-b border-tremor-border dark:border-dark-tremor-border bg-tremor-background-muted/50 dark:bg-dark-tremor-background-muted/20">
-                    <div className="sm:flex sm:items-center sm:justify-between sm:space-x-10">
-                        <div>
-                            <h3 className="text-lg font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                So sánh ngành
-                            </h3>
-                            <p className="mt-1 text-tremor-default leading-6 text-tremor-content dark:text-dark-tremor-content">
-                                {peers.length} công ty · {displayIndustry} · sắp xếp theo vốn hóa
-                            </p>
-                        </div>
-                        {medianPe !== null && (
-                            <div className="mt-4 sm:mt-0">
-                                <span className="inline-flex items-center rounded-tremor-small bg-blue-50 px-3 py-1.5 text-tremor-default font-bold text-blue-700 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/20">
-                                    Median P/E ngành: {medianPe.toFixed(2)}
-                                </span>
+            {industryName === 'Ngân hàng' ? (
+                <BankingPeerTable
+                    symbol={symbol}
+                    industry={industryName}
+                    initialPeers={rawPeersRes}
+                    initialPeriod={rawPeersRes?.period ?? null}
+                />
+            ) : (
+                <Card className="p-0 overflow-hidden">
+                    <div className="p-6 border-b border-tremor-border dark:border-dark-tremor-border bg-tremor-background-muted/50 dark:bg-dark-tremor-background-muted/20">
+                        <div className="sm:flex sm:items-center sm:justify-between sm:space-x-10">
+                            <div>
+                                <h3 className="text-lg font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                    So sánh ngành
+                                </h3>
+                                <p className="mt-1 text-tremor-default leading-6 text-tremor-content dark:text-dark-tremor-content">
+                                    {peers.length} công ty · {displayIndustry} · sắp xếp theo vốn hóa
+                                </p>
                             </div>
-                        )}
+                            {medianPe !== null && (
+                                <div className="mt-4 sm:mt-0">
+                                    <span className="inline-flex items-center rounded-tremor-small bg-blue-50 px-3 py-1.5 text-tremor-default font-bold text-blue-700 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/20">
+                                        Median P/E ngành: {medianPe.toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-                <div className="px-4 pb-4">
-                    <Table className="h-[450px] [&>table]:border-separate [&>table]:border-spacing-0">
-                        <TableHead>
-                            <TableRow>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Mã CK</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Vốn hóa</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/E</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/B</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROE (%)</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROA (%)</TableHeaderCell>
-                                <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">EV/EBITDA</TableHeaderCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {peers.map((item) => {
-                                const marketCap = toNumberOrNull(item.marketCap);
-                                const pe = toNumberOrNull(item.pe);
-                                const pb = toNumberOrNull(item.pb);
-                                const roe = toNumberOrNull(item.roe);
-                                const roa = toNumberOrNull(item.roa);
-                                const evEbitda = toNumberOrNull(item.evEbitda);
+                    <div className="px-4 pb-4">
+                        <Table className="h-[450px] [&>table]:border-separate [&>table]:border-spacing-0">
+                            <TableHead>
+                                <TableRow>
+                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Mã CK</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">Vốn hóa</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/E</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/B</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROE (%)</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROA (%)</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">EV/EBITDA</TableHeaderCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {peers.map((item) => {
+                                    const marketCap = toNumberOrNull(item.marketCap);
+                                    const pe = toNumberOrNull(item.pe);
+                                    const pb = toNumberOrNull(item.pb);
+                                    const roe = toNumberOrNull(item.roe);
+                                    const roa = toNumberOrNull(item.roa);
+                                    const evEbitda = toNumberOrNull(item.evEbitda);
 
-                                const marketCapTone = getMetricTone(metricExtremes, 'marketCap', marketCap);
-                                const peTone = getMetricTone(metricExtremes, 'pe', pe);
-                                const pbTone = getMetricTone(metricExtremes, 'pb', pb);
-                                const roeTone = getMetricTone(metricExtremes, 'roe', roe);
-                                const roaTone = getMetricTone(metricExtremes, 'roa', roa);
-                                const evEbitdaTone = getMetricTone(metricExtremes, 'evEbitda', evEbitda);
+                                    const marketCapTone = getMetricTone(metricExtremes, 'marketCap', marketCap);
+                                    const peTone = getMetricTone(metricExtremes, 'pe', pe);
+                                    const pbTone = getMetricTone(metricExtremes, 'pb', pb);
+                                    const roeTone = getMetricTone(metricExtremes, 'roe', roe);
+                                    const roaTone = getMetricTone(metricExtremes, 'roa', roa);
+                                    const evEbitdaTone = getMetricTone(metricExtremes, 'evEbitda', evEbitda);
 
-                                const fmtCap = (v: number | null) => {
-                                    if (v === null || v <= 0) return '-';
-                                    if (v >= 1e12) return `${(v / 1e12).toFixed(1)}N`;
-                                    if (v >= 1e9) return `${(v / 1e9).toFixed(1)}T`;
-                                    return `${(v / 1e6).toFixed(0)}M`;
-                                };
+                                    const fmtCap = (v: number | null) => {
+                                        if (v === null || v <= 0) return '-';
+                                        if (v >= 1e12) return `${(v / 1e12).toFixed(1)}N`;
+                                        if (v >= 1e9) return `${(v / 1e9).toFixed(1)}T`;
+                                        return `${(v / 1e6).toFixed(0)}M`;
+                                    };
 
-                                return (
-                                    <TableRow key={item.symbol} className={cx(
-                                        item.isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/20'
-                                    )}>
-                                        <TableCell className="border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <div className="flex flex-col">
-                                                {item.isCurrent ? (
-                                                    <span className="font-bold text-tremor-default text-blue-600 dark:text-blue-400">
-                                                        {item.symbol}
-                                                        <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full dark:bg-blue-800 dark:text-blue-200 uppercase">Hiện tại</span>
-                                                    </span>
-                                                ) : (
-                                                    <Link href={`/stock/${item.symbol}`}
-                                                        className="font-bold text-tremor-default text-tremor-content-strong dark:text-dark-tremor-content-strong hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors">
-                                                        {item.symbol}
-                                                    </Link>
-                                                )}
-                                                <span className="text-xs text-tremor-content-subtle truncate max-w-[150px]">{item.name}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className={cx('text-right font-bold border-b border-tremor-border dark:border-dark-tremor-border', metricToneClass(marketCapTone))}>
-                                            {fmtCap(marketCap)}
-                                        </TableCell>
-                                        <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx('font-medium', metricToneClass(peTone))}>{pe !== null && pe > 0 ? `${pe.toFixed(1)}×` : '-'}</span>
-                                        </TableCell>
-                                        <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx('font-medium', metricToneClass(pbTone))}>{pb !== null && pb > 0 ? `${pb.toFixed(2)}×` : '-'}</span>
-                                        </TableCell>
-                                        <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx('font-medium', metricToneClass(roeTone))}>{formatPercentByKey('roe', roe)}</span>
-                                        </TableCell>
-                                        <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx('font-medium', metricToneClass(roaTone))}>{formatPercentByKey('roa', roa)}</span>
-                                        </TableCell>
-                                        <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                            <span className={cx('font-medium', metricToneClass(evEbitdaTone))}>{evEbitda !== null && evEbitda > 0 ? `${evEbitda.toFixed(1)}×` : '-'}</span>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </div>
-            </Card>
+                                    return (
+                                        <TableRow key={item.symbol} className={cx(
+                                            item.isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/20'
+                                        )}>
+                                            <TableCell className="border-b border-tremor-border dark:border-dark-tremor-border">
+                                                <div className="flex flex-col">
+                                                    {item.isCurrent ? (
+                                                        <span className="font-bold text-tremor-default text-blue-600 dark:text-blue-400">
+                                                            {item.symbol}
+                                                            <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full dark:bg-blue-800 dark:text-blue-200 uppercase">Hiện tại</span>
+                                                        </span>
+                                                    ) : (
+                                                        <Link href={`/stock/${item.symbol}`}
+                                                            className="font-bold text-tremor-default text-tremor-content-strong dark:text-dark-tremor-content-strong hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors">
+                                                            {item.symbol}
+                                                        </Link>
+                                                    )}
+                                                    <span className="text-xs text-tremor-content-subtle truncate max-w-[150px]">{item.name}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className={cx('text-right font-bold border-b border-tremor-border dark:border-dark-tremor-border', metricToneClass(marketCapTone))}>
+                                                {fmtCap(marketCap)}
+                                            </TableCell>
+                                            <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
+                                                <span className={cx('font-medium', metricToneClass(peTone))}>{pe !== null && pe > 0 ? `${pe.toFixed(1)}×` : '-'}</span>
+                                            </TableCell>
+                                            <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
+                                                <span className={cx('font-medium', metricToneClass(pbTone))}>{pb !== null && pb > 0 ? `${pb.toFixed(2)}×` : '-'}</span>
+                                            </TableCell>
+                                            <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
+                                                <span className={cx('font-medium', metricToneClass(roeTone))}>{formatPercentByKey('roe', roe)}</span>
+                                            </TableCell>
+                                            <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
+                                                <span className={cx('font-medium', metricToneClass(roaTone))}>{formatPercentByKey('roa', roa)}</span>
+                                            </TableCell>
+                                            <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
+                                                <span className={cx('font-medium', metricToneClass(evEbitdaTone))}>{evEbitda !== null && evEbitda > 0 ? `${evEbitda.toFixed(1)}×` : '-'}</span>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </Card>
+            )}
         </div>
     );
 };
