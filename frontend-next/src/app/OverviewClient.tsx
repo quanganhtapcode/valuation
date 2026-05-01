@@ -6,15 +6,16 @@ import NewsSection from '@/components/NewsSection';
 
 import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard } from '@/components/Sidebar';
 import { HeatmapVN30 } from '@/components/HeatmapVN30';
+import { useWatchlist } from '@/lib/watchlistContext';
 import {
     fetchAllIndices,
     subscribeIndicesStream,
     isTradingHours,
+    fetchOverviewRefresh,
     PRICE_SYNC_INTERVAL_MS,
     IDLE_REFRESH_INTERVAL_MS,
     fetchTopMovers,
     fetchGoldPrices,
-    fetchNews,
     INDEX_MAP,
     MarketIndexData,
     NewsItem,
@@ -93,6 +94,8 @@ export default function OverviewClient({
     const [news, setNews] = useState<NewsItem[]>(initialNews);
     const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
     const [newsError, setNewsError] = useState<string | null>(null);
+    const [liveHeatmapData, setLiveHeatmapData] = useState<any>(null);
+    const [watchlistPrices, setWatchlistPrices] = useState<Record<string, { price: number; changePercent: number }>>({});
 
     // State for top movers
     const [gainers, setGainers] = useState<TopMoverItem[]>(initialGainers);
@@ -104,7 +107,7 @@ export default function OverviewClient({
     const [goldLoading] = useState(false);
     const [goldUpdatedAt, setGoldUpdatedAt] = useState<string>(initialGoldUpdated || new Date().toISOString());
     const [goldSource, setGoldSource] = useState<string>('Phú Quý');
-    const newsInFlightRef = useRef(false);
+    const { watchlist } = useWatchlist();
     const moversInFlightRef = useRef(false);
 
     const mapMarketDataToIndices = useCallback((marketData: Record<string, MarketIndexData>) => {
@@ -166,21 +169,35 @@ export default function OverviewClient({
         }
     }, []);
 
-    const loadNews = useCallback(async () => {
-        if (newsInFlightRef.current) return;
+    const loadOverviewSnapshot = useCallback(async () => {
         try {
-            newsInFlightRef.current = true;
             setNewsError(null);
-            const nextNews = await fetchNews(1, 30);
-            setNews(nextNews);
+            const snapshot = await fetchOverviewRefresh({
+                symbols: watchlist,
+                newsSize: 30,
+                heatmapLimit: 200,
+                heatmapExchange: 'HSX',
+                peTimeFrame: 'ALL',
+            });
+
+            setNews(snapshot.news);
+            setLiveHeatmapData(snapshot.heatmap);
+
+            const nextPrices: Record<string, { price: number; changePercent: number }> = {};
+            Object.entries(snapshot.watchlistPrices || {}).forEach(([symbol, snap]) => {
+                nextPrices[symbol] = {
+                    price: snap?.price || 0,
+                    changePercent: snap?.changePercent || 0,
+                };
+            });
+            setWatchlistPrices(nextPrices);
         } catch (error) {
-            console.error('Error loading market news:', error);
-            setNewsError('Unable to refresh market news');
+            console.error('Error loading overview snapshot:', error);
+            setNewsError('Unable to refresh overview data');
         } finally {
-            newsInFlightRef.current = false;
             setNewsLoading(false);
         }
-    }, []);
+    }, [watchlist]);
 
     const loadMovers = useCallback(async () => {
         if (moversInFlightRef.current) return;
@@ -216,18 +233,18 @@ export default function OverviewClient({
             if (isCancelled) return;
             const delay = isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS;
             timer = setTimeout(async () => {
-                await loadNews();
+                await loadOverviewSnapshot();
                 schedule();
             }, delay);
         };
 
-        loadNews().finally(schedule);
+        loadOverviewSnapshot().finally(schedule);
 
         return () => {
             isCancelled = true;
             if (timer) clearTimeout(timer);
         };
-    }, [loadNews]);
+    }, [loadOverviewSnapshot]);
 
     useEffect(() => {
         if (!initialGainers || !initialLosers || initialGainers.length === 0 || initialLosers.length === 0) {
@@ -322,7 +339,7 @@ export default function OverviewClient({
 
 
                     {/* VN30 Heatmap */}
-                    <HeatmapVN30 />
+                    <HeatmapVN30 externalData={liveHeatmapData} useExternalOnly />
 
                     {/* News Section */}
                     <div className="order-2">
@@ -337,7 +354,7 @@ export default function OverviewClient({
                 {/* Right Column - Sidebar */}
                 <aside className={styles.rightColumn}>
                     {/* Watchlist */}
-                    <WatchlistCard />
+                    <WatchlistCard externalPrices={watchlistPrices} useExternalOnly />
 
                     {/* Market Pulse (Combined Top Movers & Foreign Flow) */}
                     <MarketPulse

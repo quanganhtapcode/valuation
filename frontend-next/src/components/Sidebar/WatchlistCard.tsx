@@ -5,11 +5,9 @@ import Link from 'next/link';
 import { Card } from '@tremor/react';
 import { RiEqualizerLine, RiCloseLine, RiArrowRightSLine, RiSearchLine } from '@remixicon/react';
 import { useWatchlist } from '@/lib/watchlistContext';
-import { formatNumber, isTradingHours, PRICE_SYNC_INTERVAL_MS, IDLE_REFRESH_INTERVAL_MS } from '@/lib/api';
+import { formatNumber } from '@/lib/api';
 import { getTickerData } from '@/lib/tickerCache';
 import { siteConfig } from '@/app/siteConfig';
-
-const BULK_PRICES_URL = '/api/market/prices';
 
 interface ExternalWatchlistPrice {
     price: number;
@@ -102,31 +100,22 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
             return;
         }
 
-        if (watchlist.length === 0) return;
-
-        const ctrl = new AbortController();
-
-        const fetchPrices = () => {
-            fetch(`${BULK_PRICES_URL}?symbols=${watchlist.join(',')}`, { signal: ctrl.signal })
+        const controllers: AbortController[] = [];
+        watchlist.forEach(symbol => {
+            const ctrl = new AbortController();
+            controllers.push(ctrl);
+            fetch(`/api/current-price/${symbol}`, { signal: ctrl.signal })
                 .then(r => r.ok ? r.json() : null)
-                .then((data: Record<string, { price: number; changePercent: number }> | null) => {
-                    if (!data) return;
-                    setItems(prev => prev.map(i => {
-                        const snap = data[i.symbol];
-                        if (!snap) return { ...i, loading: false };
-                        return { ...i, price: snap.price, changePercent: snap.changePercent, loading: false };
-                    }));
+                .then(res => {
+                    if (!res?.success) return;
+                    const price = res.current_price || 0;
+                    setItems(prev => prev.map(i =>
+                        i.symbol === symbol ? { ...i, price, changePercent: res.price_change_percent || 0, loading: false } : i
+                    ));
                 })
-                .catch(() => {});
-        };
-
-        fetchPrices();
-        const interval = setInterval(fetchPrices, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
-
-        return () => {
-            ctrl.abort();
-            clearInterval(interval);
-        };
+                .catch(() => setItems(prev => prev.map(i => i.symbol === symbol ? { ...i, loading: false } : i)));
+        });
+        return () => controllers.forEach(c => c.abort());
     }, [watchlist, enrichWithMeta, externalPrices, useExternalOnly]);
 
     useEffect(() => {

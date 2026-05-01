@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback } from 'react'; // useCallback used by MarketList
 import {
     Card,
 } from '@tremor/react';
@@ -66,12 +66,14 @@ function TrendIcon({ direction, alt }: { direction: Direction; alt: string }) {
     );
 }
 
-function MarketPulse({ gainers, losers, isLoading }: MarketPulseProps) {
+function MarketPulse({
+    gainers,
+    losers,
+    isLoading
+}: MarketPulseProps) {
     return (
         <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-xl">
-            <div className="flex items-center px-3 py-2 border-b border-gray-100 dark:border-gray-800">
-                <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">Top Movers</span>
-            </div>
+            {/* Content Area */}
             <div className="p-0">
                 <MarketList
                     items1={gainers}
@@ -109,7 +111,7 @@ function MarketList({
     type: 'movers' | 'foreign',
     isLoading?: boolean,
 }) {
-    const [subTab, setSubTab] = useState(0);
+    const [subTab, setSubTab] = useState(0); // 0 or 1
     const items = subTab === 0 ? items1 : items2;
 
     const handleSubTabChange = useCallback((nextTab: 0 | 1) => {
@@ -118,7 +120,7 @@ function MarketList({
 
     return (
         <div className="flex flex-col">
-            {/* Sub-tabs */}
+            {/* Sub-tabs (Pills) */}
             <div className="bg-gray-50 dark:bg-gray-800/50 px-3 py-2 border-b border-gray-100 dark:border-gray-800">
                 <div className="flex p-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg">
                     <button
@@ -241,6 +243,7 @@ function MarketList({
                     </div>
                 )}
             </div>
+
         </div>
     );
 }
