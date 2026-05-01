@@ -6,7 +6,7 @@ import Footer from "@/components/ui/Footer";
 import MainWrapper from "@/components/ui/MainWrapper";
 import { ThemeProvider } from "next-themes";
 import { TickerTape } from "@/components/TickerTape";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ClientErrorBoundary } from "@/components/ui/ClientErrorBoundary";
 import { siteConfig } from "@/app/siteConfig";
 import { WatchlistProvider } from "@/lib/watchlistContext"
 import { LanguageProvider } from "@/lib/languageContext";
@@ -143,9 +143,9 @@ export default function RootLayout({
             <WatchlistProvider>
               <Navbar />
               <TickerTape />
-              <ErrorBoundary>
+              <ClientErrorBoundary>
                 <MainWrapper>{children}</MainWrapper>
-              </ErrorBoundary>
+              </ClientErrorBoundary>
               <Footer />
             </WatchlistProvider>
           </LanguageProvider>

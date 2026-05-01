@@ -6,16 +6,15 @@ import NewsSection from '@/components/NewsSection';
 
 import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard } from '@/components/Sidebar';
 import { HeatmapVN30 } from '@/components/HeatmapVN30';
-import { useWatchlist } from '@/lib/watchlistContext';
 import {
     fetchAllIndices,
     subscribeIndicesStream,
     isTradingHours,
-    fetchOverviewRefresh,
     PRICE_SYNC_INTERVAL_MS,
     IDLE_REFRESH_INTERVAL_MS,
     fetchTopMovers,
     fetchGoldPrices,
+    fetchNews,
     INDEX_MAP,
     MarketIndexData,
     NewsItem,
@@ -26,7 +25,6 @@ import styles from './page.module.css';
 
 const MOVERS_REFRESH_INTERVAL_MS = 30000;
 
-// Static placeholders — card slots reserved before data arrives
 const PLACEHOLDER_INDICES: { id: string; name: string }[] = Object.entries(INDEX_MAP).map(([, info]) => ({
     id: info.id,
     name: info.name,
@@ -62,21 +60,15 @@ function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
     if (a === b) return true;
     if (!a || !b || a.length !== b.length) return false;
     for (let i = 0; i < a.length; i += 1) {
-        const x = a[i];
-        const y = b[i];
+        const x = a[i]; const y = b[i];
         if (!x || !y) return false;
-        if (
-            x.Symbol !== y.Symbol ||
+        if (x.Symbol !== y.Symbol ||
             Number(x.CurrentPrice || 0) !== Number(y.CurrentPrice || 0) ||
             Number(x.ChangePricePercent || 0) !== Number(y.ChangePricePercent || 0) ||
-            Number(x.Value || 0) !== Number(y.Value || 0)
-        ) {
-            return false;
-        }
+            Number(x.Value || 0) !== Number(y.Value || 0)) return false;
     }
     return true;
 }
-
 
 export default function OverviewClient({
     initialIndices,
@@ -86,66 +78,48 @@ export default function OverviewClient({
     initialGoldPrices,
     initialGoldUpdated,
 }: OverviewClientProps) {
-
-    // State for indices
     const [indices, setIndices] = useState<IndexData[]>(initialIndices);
-
-    // State for news
     const [news, setNews] = useState<NewsItem[]>(initialNews);
     const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
     const [newsError, setNewsError] = useState<string | null>(null);
-    const [liveHeatmapData, setLiveHeatmapData] = useState<any>(null);
-    const [watchlistPrices, setWatchlistPrices] = useState<Record<string, { price: number; changePercent: number }>>({});
-
-    // State for top movers
     const [gainers, setGainers] = useState<TopMoverItem[]>(initialGainers);
     const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
     const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
-
-    // State for gold prices
     const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
     const [goldLoading] = useState(false);
     const [goldUpdatedAt, setGoldUpdatedAt] = useState<string>(initialGoldUpdated || new Date().toISOString());
     const [goldSource, setGoldSource] = useState<string>('Phú Quý');
-    const { watchlist } = useWatchlist();
+
+    const newsInFlightRef = useRef(false);
     const moversInFlightRef = useRef(false);
+    // Use refs so loadMovers callback is stable (never recreated)
+    const gainersRef = useRef<TopMoverItem[]>(initialGainers);
+    const losersRef = useRef<TopMoverItem[]>(initialLosers);
+    useEffect(() => { gainersRef.current = gainers; }, [gainers]);
+    useEffect(() => { losersRef.current = losers; }, [losers]);
 
     const mapMarketDataToIndices = useCallback((marketData: Record<string, MarketIndexData>) => {
         const results = Object.entries(INDEX_MAP)
             .map(([indexId, info]) => {
                 const data = marketData[indexId] as MarketIndexData | undefined;
                 if (!data) return null;
-
                 const currentIndex = data.CurrentIndex;
                 const prevIndex = data.PrevIndex;
                 const change = currentIndex - prevIndex;
                 const percent = prevIndex > 0 ? (change / prevIndex) * 100 : 0;
-
                 return {
-                    id: info.id,
-                    name: info.name,
-                    value: currentIndex,
-                    change,
-                    percentChange: percent,
-                    chartData: [] as number[],
-                    advances: data.Advances,
-                    declines: data.Declines,
-                    noChanges: data.NoChanges,
-                    ceilings: data.Ceilings,
-                    floors: data.Floors,
-                    totalShares: data.Volume,
-                    totalValue: data.Value,
+                    id: info.id, name: info.name, value: currentIndex, change, percentChange: percent,
+                    chartData: [] as number[], advances: data.Advances, declines: data.Declines,
+                    noChanges: data.NoChanges, ceilings: data.Ceilings, floors: data.Floors,
+                    totalShares: data.Volume, totalValue: data.Value,
                 };
             })
             .filter((r): r is IndexData => r !== null);
-
         setIndices(results);
     }, []);
 
-    // Load indices data (Client-side Refresh)
     const loadIndices = useCallback(async () => {
         try {
-            // Don't set loading to true for background refresh to avoid flickering
             const marketData = await fetchAllIndices();
             mapMarketDataToIndices(marketData);
         } catch (error) {
@@ -153,55 +127,37 @@ export default function OverviewClient({
         }
     }, [mapMarketDataToIndices]);
 
-    // Load gold prices (Client-side Refresh)
     const loadGold = useCallback(async () => {
         try {
             const result = await fetchGoldPrices();
             setGoldPrices(result.data);
-            if (result.updated_at) {
-                setGoldUpdatedAt(result.updated_at);
-            }
-            if (result.source) {
-                setGoldSource(result.source);
-            }
+            if (result.updated_at) setGoldUpdatedAt(result.updated_at);
+            if (result.source) setGoldSource(result.source);
         } catch (error) {
             console.error('Error loading gold prices:', error);
         }
     }, []);
 
-    const loadOverviewSnapshot = useCallback(async () => {
+    const loadNews = useCallback(async () => {
+        if (newsInFlightRef.current) return;
         try {
+            newsInFlightRef.current = true;
             setNewsError(null);
-            const snapshot = await fetchOverviewRefresh({
-                symbols: watchlist,
-                newsSize: 30,
-                heatmapLimit: 200,
-                heatmapExchange: 'HSX',
-                peTimeFrame: 'ALL',
-            });
-
-            setNews(snapshot.news);
-            setLiveHeatmapData(snapshot.heatmap);
-
-            const nextPrices: Record<string, { price: number; changePercent: number }> = {};
-            Object.entries(snapshot.watchlistPrices || {}).forEach(([symbol, snap]) => {
-                nextPrices[symbol] = {
-                    price: snap?.price || 0,
-                    changePercent: snap?.changePercent || 0,
-                };
-            });
-            setWatchlistPrices(nextPrices);
+            const nextNews = await fetchNews(1, 30);
+            setNews(nextNews);
         } catch (error) {
-            console.error('Error loading overview snapshot:', error);
-            setNewsError('Unable to refresh overview data');
+            console.error('Error loading market news:', error);
+            setNewsError('Unable to refresh market news');
         } finally {
+            newsInFlightRef.current = false;
             setNewsLoading(false);
         }
-    }, [watchlist]);
+    }, []);
 
+    // Stable loadMovers — uses refs, never recreated
     const loadMovers = useCallback(async () => {
         if (moversInFlightRef.current) return;
-        const coldStart = gainers.length === 0 && losers.length === 0;
+        const coldStart = gainersRef.current.length === 0 && losersRef.current.length === 0;
         try {
             moversInFlightRef.current = true;
             if (coldStart) setMoversLoading(true);
@@ -217,42 +173,33 @@ export default function OverviewClient({
             moversInFlightRef.current = false;
             if (coldStart) setMoversLoading(false);
         }
-    }, [gainers.length, losers.length]);
+    }, []); // stable — no deps
 
     useEffect(() => {
-        if (!initialGoldPrices || initialGoldPrices.length === 0) {
-            loadGold();
-        }
+        if (!initialGoldPrices || initialGoldPrices.length === 0) loadGold();
     }, [initialGoldPrices, loadGold]);
 
+    // News polling
     useEffect(() => {
         let isCancelled = false;
         let timer: ReturnType<typeof setTimeout> | null = null;
-
         const schedule = () => {
             if (isCancelled) return;
             const delay = isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS;
-            timer = setTimeout(async () => {
-                await loadOverviewSnapshot();
-                schedule();
-            }, delay);
+            timer = setTimeout(async () => { await loadNews(); schedule(); }, delay);
         };
+        loadNews().finally(schedule);
+        return () => { isCancelled = true; if (timer) clearTimeout(timer); };
+    }, [loadNews]);
 
-        loadOverviewSnapshot().finally(schedule);
-
-        return () => {
-            isCancelled = true;
-            if (timer) clearTimeout(timer);
-        };
-    }, [loadOverviewSnapshot]);
-
+    // Movers: cold start
     useEffect(() => {
         if (!initialGainers || !initialLosers || initialGainers.length === 0 || initialLosers.length === 0) {
             loadMovers();
         }
     }, [initialGainers, initialLosers, loadMovers]);
 
-    // Periodic refresh for movers from API snapshot (30s cadence).
+    // Movers: periodic refresh (stable interval since loadMovers never changes)
     useEffect(() => {
         const interval = setInterval(() => {
             if (document.visibilityState !== 'visible') return;
@@ -263,126 +210,68 @@ export default function OverviewClient({
 
     const initialIndicesLength = initialIndices?.length ?? 0;
 
-    // Realtime indices via internal websocket; fallback polling only when WS is down
+    // Indices: WS with polling fallback
     useEffect(() => {
         let fallbackTimer: ReturnType<typeof setInterval> | null = null;
-
         const startFallback = () => {
             if (fallbackTimer) return;
-            // During trading hours refresh every 3 s; outside hours every 60 s
-            fallbackTimer = setInterval(() => {
-                loadIndices();
-            }, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
+            fallbackTimer = setInterval(loadIndices, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
         };
-
         const stopFallback = () => {
             if (!fallbackTimer) return;
             clearInterval(fallbackTimer);
             fallbackTimer = null;
         };
-
         const unsubscribe = subscribeIndicesStream({
-            onData: (marketData) => {
-                mapMarketDataToIndices(marketData);
-                stopFallback();
-            },
+            onData: (marketData) => { mapMarketDataToIndices(marketData); stopFallback(); },
             onStatus: (status) => {
-                if (status === 'open') {
-                    stopFallback();
-                    return;
-                }
+                if (status === 'open') { stopFallback(); return; }
                 startFallback();
             },
         });
-
-        return () => {
-            unsubscribe();
-            stopFallback();
-        };
+        return () => { unsubscribe(); stopFallback(); };
     }, [loadIndices, initialIndicesLength, mapMarketDataToIndices]);
 
-    // Auto refresh gold every 60 seconds
+    // Gold refresh every 60s
     useEffect(() => {
-        const interval = setInterval(() => {
-            loadGold();
-        }, 60000);
+        const interval = setInterval(loadGold, 60000);
         return () => clearInterval(interval);
     }, [loadGold]);
 
     return (
         <div className={styles.container}>
             <div className={styles.mainContent}>
-                {/* Left Column - Main Content */}
                 <div className={styles.leftColumn}>
-
-                    {/* Hero Index Card with sub-bar switcher */}
                     <HeroIndexCard
                         indices={PLACEHOLDER_INDICES.map((placeholder) => {
                             const data = indices.find(d => d.id === placeholder.id);
                             return {
-                                id: placeholder.id,
-                                name: placeholder.name,
-                                value: data?.value ?? 0,
-                                change: data?.change ?? 0,
+                                id: placeholder.id, name: placeholder.name,
+                                value: data?.value ?? 0, change: data?.change ?? 0,
                                 percentChange: data?.percentChange ?? 0,
-                                advances: data?.advances,
-                                declines: data?.declines,
-                                noChanges: data?.noChanges,
-                                ceilings: data?.ceilings,
-                                floors: data?.floors,
-                                totalShares: data?.totalShares,
+                                advances: data?.advances, declines: data?.declines,
+                                noChanges: data?.noChanges, ceilings: data?.ceilings,
+                                floors: data?.floors, totalShares: data?.totalShares,
                                 totalValue: data?.totalValue,
                             };
                         })}
                     />
 
+                    <HeatmapVN30 />
 
-
-                    {/* VN30 Heatmap */}
-                    <HeatmapVN30 externalData={liveHeatmapData} useExternalOnly />
-
-                    {/* News Section */}
                     <div className="order-2">
-                        <NewsSection
-                            news={news}
-                            isLoading={newsLoading}
-                            error={newsError}
-                        />
+                        <NewsSection news={news} isLoading={newsLoading} error={newsError} />
                     </div>
                 </div>
 
-                {/* Right Column - Sidebar */}
                 <aside className={styles.rightColumn}>
-                    {/* Watchlist */}
-                    <WatchlistCard externalPrices={watchlistPrices} useExternalOnly />
-
-                    {/* Market Pulse (Combined Top Movers & Foreign Flow) */}
-                    <MarketPulse
-                        gainers={gainers}
-                        losers={losers}
-                        isLoading={moversLoading}
-                    />
-
-                    {/* World Markets (FF WebSocket) */}
+                    <WatchlistCard />
+                    <MarketPulse gainers={gainers} losers={losers} isLoading={moversLoading} />
                     <FFWorldMarkets />
-
-                    {/* Forex Rates (FF WebSocket) */}
                     <FFForexRates />
-
-                    {/* Crypto Prices (OKX WebSocket) */}
                     <CryptoPrices />
-
-                    {/* Gold Prices */}
-                    <GoldPrice
-                        prices={goldPrices}
-                        isLoading={goldLoading}
-                        updatedAt={goldUpdatedAt}
-                        source={goldSource}
-                    />
-
-                    {/* Lottery Results */}
+                    <GoldPrice prices={goldPrices} isLoading={goldLoading} updatedAt={goldUpdatedAt} source={goldSource} />
                     <Lottery />
-
                     <p className="px-1 text-[11px] leading-relaxed text-justify text-gray-400 dark:text-gray-500">
                         Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.
                     </p>

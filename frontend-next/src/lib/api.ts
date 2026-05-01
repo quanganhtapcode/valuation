@@ -160,6 +160,10 @@ export interface NewsItem {
     publish_date?: string;
     image_url?: string;
     symbol?: string;
+    Sentiment?: 'Positive' | 'Negative' | 'Neutral' | string;
+    Score?: number;
+    sentiment?: 'Positive' | 'Negative' | 'Neutral' | string;
+    score?: number;
 }
 
 export interface TopMoverItem {
