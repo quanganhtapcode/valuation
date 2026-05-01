@@ -40,6 +40,7 @@ interface AnalysisTabProps {
 
 type MetricKey = 'marketCap' | 'pe' | 'pb' | 'roe' | 'roa' | 'evEbitda';
 type MetricTone = 'best' | 'worst' | 'neutral';
+type ValuationHistoryRow = { period: string; 'P/E': number | null; 'P/B': number | null };
 
 const PERCENT_METRICS = new Set<MetricKey>(['roe', 'roa']);
 const METRIC_DIRECTION: Record<MetricKey, 'higher' | 'lower'> = {
@@ -51,6 +52,24 @@ function toNumberOrNull(value: unknown): number | null {
     if (value === null || value === undefined || value === '') return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toValuationHistoryRows(rows: any[]): ValuationHistoryRow[] {
+    return rows
+        .map((r) => {
+            const period = String(r?.period ?? r?.date ?? r?.tradingDate ?? r?.trading_date ?? '').slice(0, 10);
+            return {
+                period,
+                'P/E': toNumberOrNull(r?.pe ?? r?.['P/E'] ?? r?.PE),
+                'P/B': toNumberOrNull(r?.pb ?? r?.['P/B'] ?? r?.PB),
+            };
+        })
+        .filter((r) => r.period && (r['P/E'] !== null || r['P/B'] !== null));
+}
+
+function formatValuationMetric(value: unknown): string {
+    const parsed = toNumberOrNull(value);
+    return parsed === null ? '-' : parsed.toFixed(2);
 }
 
 function normalizeMetricValue(key: MetricKey, value: unknown): number | null {
@@ -101,22 +120,22 @@ function metricToneClass(tone: MetricTone): string {
 }
 
 /** Convert API response (new array-of-objects or legacy parallel-arrays) to chart rows. */
-function topeHistory(res: any): { period: string; 'P/E': number; 'P/B': number }[] {
+function topeHistory(res: any): ValuationHistoryRow[] {
     if (Array.isArray(res?.data)) {
-        return (res.data as any[])
-            .filter(r => (r.pe || r['P/E']) > 0)
-            .map(r => ({ period: r.period, 'P/E': r.pe ?? r['P/E'] ?? 0, 'P/B': r.pb ?? r['P/B'] ?? 0 }));
+        return toValuationHistoryRows(res.data as any[]);
     }
     if (Array.isArray(res?.records)) {
-        return res.records
-            .filter((r: any) => r.pe > 0)
-            .map((r: any) => ({ period: r.period, 'P/E': r.pe, 'P/B': r.pb ?? 0 }));
+        return toValuationHistoryRows(res.records);
     }
     const d = res?.data ?? res;
     if (Array.isArray(d?.years)) {
         return (d.years as string[])
-            .map((p: string, i: number) => ({ period: p, 'P/E': d.pe_ratio_data?.[i] || 0, 'P/B': d.pb_ratio_data?.[i] || 0 }))
-            .filter((r: any) => r['P/E'] > 0);
+            .map((p: string, i: number) => ({
+                period: p,
+                'P/E': toNumberOrNull(d.pe_ratio_data?.[i]),
+                'P/B': toNumberOrNull(d.pb_ratio_data?.[i]),
+            }))
+            .filter((r: any) => r['P/E'] !== null || r['P/B'] !== null);
     }
     return [];
 }
@@ -125,7 +144,7 @@ function topeHistory(res: any): { period: string; 'P/E': number; 'P/B': number }
 
 const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: AnalysisTabProps) => {
     const [peers, setPeers] = useState<Peer[]>([]);
-    const [peHistory, setPeHistory] = useState<any[]>([]);
+    const [peHistory, setPeHistory] = useState<ValuationHistoryRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [medianPe, setMedianPe] = useState<number | null>(null);
     const [industryName, setIndustryName] = useState<string>('');
@@ -151,7 +170,7 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
         const peersPromise = fetch(`/api/stock/peers-vci/${symbol}`).then(r => r.json());
 
         const historyPromise = (initialHistory == null)
-            ? fetch(`/api/stock/${symbol}/historical-chart-data?period=quarter`).then(r => r.json())
+            ? fetch(`/api/stock/${symbol}/ratio-daily-history?limit=250`).then(r => r.json())
             : Promise.resolve(null);
 
         Promise.all([peersPromise, historyPromise])
@@ -189,6 +208,7 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
     }, [peers]);
 
     const displayIndustry = industryName || sector || 'Unknown';
+    const latestValuation = [...peHistory].reverse().find(row => row['P/E'] !== null || row['P/B'] !== null);
 
     if (loading) {
         return (
@@ -212,11 +232,11 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
                         <div className="flex gap-4">
                             <div className="text-right">
                                 <Text className="text-xs uppercase font-semibold text-tremor-content-subtle">Current P/E</Text>
-                                <Title className="text-blue-600">{peHistory[peHistory.length - 1]['P/E'].toFixed(2)}</Title>
+                                <Title className="text-blue-600">{formatValuationMetric(latestValuation?.['P/E'])}</Title>
                             </div>
                             <div className="text-right">
                                 <Text className="text-xs uppercase font-semibold text-tremor-content-subtle">Current P/B</Text>
-                                <Title className="text-violet-600">{peHistory[peHistory.length - 1]['P/B'].toFixed(2)}</Title>
+                                <Title className="text-violet-600">{formatValuationMetric(latestValuation?.['P/B'])}</Title>
                             </div>
                         </div>
                     )}

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fetch VCI per-symbol daily PE/PB TTM ratios into SQLite.
 
-Calls https://iq.vietcap.com.vn/api/iq-insight-service/v1/company-ratio-daily/{SYMBOL}?lengthReport=1
-for each listed symbol and stores the latest entry into vci_ratio_daily.sqlite.
+Calls https://iq.vietcap.com.vn/api/iq-insight-service/v1/company-ratio-daily/{SYMBOL}?lengthReport=10
+for each listed symbol and stores the latest entry plus recent history into vci_ratio_daily.sqlite.
 
 Run daily (PE/PB is computed against closing price each trading day):
     python fetch_sqlite/fetch_vci_ratio_daily.py
@@ -65,16 +65,18 @@ def _build_opener() -> urllib.request.OpenerDirector:
     return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
 
 
-def fetch_ratio_daily(
+def fetch_ratio_daily_history(
     opener: urllib.request.OpenerDirector,
     symbol: str,
     *,
+    length_report: int = 10,
     timeout_s: int = 15,
     retries: int = 3,
     backoff_base_s: float = 1.0,
-) -> dict[str, Any] | None:
-    """Fetch the latest PE/PB entry for symbol. Returns dict with pe, pb, trading_date or None."""
-    url = f"{API_BASE}/{symbol.upper()}?lengthReport=1"
+) -> list[dict[str, Any]]:
+    """Fetch recent PE/PB entries for symbol. Returns newest-first normalized rows."""
+    safe_length = max(1, min(int(length_report or 1), 250))
+    url = f"{API_BASE}/{symbol.upper()}?lengthReport={safe_length}"
     headers = _headers()
     last_err: Exception | None = None
 
@@ -97,29 +99,39 @@ def fetch_ratio_daily(
                         entries = data
 
                 if not entries:
-                    return None
+                    return []
 
-                # Sort by tradingDate descending and take the first entry
+                # Sort by tradingDate descending and cap locally because upstream can return
+                # more rows than requested for some symbols.
                 entries.sort(key=lambda x: str(x.get("tradingDate") or ""), reverse=True)
-                latest = entries[0]
+                entries = entries[:safe_length]
 
-                pe = latest.get("pe")
-                pb = latest.get("pb")
-                trading_date = str(latest.get("tradingDate") or "")[:10]
+                out: list[dict[str, Any]] = []
+                seen_dates: set[str] = set()
+                for entry in entries:
+                    pe = entry.get("pe")
+                    pb = entry.get("pb")
+                    trading_date = str(entry.get("tradingDate") or "")[:10]
 
-                if pe is None and pb is None:
-                    return None
+                    if pe is None and pb is None:
+                        continue
+                    if trading_date and trading_date in seen_dates:
+                        continue
+                    if trading_date:
+                        seen_dates.add(trading_date)
 
-                return {
-                    "pe": float(pe) if pe is not None else None,
-                    "pb": float(pb) if pb is not None else None,
-                    "trading_date": trading_date or None,
-                }
+                    out.append({
+                        "pe": float(pe) if pe is not None else None,
+                        "pb": float(pb) if pb is not None else None,
+                        "trading_date": trading_date or None,
+                    })
+
+                return out
 
         except urllib.error.HTTPError as e:
             last_err = e
             if e.code == 404:
-                return None
+                return []
             if e.code not in (429, 500, 502, 503, 504) or attempt >= retries:
                 raise
         except (urllib.error.URLError, TimeoutError, OSError) as e:
@@ -130,7 +142,27 @@ def fetch_ratio_daily(
 
     if last_err:
         raise last_err
-    return None
+    return []
+
+
+def fetch_ratio_daily(
+    opener: urllib.request.OpenerDirector,
+    symbol: str,
+    *,
+    timeout_s: int = 15,
+    retries: int = 3,
+    backoff_base_s: float = 1.0,
+) -> dict[str, Any] | None:
+    """Fetch the latest PE/PB entry for symbol. Returns dict with pe, pb, trading_date or None."""
+    rows = fetch_ratio_daily_history(
+        opener,
+        symbol,
+        length_report=1,
+        timeout_s=timeout_s,
+        retries=retries,
+        backoff_base_s=backoff_base_s,
+    )
+    return rows[0] if rows else None
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +185,20 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
           trading_date  TEXT,
           fetched_at    TEXT NOT NULL
         );
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ratio_daily_history (
+          ticker        TEXT NOT NULL,
+          trading_date  TEXT NOT NULL,
+          pe            REAL,
+          pb            REAL,
+          fetched_at    TEXT NOT NULL,
+          PRIMARY KEY (ticker, trading_date)
+        );
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_ratio_daily_history_ticker_date
+        ON ratio_daily_history (ticker, trading_date DESC);
     """)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS meta (
@@ -179,6 +225,33 @@ def upsert_ratio(
         entry.get("trading_date"),
         fetched_at,
     ))
+
+
+def upsert_ratio_history(
+    conn: sqlite3.Connection,
+    symbol: str,
+    entries: list[dict[str, Any]],
+    fetched_at: str,
+) -> int:
+    rows = [
+        (
+            symbol.upper(),
+            entry.get("trading_date"),
+            entry.get("pe"),
+            entry.get("pb"),
+            fetched_at,
+        )
+        for entry in entries
+        if entry.get("trading_date")
+    ]
+    if not rows:
+        return 0
+
+    conn.executemany("""
+        INSERT OR REPLACE INTO ratio_daily_history (ticker, trading_date, pe, pb, fetched_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, rows)
+    return len(rows)
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +331,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--workers", type=int, default=10, help="Concurrent HTTP workers (default: 10)")
     p.add_argument("--timeout", type=int, default=15, help="Per-request timeout seconds (default: 15)")
     p.add_argument("--retries", type=int, default=3, help="Retries per symbol (default: 3)")
+    p.add_argument("--length-report", type=int, default=10, help="Recent daily entries per symbol (default: 10)")
     p.add_argument("--delay", type=float, default=0.05, help="Extra delay between requests (default: 0.05)")
     p.add_argument("--batch-commit", type=int, default=200, help="Commit every N symbols (default: 200)")
     p.add_argument("-v", "--verbose", action="store_true")
@@ -285,38 +359,50 @@ def main() -> None:
     conn.commit()
 
     ok_count = 0
+    history_count = 0
     skip_count = 0
     err_count = 0
     pending = 0
 
-    def _worker(symbol: str) -> tuple[str, dict | None, Exception | None]:
+    def _worker(symbol: str) -> tuple[str, list[dict[str, Any]], Exception | None]:
         opener = _build_opener()
         try:
             if args.delay > 0:
                 time.sleep(args.delay + random.random() * 0.05)
-            data = fetch_ratio_daily(opener, symbol, timeout_s=args.timeout, retries=args.retries)
+            data = fetch_ratio_daily_history(
+                opener,
+                symbol,
+                length_report=args.length_report,
+                timeout_s=args.timeout,
+                retries=args.retries,
+            )
             return symbol, data, None
         except Exception as exc:
-            return symbol, None, exc
+            return symbol, [], exc
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = {pool.submit(_worker, sym): sym for sym in symbols}
         for future in as_completed(futures):
-            symbol, entry, exc = future.result()
+            symbol, entries, exc = future.result()
             if exc is not None:
                 log.debug(f"  {symbol}: error — {exc}")
                 err_count += 1
                 continue
-            if entry is None:
+            if not entries:
                 skip_count += 1
                 continue
 
             try:
+                entry = entries[0]
                 upsert_ratio(conn, symbol, entry, fetched_at)
+                history_count += upsert_ratio_history(conn, symbol, entries, fetched_at)
                 ok_count += 1
                 pending += 1
                 if args.verbose:
-                    log.debug(f"  {symbol}: pe={entry.get('pe')} pb={entry.get('pb')} date={entry.get('trading_date')}")
+                    log.debug(
+                        f"  {symbol}: pe={entry.get('pe')} pb={entry.get('pb')} "
+                        f"date={entry.get('trading_date')} history={len(entries)}"
+                    )
             except Exception as upsert_exc:
                 log.warning(f"  {symbol}: upsert failed — {upsert_exc}")
                 err_count += 1
@@ -329,10 +415,14 @@ def main() -> None:
     finished_at = dt.datetime.now(tz=dt.timezone.utc).replace(microsecond=0).isoformat()
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('last_run_finished', ?)", (finished_at,))
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('last_run_ok_count', ?)", (str(ok_count),))
+    conn.execute("INSERT OR REPLACE INTO meta VALUES ('last_run_history_count', ?)", (str(history_count),))
     conn.commit()
     conn.close()
 
-    log.info(f"Done: {ok_count} symbols upserted, {skip_count} skipped (no data), {err_count} errors")
+    log.info(
+        f"Done: {ok_count} symbols upserted, {history_count} history rows, "
+        f"{skip_count} skipped (no data), {err_count} errors"
+    )
 
 
 if __name__ == "__main__":
