@@ -122,6 +122,7 @@ Used for market-wide pages, peer grouping and fallback valuation inputs.
 | Table | Columns |
 |---|---|
 | `ratio_daily` | `ticker`, `pe`, `pb`, `trading_date`, `fetched_at` |
+| `ratio_daily_history` | `ticker`, `trading_date`, `pe`, `pb`, `fetched_at` |
 | `meta` | `k`, `v` |
 
 This is the highest-priority PE/PB source.

@@ -775,8 +775,8 @@ export default function StockDetailPage() {
                             symbol={symbol}
                             sector={stockInfo?.sector || 'Unknown'}
                             initialPeers={null}
-                            initialHistory={prefetchedChartData}
-                            isLoading={isHistoryLoading}
+                            initialHistory={null}
+                            isLoading={false}
                         />
                     </div>
                 )}
