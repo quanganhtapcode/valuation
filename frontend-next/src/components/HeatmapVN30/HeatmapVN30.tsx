@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { API_BASE, isTradingHours, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
 
 //  Types
@@ -155,7 +155,6 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
 
   const load = useCallback(async () => {
     try {
-      setHover(null);
       const r = await fetch(`${API_BASE}/market/heatmap?exchange=${exchange}&limit=200`);
       if (!r.ok) return;
       const d: HeatmapData = await r.json();
@@ -181,7 +180,10 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
   const labelBg = isDark ? '#0f1117' : '#ffffff';
   const labelText = isDark ? '#94a3b8' : '#64748b';
 
-  const sectorTiles = squarifyTile(data?.sectors ?? [], s => s.totalCap, 0, 0, cw, ch);
+  const sectorTiles = useMemo(
+    () => squarifyTile(data?.sectors ?? [], s => s.totalCap, 0, 0, cw, ch),
+    [data, cw, ch],
+  );
 
   return (
     <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f1117] p-0.5 shadow-sm overflow-hidden">
