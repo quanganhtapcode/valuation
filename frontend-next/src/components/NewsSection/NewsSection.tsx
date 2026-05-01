@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { NewsItem, formatRelativeTime } from '@/lib/api';
 import { Card, Icon } from '@tremor/react';
 import { RiArrowRightUpLine, RiNewspaperLine } from '@remixicon/react';
@@ -12,34 +11,15 @@ interface NewsSectionProps {
     error?: string | null;
 }
 
-interface SymbolPrice {
-    price: number;
-    change: number;
-    changePercent: number;
+function sentimentColor(sentiment: string | undefined): string {
+    if (!sentiment) return 'text-gray-500 dark:text-gray-400';
+    const s = sentiment.toLowerCase();
+    if (s === 'positive') return 'text-emerald-600 dark:text-emerald-400';
+    if (s === 'negative') return 'text-rose-600 dark:text-rose-400';
+    return 'text-gray-500 dark:text-gray-400';
 }
 
 export default function NewsSection({ news, isLoading, error }: NewsSectionProps) {
-    const [prices, setPrices] = useState<Record<string, SymbolPrice>>({});
-
-    // Fetch prices for ALL news symbols in 1 single request using bulk endpoint
-    useEffect(() => {
-        if (!news || news.length === 0) return;
-
-        const uniqueSymbols = [...new Set(
-            news.map(item => item.Symbol || item.symbol || '').filter(Boolean)
-        )];
-
-        if (uniqueSymbols.length === 0) return;
-
-        // ONE request with ?symbols=FMC,SSI,VNM,... instead of N separate requests
-        fetch(`/api/market/prices?symbols=${uniqueSymbols.join(',')}`)
-            .then(r => r.ok ? r.json() : {})
-            .then((data: Record<string, SymbolPrice>) => {
-                setPrices(data);
-            })
-            .catch(() => { /* silently fail - prices are optional */ });
-    }, [news]);
-
     if (isLoading) {
         return (
             <Card className="p-4 md:p-6">
@@ -102,81 +82,61 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
             ) : (
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                     {news.slice(0, 10).map((item, index) => {
-                    const url = item.url || item.Link || item.NewsUrl || '#';
-                    const finalUrl = url.startsWith('http') ? url : `https://cafef.vn${url}`;
-                    const title = item.title || item.Title || '';
-                    const source = item.source || item.Source || 'Tổng hợp';
-                    const pubDateStr = item.publish_date || item.PostDate || item.PublishDate;
-                    const timeFormat = pubDateStr ? formatRelativeTime(pubDateStr, 'vi-VN') : '';
-                    const image = item.image_url || item.ImageThumb || item.Avatar || '';
-                    const symbol = item.Symbol || item.symbol || '';
-                    const priceInfo = symbol ? prices[symbol] : undefined;
+                        const url = item.url || item.Link || item.NewsUrl || '#';
+                        const finalUrl = url.startsWith('http') ? url : `https://cafef.vn${url}`;
+                        const title = item.title || item.Title || '';
+                        const source = item.source || item.Source || 'Tổng hợp';
+                        const pubDateStr = item.publish_date || item.PostDate || item.PublishDate;
+                        const timeFormat = pubDateStr ? formatRelativeTime(pubDateStr, 'vi-VN') : '';
+                        const image = item.image_url || item.ImageThumb || item.Avatar || '';
+                        const symbol = item.Symbol || item.symbol || '';
+                        const sentiment = item.Sentiment || item.sentiment;
+                        const colorClass = sentimentColor(sentiment);
 
-                    const priceUp = priceInfo && priceInfo.change > 0;
-                    const priceDown = priceInfo && priceInfo.change < 0;
-                    const priceColor = priceUp
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : priceDown
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-gray-500';
-
-                    return (
-                        <a
-                            key={index}
-                            href={finalUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="group rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 md:p-4 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all"
-                        >
-                            <div className="flex items-start gap-3">
-                                {image ? (
-                                    <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                            src={image}
-                                            alt=""
-                                            className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
-                                            loading="lazy"
-                                            onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                                        <Icon icon={RiNewspaperLine} size="sm" className="text-slate-400" />
-                                    </div>
-                                )}
-
-                                <div className="min-w-0 flex-1">
-                                    <h4 className="text-[14px] md:text-[15px] font-semibold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                                    {title}
-                                    </h4>
-
-                                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] md:text-xs text-slate-500 dark:text-slate-400">
-                                        <div className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5">
-                                            <span className="font-medium text-slate-700 dark:text-slate-300">{source}</span>
+                        return (
+                            <a
+                                key={index}
+                                href={finalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="group rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 md:p-4 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all"
+                            >
+                                <div className="flex items-start gap-3">
+                                    {image ? (
+                                        <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={image} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300" loading="lazy"
+                                                onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
                                         </div>
-                                        {timeFormat && (
-                                            <span className="inline-flex items-center rounded-md bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 border border-slate-200 dark:border-slate-700">
-                                                {timeFormat}
-                                            </span>
-                                        )}
-
-                                        {symbol && (
-                                            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 font-bold bg-slate-100 dark:bg-slate-800 ${priceColor}`}>
-                                                {symbol}
-                                                {priceInfo?.price ? (
-                                                    <span className="ml-1 font-medium opacity-80">
-                                                        {Math.round(priceInfo.price).toLocaleString('en-US')}
-                                                    </span>
-                                                ) : null}
-                                            </span>
-                                        )}
+                                    ) : (
+                                        <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                                            <Icon icon={RiNewspaperLine} size="sm" className="text-slate-400" />
+                                        </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <h4 className="text-[14px] md:text-[15px] font-semibold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                            {title}
+                                        </h4>
+                                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] md:text-xs text-slate-500 dark:text-slate-400">
+                                            <div className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5">
+                                                <span className="font-medium text-slate-700 dark:text-slate-300">{source}</span>
+                                            </div>
+                                            {timeFormat && (
+                                                <span className="inline-flex items-center rounded-md bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 border border-slate-200 dark:border-slate-700">
+                                                    {timeFormat}
+                                                </span>
+                                            )}
+                                            {symbol && (
+                                                <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 font-bold bg-slate-100 dark:bg-slate-800 ${colorClass}`}>
+                                                    {symbol}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </a>
-                    );
-                })}
+                            </a>
+                        );
+                    })}
                 </div>
             )}
         </Card>

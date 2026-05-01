@@ -265,6 +265,11 @@ export default function OverviewTab({
                                 const imageUrl = item.image_url || item.ImageThumb || item.news_image_url || '';
                                 const date = item.update_date || item.PublishDate || item.publish_date || '';
                                 const source = item.source || item.Source || item.news_from_name || '';
+                                const sentiment = (item.sentiment || item.Sentiment || '').toLowerCase();
+                                const sentimentColor = sentiment === 'positive' ? 'text-emerald-600 dark:text-emerald-400'
+                                    : sentiment === 'negative' ? 'text-rose-600 dark:text-rose-400'
+                                    : 'text-gray-400 dark:text-gray-500';
+                                const sentimentDot = sentiment === 'positive' ? '▲' : sentiment === 'negative' ? '▼' : '●';
 
                                 return (
                                     <a
@@ -294,6 +299,9 @@ export default function OverviewTab({
                                                 {source && <SourceBadge source={source} />}
                                                 {date && (
                                                     <span className={styles.newsDate}>{formatRelativeTime(date, tOv)}</span>
+                                                )}
+                                                {sentiment && (
+                                                    <span className={sentimentColor}>{sentimentDot}</span>
                                                 )}
                                             </div>
                                         </div>
