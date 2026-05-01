@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { API_BASE, subscribePricesStream, isTradingHours, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
+import { API_BASE, isTradingHours, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
 
 //  Types 
 interface Stock { ticker: string; cap: number; change: number; price: number; name: string; sector: string }
@@ -164,77 +164,15 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
     setLoading(false);
   }, [externalData]);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (useExternalOnly) return;
     load();
-    if (!isTradingHours()) return; // Prices don't change outside trading hours — no need to stream or poll
+    if (!isTradingHours()) return;
 
-    let isMounted = true;
-    let fallbackTimer: any;
-
-    const unsub = subscribePricesStream({
-      onStatus: (status: string) => {
-        if (status === 'error' || status === 'closed') {
-          // If WS fails, ensure we have fallback polling
-          if (!fallbackTimer && isMounted) {
-            fallbackTimer = setInterval(load, PRICE_SYNC_INTERVAL_MS);
-          }
-        } else if (status === 'open') {
-          // Connected, stop polling
-          if (fallbackTimer) {
-            clearInterval(fallbackTimer);
-            fallbackTimer = null;
-          }
-        }
-      },
-      onData: (updates: Record<string, any>, _type: string) => {
-        if (!isMounted) return;
-        setData(prev => {
-          if (!prev) return prev;
-          const next = { ...prev, sectors: prev.sectors.map(s => ({...s, stocks: [...s.stocks]})) };
-          let changed = false;
-
-          for (const sector of next.sectors) {
-             let changedSector = false;
-             for (let i=0; i < sector.stocks.length; i++) {
-                const stock = sector.stocks[i];
-                const upd = updates[stock.ticker];
-                if (upd) {
-                   const curr = stock.price;
-                   const nxt = upd.c;
-                   if (curr !== nxt) {
-                      sector.stocks[i] = {
-                        ...stock,
-                        price: nxt,
-                        change: upd.ref > 0 ? ((nxt - upd.ref) / upd.ref) * 100 : 0
-                      };
-                      changedSector = true;
-                      changed = true;
-                   }
-                }
-             }
-             if (changedSector) {
-                // recalculate avgChange for sector (weighted by cap)
-                let totalCap = 0;
-                let weightedChange = 0;
-                sector.stocks.forEach(st => {
-                   totalCap += st.cap;
-                   weightedChange += st.change * st.cap;
-                });
-                sector.totalCap = totalCap;
-                sector.avgChange = totalCap > 0 ? weightedChange / totalCap : 0;
-             }
-          }
-          return changed ? next : prev;
-        });
-      }
-    });
-
-    return () => { 
-      isMounted = false;
-      unsub(); 
-      if (fallbackTimer) clearInterval(fallbackTimer);
-    }; 
+    // Poll heatmap endpoint every 15s during trading hours instead of subscribing
+    // to the full price stream — avoids O(200) scans per WS tick blocking main thread
+    const timer = setInterval(load, PRICE_SYNC_INTERVAL_MS);
+    return () => clearInterval(timer);
   }, [load, useExternalOnly]);
 
   const svgBg = isDark ? '#0f1117' : '#ffffff';
