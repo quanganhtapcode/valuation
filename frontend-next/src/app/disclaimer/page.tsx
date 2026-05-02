@@ -1,9 +1,22 @@
 import styles from './page.module.css';
 
 export const metadata = {
-    title: 'Disclaimer',
-    description: 'Legal disclaimer regarding information and data on the Quang Anh platform.',
+    title: 'Tuyên Bố Miễn Trừ Trách Nhiệm | Quang Anh Stocks',
+    description:
+        'Tuyên bố miễn trừ trách nhiệm của Quang Anh: dữ liệu và công cụ định giá chỉ mang tính tham khảo, không phải tư vấn đầu tư. Đầu tư chứng khoán có rủi ro.',
+    keywords: [
+        'tuyên bố miễn trừ trách nhiệm',
+        'disclaimer quang anh',
+        'không phải tư vấn đầu tư',
+        'rủi ro đầu tư chứng khoán',
+    ],
     alternates: { canonical: '/disclaimer' },
+    openGraph: {
+        title: 'Tuyên Bố Miễn Trừ Trách Nhiệm | Quang Anh Stocks',
+        description:
+            'Thông tin và công cụ trên Quang Anh chỉ mang tính tham khảo, không phải tư vấn đầu tư chuyên nghiệp.',
+        url: '/disclaimer',
+    },
 };
 
 export default function DisclaimerPage() {

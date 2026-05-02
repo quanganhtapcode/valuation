@@ -1,9 +1,21 @@
 import styles from './page.module.css';
 
 export const metadata = {
-    title: 'Terms of Service',
-    description: 'Terms of Service for the Quang Anh stock analysis platform.',
+    title: 'Điều Khoản Sử Dụng | Quang Anh Stocks',
+    description:
+        'Điều khoản sử dụng dịch vụ nền tảng phân tích cổ phiếu Quang Anh: quyền và nghĩa vụ người dùng, giới hạn sử dụng dữ liệu và quy định pháp lý áp dụng.',
+    keywords: [
+        'điều khoản sử dụng',
+        'terms of service quang anh',
+        'điều khoản dịch vụ chứng khoán',
+    ],
     alternates: { canonical: '/terms' },
+    openGraph: {
+        title: 'Điều Khoản Sử Dụng | Quang Anh Stocks',
+        description:
+            'Điều khoản sử dụng dịch vụ nền tảng phân tích và định giá cổ phiếu Việt Nam Quang Anh.',
+        url: '/terms',
+    },
 };
 
 export default function TermsPage() {

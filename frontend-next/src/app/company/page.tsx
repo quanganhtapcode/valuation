@@ -1,10 +1,33 @@
 import styles from './company.module.css';
 
 export const metadata = {
-    title: 'Vietnam Listed Company Directory',
-    description: 'Browse and analyze companies listed on Vietnam stock exchanges (HOSE, HNX, UPCOM).',
-    keywords: ['vietnam listed companies', 'hose company list', 'hnx company list', 'upcom company list'],
+    title: 'Danh Sách Doanh Nghiệp Niêm Yết Việt Nam | HOSE, HNX, UPCOM',
+    description:
+        'Tra cứu và phân tích doanh nghiệp niêm yết trên sàn chứng khoán Việt Nam: HOSE, HNX, UPCOM. Thông tin ngành, vốn hóa, chỉ số tài chính và lịch sử giá.',
+    keywords: [
+        'danh sách doanh nghiệp niêm yết Việt Nam',
+        'cổ phiếu HOSE',
+        'cổ phiếu HNX',
+        'cổ phiếu UPCOM',
+        'vietnam listed companies',
+        'hose company list',
+        'hnx company list',
+        'upcom company list',
+        'vietnam company directory',
+    ],
     alternates: { canonical: '/company' },
+    openGraph: {
+        title: 'Danh Sách Doanh Nghiệp Niêm Yết Việt Nam | Quang Anh',
+        description:
+            'Tra cứu doanh nghiệp niêm yết trên HOSE, HNX, UPCOM với thông tin ngành, vốn hóa và chỉ số tài chính.',
+        url: '/company',
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'Danh Sách Doanh Nghiệp Niêm Yết Việt Nam | Quang Anh',
+        description:
+            'Tra cứu và phân tích 1.700+ doanh nghiệp niêm yết trên HOSE, HNX, UPCOM.',
+    },
 };
 
 export default function CompanyPage() {
