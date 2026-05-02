@@ -222,7 +222,7 @@ def health() -> tuple:
         "latency": get_latency_metrics(top_n=15),
         "price_history": _check_sqlite_file(
             "price_history",
-            fetch_dir.parent / "price_history.sqlite",
+            fetch_dir / "vci_price_history.sqlite",
             freshness_minutes=24 * 60,
             freshness_sql="SELECT MAX(time) FROM stock_price_history",
         ),

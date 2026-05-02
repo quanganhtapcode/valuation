@@ -128,7 +128,7 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
     1) explicit_path argument
     2) env PRICE_HISTORY_DB_PATH
     3) known on-disk locations
-    4) default to <project_root>/price_history.sqlite (even if missing)
+    4) default to <project_root>/fetch_sqlite/vci_price_history.sqlite (even if missing)
     """
     candidates: list[Path] = []
 
@@ -140,10 +140,11 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
+    candidates.append(root / "fetch_sqlite" / "vci_price_history.sqlite")
     candidates.append(root / "fetch_sqlite" / "price_history.sqlite")
-    candidates.append(root / "price_history.sqlite")
+    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_price_history.sqlite"))
     candidates.append(Path("/var/www/valuation/fetch_sqlite/price_history.sqlite"))
-    candidates.append(Path("/var/www/valuation/price_history.sqlite"))
+    candidates.append(Path("/var/www/store/vci_price_history.sqlite"))
     candidates.append(Path("/var/www/store/price_history.sqlite"))
 
     for path in candidates:
@@ -154,7 +155,7 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
         if path.exists():
             return str(path)
 
-    return str((root / "fetch_sqlite" / "price_history.sqlite").resolve())
+    return str((root / "fetch_sqlite" / "vci_price_history.sqlite").resolve())
 
 
 def resolve_valuation_cache_db_path(explicit_path: Optional[str] = None) -> str:
