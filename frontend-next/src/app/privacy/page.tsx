@@ -1,9 +1,21 @@
 import styles from './page.module.css';
 
 export const metadata = {
-    title: 'Privacy Policy',
-    description: 'Privacy policy for the Quang Anh stock analysis platform.',
+    title: 'Chính Sách Quyền Riêng Tư | Quang Anh Stocks',
+    description:
+        'Chính sách quyền riêng tư của nền tảng Quang Anh: cách chúng tôi thu thập, sử dụng và bảo vệ dữ liệu người dùng khi truy cập stock.quanganh.org.',
+    keywords: [
+        'chính sách quyền riêng tư',
+        'privacy policy quang anh',
+        'bảo mật dữ liệu',
+    ],
     alternates: { canonical: '/privacy' },
+    openGraph: {
+        title: 'Chính Sách Quyền Riêng Tư | Quang Anh Stocks',
+        description:
+            'Tìm hiểu cách Quang Anh thu thập, sử dụng và bảo vệ dữ liệu người dùng.',
+        url: '/privacy',
+    },
 };
 
 export default function PrivacyPage() {

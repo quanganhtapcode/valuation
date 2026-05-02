@@ -1,14 +1,31 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Foreign Investor Flow: Net Buy/Sell in Vietnam Stocks',
-    description: 'Track real-time foreign investor trading in Vietnam stocks with net buy/sell value and intraday volume trends.',
-    keywords: ['foreign flow vietnam', 'foreign investor vietnam stocks', 'net buy net sell vietnam', 'khoi ngoai'],
+    title: 'Dòng Tiền Nước Ngoài: Mua/Bán Ròng Cổ Phiếu Việt Nam',
+    description:
+        'Theo dõi giao dịch khối ngoại thực trên cổ phiếu Việt Nam: giá trị mua/bán ròng, biểu đồ khối ngoại trong ngày và top cổ phiếu khối ngoại mua/bán mạnh nhất.',
+    keywords: [
+        'khối ngoại mua bán ròng',
+        'dòng tiền nước ngoài chứng khoán',
+        'foreign flow vietnam',
+        'foreign investor vietnam stocks',
+        'net buy net sell vietnam',
+        'khoi ngoai',
+        'foreign trading vietnam',
+        'foreign investor flow hose',
+    ],
     alternates: { canonical: '/foreign' },
     openGraph: {
-        title: 'Foreign Investor Flow | Quang Anh',
-        description: 'Top foreign net buy/sell stocks and intraday cumulative foreign trading charts.',
+        title: 'Dòng Tiền Nước Ngoài – Khối Ngoại | Quang Anh',
+        description:
+            'Top cổ phiếu khối ngoại mua/bán ròng và biểu đồ giao dịch khối ngoại trong ngày trên HOSE.',
         url: '/foreign',
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'Dòng Tiền Nước Ngoài – Khối Ngoại | Quang Anh',
+        description:
+            'Giá trị mua/bán ròng khối ngoại và top cổ phiếu khối ngoại giao dịch mạnh nhất hôm nay.',
     },
 };
 

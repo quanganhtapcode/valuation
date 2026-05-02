@@ -6,11 +6,17 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
-        disallow: ['/api/', '/_next/', '/stock/*/opengraph-image'],
+        allow: [
+          '/',
+          '/_next/static/',
+          '/_next/image',
+        ],
+        disallow: [
+          '/api/',
+          '/stock/*/opengraph-image',
+        ],
       },
     ],
     sitemap: `${siteConfig.url}/sitemap.xml`,
-    host: siteConfig.url,
   };
 }

@@ -1,21 +1,31 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Download Vietnam Stock Financial Data (Excel/CSV)',
+  title: 'Tải Dữ Liệu Tài Chính Cổ Phiếu Việt Nam (Excel/CSV)',
   description:
-    'Download financial statements, valuation data, and market data for Vietnam stocks in Excel or CSV format. Covers income statement, balance sheet, cash flow, and ratios.',
+    'Tải xuống báo cáo tài chính, dữ liệu định giá và dữ liệu thị trường cổ phiếu Việt Nam dạng Excel hoặc CSV: kết quả kinh doanh, bảng cân đối kế toán, lưu chuyển tiền tệ và các chỉ số tài chính.',
   keywords: [
+    'tải dữ liệu chứng khoán Việt Nam',
+    'báo cáo tài chính Excel',
+    'dữ liệu cổ phiếu CSV',
     'vietnam stock data download',
     'vietnam financial data excel',
     'stock financial statements download',
     'vietnam stock csv',
+    'download financial data vietnam',
   ],
   alternates: { canonical: '/downloads' },
   openGraph: {
-    title: 'Download Vietnam Stock Data | Quang Anh',
+    title: 'Tải Dữ Liệu Tài Chính Cổ Phiếu Việt Nam | Quang Anh',
     description:
-      'Export financial statements and valuation data for Vietnam stocks to Excel or CSV.',
+      'Xuất báo cáo tài chính và dữ liệu định giá cổ phiếu Việt Nam sang Excel hoặc CSV.',
     url: '/downloads',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Tải Dữ Liệu Tài Chính Cổ Phiếu Việt Nam | Quang Anh',
+    description:
+      'Xuất báo cáo tài chính, dữ liệu định giá và thị trường cổ phiếu Việt Nam sang Excel/CSV.',
   },
 };
 

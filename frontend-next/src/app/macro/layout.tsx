@@ -1,11 +1,16 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Vietnam Macro Indicators: FX, CPI, GDP, Commodities',
+  title: 'Kinh Tế Vĩ Mô Việt Nam: Tỷ Giá, CPI, GDP, Hàng Hóa',
   description:
-    'Monitor Vietnam macro indicators including exchange rates, CPI inflation, GDP growth, and key commodity prices relevant to Vietnamese stocks.',
+    'Theo dõi chỉ số kinh tế vĩ mô Việt Nam: tỷ giá USD/VND, lạm phát CPI, tăng trưởng GDP, giá vàng và hàng hóa ảnh hưởng đến thị trường chứng khoán.',
   keywords: [
-    'vietnam macro',
+    'kinh tế vĩ mô Việt Nam',
+    'tỷ giá USD VND',
+    'lạm phát CPI Việt Nam',
+    'GDP Việt Nam',
+    'giá vàng hôm nay',
+    'vietnam macro indicators',
     'vietnam cpi',
     'vietnam gdp',
     'vietnam exchange rate',
@@ -13,14 +18,19 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: '/macro' },
   openGraph: {
-    title: 'Vietnam Macro Indicators | Quang Anh',
+    title: 'Kinh Tế Vĩ Mô Việt Nam | Quang Anh',
     description:
-      'Track macroeconomic indicators impacting Vietnam equities: FX, CPI, GDP and commodities.',
+      'Chỉ số kinh tế vĩ mô Việt Nam: tỷ giá, CPI, GDP và hàng hóa tác động đến chứng khoán.',
     url: '/macro',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Kinh Tế Vĩ Mô Việt Nam | Quang Anh',
+    description:
+      'Tỷ giá USD/VND, CPI, GDP, giá vàng và hàng hóa ảnh hưởng đến thị trường chứng khoán Việt Nam.',
   },
 };
 
 export default function MacroLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
-

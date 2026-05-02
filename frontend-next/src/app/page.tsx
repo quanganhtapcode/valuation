@@ -11,11 +11,15 @@ import {
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Vietnam Stock Market Today, VNINDEX, VN30, News & Valuation',
+  title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | VNINDEX, VN30, Cổ Phiếu',
   description:
-    'Track Vietnam stock market today with live VNINDEX/VN30 data, top movers, heatmap, foreign flows, and valuation tools for HOSE, HNX, and UPCOM stocks.',
+    'Theo dõi thị trường chứng khoán Việt Nam hôm nay: VNINDEX, VN30 trực tiếp, top tăng/giảm, heatmap, dòng tiền ngoại và công cụ định giá cổ phiếu HOSE, HNX, UPCOM.',
   keywords: [
-    'vietnam stock',
+    'thị trường chứng khoán Việt Nam hôm nay',
+    'VNINDEX hôm nay',
+    'VN30 hôm nay',
+    'cổ phiếu tăng mạnh hôm nay',
+    'dòng tiền nước ngoài',
     'vietnam stock market today',
     'vnindex today',
     'vn30 index',
@@ -24,17 +28,17 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'Vietnam Stock Market Today | Quang Anh',
+    title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | Quang Anh',
     description:
-      'Live Vietnam stock market dashboard with VNINDEX, VN30, top movers, heatmap, and stock insights.',
+      'Dashboard chứng khoán Việt Nam: VNINDEX/VN30 trực tiếp, top tăng/giảm, heatmap, dòng tiền ngoại và định giá cổ phiếu.',
     url: '/',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vietnam Stock Market Today | Quang Anh',
+    title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | Quang Anh',
     description:
-      'Live VNINDEX/VN30, top movers, heatmap, and valuation insights for Vietnam stocks.',
+      'VNINDEX/VN30 trực tiếp, top tăng/giảm, heatmap và định giá cổ phiếu Việt Nam.',
   },
 };
 
