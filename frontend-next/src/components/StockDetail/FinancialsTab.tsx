@@ -10,7 +10,7 @@ import { getFieldCodes } from "@/lib/fieldCodesCache"
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type DisplayMode = 'annual' | 'quarterly';
-type ReportType = 'key_stats' | 'income' | 'balance' | 'cashflow' | 'ratios';
+type ReportType = 'key_stats' | 'income' | 'balance' | 'cashflow' | 'ratios' | 'notes';
 type DisplayUnit = 'billions' | 'trillions';
 
 interface FinancialsTabProps {
@@ -450,6 +450,121 @@ const RATIOS_SECTIONS = [
     }
 ];
 
+// ── Notes Section Definitions ─────────────────────────────────────────────────
+// Curated subset of noc* (general) and nob* (banking) note fields with labels.
+
+const NORMAL_NOTES_SECTIONS = [
+    {
+        title: 'Hàng tồn kho',
+        rows: [
+            { key: 'noc17', label: 'Nguyên liệu, vật liệu' },
+            { key: 'noc18', label: 'Công cụ, dụng cụ' },
+            { key: 'noc19', label: 'Chi phí SXKD dở dang' },
+            { key: 'noc20', label: 'Thành phẩm' },
+            { key: 'noc21', label: 'Hàng hóa' },
+            { key: 'noc15', label: 'Tổng hàng tồn kho', isTotal: true },
+        ],
+    },
+    {
+        title: 'Cơ cấu doanh thu',
+        rows: [
+            { key: 'noc103', label: 'Doanh thu bán hàng hóa' },
+            { key: 'noc104', label: 'Doanh thu cung cấp dịch vụ' },
+            { key: 'noc105', label: 'Doanh thu hợp đồng xây dựng' },
+            { key: 'noc102', label: 'Tổng doanh thu', isTotal: true },
+        ],
+    },
+    {
+        title: 'Chi phí sản xuất theo yếu tố',
+        rows: [
+            { key: 'noc141', label: 'Chi phí nguyên liệu, vật liệu' },
+            { key: 'noc142', label: 'Chi phí nhân công' },
+            { key: 'noc143', label: 'Khấu hao TSCĐ' },
+            { key: 'noc144', label: 'Chi phí dịch vụ mua ngoài' },
+            { key: 'noc145', label: 'Chi phí khác bằng tiền' },
+            { key: 'noc140', label: 'Tổng chi phí', isTotal: true },
+        ],
+    },
+    {
+        title: 'Doanh thu tài chính',
+        rows: [
+            { key: 'noc123', label: 'Lãi tiền gửi, tiền cho vay' },
+            { key: 'noc125', label: 'Cổ tức, lợi nhuận được chia' },
+            { key: 'noc126', label: 'Lãi bán ngoại tệ' },
+            { key: 'noc127', label: 'Lãi chênh lệch tỷ giá (đã thực hiện)' },
+            { key: 'noc122', label: 'Tổng doanh thu tài chính', isTotal: true },
+        ],
+    },
+    {
+        title: 'Chi phí tài chính',
+        rows: [
+            { key: 'noc132', label: 'Lãi tiền vay' },
+            { key: 'noc136', label: 'Lỗ chênh lệch tỷ giá (đã thực hiện)' },
+            { key: 'noc131', label: 'Tổng chi phí tài chính', isTotal: true },
+        ],
+    },
+    {
+        title: 'Vay dài hạn',
+        rows: [
+            { key: 'noc94', label: 'Vay ngân hàng' },
+            { key: 'noc95', label: 'Vay đối tượng khác' },
+            { key: 'noc96', label: 'Trái phiếu phát hành' },
+            { key: 'noc97', label: 'Thuê tài chính' },
+            { key: 'noc93', label: 'Tổng vay dài hạn', isTotal: true },
+        ],
+    },
+];
+
+const BANK_NOTES_SECTIONS = [
+    {
+        title: 'Phân loại cho vay theo chất lượng nợ',
+        rows: [
+            { key: 'nob40', label: 'Nợ đủ tiêu chuẩn (Nhóm 1)' },
+            { key: 'nob41', label: 'Nợ cần chú ý (Nhóm 2)' },
+            { key: 'nob42', label: 'Nợ dưới tiêu chuẩn (Nhóm 3)' },
+            { key: 'nob43', label: 'Nợ nghi ngờ (Nhóm 4)' },
+            { key: 'nob44', label: 'Nợ có khả năng mất vốn (Nhóm 5)' },
+            { key: 'nob39', label: 'Tổng dư nợ', isTotal: true },
+        ],
+    },
+    {
+        title: 'Phân loại cho vay theo kỳ hạn',
+        rows: [
+            { key: 'nob46', label: 'Cho vay ngắn hạn' },
+            { key: 'nob47', label: 'Cho vay trung hạn' },
+            { key: 'nob48', label: 'Cho vay dài hạn' },
+            { key: 'nob45', label: 'Tổng dư nợ', isTotal: true },
+        ],
+    },
+    {
+        title: 'Phân loại tiền gửi khách hàng',
+        rows: [
+            { key: 'nob66', label: 'Tiền gửi không kỳ hạn (CASA)' },
+            { key: 'nob67', label: 'Tiền gửi có kỳ hạn' },
+            { key: 'nob68', label: 'Tiền gửi tiết kiệm' },
+            { key: 'nob65', label: 'Tổng tiền gửi', isTotal: true },
+        ],
+    },
+    {
+        title: 'Thu nhập lãi',
+        rows: [
+            { key: 'nob88', label: 'Lãi cho vay khách hàng' },
+            { key: 'nob89', label: 'Lãi tiền gửi' },
+            { key: 'nob90', label: 'Lãi chứng khoán nợ' },
+            { key: 'nob87', label: 'Tổng thu nhập lãi', isTotal: true },
+        ],
+    },
+    {
+        title: 'Chi phí lãi',
+        rows: [
+            { key: 'nob96', label: 'Trả lãi tiền gửi' },
+            { key: 'nob97', label: 'Trả lãi tiền vay' },
+            { key: 'nob98', label: 'Trả lãi trái phiếu' },
+            { key: 'nob95', label: 'Tổng chi phí lãi', isTotal: true },
+        ],
+    },
+];
+
 // ── Pill Dropdown Component ───────────────────────────────────────────────────
 
 function PillDropdown({
@@ -874,6 +989,7 @@ export default function FinancialsTab({
         balance: [],
         cashflow: [],
         ratios: [],
+        notes: [],
     });
     const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
 
@@ -888,6 +1004,7 @@ export default function FinancialsTab({
         { id: 'balance',   label: tFin.tabs.balance },
         { id: 'cashflow',  label: tFin.tabs.cashflow },
         { id: 'ratios',    label: tFin.tabs.ratios },
+        { id: 'notes',     label: 'Thuyết minh' },
     ]
 
     const DISPLAY_UNITS: { id: DisplayUnit; label: string; divisor: number }[] = [
@@ -990,7 +1107,8 @@ export default function FinancialsTab({
             fetch(`/api/stock/${symbol}/financial-report?type=balance&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/stock/${symbol}/financial-report?type=cashflow&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/stock/${symbol}/financial-report?type=ratio&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-        ]).then(([income, balance, cashflow, ratio]) => {
+            fetch(`/api/stock/${symbol}/financial-report?type=note&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+        ]).then(([income, balance, cashflow, ratio, notes]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
                 if (res.status !== 'fulfilled') return [];
@@ -1002,6 +1120,7 @@ export default function FinancialsTab({
                 balance: unwrap(balance).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
                 cashflow: unwrap(cashflow).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
                 ratios: unwrap(ratio).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
+                notes: unwrap(notes).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
             });
         }).catch(() => {}).finally(() => {
             if (!controller.signal.aborted) setReportLoading(false);
@@ -1141,6 +1260,17 @@ export default function FinancialsTab({
                                 fieldLabels={fieldLabels}
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
+                                divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                            />
+                        )}
+
+                        {/* Notes (Thuyết minh) */}
+                        {activeTab === 'notes' && (
+                            <SectionedTable
+                                sections={isBank ? BANK_NOTES_SECTIONS : NORMAL_NOTES_SECTIONS}
+                                rows={reportData.notes}
+                                displayUnit={displayUnit}
+                                getSectionTitle={s => s}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                             />
                         )}
