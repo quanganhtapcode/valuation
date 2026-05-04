@@ -47,19 +47,11 @@ interface RateItem {
     changePercent: number;
     unit?: string;
 }
-interface CpiPoint   { date: string; value: number }
-interface GdpPoint   { date: string; quarter: string; value: number }
-interface Vn10yPoint { date: string; value: number }
 interface PricePoint { date: string; close: number }
 
 interface RatesData {
     exchange_rates: RateItem[];
     commodities:    RateItem[];
-}
-interface EconomicData {
-    cpi:   CpiPoint[];
-    gdp:   GdpPoint[];
-    vn10y: Vn10yPoint[];
 }
 
 // FireAnt types
@@ -103,10 +95,6 @@ function fmtVndChange(val: number) {
 function fmtUsdChange(val: number) {
     return `${val >= 0 ? '+' : '-'}${Math.abs(val).toFixed(2)}`;
 }
-function fmtMonth(date: string) {
-    const [y, m] = date.split('-');
-    return `T${parseInt(m)}/${y.slice(2)}`;
-}
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
@@ -141,18 +129,6 @@ function downloadCsv(filename: string, rows: PricePoint[]) {
     const a     = document.createElement('a');
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
-}
-
-function CsvButton({ onClick }: { onClick: () => void }) {
-    return (
-        <button onClick={onClick} title="Tải CSV"
-            className="flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0">
-            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            CSV
-        </button>
-    );
 }
 
 function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean; onClose: () => void }) {
@@ -236,7 +212,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                     : <AreaChart data={chartData} index="Ngày" categories={[item.name]}
                         colors={[up ? 'emerald' : 'rose']} valueFormatter={fmtY}
                         yAxisWidth={yAxisW} showLegend={false} showGradient autoMinValue
-                        tickGap={60} className="h-48" />}
+                        showAnimation={false} tickGap={60} className="h-48" />}
             </Card>
         </div>
     );
@@ -254,7 +230,6 @@ const FF_FOREX_CHANNELS = [
     { channel: 'NZD/USD',  label: 'NZD/USD',  fmt: (p: number) => p.toFixed(4) },
 ] as const;
 
-// ── Regional index channel definitions ────────────────────────────────────────
 const FF_ASIA_CHANNELS = [
     { channel: 'Nikkei225/USD', label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
     { channel: 'ASX/USD',       label: 'ASX 200',    fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
@@ -276,18 +251,19 @@ const FF_AMERICAS_CHANNELS = [
     { channel: 'DXY/USD',    label: 'USD Index',    fmt: (p: number) => p.toFixed(2) },
 ] as const;
 
-// All region channels combined (for subscription)
 const FF_ALL_INDEX_CHANNELS = [...FF_ASIA_CHANNELS, ...FF_EUROPE_CHANNELS, ...FF_AMERICAS_CHANNELS];
+
+// FF commodity → Yahoo symbol mapping
+const FF_TO_YAHOO: Record<string, string> = {
+    'Gold/USD': 'GC=F', 'WTI/USD': 'CL=F', 'Silver/USD': 'SI=F', 'Brent/USD': 'BZ=F',
+};
 
 // ── Market session detector ────────────────────────────────────────────────────
 function getMarketSessions(): { asia: boolean; europe: boolean; americas: boolean } {
     const d = new Date();
-    const dow = d.getUTCDay(); // 0=Sun, 6=Sat
+    const dow = d.getUTCDay();
     if (dow === 0 || dow === 6) return { asia: false, europe: false, americas: false };
     const t = d.getUTCHours() * 60 + d.getUTCMinutes();
-    // Sydney 00:00-05:30, Tokyo 00:00-06:30 UTC  → 0-390
-    // Frankfurt+London 07:00-15:30 UTC            → 420-930
-    // NYSE/NASDAQ 13:30-20:00 UTC                 → 810-1200
     return {
         asia:     t < 390 || (t >= 1380 && dow !== 6),
         europe:   t >= 420 && t < 930,
@@ -387,87 +363,6 @@ function calcYAxisWidth(values: number[], fmt: (v: number) => string): number {
     if (!values.length) return 56;
     const maxLen = Math.max(...values.map(v => fmt(v).length));
     return Math.max(44, Math.min(96, maxLen * 7 + 10));
-}
-
-// ── investing.com charts (CPI + VN10Y) ───────────────────────────────────────
-
-function EcoChartCard({ title, subtitle, latest, latestLabel, delta, onDownload, children }: {
-    title: string; subtitle: string; latest: number | null;
-    latestLabel: string; delta: number | null; onDownload?: () => void; children: React.ReactNode;
-}) {
-    return (
-        <Card className="p-5">
-            <div className="flex items-start justify-between mb-1">
-                <div className="min-w-0">
-                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</p>
-                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">{subtitle}</p>
-                </div>
-                <div className="flex items-start gap-2 shrink-0 ml-3">
-                    {onDownload && <CsvButton onClick={onDownload} />}
-                    {latest !== null && (
-                        <div className="text-right">
-                            <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                {latest.toFixed(2)}%
-                            </p>
-                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                                {latestLabel}
-                                {delta !== null && (
-                                    <span className={`ml-1.5 font-semibold ${delta >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                                        {delta >= 0 ? '+' : ''}{delta.toFixed(2)}
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
-            {children}
-        </Card>
-    );
-}
-
-function CpiChart({ data }: { data: CpiPoint[] }) {
-    const latest = data.at(-1) ?? null;
-    const prev   = data.at(-2) ?? null;
-    const delta  = latest && prev ? latest.value - prev.value : null;
-    const step   = Math.max(1, Math.floor(data.length / 10));
-    const chartData = data.map((p, i) => ({
-        Tháng: (i % step === 0 || i === data.length - 1) ? fmtMonth(p.date) : '',
-        'CPI (%)': p.value,
-    }));
-    return (
-        <EcoChartCard title="Lạm phát CPI — YoY (%)" subtitle="Hàng tháng — nguồn: investing.com"
-            latest={latest?.value ?? null} latestLabel={latest ? fmtMonth(latest.date) : ''} delta={delta}>
-            {chartData.length === 0
-                ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
-                : <AreaChart data={chartData} index="Tháng" categories={['CPI (%)']} colors={['rose']}
-                    valueFormatter={(v) => `${v.toFixed(2)}%`}
-                    yAxisWidth={calcYAxisWidth(data.map(p => p.value), (v) => `${v.toFixed(2)}%`)}
-                    showLegend={false} showGradient autoMinValue className="h-56 mt-4" />}
-        </EcoChartCard>
-    );
-}
-
-function Vn10yChart({ data }: { data: Vn10yPoint[] }) {
-    const latest = data.at(-1) ?? null;
-    const prev   = data.at(-2) ?? null;
-    const delta  = latest && prev ? latest.value - prev.value : null;
-    const step   = Math.max(1, Math.floor(data.length / 10));
-    const chartData = data.map((p, i) => ({
-        Tháng: (i % step === 0 || i === data.length - 1) ? fmtMonth(p.date) : '',
-        'Lợi suất (%)': p.value,
-    }));
-    return (
-        <EcoChartCard title="Lợi suất TPCP 10 năm (%)" subtitle="Trái phiếu chính phủ VN — nguồn: investing.com"
-            latest={latest?.value ?? null} latestLabel={latest ? fmtMonth(latest.date) : ''} delta={delta}>
-            {chartData.length === 0
-                ? <div className="h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
-                : <AreaChart data={chartData} index="Tháng" categories={['Lợi suất (%)']} colors={['blue']}
-                    valueFormatter={(v) => `${v.toFixed(2)}%`}
-                    yAxisWidth={calcYAxisWidth(data.map(p => p.value), (v) => `${v.toFixed(2)}%`)}
-                    showLegend={false} showGradient autoMinValue className="h-56 mt-4" />}
-        </EcoChartCard>
-    );
 }
 
 // ── FireAnt indicator charts ──────────────────────────────────────────────────
@@ -633,36 +528,23 @@ function FASection({ title, subtitle, indicators, type }: {
     );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── World Tab — isolated component so WS subs don't affect Vietnam tab ────────
 
-type TabId = 'vietnam' | 'world';
-
-const TAB_LABELS: { id: TabId; label: string }[] = [
-    { id: 'vietnam',  label: 'Việt Nam' },
-    { id: 'world',    label: 'Thế Giới' },
-];
-
-export default function MacroPage() {
-    const [activeTab, setActiveTab] = useState<TabId>('vietnam');
-
-    // World data
+function WorldTab() {
     const [rates, setRates]         = useState<RatesData | null>(null);
-    const [economic, setEconomic]   = useState<EconomicData | null>(null);
     const [ratesLoading, setRL]     = useState(true);
-    const [economicLoading, setEL]  = useState(true);
     const [ffForex, setFfForex]     = useState<Map<string, FFPrice>>(new Map());
     const [ffIndices, setFfIndices] = useState<Map<string, FFPrice>>(new Map());
 
-    // Vietnam data (FireAnt)
-    const [faData, setFaData]       = useState<FAData>({});
-    const [faLoading, setFaL]       = useState(true);
+    const loadRates = useCallback(async () => {
+        try { const r = await fetch(API.MACRO_RATES); if (r.ok) setRates(await r.json()); }
+        catch { /* ignore */ } finally { setRL(false); }
+    }, []);
 
-    const FF_TO_YAHOO: Record<string, string> = {
-        'Gold/USD': 'GC=F', 'WTI/USD': 'CL=F', 'Silver/USD': 'SI=F', 'Brent/USD': 'BZ=F',
-    };
-
-    // FF WebSocket (world tab)
     useEffect(() => {
+        loadRates();
+        const t = setInterval(loadRates, RATES_REFRESH_MS);
+
         const ws = getFFWS();
         const commodityUnsubs = Object.keys(FF_TO_YAHOO).map(ch =>
             ws.subscribe(ch, (snap: FFPrice) => {
@@ -684,33 +566,122 @@ export default function MacroPage() {
         const indicesUnsubs = FF_ALL_INDEX_CHANNELS.map(def =>
             ws.subscribe(def.channel, (snap: FFPrice) => setFfIndices(prev => new Map(prev).set(def.channel, snap)))
         );
-        return () => { [...commodityUnsubs, ...forexUnsubs, ...indicesUnsubs].forEach(fn => fn()); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
-    const loadRates    = useCallback(async () => {
-        try { const r = await fetch(API.MACRO_RATES);    if (r.ok) setRates(await r.json()); }
-        catch { /* ignore */ } finally { setRL(false); }
-    }, []);
-    const loadEconomic = useCallback(async () => {
-        try { const r = await fetch(API.MACRO_ECONOMIC); if (r.ok) setEconomic(await r.json()); }
-        catch { /* ignore */ } finally { setEL(false); }
-    }, []);
-    const loadFaData   = useCallback(async () => {
+        return () => {
+            clearInterval(t);
+            [...commodityUnsubs, ...forexUnsubs, ...indicesUnsubs].forEach(fn => fn());
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loadRates]);
+
+    const fxRates     = rates?.exchange_rates ?? [];
+    const commodities = rates?.commodities    ?? [];
+    const sess        = getMarketSessions();
+
+    return (
+        <div className="space-y-10">
+
+            {/* VND Exchange Rates */}
+            <section>
+                <SectionHeader title="Tỷ Giá Hối Đoái VND" subtitle="VND so với các đồng tiền chính" />
+                {ratesLoading
+                    ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+                    : fxRates.length === 0
+                    ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu tỷ giá.</p>
+                    : <CardGrid items={fxRates} isVnd={true} />}
+            </section>
+
+            {/* Forex */}
+            <section>
+                <SectionHeader title="Ngoại Hối Quốc Tế" subtitle="Các cặp tiền tệ chính" />
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
+                    {FF_FOREX_CHANNELS.map(def => (
+                        <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
+                    ))}
+                </div>
+            </section>
+
+            {/* Asia-Pacific */}
+            <section>
+                <div className="flex items-center gap-3 mb-4">
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Á - Thái Bình Dương</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tokyo 7:00–13:30 · Sydney 7:00–13:00 (giờ VN)</p>
+                    </div>
+                    <SessionBadge open={sess.asia} tz="07:00–13:30" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {FF_ASIA_CHANNELS.map(def => (
+                        <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
+                    ))}
+                </div>
+            </section>
+
+            {/* Europe */}
+            <section>
+                <div className="flex items-center gap-3 mb-4">
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Âu</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Frankfurt/London 14:00–22:30 (giờ VN)</p>
+                    </div>
+                    <SessionBadge open={sess.europe} tz="14:00–22:30" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {FF_EUROPE_CHANNELS.map(def => (
+                        <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
+                    ))}
+                </div>
+            </section>
+
+            {/* Americas */}
+            <section>
+                <div className="flex items-center gap-3 mb-4">
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Mỹ</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">NYSE/NASDAQ 20:30–03:00 (giờ VN)</p>
+                    </div>
+                    <SessionBadge open={sess.americas} tz="20:30–03:00" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                    {FF_AMERICAS_CHANNELS.map(def => (
+                        <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
+                    ))}
+                </div>
+            </section>
+
+            {/* Commodities */}
+            <section>
+                <SectionHeader title="Hàng Hóa Quốc Tế" subtitle="Live: Forex Factory · lịch sử: Yahoo Finance" />
+                {ratesLoading
+                    ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+                    : commodities.length === 0
+                    ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu hàng hóa.</p>
+                    : <CardGrid items={commodities} isVnd={false} />}
+            </section>
+        </div>
+    );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+type TabId = 'vietnam' | 'world';
+
+const TAB_LABELS: { id: TabId; label: string }[] = [
+    { id: 'vietnam',  label: 'Việt Nam' },
+    { id: 'world',    label: 'Thế Giới' },
+];
+
+export default function MacroPage() {
+    const [activeTab, setActiveTab] = useState<TabId>('vietnam');
+    const [faData, setFaData]       = useState<FAData>({});
+    const [faLoading, setFaL]       = useState(true);
+
+    const loadFaData = useCallback(async () => {
         try { const r = await fetch(API.MACRO_FIREANT()); if (r.ok) setFaData(await r.json()); }
         catch { /* ignore */ } finally { setFaL(false); }
     }, []);
 
-    useEffect(() => {
-        loadRates(); loadEconomic(); loadFaData();
-        const t = setInterval(loadRates, RATES_REFRESH_MS);
-        return () => clearInterval(t);
-    }, [loadRates, loadEconomic, loadFaData]);
-
-    const fxRates     = rates?.exchange_rates ?? [];
-    const commodities = rates?.commodities    ?? [];
-    const cpi         = economic?.cpi         ?? [];
-    const vn10y       = economic?.vn10y       ?? [];
+    useEffect(() => { loadFaData(); }, [loadFaData]);
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -765,109 +736,13 @@ export default function MacroPage() {
                                     indicators={faData['Business'] ?? []} type="Business" />
                                 <FASection title="Tiêu Dùng" subtitle="Nguồn: FireAnt / GSO"
                                     indicators={faData['Consumer'] ?? []} type="Consumer" />
-
-                                {/* CPI + VN10Y from investing.com as supplement */}
-                                <section>
-                                    <SectionHeader title="Chỉ Số Bổ Sung"
-                                        subtitle="CPI YoY và lợi suất TPCP 10 năm — nguồn: investing.com" />
-                                    {economicLoading
-                                        ? <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><SkeletonChart /><SkeletonChart /></div>
-                                        : <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                            <CpiChart data={cpi} />
-                                            <Vn10yChart data={vn10y} />
-                                          </div>}
-                                </section>
                             </>
                         )}
                     </div>
                 )}
 
                 {/* ── World Tab ── */}
-                {activeTab === 'world' && (() => {
-                    const sess = getMarketSessions();
-                    return (
-                    <div className="space-y-10">
-
-                        {/* VND Exchange Rates */}
-                        <section>
-                            <SectionHeader title="Tỷ Giá Hối Đoái VND" subtitle="VND so với các đồng tiền chính" />
-                            {ratesLoading
-                                ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
-                                : fxRates.length === 0
-                                ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu tỷ giá.</p>
-                                : <CardGrid items={fxRates} isVnd={true} />}
-                        </section>
-
-                        {/* Forex */}
-                        <section>
-                            <SectionHeader title="Ngoại Hối Quốc Tế" subtitle="Các cặp tiền tệ chính" />
-                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
-                                {FF_FOREX_CHANNELS.map(def => (
-                                    <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* Asia-Pacific */}
-                        <section>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div>
-                                    <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Á - Thái Bình Dương</h2>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tokyo 7:00–13:30 · Sydney 7:00–13:00 (giờ VN)</p>
-                                </div>
-                                <SessionBadge open={sess.asia} tz="07:00–13:30" />
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                {FF_ASIA_CHANNELS.map(def => (
-                                    <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* Europe */}
-                        <section>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div>
-                                    <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Âu</h2>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Frankfurt/London 14:00–22:30 (giờ VN)</p>
-                                </div>
-                                <SessionBadge open={sess.europe} tz="14:00–22:30" />
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                {FF_EUROPE_CHANNELS.map(def => (
-                                    <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* Americas */}
-                        <section>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div>
-                                    <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Mỹ</h2>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">NYSE/NASDAQ 20:30–03:00 (giờ VN)</p>
-                                </div>
-                                <SessionBadge open={sess.americas} tz="20:30–03:00" />
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                                {FF_AMERICAS_CHANNELS.map(def => (
-                                    <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* Commodities */}
-                        <section>
-                            <SectionHeader title="Hàng Hóa Quốc Tế" subtitle="Live: Forex Factory · lịch sử: Yahoo Finance" />
-                            {ratesLoading
-                                ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
-                                : commodities.length === 0
-                                ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu hàng hóa.</p>
-                                : <CardGrid items={commodities} isVnd={false} />}
-                        </section>
-                    </div>
-                    );
-                })()}
+                {activeTab === 'world' && <WorldTab />}
 
             </div>
         </div>
