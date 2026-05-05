@@ -48,6 +48,8 @@ _FIREANT_HEADERS = {
 _ALLOWED_SYMBOLS = {
     'USDVND=X', 'EURVND=X', 'CNYVND=X', 'JPYVND=X',
     'BZ=F', 'SI=F', 'ZR=F', 'GC=F',
+    'ECONOMICS:VNINBR',
+    'ECONOMICS:VNIRYY',
 }
 
 logger = logging.getLogger(__name__)

@@ -365,6 +365,174 @@ function calcYAxisWidth(values: number[], fmt: (v: number) => string): number {
     return Math.max(44, Math.min(96, maxLen * 7 + 10));
 }
 
+// ── Vietnam Interbank Rate chart (TradingView data) ───────────────────────────
+
+const VNINBR_RANGES = [
+    { label: '6T', days: 180 },
+    { label: '1N', days: 365 },
+    { label: '3N', days: 1095 },
+] as const;
+
+function VNINBRChart() {
+    const [days, setDays]       = useState(365);
+    const [points, setPoints]   = useState<PricePoint[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        setLoading(true);
+        fetch(API.MACRO_HISTORY('ECONOMICS:VNINBR', days))
+            .then(r => r.ok ? r.json() : [])
+            .then(data => { setPoints(data); setLoading(false); })
+            .catch(() => setLoading(false));
+    }, [days]);
+
+    const latest = points.at(-1)?.close ?? null;
+    const prev   = points.at(-2)?.close ?? null;
+    const delta  = latest !== null && prev !== null ? latest - prev : null;
+    const up     = delta === null ? true : delta >= 0;
+
+    const useDayFormat = days <= 180;
+    const chartData = points.map(p => {
+        const [y, m, d] = p.date.split('-');
+        return {
+            'Ngày': useDayFormat ? `${d}/${m}` : `${m}/${y.slice(2)}`,
+            'Lãi suất (%)': p.close,
+        };
+    });
+    const yAxisWidth = calcYAxisWidth(points.map(p => p.close), v => `${v.toFixed(2)}%`);
+
+    return (
+        <Card className="p-5">
+            <div className="flex items-start justify-between mb-1">
+                <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm">
+                        Lãi Suất Liên Ngân Hàng Qua Đêm
+                    </p>
+                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">
+                        TradingView · ECONOMICS:VNINBR · State Bank of Vietnam · %/năm
+                    </p>
+                </div>
+                <div className="flex items-start gap-3 shrink-0 ml-3">
+                    {latest !== null && (
+                        <div className="text-right">
+                            <p className="text-xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                {latest.toFixed(2)}%
+                            </p>
+                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
+                                {points.at(-1)?.date}
+                                {delta !== null && (
+                                    <span className={`ml-1.5 font-semibold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {up ? '+' : ''}{delta.toFixed(2)}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                    )}
+                    <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs">
+                        {VNINBR_RANGES.map(opt => (
+                            <button key={opt.days} onClick={() => setDays(opt.days)}
+                                className={`px-2.5 py-1 font-medium transition-colors ${days === opt.days ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            {loading
+                ? <div className="h-48 mt-4 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                : chartData.length === 0
+                ? <div className="h-48 mt-4 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">Không có dữ liệu</div>
+                : <AreaChart data={chartData} index="Ngày" categories={['Lãi suất (%)']}
+                    colors={[up ? 'indigo' : 'rose']} valueFormatter={v => `${v.toFixed(2)}%`}
+                    yAxisWidth={yAxisWidth} showLegend={false} showGradient autoMinValue
+                    showAnimation={false} tickGap={30} className="h-48 mt-4" />
+            }
+        </Card>
+    );
+}
+
+// ── Vietnam Inflation Rate YoY chart (TradingView data) ──────────────────────
+
+const VNIRYY_RANGES = [
+    { label: '3N',  days: 1095 },
+    { label: '5N',  days: 1825 },
+    { label: '10N', days: 3650 },
+] as const;
+
+function VNIRYYChart() {
+    const [days, setDays]       = useState(1825);
+    const [points, setPoints]   = useState<PricePoint[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        setLoading(true);
+        fetch(API.MACRO_HISTORY('ECONOMICS:VNIRYY', days))
+            .then(r => r.ok ? r.json() : [])
+            .then(data => { setPoints(data); setLoading(false); })
+            .catch(() => setLoading(false));
+    }, [days]);
+
+    const latest = points.at(-1)?.close ?? null;
+    const prev   = points.at(-2)?.close ?? null;
+    const delta  = latest !== null && prev !== null ? latest - prev : null;
+    const up     = delta === null ? true : delta >= 0;
+
+    const chartData = points.map(p => {
+        const [y, m] = p.date.split('-');
+        return { 'Tháng': `${m}/${y.slice(2)}`, 'Lạm phát (%)': p.close };
+    });
+    const yAxisWidth = calcYAxisWidth(points.map(p => p.close), v => `${v.toFixed(2)}%`);
+
+    return (
+        <Card className="p-5">
+            <div className="flex items-start justify-between mb-1">
+                <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm">
+                        Tỷ Lệ Lạm Phát (YoY)
+                    </p>
+                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">
+                        TradingView · ECONOMICS:VNIRYY · GSO · %/năm
+                    </p>
+                </div>
+                <div className="flex items-start gap-3 shrink-0 ml-3">
+                    {latest !== null && (
+                        <div className="text-right">
+                            <p className="text-xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                                {latest.toFixed(2)}%
+                            </p>
+                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
+                                {points.at(-1)?.date.slice(0, 7)}
+                                {delta !== null && (
+                                    <span className={`ml-1.5 font-semibold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {up ? '+' : ''}{delta.toFixed(2)}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                    )}
+                    <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs">
+                        {VNIRYY_RANGES.map(opt => (
+                            <button key={opt.days} onClick={() => setDays(opt.days)}
+                                className={`px-2.5 py-1 font-medium transition-colors ${days === opt.days ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            {loading
+                ? <div className="h-48 mt-4 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                : chartData.length === 0
+                ? <div className="h-48 mt-4 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">Không có dữ liệu</div>
+                : <AreaChart data={chartData} index="Tháng" categories={['Lạm phát (%)']}
+                    colors={['rose']} valueFormatter={v => `${v.toFixed(2)}%`}
+                    yAxisWidth={yAxisWidth} showLegend={false} showGradient autoMinValue
+                    showAnimation={false} tickGap={24} className="h-48 mt-4" />
+            }
+        </Card>
+    );
+}
+
 // ── FireAnt indicator charts ──────────────────────────────────────────────────
 
 function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; barChart?: boolean }) {
@@ -722,14 +890,22 @@ export default function MacroPage() {
                             <>
                                 <FASection title="GDP Việt Nam" subtitle="Nguồn: FireAnt / Ngân hàng Thế giới & GSO"
                                     indicators={faData['GDP'] ?? []} type="GDP" />
-                                <FASection title="Giá Cả & Lạm Phát" subtitle="Nguồn: FireAnt / GSO"
-                                    indicators={faData['Prices'] ?? []} type="Prices" />
+                                <section>
+                                    <SectionHeader title="Giá Cả & Lạm Phát" subtitle="Nguồn: TradingView / GSO" />
+                                    <LazySection>
+                                        <VNIRYYChart />
+                                    </LazySection>
+                                </section>
                                 <FASection title="Thương Mại & Đầu Tư" subtitle="Nguồn: FireAnt / Hải quan Việt Nam"
                                     indicators={faData['Trade'] ?? []} type="Trade" />
                                 <FASection title="Thị Trường Tiền Tệ" subtitle="Nguồn: FireAnt / NHNN"
                                     indicators={faData['Money'] ?? []} type="Money" />
-                                <FASection title="Lãi Suất Liên Ngân Hàng" subtitle="Nguồn: FireAnt / NHNN"
-                                    indicators={faData['InterestRate'] ?? []} type="InterestRate" />
+                                <section>
+                                    <SectionHeader title="Lãi Suất Liên Ngân Hàng" subtitle="Nguồn: TradingView / State Bank of Vietnam" />
+                                    <LazySection>
+                                        <VNINBRChart />
+                                    </LazySection>
+                                </section>
                                 <FASection title="Lao Động & Việc Làm" subtitle="Nguồn: FireAnt / GSO"
                                     indicators={faData['Labour'] ?? []} type="Labour" />
                                 <FASection title="Sản Xuất & Kinh Doanh" subtitle="Nguồn: FireAnt / S&P Global PMI"
