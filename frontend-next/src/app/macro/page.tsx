@@ -371,8 +371,9 @@ const fmtPct     = (v: number) => `${v.toFixed(2)}%`;
 const fmtBillUSD = (v: number) => `${(v / 1e9).toFixed(1)} tỷ $`;
 const fmtTrVND   = (v: number) => `${(v / 1e12).toFixed(0)} nghìn tỷ ₫`;
 const fmtMilVND  = (v: number) => `${(v / 1e6).toFixed(1)} triệu ₫`;
-const fmtMilPpl  = (v: number) => `${v.toFixed(1)}M người`;
+const fmtMilPpl  = (v: number) => `${(v / 1e6).toFixed(1)}M người`;
 const fmtUSD     = (v: number) => `$${v.toFixed(0)}`;
+const fmtUSDL    = (v: number) => `$${v.toFixed(2)}/L`;
 const fmtIdx     = (v: number) => v.toFixed(2);
 
 interface TVConfig {
@@ -416,11 +417,11 @@ const TV_CONFIGS: Record<string, TVConfig> = {
     'ECONOMICS:VNGDPPC': { titleVN: 'GDP Bình Quân Đầu Người', source: 'TradingView / WB · USD',
         fmt: fmtUSD, defaultDays: 3650, color: 'violet', freq: 'annual',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
-    'ECONOMICS:VNGNP': { titleVN: 'GNP', source: 'TradingView / WB · tỷ $',
-        fmt: fmtBillUSD, defaultDays: 3650, color: 'teal', freq: 'annual',
+    'ECONOMICS:VNGNP': { titleVN: 'GNP', source: 'TradingView / WB · nghìn tỷ ₫',
+        fmt: fmtTrVND, defaultDays: 3650, color: 'teal', freq: 'annual',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
-    'ECONOMICS:VNGFCF': { titleVN: 'Đầu Tư Tài Sản Cố Định', source: 'TradingView / WB · tỷ $',
-        fmt: fmtBillUSD, defaultDays: 3650, color: 'amber', freq: 'annual',
+    'ECONOMICS:VNGFCF': { titleVN: 'Đầu Tư Tài Sản Cố Định', source: 'TradingView / WB · nghìn tỷ ₫',
+        fmt: fmtTrVND, defaultDays: 3650, color: 'amber', freq: 'annual',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
     // Prices
     'ECONOMICS:VNIRYY': { titleVN: 'Lạm Phát (YoY)', source: 'TradingView / GSO · %/năm',
@@ -435,8 +436,8 @@ const TV_CONFIGS: Record<string, TVConfig> = {
     'ECONOMICS:VNCIR': { titleVN: 'Lạm Phát Lõi', source: 'TradingView / GSO · %/năm',
         fmt: fmtPct, defaultDays: 1825, color: 'red', freq: 'monthly',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
-    'ECONOMICS:VNGASP': { titleVN: 'Giá Xăng Dầu', source: 'TradingView / VN · ₫/lít',
-        fmt: fmtMilVND, defaultDays: 1095, color: 'yellow', freq: 'monthly',
+    'ECONOMICS:VNGASP': { titleVN: 'Giá Xăng Dầu', source: 'TradingView / VN · USD/lít',
+        fmt: fmtUSDL, defaultDays: 1095, color: 'yellow', freq: 'monthly',
         ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
     // Money
     'ECONOMICS:VNFER': { titleVN: 'Dự Trữ Ngoại Hối', source: 'TradingView / NHNN · tỷ $',
