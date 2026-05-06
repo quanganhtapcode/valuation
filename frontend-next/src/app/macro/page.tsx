@@ -383,7 +383,6 @@ interface TVConfig {
     fmt: (v: number) => string;
     unitLabel: string;
     defaultDays: number;
-    ranges: readonly { label: string; days: number }[];
     color: string;
     barChart?: boolean;
     freq: 'daily' | 'monthly' | 'annual';
@@ -394,95 +393,67 @@ interface TVConfig {
 const TV_CONFIGS: Record<string, TVConfig> = {
     // Rates
     'ECONOMICS:VNINBR': { titleVN: 'Lãi Suất Liên Ngân Hàng Qua Đêm', source: 'TradingView / NHNN · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 365, color: 'indigo', freq: 'daily', compareLag: 1, compareLabel: 'kỳ trước',
-        ranges: [{ label: '6T', days: 180 }, { label: '1N', days: 365 }, { label: '3N', days: 1095 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 365, color: 'indigo', freq: 'daily', compareLag: 1, compareLabel: 'kỳ trước' },
     'ECONOMICS:VNINTR': { titleVN: 'Lãi Suất Chính Sách', source: 'TradingView / NHNN · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'blue', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'blue', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNDIR': { titleVN: 'Lãi Suất Tiền Gửi', source: 'TradingView / WB · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
-        ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     // GDP
     'ECONOMICS:VNGDPYY': { titleVN: 'Tăng Trưởng GDP (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'emerald', barChart: true, freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'emerald', barChart: true, freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNGDPCP': { titleVN: 'GDP Thực Tế (hàng quý)', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'blue', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'blue', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNGDPS': { titleVN: 'GDP - Dịch Vụ', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNGDPMAN': { titleVN: 'GDP - Công Nghiệp', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNGDPA': { titleVN: 'GDP - Nông Nghiệp', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'lime', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'lime', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNGDPPC': { titleVN: 'GDP Bình Quân Đầu Người', source: 'TradingView / WB · USD',
-        fmt: fmtUSD, unitLabel: 'USD', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
-        ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
+        fmt: fmtUSD, unitLabel: 'USD', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     'ECONOMICS:VNGNP': { titleVN: 'GNP', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
-        ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     'ECONOMICS:VNGFCF': { titleVN: 'Đầu Tư Tài Sản Cố Định', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'amber', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
-        ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'amber', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     // Prices
     'ECONOMICS:VNIRYY': { titleVN: 'Lạm Phát (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'rose', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'rose', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNCPI': { titleVN: 'Chỉ Số Giá Tiêu Dùng (CPI)', source: 'TradingView / GSO · chỉ số',
-        fmt: fmtIdx, unitLabel: 'chỉ số', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtIdx, unitLabel: 'chỉ số', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNFI': { titleVN: 'Lạm Phát Thực Phẩm', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'amber', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'amber', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNCIR': { titleVN: 'Lạm Phát Lõi', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'red', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'red', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNGASP': { titleVN: 'Giá Xăng Dầu', source: 'TradingView / VN · USD/lít',
-        fmt: fmtUSDL, unitLabel: 'USD/lít', defaultDays: 1095, color: 'yellow', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
+        fmt: fmtUSDL, unitLabel: 'USD/lít', defaultDays: 1095, color: 'yellow', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     // Money
     'ECONOMICS:VNFER': { titleVN: 'Dự Trữ Ngoại Hối', source: 'TradingView / NHNN · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1825, color: 'emerald', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1825, color: 'emerald', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNM2': { titleVN: 'Cung Tiền M2', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
-        ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     // Trade
     'ECONOMICS:VNEXP': { titleVN: 'Xuất Khẩu', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'emerald', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'emerald', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNIMP': { titleVN: 'Nhập Khẩu', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'rose', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'rose', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNBOT': { titleVN: 'Cán Cân Thương Mại', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'blue', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'blue', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNFDI': { titleVN: 'Đầu Tư Trực Tiếp Nước Ngoài (FDI)', source: 'TradingView / MPI · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'indigo', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'indigo', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     // Labour
     'ECONOMICS:VNUR': { titleVN: 'Tỷ Lệ Thất Nghiệp', source: 'TradingView / GSO · %',
-        fmt: fmtPct, unitLabel: '%', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtPct, unitLabel: '%', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNWAG': { titleVN: 'Lương Bình Quân', source: 'TradingView / GSO · triệu ₫/tháng',
-        fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNMW': { titleVN: 'Lương Tối Thiểu', source: 'TradingView / MoLISA · triệu ₫/tháng',
-        fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
-        ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
+        fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     'ECONOMICS:VNPOP': { titleVN: 'Dân Số', source: 'TradingView / WB · triệu người',
-        fmt: fmtMilPpl, unitLabel: 'triệu người', defaultDays: 3650, color: 'slate', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
-        ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
+        fmt: fmtMilPpl, unitLabel: 'triệu người', defaultDays: 3650, color: 'slate', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     // Business & Consumer
     'ECONOMICS:VNIPYY': { titleVN: 'Sản Lượng Công Nghiệp (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1095, color: 'orange', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1095, color: 'orange', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNRSYY': { titleVN: 'Doanh Thu Bán Lẻ (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1095, color: 'cyan', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
-        ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1095, color: 'cyan', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
 };
 const FA_COLORS: Record<string, string> = {
     GDP: 'emerald', Prices: 'rose', Trade: 'blue', Labour: 'violet',
@@ -503,7 +474,7 @@ const VIETNAM_SUBTABS: { id: VietnamSubTabId; label: string; subtitle: string }[
 ];
 
 const VIETNAM_TAB_TV: Record<VietnamSubTabId, string[]> = {
-    growth: ['ECONOMICS:VNGDPCP', 'ECONOMICS:VNGDPYY', 'ECONOMICS:VNGDPS', 'ECONOMICS:VNGDPMAN', 'ECONOMICS:VNGDPA', 'ECONOMICS:VNGDPPC', 'ECONOMICS:VNGNP', 'ECONOMICS:VNGFCF'],
+    growth: ['ECONOMICS:VNGDPYY', 'ECONOMICS:VNGDPPC', 'ECONOMICS:VNGNP', 'ECONOMICS:VNGFCF'],
     prices: ['ECONOMICS:VNIRYY', 'ECONOMICS:VNCPI', 'ECONOMICS:VNCIR', 'ECONOMICS:VNFI', 'ECONOMICS:VNGASP'],
     trade: ['ECONOMICS:VNBOT', 'ECONOMICS:VNEXP', 'ECONOMICS:VNIMP', 'ECONOMICS:VNFDI'],
     money: ['ECONOMICS:VNINBR', 'ECONOMICS:VNINTR', 'ECONOMICS:VNFER', 'ECONOMICS:VNM2', 'ECONOMICS:VNDIR'],
@@ -514,7 +485,7 @@ const VIETNAM_TAB_TV: Record<VietnamSubTabId, string[]> = {
 const VIETNAM_TAB_FA: Record<VietnamSubTabId, string[]> = {
     growth: ['GDP', 'Business'],
     prices: ['Prices', 'Consumer'],
-    trade: ['Trade'],
+    trade: [],
     money: ['Money', 'InterestRate'],
     labour: ['Labour'],
     taxes: ['Taxes'],
@@ -547,6 +518,8 @@ function getFaFormatter(ind: FAIndicator) {
     if (unit.includes('triệu') && unit.includes('đ')) return fmtMilVND;
     if (unit.includes('tỷ') && unit.includes('$')) return (v: number) => `${v.toFixed(2)} tỷ $`;
     if (unit.includes('nghìn tỷ')) return fmtTrVND;
+    // FireAnt GDP sectors are stored in Tỷ VNĐ (billions VND) → convert to nghìn tỷ for readability
+    if (unit.includes('tỷ vn') || unit.includes('tỷ vnđ')) return (v: number) => `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })} nghìn tỷ ₫`;
     return (v: number) => formatRawNumber(v);
 }
 
@@ -678,9 +651,6 @@ function DetailChartCard({
     chartKey,
     valueFormatter,
     barChart,
-    rangeOptions,
-    activeRange,
-    onSelectRange,
 }: {
     title: string;
     subtitle: string;
@@ -693,9 +663,6 @@ function DetailChartCard({
     chartKey: string;
     valueFormatter: (v: number) => string;
     barChart?: boolean;
-    rangeOptions?: readonly { label: string; days: number }[];
-    activeRange?: number;
-    onSelectRange?: (days: number) => void;
 }) {
     const values = chartData.map((row) => Number(row[chartKey]));
     const yAxisWidth = calcYAxisWidth(values, valueFormatter);
@@ -708,30 +675,11 @@ function DetailChartCard({
                     <p className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</p>
                     <p className="mt-1 text-xs text-tremor-content dark:text-dark-tremor-content">{subtitle}</p>
                 </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:justify-end">
-                    <div className="sm:text-right">
-                        <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{latestText}</p>
-                        <p className="mt-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">Đơn vị: {unit}</p>
-                        <p className="mt-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">Cập nhật: {updatedAt}</p>
-                        <p className="mt-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">{comparisonText}</p>
-                    </div>
-                    {rangeOptions && activeRange && onSelectRange && (
-                        <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs h-fit">
-                            {rangeOptions.map((opt) => (
-                                <button
-                                    key={opt.days}
-                                    onClick={() => onSelectRange(opt.days)}
-                                    className={`px-2.5 py-1 font-medium transition-colors ${
-                                        activeRange === opt.days
-                                            ? 'bg-blue-600 text-white'
-                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                <div className="sm:text-right">
+                    <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{latestText}</p>
+                    <p className="mt-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">Đơn vị: {unit}</p>
+                    <p className="mt-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">Cập nhật: {updatedAt}</p>
+                    <p className="mt-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">{comparisonText}</p>
                 </div>
             </div>
             {chartData.length === 0 ? (
@@ -802,17 +750,16 @@ function TVStatCard({ sym, selected, onClick }: { sym: string; selected: boolean
 
 function TVDetailPanel({ sym }: { sym: string }) {
     const cfg = TV_CONFIGS[sym];
-    const [days, setDays] = useState(cfg.defaultDays);
     const [points, setPoints] = useState<PricePoint[] | null>(null);
 
     useEffect(() => {
         let active = true;
-        fetch(API.MACRO_HISTORY(sym, days))
+        fetch(API.MACRO_HISTORY(sym, cfg.defaultDays))
             .then((r) => r.ok ? r.json() : [])
             .then((data: PricePoint[]) => { if (active) setPoints(data); })
             .catch(() => { if (active) setPoints([]); });
         return () => { active = false; };
-    }, [days, sym]);
+    }, [cfg.defaultDays, sym]);
 
     if (!points) return <SkeletonChart />;
 
@@ -821,7 +768,7 @@ function TVDetailPanel({ sym }: { sym: string }) {
         const [y, m, d] = p.date.split('-');
         let label = p.date;
         if (cfg.freq === 'annual') label = y;
-        else if (cfg.freq === 'daily') label = days <= 180 ? `${d}/${m}` : `${m}/${y.slice(2)}`;
+        else if (cfg.freq === 'daily') label = `${d}/${m}`;
         else label = `${m}/${y.slice(2)}`;
         return { 'Kỳ': label, [cfg.titleVN]: p.close };
     });
@@ -839,9 +786,6 @@ function TVDetailPanel({ sym }: { sym: string }) {
             chartKey={cfg.titleVN}
             valueFormatter={cfg.fmt}
             barChart={cfg.barChart}
-            rangeOptions={cfg.ranges}
-            activeRange={days}
-            onSelectRange={setDays}
         />
     );
 }
@@ -881,6 +825,85 @@ function FADetailPanel({ ind, color }: { ind: FAIndicator; color: string }) {
             chartKey={ind.nameVN}
             valueFormatter={fmt}
         />
+    );
+}
+
+// ── GDP Composition Stacked Bar ───────────────────────────────────────────────
+
+const GDP_SECTORS = [
+    { sym: 'ECONOMICS:VNGDPS',   label: 'Dịch vụ',     color: 'cyan'   },
+    { sym: 'ECONOMICS:VNGDPMAN', label: 'Công nghiệp',  color: 'orange' },
+    { sym: 'ECONOMICS:VNGDPA',   label: 'Nông nghiệp',  color: 'lime'   },
+] as const;
+
+function dateToQuarter(date: string): string {
+    const [y, m] = date.split('-');
+    const q = m === '03' ? 'Q1' : m === '06' ? 'Q2' : m === '09' ? 'Q3' : 'Q4';
+    return `${q}/${y.slice(2)}`;
+}
+
+function GDPCompositionChart() {
+    const [chartData, setChartData] = useState<Record<string, string | number>[]>([]);
+    const [loading, setLoading]     = useState(true);
+
+    useEffect(() => {
+        let active = true;
+        Promise.all(
+            GDP_SECTORS.map(({ sym }): Promise<PricePoint[]> =>
+                fetch(API.MACRO_HISTORY(sym, 1095))
+                    .then(r => r.ok ? r.json() : [])
+                    .catch(() => [])
+            )
+        ).then(([services, industry, agriculture]) => {
+            if (!active) return;
+            const byQ = new Map<string, Record<string, number>>();
+            const add = (points: PricePoint[], label: string) =>
+                points.forEach(p => {
+                    const q = dateToQuarter(p.date);
+                    if (!byQ.has(q)) byQ.set(q, {});
+                    byQ.get(q)![label] = Math.round(p.close / 1e12);
+                });
+            add(services,    'Dịch vụ');
+            add(industry,    'Công nghiệp');
+            add(agriculture, 'Nông nghiệp');
+            const rows = Array.from(byQ.entries())
+                .filter(([, v]) => v['Dịch vụ'] && v['Công nghiệp'] && v['Nông nghiệp'])
+                .sort(([a], [b]) => a.localeCompare(b))
+                .slice(-20)
+                .map(([q, v]) => ({ Kỳ: q, ...v }));
+            setChartData(rows);
+            setLoading(false);
+        });
+        return () => { active = false; };
+    }, []);
+
+    if (loading) return <SkeletonChart />;
+    if (!chartData.length) return null;
+
+    return (
+        <Card className="p-5">
+            <div className="mb-4">
+                <p className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                    Cơ Cấu GDP theo Ngành
+                </p>
+                <p className="mt-1 text-xs text-tremor-content dark:text-dark-tremor-content">
+                    TradingView / GSO · nghìn tỷ ₫ · 5 năm gần nhất
+                </p>
+            </div>
+            <BarChart
+                data={chartData}
+                index="Kỳ"
+                categories={['Dịch vụ', 'Công nghiệp', 'Nông nghiệp']}
+                colors={['cyan', 'orange', 'lime']}
+                valueFormatter={(v) => `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} nghìn tỷ`}
+                stack={true}
+                yAxisWidth={72}
+                showLegend={true}
+                showAnimation={false}
+                tickGap={24}
+                className="mt-4 h-72"
+            />
+        </Card>
     );
 }
 
@@ -927,7 +950,7 @@ function VietnamMacroTab({ faData, faLoading }: { faData: FAData; faLoading: boo
                 </LazySection>
             )}
 
-            {selectedFa && (
+            {selectedFa && selected?.kind === 'fa' && (
                 <LazySection>
                     <FADetailPanel ind={selectedFa} color={FA_COLORS[selected.type] ?? 'blue'} />
                 </LazySection>
@@ -953,6 +976,12 @@ function VietnamMacroTab({ faData, faLoading }: { faData: FAData; faLoading: boo
                         </button>
                     ))}
                 </div>
+
+                {activeSubTab === 'growth' && (
+                    <LazySection className="mb-4">
+                        <GDPCompositionChart />
+                    </LazySection>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {VIETNAM_TAB_TV[activeSubTab].map((sym) => (
