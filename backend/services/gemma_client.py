@@ -8,9 +8,15 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "gemma-4-31b-it"
+# Fallback chain: try models in order until one succeeds
+_MODEL_CHAIN = [
+    "gemma-4-31b-it",
+    "gemma-4-26b-a4b-it",
+    "gemma-3-27b-it",
+]
 _API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 _TIMEOUT = 30
+_QUOTA_ERRORS = {429, 500, 503}
 
 
 def _api_key() -> str:
@@ -20,22 +26,36 @@ def _api_key() -> str:
     return key
 
 
-def generate(prompt: str) -> str:
-    """Call Gemma 4 31B and return the text response."""
-    url = f"{_API_BASE}/{_MODEL}:generateContent?key={_api_key()}"
+def _call_model(model: str, prompt: str) -> str:
+    url = f"{_API_BASE}/{model}:generateContent?key={_api_key()}"
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"maxOutputTokens": 512, "temperature": 0.3},
     }).encode()
-
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
         data: Any = json.loads(resp.read())
-
-    # Extract only the final non-thought text part
     parts = data["candidates"][0]["content"]["parts"]
     texts = [p["text"] for p in parts if not p.get("thought")]
     return "\n".join(texts).strip()
+
+
+def generate(prompt: str) -> str:
+    """Try each model in the fallback chain, return first successful response."""
+    last_err: Exception | None = None
+    for model in _MODEL_CHAIN:
+        try:
+            result = _call_model(model, prompt)
+            if model != _MODEL_CHAIN[0]:
+                logger.info(f"Used fallback model: {model}")
+            return result
+        except urllib.error.HTTPError as e:
+            if e.code in _QUOTA_ERRORS:
+                logger.warning(f"Model {model} quota/error {e.code}, trying next")
+                last_err = e
+                continue
+            raise
+    raise RuntimeError(f"All models exhausted. Last error: {last_err}")
 
 
 def build_financial_prompt(
