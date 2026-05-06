@@ -40,10 +40,19 @@ def _call_model(model: str, prompt: str) -> str:
     return "\n".join(texts).strip()
 
 
+_failed_models: set[str] = set()  # models that failed this process run
+
+
 def generate(prompt: str) -> str:
-    """Try each model in the fallback chain, return first successful response."""
+    """Try each model in the fallback chain, return first successful response.
+
+    Models that return quota/server errors are remembered and skipped for the
+    rest of the process run to avoid repeated slow timeouts.
+    """
     last_err: Exception | None = None
     for model in _MODEL_CHAIN:
+        if model in _failed_models:
+            continue
         try:
             result = _call_model(model, prompt)
             if model != _MODEL_CHAIN[0]:
@@ -51,7 +60,8 @@ def generate(prompt: str) -> str:
             return result
         except urllib.error.HTTPError as e:
             if e.code in _QUOTA_ERRORS:
-                logger.warning(f"Model {model} quota/error {e.code}, trying next")
+                logger.warning(f"Model {model} quota/error {e.code}, skipping for this run")
+                _failed_models.add(model)
                 last_err = e
                 continue
             raise
