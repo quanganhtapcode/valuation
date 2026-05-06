@@ -40,6 +40,7 @@ def register_market_routes(bp: Blueprint) -> None:
     from .overview_refresh import register as register_overview_refresh
     from .macro import register as register_macro
     from .events import register as register_events
+    from .earnings_season import register as register_earnings_season
 
     register_gold(bp)
     register_prices(bp)
@@ -55,6 +56,7 @@ def register_market_routes(bp: Blueprint) -> None:
     register_overview_refresh(bp)
     register_macro(bp)
     register_events(bp)
+    register_earnings_season(bp)
 
 
 # Register routes at import time (deps are set later by init_market_routes).
