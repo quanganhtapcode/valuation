@@ -42,7 +42,7 @@ CACHE_DB = os.environ.get(
 )
 
 HOSE_HNX_EXCHANGES = ("HSX", "HNX")
-RATE_LIMIT_DELAY = 1.5  # seconds between API calls
+RATE_LIMIT_DELAY = 4.0  # seconds between API calls — respects ~15 RPM limit
 
 
 def detect_current_quarter(fin: sqlite3.Connection) -> tuple[int, int]:

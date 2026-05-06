@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 _MODEL_CHAIN = [
     "gemma-4-31b-it",
     "gemma-4-26b-a4b-it",
-    "gemma-3-27b-it",
 ]
 _API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-_TIMEOUT = 30
-_QUOTA_ERRORS = {429, 500, 503}
+_TIMEOUT = 45
+_QUOTA_EXCEEDED = {429}   # permanently skip model this run
+_TRANSIENT_ERRORS = {500, 503}  # retry once with backoff, then skip
 
 
 def _api_key() -> str:
@@ -40,31 +40,40 @@ def _call_model(model: str, prompt: str) -> str:
     return "\n".join(texts).strip()
 
 
-_failed_models: set[str] = set()  # models that failed this process run
+_quota_exceeded_models: set[str] = set()  # 429 = skip for entire run
 
 
 def generate(prompt: str) -> str:
     """Try each model in the fallback chain, return first successful response.
 
-    Models that return quota/server errors are remembered and skipped for the
-    rest of the process run to avoid repeated slow timeouts.
+    - 429: model is quota-exhausted, skip for the rest of this run.
+    - 500/503: transient, sleep 8s and retry once before moving on.
     """
+    import time
     last_err: Exception | None = None
+
     for model in _MODEL_CHAIN:
-        if model in _failed_models:
+        if model in _quota_exceeded_models:
             continue
-        try:
-            result = _call_model(model, prompt)
-            if model != _MODEL_CHAIN[0]:
-                logger.info(f"Used fallback model: {model}")
-            return result
-        except urllib.error.HTTPError as e:
-            if e.code in _QUOTA_ERRORS:
-                logger.warning(f"Model {model} quota/error {e.code}, skipping for this run")
-                _failed_models.add(model)
+        for attempt in range(2):  # up to 2 attempts per model
+            try:
+                result = _call_model(model, prompt)
+                if model != _MODEL_CHAIN[0]:
+                    logger.info(f"Used fallback model: {model}")
+                return result
+            except urllib.error.HTTPError as e:
+                if e.code in _QUOTA_EXCEEDED:
+                    logger.warning(f"Model {model} quota exceeded (429), skipping for this run")
+                    _quota_exceeded_models.add(model)
+                    break
+                if e.code in _TRANSIENT_ERRORS and attempt == 0:
+                    logger.warning(f"Model {model} transient error {e.code}, retrying in 8s")
+                    time.sleep(8)
+                    last_err = e
+                    continue
                 last_err = e
-                continue
-            raise
+                break  # non-retryable or second attempt failed → try next model
+
     raise RuntimeError(f"All models exhausted. Last error: {last_err}")
 
 
