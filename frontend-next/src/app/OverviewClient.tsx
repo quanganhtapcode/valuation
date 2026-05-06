@@ -6,6 +6,7 @@ import NewsSection from '@/components/NewsSection';
 
 import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard } from '@/components/Sidebar';
 import { HeatmapVN30 } from '@/components/HeatmapVN30';
+import { EarningsSeason } from '@/components/EarningsSeason';
 import {
     fetchAllIndices,
     subscribeIndicesStream,
@@ -258,6 +259,8 @@ export default function OverviewClient({
                     />
 
                     <HeatmapVN30 />
+
+                    <EarningsSeason />
 
                     <div className="order-2">
                         <NewsSection news={news} isLoading={newsLoading} error={newsError} />
