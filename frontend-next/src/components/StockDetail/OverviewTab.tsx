@@ -3,6 +3,7 @@ import styles from '../../app/stock/[symbol]/page.module.css';
 import TradingViewChart from './TradingViewChart';
 import OrderBook from './OrderBook';
 import BankLoanBreakdown from './BankLoanBreakdown';
+import AiAnalysisCard from './AiAnalysisCard';
 import { useLanguage } from "@/lib/languageContext"
 import { translations } from "@/lib/translations"
 
@@ -517,6 +518,8 @@ export default function OverviewTab({
                         </section>
                     );
                 })()}
+                <AiAnalysisCard symbol={_symbol} />
+
             </aside>
         </div>
     );
