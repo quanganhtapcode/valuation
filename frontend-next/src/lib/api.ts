@@ -30,6 +30,7 @@ export const API = {
     FOREIGN_VOLUME_CHART: `${API_BASE}/market/foreign-volume-chart`,
     GOLD: `${API_BASE}/market/gold`,
     LOTTERY: `${API_BASE}/market/lottery`,
+    EARNINGS_SEASON: `${API_BASE}/market/earnings-season`,
     MACRO_RATES:        `${API_BASE}/market/macro/rates`,
     MACRO_ECONOMIC:     `${API_BASE}/market/macro/economic`,
     MACRO_FIREANT_GDP:  `${API_BASE}/market/macro/fireant-gdp`,
@@ -1076,4 +1077,35 @@ export function formatCurrency(value: number): string {
 export function formatPercentChange(value: number): string {
     const sign = value >= 0 ? '+' : '';
     return `${sign}${value.toFixed(2)}%`;
+}
+
+export interface EarningsGrower {
+    ticker: string;
+    name: string;
+    growth_pct: number;
+    base_value: number;
+    current_value: number;
+}
+
+export interface EarningsSeasonData {
+    quarter: string;
+    year: number;
+    q: number;
+    reported_count: number;
+    total_count: number;
+    reported_pct: number;
+    market_cap_pct: number;
+    top_revenue_yoy: EarningsGrower[];
+    top_revenue_qoq: EarningsGrower[];
+    top_profit_yoy: EarningsGrower[];
+    top_profit_qoq: EarningsGrower[];
+    updated_at: string;
+}
+
+export async function fetchEarningsSeason(): Promise<EarningsSeasonData | null> {
+    try {
+        return await fetchAPI<EarningsSeasonData>(API.EARNINGS_SEASON);
+    } catch {
+        return null;
+    }
 }
