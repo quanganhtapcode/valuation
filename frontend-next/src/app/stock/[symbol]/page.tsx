@@ -142,7 +142,7 @@ export default function StockDetailPage() {
 
     const handleDownloadExcel = useCallback(() => {
         if (!symbol) return;
-        window.location.assign(`/api/download/${encodeURIComponent(symbol)}?proxy=1`);
+        window.open(`https://fiin.quanganh.org/excel/${symbol}.xlsx`, '_blank');
     }, [symbol]);
 
     // 1. Fetch Static Data & Parallel Pre-fetching
