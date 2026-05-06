@@ -61,6 +61,7 @@ interface FAIndicator {
     name: string;
     unit: string;
     frequency: string;
+    source?: string;
     lastValue: number | null;
     lastDate: string;
     data: { date: string; value: number }[];
@@ -380,350 +381,604 @@ interface TVConfig {
     titleVN: string;
     source: string;
     fmt: (v: number) => string;
+    unitLabel: string;
     defaultDays: number;
     ranges: readonly { label: string; days: number }[];
     color: string;
     barChart?: boolean;
     freq: 'daily' | 'monthly' | 'annual';
+    compareLag?: number;
+    compareLabel?: string;
 }
 
 const TV_CONFIGS: Record<string, TVConfig> = {
     // Rates
     'ECONOMICS:VNINBR': { titleVN: 'Lãi Suất Liên Ngân Hàng Qua Đêm', source: 'TradingView / NHNN · %/năm',
-        fmt: fmtPct, defaultDays: 365, color: 'indigo', freq: 'daily',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 365, color: 'indigo', freq: 'daily', compareLag: 1, compareLabel: 'kỳ trước',
         ranges: [{ label: '6T', days: 180 }, { label: '1N', days: 365 }, { label: '3N', days: 1095 }] },
     'ECONOMICS:VNINTR': { titleVN: 'Lãi Suất Chính Sách', source: 'TradingView / NHNN · %/năm',
-        fmt: fmtPct, defaultDays: 1825, color: 'blue', barChart: true, freq: 'monthly',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'blue', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNDIR': { titleVN: 'Lãi Suất Tiền Gửi', source: 'TradingView / WB · %/năm',
-        fmt: fmtPct, defaultDays: 3650, color: 'violet', freq: 'annual',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     // GDP
     'ECONOMICS:VNGDPYY': { titleVN: 'Tăng Trưởng GDP (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, defaultDays: 1825, color: 'emerald', barChart: true, freq: 'monthly',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'emerald', barChart: true, freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNGDPCP': { titleVN: 'GDP Thực Tế (hàng quý)', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, defaultDays: 1825, color: 'blue', freq: 'monthly',
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'blue', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNGDPS': { titleVN: 'GDP - Dịch Vụ', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, defaultDays: 1825, color: 'cyan', freq: 'monthly',
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNGDPMAN': { titleVN: 'GDP - Công Nghiệp', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, defaultDays: 1825, color: 'orange', freq: 'monthly',
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNGDPA': { titleVN: 'GDP - Nông Nghiệp', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, defaultDays: 1825, color: 'lime', freq: 'monthly',
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'lime', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNGDPPC': { titleVN: 'GDP Bình Quân Đầu Người', source: 'TradingView / WB · USD',
-        fmt: fmtUSD, defaultDays: 3650, color: 'violet', freq: 'annual',
+        fmt: fmtUSD, unitLabel: 'USD', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
     'ECONOMICS:VNGNP': { titleVN: 'GNP', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, defaultDays: 3650, color: 'teal', freq: 'annual',
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
     'ECONOMICS:VNGFCF': { titleVN: 'Đầu Tư Tài Sản Cố Định', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, defaultDays: 3650, color: 'amber', freq: 'annual',
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'amber', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
     // Prices
     'ECONOMICS:VNIRYY': { titleVN: 'Lạm Phát (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, defaultDays: 1825, color: 'rose', freq: 'monthly',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'rose', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNCPI': { titleVN: 'Chỉ Số Giá Tiêu Dùng (CPI)', source: 'TradingView / GSO · chỉ số',
-        fmt: fmtIdx, defaultDays: 1825, color: 'orange', freq: 'monthly',
+        fmt: fmtIdx, unitLabel: 'chỉ số', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNFI': { titleVN: 'Lạm Phát Thực Phẩm', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, defaultDays: 1825, color: 'amber', freq: 'monthly',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'amber', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNCIR': { titleVN: 'Lạm Phát Lõi', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, defaultDays: 1825, color: 'red', freq: 'monthly',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'red', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
     'ECONOMICS:VNGASP': { titleVN: 'Giá Xăng Dầu', source: 'TradingView / VN · USD/lít',
-        fmt: fmtUSDL, defaultDays: 1095, color: 'yellow', freq: 'monthly',
+        fmt: fmtUSDL, unitLabel: 'USD/lít', defaultDays: 1095, color: 'yellow', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
     // Money
     'ECONOMICS:VNFER': { titleVN: 'Dự Trữ Ngoại Hối', source: 'TradingView / NHNN · tỷ $',
-        fmt: fmtBillUSD, defaultDays: 1825, color: 'emerald', freq: 'monthly',
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1825, color: 'emerald', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNM2': { titleVN: 'Cung Tiền M2', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, defaultDays: 3650, color: 'violet', freq: 'annual',
+        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
     // Trade
     'ECONOMICS:VNEXP': { titleVN: 'Xuất Khẩu', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, defaultDays: 1095, color: 'emerald', barChart: true, freq: 'monthly',
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'emerald', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
     'ECONOMICS:VNIMP': { titleVN: 'Nhập Khẩu', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, defaultDays: 1095, color: 'rose', barChart: true, freq: 'monthly',
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'rose', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
     'ECONOMICS:VNBOT': { titleVN: 'Cán Cân Thương Mại', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, defaultDays: 1095, color: 'blue', barChart: true, freq: 'monthly',
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'blue', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
     'ECONOMICS:VNFDI': { titleVN: 'Đầu Tư Trực Tiếp Nước Ngoài (FDI)', source: 'TradingView / MPI · tỷ $',
-        fmt: fmtBillUSD, defaultDays: 1095, color: 'indigo', freq: 'monthly',
+        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'indigo', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
     // Labour
     'ECONOMICS:VNUR': { titleVN: 'Tỷ Lệ Thất Nghiệp', source: 'TradingView / GSO · %',
-        fmt: fmtPct, defaultDays: 1825, color: 'orange', freq: 'monthly',
+        fmt: fmtPct, unitLabel: '%', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNWAG': { titleVN: 'Lương Bình Quân', source: 'TradingView / GSO · triệu ₫/tháng',
-        fmt: fmtMilVND, defaultDays: 1825, color: 'cyan', freq: 'monthly',
+        fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '3N', days: 1095 }, { label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNMW': { titleVN: 'Lương Tối Thiểu', source: 'TradingView / MoLISA · triệu ₫/tháng',
-        fmt: fmtMilVND, defaultDays: 3650, color: 'teal', freq: 'annual',
+        fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }] },
     'ECONOMICS:VNPOP': { titleVN: 'Dân Số', source: 'TradingView / WB · triệu người',
-        fmt: fmtMilPpl, defaultDays: 3650, color: 'slate', freq: 'annual',
+        fmt: fmtMilPpl, unitLabel: 'triệu người', defaultDays: 3650, color: 'slate', freq: 'annual', compareLag: 1, compareLabel: 'năm trước',
         ranges: [{ label: '5N', days: 1825 }, { label: '10N', days: 3650 }, { label: '20N', days: 7300 }] },
     // Business & Consumer
     'ECONOMICS:VNIPYY': { titleVN: 'Sản Lượng Công Nghiệp (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, defaultDays: 1095, color: 'orange', barChart: true, freq: 'monthly',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1095, color: 'orange', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
     'ECONOMICS:VNRSYY': { titleVN: 'Doanh Thu Bán Lẻ (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, defaultDays: 1095, color: 'cyan', barChart: true, freq: 'monthly',
+        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1095, color: 'cyan', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ',
         ranges: [{ label: '1N', days: 365 }, { label: '3N', days: 1095 }, { label: '5N', days: 1825 }] },
 };
-
-function TVChartCard({ sym }: { sym: string }) {
-    const cfg = TV_CONFIGS[sym];
-    const [days, setDays]       = useState(cfg?.defaultDays ?? 365);
-    const [points, setPoints]   = useState<PricePoint[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        setLoading(true);
-        fetch(API.MACRO_HISTORY(sym, days))
-            .then(r => r.ok ? r.json() : [])
-            .then(data => { setPoints(data); setLoading(false); })
-            .catch(() => setLoading(false));
-    }, [sym, days]);
-
-    if (!cfg) return null;
-
-    const latest = points.at(-1)?.close ?? null;
-    const prev   = points.at(-2)?.close ?? null;
-    const delta  = latest !== null && prev !== null ? latest - prev : null;
-    const up     = delta === null ? true : delta >= 0;
-
-    const dateKey = cfg.freq === 'annual' ? 'Năm' : cfg.freq === 'daily' ? 'Ngày' : 'Kỳ';
-    const chartData = points.map(p => {
-        const [y, m, d] = p.date.split('-');
-        let label: string;
-        if (cfg.freq === 'annual') label = y;
-        else if (cfg.freq === 'daily') label = days <= 180 ? `${d}/${m}` : `${m}/${y.slice(2)}`;
-        else label = `${m}/${y.slice(2)}`;
-        return { [dateKey]: label, [cfg.titleVN]: p.close };
-    });
-    const yAxisWidth = calcYAxisWidth(points.map(p => p.close), cfg.fmt);
-
-    return (
-        <Card className="p-5">
-            <div className="flex items-start justify-between mb-1">
-                <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm">{cfg.titleVN}</p>
-                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">{cfg.source}</p>
-                </div>
-                <div className="flex items-start gap-3 shrink-0 ml-3">
-                    {latest !== null && (
-                        <div className="text-right">
-                            <p className="text-xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                {cfg.fmt(latest)}
-                            </p>
-                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                                {cfg.freq === 'daily' ? points.at(-1)?.date : points.at(-1)?.date.slice(0, 7)}
-                                {delta !== null && (
-                                    <span className={`ml-1.5 font-semibold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {delta >= 0 ? '+' : '−'}{cfg.fmt(Math.abs(delta))}
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    )}
-                    <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs">
-                        {cfg.ranges.map(opt => (
-                            <button key={opt.days} onClick={() => setDays(opt.days)}
-                                className={`px-2.5 py-1 font-medium transition-colors ${days === opt.days ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            {loading
-                ? <div className="h-48 mt-4 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
-                : chartData.length === 0
-                ? <div className="h-48 mt-4 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">Không có dữ liệu</div>
-                : cfg.barChart
-                    ? <BarChart data={chartData} index={dateKey} categories={[cfg.titleVN]}
-                        colors={[cfg.color]} valueFormatter={cfg.fmt}
-                        yAxisWidth={yAxisWidth} showLegend={false}
-                        showAnimation={false} tickGap={24} className="h-48 mt-4" />
-                    : <AreaChart data={chartData} index={dateKey} categories={[cfg.titleVN]}
-                        colors={[cfg.color]} valueFormatter={cfg.fmt}
-                        yAxisWidth={yAxisWidth} showLegend={false} showGradient autoMinValue
-                        showAnimation={false} tickGap={24} className="h-48 mt-4" />
-            }
-        </Card>
-    );
-}
-
-// ── FireAnt indicator charts ──────────────────────────────────────────────────
-
-function FAChart({ ind, color, barChart }: { ind: FAIndicator; color: string; barChart?: boolean }) {
-    const latest = ind.data.at(-1) ?? null;
-    const prev   = ind.data.at(-2) ?? null;
-    const delta  = latest && prev ? latest.value - prev.value : null;
-    const up     = delta === null ? true : delta >= 0;
-    const isGrowth = ind.unit === '%';
-    const fmt = (v: number) => isGrowth
-        ? `${v.toFixed(2)}%`
-        : Math.abs(v) >= 1000
-            ? v.toLocaleString('en-US', { maximumFractionDigits: 0 })
-            : v.toLocaleString('en-US', { maximumFractionDigits: 2 });
-
-    const displayData = limitByFreq(ind.data, ind.frequency ?? '');
-    const chartData = displayData.map(p => ({ 'Kỳ': p.date, [ind.nameVN]: p.value }));
-    const yAxisWidth = calcYAxisWidth(displayData.map(p => p.value), fmt);
-    const tickGap = ind.frequency?.includes('tháng') ? 24
-        : ind.frequency?.includes('quý') || ind.frequency?.includes('Quý') ? 12
-        : 4;
-
-    return (
-        <Card className="p-5">
-            <div className="flex items-start justify-between mb-1">
-                <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm truncate">{ind.nameVN}</p>
-                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">FireAnt · {ind.unit}</p>
-                </div>
-                <div className="flex items-start gap-2 shrink-0 ml-3">
-                    {latest && (
-                        <div className="text-right">
-                            <p className="text-xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                {fmt(latest.value)}
-                            </p>
-                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                                {latest.date}
-                                {delta !== null && (
-                                    <span className={`ml-1.5 font-semibold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {up ? '+' : ''}{delta.toFixed(2)}
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
-            {ind.data.length === 0
-                ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
-                : barChart
-                    ? <BarChart data={chartData} index="Kỳ" categories={[ind.nameVN]} colors={[color]}
-                        valueFormatter={fmt} yAxisWidth={yAxisWidth} showLegend={false}
-                        showAnimation={false} tickGap={tickGap} className="h-48 mt-4" />
-                    : <AreaChart data={chartData} index="Kỳ" categories={[ind.nameVN]} colors={[color]}
-                        valueFormatter={fmt} yAxisWidth={yAxisWidth}
-                        showLegend={false} showGradient autoMinValue
-                        showAnimation={false} tickGap={tickGap} className="h-48 mt-4" />
-            }
-        </Card>
-    );
-}
-
-function TradeChart({ exp, imp, bal }: { exp: FAIndicator; imp: FAIndicator; bal: FAIndicator }) {
-    const last = bal.data.at(-1);
-    const prev = bal.data.at(-2);
-    const delta = last && prev ? last.value - prev.value : null;
-    const impMap = new Map(imp.data.map(p => [p.date, p.value]));
-    const combined = downsample(
-        exp.data
-            .filter(p => impMap.has(p.date))
-            .map(p => ({ 'Tháng': p.date, 'Xuất khẩu': p.value, 'Nhập khẩu': impMap.get(p.date)! })),
-        MAX_MONTHLY,
-    );
-    const tradeFmt = (v: number) => `${v.toFixed(1)} tỷ`;
-    const tradeYAxisWidth = calcYAxisWidth(
-        combined.flatMap(p => [p['Xuất khẩu'], p['Nhập khẩu']]),
-        tradeFmt,
-    );
-
-    return (
-        <Card className="p-5">
-            <div className="flex items-start justify-between mb-1">
-                <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong text-sm">Xuất & Nhập khẩu</p>
-                    <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">FireAnt · Tỷ USD · hàng tháng</p>
-                </div>
-                <div className="flex items-start gap-2 shrink-0 ml-3">
-                    {last && (
-                        <div className="text-right">
-                            <p className={`text-xl font-bold tabular-nums ${last.value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                {last.value >= 0 ? '+' : ''}{last.value.toFixed(2)} tỷ
-                            </p>
-                            <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content">
-                                Cán cân {last.date}
-                                {delta !== null && (
-                                    <span className={`ml-1.5 font-semibold ${delta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {delta >= 0 ? '+' : ''}{delta.toFixed(2)}
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
-            {combined.length === 0
-                ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content mt-4">Không có dữ liệu</div>
-                : <AreaChart data={combined} index="Tháng"
-                    categories={['Xuất khẩu', 'Nhập khẩu']} colors={['emerald', 'rose']}
-                    valueFormatter={tradeFmt} yAxisWidth={tradeYAxisWidth}
-                    showLegend={true} showGradient={false} autoMinValue
-                    showAnimation={false} tickGap={24} className="h-48 mt-4" />}
-        </Card>
-    );
-}
-
-// Grid of FireAnt charts for a given type
 const FA_COLORS: Record<string, string> = {
     GDP: 'emerald', Prices: 'rose', Trade: 'blue', Labour: 'violet',
     Money: 'amber', Consumer: 'cyan', Business: 'orange', InterestRate: 'indigo', Taxes: 'gray',
 };
 
-function FASection({ title, subtitle, indicators, type }: {
-    title: string; subtitle: string; indicators: FAIndicator[]; type: string;
+type VietnamSubTabId = 'growth' | 'prices' | 'trade' | 'money' | 'labour' | 'taxes';
+type DetailSelection = { kind: 'tv'; key: string } | { kind: 'fa'; key: number; type: string };
+type TremorColor = 'blue' | 'cyan' | 'emerald' | 'gray' | 'green' | 'indigo' | 'lime' | 'orange' | 'pink' | 'purple' | 'red' | 'rose' | 'sky' | 'slate' | 'teal' | 'violet' | 'yellow';
+
+const VIETNAM_SUBTABS: { id: VietnamSubTabId; label: string; subtitle: string }[] = [
+    { id: 'growth', label: 'Tăng trưởng', subtitle: 'GDP, cơ cấu ngành, đầu tư tài sản' },
+    { id: 'prices', label: 'Giá cả', subtitle: 'CPI, lạm phát, giá năng lượng' },
+    { id: 'trade', label: 'Thương mại', subtitle: 'Xuất nhập khẩu, cán cân, FDI' },
+    { id: 'money', label: 'Tiền tệ', subtitle: 'Lãi suất, M2, dự trữ ngoại hối' },
+    { id: 'labour', label: 'Lao động', subtitle: 'Việc làm, thu nhập, dân số' },
+    { id: 'taxes', label: 'Thuế', subtitle: 'Ngân sách và thuế' },
+];
+
+const VIETNAM_TAB_TV: Record<VietnamSubTabId, string[]> = {
+    growth: ['ECONOMICS:VNGDPCP', 'ECONOMICS:VNGDPYY', 'ECONOMICS:VNGDPS', 'ECONOMICS:VNGDPMAN', 'ECONOMICS:VNGDPA', 'ECONOMICS:VNGDPPC', 'ECONOMICS:VNGNP', 'ECONOMICS:VNGFCF'],
+    prices: ['ECONOMICS:VNIRYY', 'ECONOMICS:VNCPI', 'ECONOMICS:VNCIR', 'ECONOMICS:VNFI', 'ECONOMICS:VNGASP'],
+    trade: ['ECONOMICS:VNBOT', 'ECONOMICS:VNEXP', 'ECONOMICS:VNIMP', 'ECONOMICS:VNFDI'],
+    money: ['ECONOMICS:VNINBR', 'ECONOMICS:VNINTR', 'ECONOMICS:VNFER', 'ECONOMICS:VNM2', 'ECONOMICS:VNDIR'],
+    labour: ['ECONOMICS:VNUR', 'ECONOMICS:VNWAG', 'ECONOMICS:VNMW', 'ECONOMICS:VNPOP', 'ECONOMICS:VNIPYY', 'ECONOMICS:VNRSYY'],
+    taxes: [],
+};
+
+const VIETNAM_TAB_FA: Record<VietnamSubTabId, string[]> = {
+    growth: ['GDP', 'Business'],
+    prices: ['Prices', 'Consumer'],
+    trade: ['Trade'],
+    money: ['Money', 'InterestRate'],
+    labour: ['Labour'],
+    taxes: ['Taxes'],
+};
+
+const KEY_STATS: { sym: string; tab: VietnamSubTabId }[] = [
+    { sym: 'ECONOMICS:VNGDPYY', tab: 'growth' },
+    { sym: 'ECONOMICS:VNIRYY', tab: 'prices' },
+    { sym: 'ECONOMICS:VNBOT', tab: 'trade' },
+    { sym: 'ECONOMICS:VNINBR', tab: 'money' },
+];
+
+function normalizeColor(color: string): TremorColor {
+    return (color === 'amber' ? 'yellow' : color) as TremorColor;
+}
+
+function getSourceLabel(source: string) {
+    return source.replace('TradingView / ', '').split(' · ')[0];
+}
+
+function formatRawNumber(value: number, maximumFractionDigits = 2) {
+    return Math.abs(value) >= 1000
+        ? value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+        : value.toLocaleString('en-US', { maximumFractionDigits });
+}
+
+function getFaFormatter(ind: FAIndicator) {
+    const unit = ind.unit?.trim().toLowerCase() ?? '';
+    if (unit.includes('%')) return (v: number) => `${v.toFixed(2)}%`;
+    if (unit.includes('triệu') && unit.includes('đ')) return fmtMilVND;
+    if (unit.includes('tỷ') && unit.includes('$')) return (v: number) => `${v.toFixed(2)} tỷ $`;
+    if (unit.includes('nghìn tỷ')) return fmtTrVND;
+    return (v: number) => formatRawNumber(v);
+}
+
+function getFaCompareMeta(ind: FAIndicator) {
+    const freq = (ind.frequency ?? '').toLowerCase();
+    if (freq.includes('quý')) return { lag: 4, label: 'cùng kỳ' };
+    if (freq.includes('tháng')) return { lag: 12, label: 'cùng kỳ' };
+    if (freq.includes('năm')) return { lag: 1, label: 'năm trước' };
+    return { lag: 1, label: 'kỳ trước' };
+}
+
+function getDeltaDirection(delta: number | null) {
+    if (delta === null) return 'flat';
+    if (delta > 0) return 'up';
+    if (delta < 0) return 'down';
+    return 'flat';
+}
+
+function formatComparisonText(delta: number | null, label: string, unitLabel: string, formatter: (v: number) => string) {
+    if (delta === null) return 'Chưa đủ dữ liệu so sánh';
+    const abs = Math.abs(delta);
+    if (unitLabel.includes('%')) return `${delta >= 0 ? '+' : '-'}${abs.toFixed(2)} điểm so với ${label}`;
+    return `${delta >= 0 ? '+' : '-'}${formatter(abs)} so với ${label}`;
+}
+
+function buildTvSummary(sym: string, points: PricePoint[]) {
+    const cfg = TV_CONFIGS[sym];
+    const latest = points.at(-1)?.close ?? null;
+    const compareLag = cfg.compareLag ?? (cfg.freq === 'annual' ? 1 : cfg.freq === 'daily' ? 1 : 12);
+    const comparePoint = points.length > compareLag ? points.at(-(compareLag + 1))?.close ?? null : null;
+    const delta = latest !== null && comparePoint !== null ? latest - comparePoint : null;
+    return {
+        latest,
+        updatedAt: points.at(-1)?.date ?? null,
+        delta,
+        comparisonText: formatComparisonText(delta, cfg.compareLabel ?? 'kỳ trước', cfg.unitLabel, cfg.fmt),
+        comparisonLabel: cfg.compareLabel ?? 'kỳ trước',
+        sourceLabel: getSourceLabel(cfg.source),
+    };
+}
+
+function buildFaSummary(ind: FAIndicator) {
+    const fmt = getFaFormatter(ind);
+    const latest = ind.data.at(-1)?.value ?? ind.lastValue ?? null;
+    const compareMeta = getFaCompareMeta(ind);
+    const comparePoint = ind.data.length > compareMeta.lag ? ind.data.at(-(compareMeta.lag + 1))?.value ?? null : null;
+    const delta = latest !== null && comparePoint !== null ? latest - comparePoint : null;
+    return {
+        latest,
+        updatedAt: ind.data.at(-1)?.date ?? ind.lastDate ?? null,
+        delta,
+        comparisonText: formatComparisonText(delta, compareMeta.label, ind.unit ?? '', fmt),
+        comparisonLabel: compareMeta.label,
+        sourceLabel: ind.source ?? 'FireAnt',
+        formatter: fmt,
+    };
+}
+
+function CompactStatCard({
+    title,
+    source,
+    unit,
+    valueText,
+    updatedAt,
+    comparisonText,
+    selected,
+    tone,
+    onClick,
+}: {
+    title: string;
+    source: string;
+    unit: string;
+    valueText: string;
+    updatedAt: string;
+    comparisonText: string;
+    selected: boolean;
+    tone: 'up' | 'down' | 'flat';
+    onClick: () => void;
 }) {
-    if (!indicators.length) return null;
-    const color = FA_COLORS[type] ?? 'blue';
-    const expInd = indicators.find(i => i.id === 59);
-    const impInd = indicators.find(i => i.id === 62);
-    const balInd = indicators.find(i => i.id === 54);
-    const otherInds = type === 'Trade'
-        ? indicators.filter(i => ![54, 59, 62].includes(i.id))
-        : indicators;
+    const toneCls = tone === 'up'
+        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+        : tone === 'down'
+            ? 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20'
+            : 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800';
 
     return (
-        <section>
-            <SectionHeader title={title} subtitle={subtitle} />
-            <div className="space-y-4">
-                {type === 'Trade' && expInd && impInd && balInd && (
-                    <LazySection>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <TradeChart exp={expInd} imp={impInd} bal={balInd} />
-                            {otherInds.length > 0 && <FAChart ind={otherInds[0]} color={color} />}
-                        </div>
-                    </LazySection>
-                )}
-                {type === 'Trade' && otherInds.slice(type === 'Trade' ? 1 : 0).length > 0 && (
-                    <LazySection>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {otherInds.slice(1).map(ind => <FAChart key={ind.id} ind={ind} color={color} />)}
-                        </div>
-                    </LazySection>
-                )}
-                {type !== 'Trade' && (
-                    <LazySection>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {otherInds.map(ind => <FAChart key={ind.id} ind={ind} color={color} />)}
-                        </div>
-                    </LazySection>
-                )}
+        <button
+            onClick={onClick}
+            className={`w-full text-left rounded-xl border p-4 transition-all duration-150 ${
+                selected
+                    ? 'border-blue-500 bg-white dark:bg-slate-900 shadow-sm shadow-blue-500/10'
+                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-300 dark:hover:border-blue-700'
+            }`}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</p>
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{source}</p>
+                </div>
+                <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                    {unit}
+                </span>
             </div>
-        </section>
+            <div className="mt-4">
+                <p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{valueText}</p>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Cập nhật {updatedAt}</p>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-2">
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${toneCls}`}>
+                    {comparisonText}
+                </span>
+                <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                    {selected ? 'Đang mở' : 'Xem chart'}
+                </span>
+            </div>
+        </button>
+    );
+}
+
+function DetailChartCard({
+    title,
+    subtitle,
+    latestText,
+    updatedAt,
+    comparisonText,
+    color,
+    unit,
+    chartData,
+    chartKey,
+    valueFormatter,
+    barChart,
+    rangeOptions,
+    activeRange,
+    onSelectRange,
+}: {
+    title: string;
+    subtitle: string;
+    latestText: string;
+    updatedAt: string;
+    comparisonText: string;
+    color: string;
+    unit: string;
+    chartData: Record<string, string | number>[];
+    chartKey: string;
+    valueFormatter: (v: number) => string;
+    barChart?: boolean;
+    rangeOptions?: readonly { label: string; days: number }[];
+    activeRange?: number;
+    onSelectRange?: (days: number) => void;
+}) {
+    const values = chartData.map((row) => Number(row[chartKey]));
+    const yAxisWidth = calcYAxisWidth(values, valueFormatter);
+    const tremorColor = normalizeColor(color);
+
+    return (
+        <Card className="p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                    <p className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</p>
+                    <p className="mt-1 text-xs text-tremor-content dark:text-dark-tremor-content">{subtitle}</p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:justify-end">
+                    <div className="sm:text-right">
+                        <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{latestText}</p>
+                        <p className="mt-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">Đơn vị: {unit}</p>
+                        <p className="mt-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">Cập nhật: {updatedAt}</p>
+                        <p className="mt-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">{comparisonText}</p>
+                    </div>
+                    {rangeOptions && activeRange && onSelectRange && (
+                        <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs h-fit">
+                            {rangeOptions.map((opt) => (
+                                <button
+                                    key={opt.days}
+                                    onClick={() => onSelectRange(opt.days)}
+                                    className={`px-2.5 py-1 font-medium transition-colors ${
+                                        activeRange === opt.days
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    }`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+            {chartData.length === 0 ? (
+                <div className="mt-4 h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">Không có dữ liệu</div>
+            ) : barChart ? (
+                <BarChart
+                    data={chartData}
+                    index="Kỳ"
+                    categories={[chartKey]}
+                    colors={[tremorColor]}
+                    valueFormatter={valueFormatter}
+                    yAxisWidth={yAxisWidth}
+                    showLegend={false}
+                    showAnimation={false}
+                    tickGap={24}
+                    className="mt-4 h-56"
+                />
+            ) : (
+                <AreaChart
+                    data={chartData}
+                    index="Kỳ"
+                    categories={[chartKey]}
+                    colors={[tremorColor]}
+                    valueFormatter={valueFormatter}
+                    yAxisWidth={yAxisWidth}
+                    showLegend={false}
+                    showGradient
+                    autoMinValue
+                    showAnimation={false}
+                    tickGap={24}
+                    className="mt-4 h-56"
+                />
+            )}
+        </Card>
+    );
+}
+
+function TVStatCard({ sym, selected, onClick }: { sym: string; selected: boolean; onClick: () => void }) {
+    const cfg = TV_CONFIGS[sym];
+    const [points, setPoints] = useState<PricePoint[] | null>(null);
+
+    useEffect(() => {
+        let active = true;
+        fetch(API.MACRO_HISTORY(sym, cfg.defaultDays))
+            .then((r) => r.ok ? r.json() : [])
+            .then((data: PricePoint[]) => { if (active) setPoints(data); })
+            .catch(() => { if (active) setPoints([]); });
+        return () => { active = false; };
+    }, [cfg.defaultDays, sym]);
+
+    if (!points) return <SkeletonCard />;
+    const summary = buildTvSummary(sym, points);
+
+    return (
+        <CompactStatCard
+            title={cfg.titleVN}
+            source={summary.sourceLabel}
+            unit={cfg.unitLabel}
+            valueText={summary.latest !== null ? cfg.fmt(summary.latest) : 'N/A'}
+            updatedAt={summary.updatedAt ?? 'N/A'}
+            comparisonText={summary.comparisonText}
+            selected={selected}
+            tone={getDeltaDirection(summary.delta)}
+            onClick={onClick}
+        />
+    );
+}
+
+function TVDetailPanel({ sym }: { sym: string }) {
+    const cfg = TV_CONFIGS[sym];
+    const [days, setDays] = useState(cfg.defaultDays);
+    const [points, setPoints] = useState<PricePoint[] | null>(null);
+
+    useEffect(() => {
+        let active = true;
+        fetch(API.MACRO_HISTORY(sym, days))
+            .then((r) => r.ok ? r.json() : [])
+            .then((data: PricePoint[]) => { if (active) setPoints(data); })
+            .catch(() => { if (active) setPoints([]); });
+        return () => { active = false; };
+    }, [days, sym]);
+
+    if (!points) return <SkeletonChart />;
+
+    const summary = buildTvSummary(sym, points);
+    const chartData = points.map((p) => {
+        const [y, m, d] = p.date.split('-');
+        let label = p.date;
+        if (cfg.freq === 'annual') label = y;
+        else if (cfg.freq === 'daily') label = days <= 180 ? `${d}/${m}` : `${m}/${y.slice(2)}`;
+        else label = `${m}/${y.slice(2)}`;
+        return { 'Kỳ': label, [cfg.titleVN]: p.close };
+    });
+
+    return (
+        <DetailChartCard
+            title={cfg.titleVN}
+            subtitle={cfg.source}
+            latestText={summary.latest !== null ? cfg.fmt(summary.latest) : 'N/A'}
+            updatedAt={summary.updatedAt ?? 'N/A'}
+            comparisonText={summary.comparisonText}
+            color={cfg.color}
+            unit={cfg.unitLabel}
+            chartData={chartData}
+            chartKey={cfg.titleVN}
+            valueFormatter={cfg.fmt}
+            barChart={cfg.barChart}
+            rangeOptions={cfg.ranges}
+            activeRange={days}
+            onSelectRange={setDays}
+        />
+    );
+}
+
+function FAStatCard({ ind, selected, onClick }: { ind: FAIndicator; selected: boolean; onClick: () => void }) {
+    const summary = buildFaSummary(ind);
+    return (
+        <CompactStatCard
+            title={ind.nameVN}
+            source={summary.sourceLabel}
+            unit={ind.unit || 'Dữ liệu'}
+            valueText={summary.latest !== null ? summary.formatter(summary.latest) : 'N/A'}
+            updatedAt={summary.updatedAt ?? 'N/A'}
+            comparisonText={summary.comparisonText}
+            selected={selected}
+            tone={getDeltaDirection(summary.delta)}
+            onClick={onClick}
+        />
+    );
+}
+
+function FADetailPanel({ ind, color }: { ind: FAIndicator; color: string }) {
+    const summary = buildFaSummary(ind);
+    const fmt = summary.formatter;
+    const displayData = limitByFreq(ind.data, ind.frequency ?? '');
+    const chartData = displayData.map((p) => ({ 'Kỳ': p.date, [ind.nameVN]: p.value }));
+    return (
+        <DetailChartCard
+            title={ind.nameVN}
+            subtitle={`${summary.sourceLabel} · ${ind.frequency || 'Chuỗi thời gian'}`}
+            latestText={summary.latest !== null ? fmt(summary.latest) : 'N/A'}
+            updatedAt={summary.updatedAt ?? 'N/A'}
+            comparisonText={summary.comparisonText}
+            color={color}
+            unit={ind.unit || 'Dữ liệu'}
+            chartData={chartData}
+            chartKey={ind.nameVN}
+            valueFormatter={fmt}
+        />
+    );
+}
+
+function VietnamMacroTab({ faData, faLoading }: { faData: FAData; faLoading: boolean }) {
+    const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
+    const [selected, setSelected] = useState<DetailSelection | null>({ kind: 'tv', key: 'ECONOMICS:VNGDPYY' });
+
+    const selectTv = (sym: string, tab?: VietnamSubTabId) => {
+        if (tab) setActiveSubTab(tab);
+        setSelected((prev) => prev?.kind === 'tv' && prev.key === sym ? null : { kind: 'tv', key: sym });
+    };
+
+    const selectFa = (ind: FAIndicator, type: string) => {
+        setSelected((prev) => prev?.kind === 'fa' && prev.key === ind.id ? null : { kind: 'fa', key: ind.id, type });
+    };
+
+    const activeFaIndicators = VIETNAM_TAB_FA[activeSubTab].flatMap((type) => (faData[type] ?? []).map((ind) => ({ ind, type })));
+    const selectedFa = selected?.kind === 'fa'
+        ? (faData[selected.type] ?? []).find((ind) => ind.id === selected.key) ?? null
+        : null;
+
+    return (
+        <div className="space-y-8">
+            <section>
+                <SectionHeader
+                    title="Key Stats Việt Nam"
+                    subtitle="Tóm tắt nhanh các chỉ số chính. Chọn một card để xem lịch sử và chi tiết."
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    {KEY_STATS.map(({ sym, tab }) => (
+                        <TVStatCard
+                            key={sym}
+                            sym={sym}
+                            selected={selected?.kind === 'tv' && selected.key === sym}
+                            onClick={() => selectTv(sym, tab)}
+                        />
+                    ))}
+                </div>
+            </section>
+
+            {selected?.kind === 'tv' && (
+                <LazySection>
+                    <TVDetailPanel key={selected.key} sym={selected.key} />
+                </LazySection>
+            )}
+
+            {selectedFa && (
+                <LazySection>
+                    <FADetailPanel ind={selectedFa} color={FA_COLORS[selected.type] ?? 'blue'} />
+                </LazySection>
+            )}
+
+            <section className="space-y-4">
+                <SectionHeader
+                    title="Bộ Chỉ Số Việt Nam"
+                    subtitle={VIETNAM_SUBTABS.find((tab) => tab.id === activeSubTab)?.subtitle ?? ''}
+                />
+                <div className="flex flex-wrap gap-2">
+                    {VIETNAM_SUBTABS.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveSubTab(tab.id)}
+                            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                                activeSubTab === tab.id
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {VIETNAM_TAB_TV[activeSubTab].map((sym) => (
+                        <TVStatCard
+                            key={sym}
+                            sym={sym}
+                            selected={selected?.kind === 'tv' && selected.key === sym}
+                            onClick={() => selectTv(sym)}
+                        />
+                    ))}
+
+                    {!faLoading && activeFaIndicators.map(({ ind, type }) => (
+                        <FAStatCard
+                            key={ind.id}
+                            ind={ind}
+                            selected={selected?.kind === 'fa' && selected.key === ind.id}
+                            onClick={() => selectFa(ind, type)}
+                        />
+                    ))}
+
+                    {faLoading && VIETNAM_TAB_TV[activeSubTab].length === 0 && (
+                        Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`fa-skeleton-${i}`} />)
+                    )}
+                </div>
+            </section>
+        </div>
     );
 }
 
@@ -770,7 +1025,6 @@ function WorldTab() {
             clearInterval(t);
             [...commodityUnsubs, ...forexUnsubs, ...indicesUnsubs].forEach(fn => fn());
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadRates]);
 
     const fxRates     = rates?.exchange_rates ?? [];
@@ -911,195 +1165,7 @@ export default function MacroPage() {
                 </div>
 
                 {/* ── Vietnam Tab ── */}
-                {activeTab === 'vietnam' && (
-                    <div className="space-y-10">
-                        {faLoading ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Array.from({ length: 6 }).map((_, i) => <SkeletonChart key={i} />)}
-                            </div>
-                        ) : (
-                            <>
-                                {/* ── GDP ── */}
-                                <section>
-                                    <SectionHeader title="GDP Việt Nam" subtitle="Nguồn: TradingView / GSO · FireAnt / WB" />
-                                    <div className="space-y-4">
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNGDPYY" />
-                                                <TVChartCard sym="ECONOMICS:VNGDPCP" />
-                                            </div>
-                                        </LazySection>
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNGDPS" />
-                                                <TVChartCard sym="ECONOMICS:VNGDPMAN" />
-                                                <TVChartCard sym="ECONOMICS:VNGDPA" />
-                                            </div>
-                                        </LazySection>
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNGDPPC" />
-                                                <TVChartCard sym="ECONOMICS:VNGNP" />
-                                                <TVChartCard sym="ECONOMICS:VNGFCF" />
-                                            </div>
-                                        </LazySection>
-                                        {(faData['GDP'] ?? []).length > 0 && (
-                                            <LazySection>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {(faData['GDP'] ?? []).map(ind => <FAChart key={ind.id} ind={ind} color="emerald" />)}
-                                                </div>
-                                            </LazySection>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* ── Giá Cả & Lạm Phát ── */}
-                                <section>
-                                    <SectionHeader title="Giá Cả & Lạm Phát" subtitle="Nguồn: TradingView / GSO · FireAnt" />
-                                    <div className="space-y-4">
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNIRYY" />
-                                                <TVChartCard sym="ECONOMICS:VNCPI" />
-                                                <TVChartCard sym="ECONOMICS:VNCIR" />
-                                            </div>
-                                        </LazySection>
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNFI" />
-                                                <TVChartCard sym="ECONOMICS:VNGASP" />
-                                            </div>
-                                        </LazySection>
-                                        {(faData['Prices'] ?? []).length > 0 && (
-                                            <LazySection>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {(faData['Prices'] ?? []).map(ind => <FAChart key={ind.id} ind={ind} color="rose" />)}
-                                                </div>
-                                            </LazySection>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* ── Thương Mại & Đầu Tư ── */}
-                                <section>
-                                    <SectionHeader title="Thương Mại & Đầu Tư" subtitle="Nguồn: TradingView / Hải quan VN · FireAnt" />
-                                    <div className="space-y-4">
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNEXP" />
-                                                <TVChartCard sym="ECONOMICS:VNIMP" />
-                                            </div>
-                                        </LazySection>
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNBOT" />
-                                                <TVChartCard sym="ECONOMICS:VNFDI" />
-                                            </div>
-                                        </LazySection>
-                                        {(faData['Trade'] ?? []).length > 0 && (
-                                            <LazySection>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {(faData['Trade'] ?? []).filter(i => ![54, 59, 62].includes(i.id)).map(ind => (
-                                                        <FAChart key={ind.id} ind={ind} color="blue" />
-                                                    ))}
-                                                </div>
-                                            </LazySection>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* ── Tiền Tệ & Lãi Suất ── */}
-                                <section>
-                                    <SectionHeader title="Tiền Tệ & Lãi Suất" subtitle="Nguồn: TradingView / NHNN · FireAnt" />
-                                    <div className="space-y-4">
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNINBR" />
-                                                <TVChartCard sym="ECONOMICS:VNINTR" />
-                                            </div>
-                                        </LazySection>
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNFER" />
-                                                <TVChartCard sym="ECONOMICS:VNM2" />
-                                                <TVChartCard sym="ECONOMICS:VNDIR" />
-                                            </div>
-                                        </LazySection>
-                                        {(faData['Money'] ?? []).length > 0 && (
-                                            <LazySection>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {(faData['Money'] ?? []).map(ind => <FAChart key={ind.id} ind={ind} color="amber" />)}
-                                                </div>
-                                            </LazySection>
-                                        )}
-                                        {(faData['InterestRate'] ?? []).length > 0 && (
-                                            <LazySection>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {(faData['InterestRate'] ?? []).map(ind => <FAChart key={ind.id} ind={ind} color="indigo" />)}
-                                                </div>
-                                            </LazySection>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* ── Lao Động ── */}
-                                <section>
-                                    <SectionHeader title="Lao Động & Việc Làm" subtitle="Nguồn: TradingView / GSO · FireAnt" />
-                                    <div className="space-y-4">
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNUR" />
-                                                <TVChartCard sym="ECONOMICS:VNWAG" />
-                                                <TVChartCard sym="ECONOMICS:VNMW" />
-                                                <TVChartCard sym="ECONOMICS:VNPOP" />
-                                            </div>
-                                        </LazySection>
-                                        {(faData['Labour'] ?? []).length > 0 && (
-                                            <LazySection>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {(faData['Labour'] ?? []).map(ind => <FAChart key={ind.id} ind={ind} color="violet" />)}
-                                                </div>
-                                            </LazySection>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* ── Sản Xuất & Tiêu Dùng ── */}
-                                <section>
-                                    <SectionHeader title="Sản Xuất & Tiêu Dùng" subtitle="Nguồn: TradingView / GSO · FireAnt / PMI" />
-                                    <div className="space-y-4">
-                                        <LazySection>
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                                <TVChartCard sym="ECONOMICS:VNIPYY" />
-                                                <TVChartCard sym="ECONOMICS:VNRSYY" />
-                                            </div>
-                                        </LazySection>
-                                        {(faData['Business'] ?? []).length > 0 && (
-                                            <LazySection>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {(faData['Business'] ?? []).map(ind => <FAChart key={ind.id} ind={ind} color="orange" />)}
-                                                </div>
-                                            </LazySection>
-                                        )}
-                                        {(faData['Consumer'] ?? []).length > 0 && (
-                                            <LazySection>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {(faData['Consumer'] ?? []).map(ind => <FAChart key={ind.id} ind={ind} color="cyan" />)}
-                                                </div>
-                                            </LazySection>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* ── Thuế & Chính Phủ (FA only) ── */}
-                                {(faData['Taxes'] ?? []).length > 0 && (
-                                    <FASection title="Thuế & Ngân Sách" subtitle="Nguồn: FireAnt / Bộ Tài Chính"
-                                        indicators={faData['Taxes'] ?? []} type="Taxes" />
-                                )}
-                            </>
-                        )}
-                    </div>
-                )}
+                {activeTab === 'vietnam' && <VietnamMacroTab faData={faData} faLoading={faLoading} />}
 
                 {/* ── World Tab ── */}
                 {activeTab === 'world' && <WorldTab />}
