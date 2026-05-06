@@ -31,6 +31,7 @@ export const API = {
     GOLD: `${API_BASE}/market/gold`,
     LOTTERY: `${API_BASE}/market/lottery`,
     EARNINGS_SEASON: `${API_BASE}/market/earnings-season`,
+    STOCK_AI_ANALYSIS: (symbol: string) => `${API_BASE}/stock/${symbol}/ai-analysis`,
     MACRO_RATES:        `${API_BASE}/market/macro/rates`,
     MACRO_ECONOMIC:     `${API_BASE}/market/macro/economic`,
     MACRO_FIREANT_GDP:  `${API_BASE}/market/macro/fireant-gdp`,
@@ -1100,6 +1101,23 @@ export interface EarningsSeasonData {
     top_profit_yoy: EarningsGrower[];
     top_profit_qoq: EarningsGrower[];
     updated_at: string;
+}
+
+export interface AiAnalysisData {
+    available: boolean;
+    ticker?: string;
+    quarter?: string;
+    analysis_vi?: string;
+    model?: string;
+    generated_at?: string;
+}
+
+export async function fetchAiAnalysis(symbol: string): Promise<AiAnalysisData> {
+    try {
+        return await fetchAPI<AiAnalysisData>(API.STOCK_AI_ANALYSIS(symbol));
+    } catch {
+        return { available: false };
+    }
 }
 
 export async function fetchEarningsSeason(): Promise<EarningsSeasonData | null> {
