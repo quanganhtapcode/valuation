@@ -10,3 +10,17 @@ def project_root() -> str:
 
 def screener_db_path() -> str:
     return os.path.join(project_root(), "fetch_sqlite", "vci_screening.sqlite")
+
+
+def financials_db_path() -> str:
+    return os.environ.get(
+        "VCI_FINANCIAL_STATEMENT_DB_PATH",
+        os.path.join(project_root(), "fetch_sqlite", "vci_financials.sqlite"),
+    )
+
+
+def company_db_path() -> str:
+    return os.environ.get(
+        "VCI_COMPANY_DB_PATH",
+        os.path.join(project_root(), "fetch_sqlite", "vci_company.sqlite"),
+    )
