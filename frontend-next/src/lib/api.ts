@@ -1108,6 +1108,7 @@ export interface AiAnalysisData {
     ticker?: string;
     quarter?: string;
     analysis_vi?: string;
+    analysis_json?: string;
     model?: string;
     generated_at?: string;
 }

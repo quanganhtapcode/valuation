@@ -43,8 +43,8 @@ def _call_model(model: str, prompt: str) -> str:
 _quota_exceeded_models: set[str] = set()  # 429 = skip for entire run
 
 
-def generate(prompt: str) -> str:
-    """Try each model in the fallback chain, return first successful response.
+def generate(prompt: str) -> tuple[str, str]:
+    """Try each model in the fallback chain. Returns (response_text, model_used).
 
     - 429: model is quota-exhausted, skip for the rest of this run.
     - 500/503: transient, sleep 8s and retry once before moving on.
@@ -55,12 +55,12 @@ def generate(prompt: str) -> str:
     for model in _MODEL_CHAIN:
         if model in _quota_exceeded_models:
             continue
-        for attempt in range(2):  # up to 2 attempts per model
+        for attempt in range(2):
             try:
                 result = _call_model(model, prompt)
                 if model != _MODEL_CHAIN[0]:
                     logger.info(f"Used fallback model: {model}")
-                return result
+                return result, model
             except urllib.error.HTTPError as e:
                 if e.code in _QUOTA_EXCEEDED:
                     logger.warning(f"Model {model} quota exceeded (429), skipping for this run")
@@ -72,7 +72,7 @@ def generate(prompt: str) -> str:
                     last_err = e
                     continue
                 last_err = e
-                break  # non-retryable or second attempt failed → try next model
+                break
 
     raise RuntimeError(f"All models exhausted. Last error: {last_err}")
 
@@ -88,6 +88,7 @@ def build_financial_prompt(
     profit_yoy: float,
     profit_qoq: float,
     gross_margin: float | None,
+    news: list[dict] | None = None,
 ) -> str:
     def fmt(v: float) -> str:
         if abs(v) >= 1e12:
@@ -102,11 +103,39 @@ def build_financial_prompt(
 
     margin_line = f"- Biên lợi nhuận gộp: {gross_margin:.1f}%" if gross_margin is not None else ""
 
-    return f"""Bạn là chuyên gia phân tích chứng khoán Việt Nam. Hãy phân tích BCTC {quarter} của {name} ({ticker}) trong 3-4 câu tiếng Việt ngắn gọn, chuyên nghiệp. Chỉ trả về đoạn phân tích, không thêm tiêu đề hay gạch đầu dòng.
+    news_block = ""
+    if news:
+        lines = ["\nTin tức thị trường gần đây (dùng [id] để trích dẫn):"]
+        for item in news:
+            sentiment_tag = f" [{item['sentiment']}]" if item.get("sentiment") else ""
+            lines.append(f"[{item['id']}] {item['date']}{sentiment_tag} {item['title']} — {item['summary'][:120]}")
+        news_block = "\n".join(lines)
 
-Dữ liệu:
+    citations_instruction = (
+        "\n- Trong positive_view và negative_view, trích dẫn tin tức bằng [id] nếu có liên quan"
+        if news else ""
+    )
+
+    return f"""Bạn là chuyên gia phân tích chứng khoán Việt Nam. Hãy phân tích BCTC {quarter} của {name} ({ticker}).
+
+Dữ liệu tài chính:
 - Doanh thu thuần: {fmt(revenue)} ({pct(revenue_yoy)} YoY, {pct(revenue_qoq)} QoQ)
 - Lợi nhuận sau thuế: {fmt(net_profit)} ({pct(profit_yoy)} YoY, {pct(profit_qoq)} QoQ)
-{margin_line}
+{margin_line}{news_block}
 
-Nhận xét về xu hướng tăng trưởng, chất lượng lợi nhuận, và tín hiệu đáng chú ý nếu có."""
+Trả về JSON hợp lệ theo đúng cấu trúc sau, không thêm bất kỳ text nào ngoài JSON:
+{{
+  "summary": "1-2 câu tóm tắt kết quả kinh doanh",
+  "key_issues": [
+    {{
+      "issue": "Tên vấn đề/câu hỏi quan trọng về doanh nghiệp",
+      "positive_view": "Luận điểm tích cực dựa trên dữ liệu BCTC và bối cảnh ngành",
+      "negative_view": "Luận điểm tiêu cực hoặc rủi ro cần chú ý"
+    }}
+  ]
+}}
+
+Yêu cầu:
+- summary: 1-2 câu, nêu điểm nổi bật nhất
+- key_issues: đúng 2-3 vấn đề quan trọng nhất, mỗi view 1-2 câu, cụ thể và dựa trên số liệu{citations_instruction}
+- Toàn bộ bằng tiếng Việt, chuyên nghiệp"""
