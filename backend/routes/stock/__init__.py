@@ -28,6 +28,7 @@ def register_stock_routes(bp: Blueprint | None = None) -> None:
     from .holders import register as register_holders
     from .loan_breakdown import register as register_loan_breakdown
     from .ai_analysis import register as register_ai_analysis
+    from .technical import register as register_technical
 
     register_prices(target)
     register_stock_data(target)
@@ -44,6 +45,7 @@ def register_stock_routes(bp: Blueprint | None = None) -> None:
     register_holders(target)
     register_loan_breakdown(target)
     register_ai_analysis(target)
+    register_technical(target)
 
 
 # Auto-register when module is imported (for server.py that just does `from .stock import stock_bp`)

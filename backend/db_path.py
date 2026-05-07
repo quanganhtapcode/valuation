@@ -212,6 +212,33 @@ def resolve_vci_ratio_daily_db_path(explicit_path: Optional[str] = None) -> str:
     return str((root / "fetch_sqlite" / "vci_ratio_daily.sqlite").resolve())
 
 
+def resolve_vci_technical_db_path(explicit_path: Optional[str] = None) -> str:
+    """Return an absolute path to the VCI technical-indicator SQLite DB."""
+    candidates: list[Path] = []
+
+    if explicit_path:
+        candidates.append(Path(explicit_path).expanduser())
+
+    env_path = os.getenv("VCI_TECHNICAL_DB_PATH")
+    if env_path:
+        candidates.append(Path(env_path).expanduser())
+
+    root = _project_root()
+    candidates.append(root / "fetch_sqlite" / "vci_technical.sqlite")
+    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_technical.sqlite"))
+    candidates.append(Path("/var/www/store/fetch_sqlite/vci_technical.sqlite"))
+
+    for path in candidates:
+        try:
+            path = path.resolve()
+        except Exception:
+            pass
+        if path.exists():
+            return str(path)
+
+    return str((root / "fetch_sqlite" / "vci_technical.sqlite").resolve())
+
+
 def resolve_vci_financial_statement_db_path(explicit_path: Optional[str] = None) -> str:
     """Return absolute path to VCI financial-statement SQLite DB."""
     candidates: list[Path] = []

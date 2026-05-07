@@ -45,8 +45,41 @@ class TVSymbol:
 
 
 TV_SYMBOLS: list[TVSymbol] = [
-    TVSymbol('ECONOMICS:VNINBR', 'D', 5000),   # ~14 years daily
-    TVSymbol('ECONOMICS:VNIRYY', 'M', 500),    # ~40 years monthly
+    # Rates (daily)
+    TVSymbol('ECONOMICS:VNINBR',  'D', 5000),  # Interbank overnight rate
+    # GDP
+    TVSymbol('ECONOMICS:VNGDPYY',  'M', 600),  # GDP growth YoY (quarterly)
+    TVSymbol('ECONOMICS:VNGDPCP',  'M', 600),  # Real GDP (quarterly)
+    TVSymbol('ECONOMICS:VNGDPS',   'M', 600),  # GDP - Services
+    TVSymbol('ECONOMICS:VNGDPMAN', 'M', 600),  # GDP - Manufacturing
+    TVSymbol('ECONOMICS:VNGDPA',   'M', 600),  # GDP - Agriculture
+    TVSymbol('ECONOMICS:VNGDPPC',  'M', 200),  # GDP per capita (annual)
+    TVSymbol('ECONOMICS:VNGNP',    'M', 200),  # GNP (annual)
+    TVSymbol('ECONOMICS:VNGFCF',   'M', 200),  # Fixed capital formation (annual)
+    # Prices & Inflation
+    TVSymbol('ECONOMICS:VNIRYY',   'M', 600),  # Inflation YoY
+    TVSymbol('ECONOMICS:VNCPI',    'M', 600),  # CPI index
+    TVSymbol('ECONOMICS:VNFI',     'M', 400),  # Food inflation
+    TVSymbol('ECONOMICS:VNCIR',    'M', 300),  # Core inflation
+    TVSymbol('ECONOMICS:VNGASP',   'M', 300),  # Gasoline price
+    # Money & Interest Rates
+    TVSymbol('ECONOMICS:VNINTR',   'M', 600),  # Policy interest rate
+    TVSymbol('ECONOMICS:VNFER',    'M', 600),  # FX reserves
+    TVSymbol('ECONOMICS:VNM2',     'M', 200),  # M2 money supply (annual)
+    TVSymbol('ECONOMICS:VNDIR',    'M', 100),  # Deposit rate (annual)
+    # Trade
+    TVSymbol('ECONOMICS:VNEXP',    'M', 600),  # Exports
+    TVSymbol('ECONOMICS:VNIMP',    'M', 600),  # Imports
+    TVSymbol('ECONOMICS:VNBOT',    'M', 600),  # Trade balance
+    TVSymbol('ECONOMICS:VNFDI',    'M', 400),  # FDI
+    # Labour
+    TVSymbol('ECONOMICS:VNUR',     'M', 300),  # Unemployment rate
+    TVSymbol('ECONOMICS:VNWAG',    'M', 200),  # Average wages
+    TVSymbol('ECONOMICS:VNMW',     'M', 100),  # Minimum wage
+    TVSymbol('ECONOMICS:VNPOP',    'M', 200),  # Population
+    # Business & Consumer
+    TVSymbol('ECONOMICS:VNIPYY',   'M', 400),  # Industrial production YoY
+    TVSymbol('ECONOMICS:VNRSYY',   'M', 400),  # Retail sales YoY
 ]
 
 
