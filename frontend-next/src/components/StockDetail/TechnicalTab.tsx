@@ -41,18 +41,9 @@ interface TechnicalFrameData {
     timeFrame?: string;
     movingAverages?: TechnicalSignal[];
     oscillators?: TechnicalSignal[];
-    gaugeMovingAverage?: {
-        rating?: TechnicalRating;
-        values?: Record<string, number>;
-    };
-    gaugeOscillator?: {
-        rating?: TechnicalRating;
-        values?: Record<string, number>;
-    };
-    gaugeSummary?: {
-        rating?: TechnicalRating;
-        values?: Record<string, number>;
-    };
+    gaugeMovingAverage?: { rating?: TechnicalRating; values?: Record<string, number> };
+    gaugeOscillator?: { rating?: TechnicalRating; values?: Record<string, number> };
+    gaugeSummary?: { rating?: TechnicalRating; values?: Record<string, number> };
     pivot?: TechnicalPivot;
     price?: number | null;
     matchTime?: string | null;
@@ -64,9 +55,6 @@ interface TechnicalApiResponse {
     timeframe?: string;
     fetched_at_utc?: string;
     serverDateTime?: string;
-    code?: number;
-    status?: number;
-    msg?: string;
     data?: TechnicalFrameData;
 }
 
@@ -81,18 +69,15 @@ function valueText(value: number | null | undefined): string {
     return formatNumber(value, { maximumFractionDigits: value >= 1000 ? 0 : 2 });
 }
 
-function ratingTone(rating?: TechnicalRating): string {
-    const normalized = (rating || '').toString().toUpperCase();
-    if (normalized.includes('BUY') || normalized.includes('GOOD') || normalized.includes('BULL') || normalized.includes('VERY_GOOD')) {
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40';
-    }
-    if (normalized.includes('SELL') || normalized.includes('BAD') || normalized.includes('BEAR') || normalized.includes('VERY_BAD')) {
-        return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40';
-    }
-    if (normalized.includes('NEUTRAL')) {
-        return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
-    }
-    return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40';
+function ratingBadgeClass(rating?: TechnicalRating): string {
+    const n = (rating || '').toString().toUpperCase();
+    if (n.includes('BUY') || n.includes('GOOD') || n.includes('BULL') || n.includes('VERY_GOOD'))
+        return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/20';
+    if (n.includes('SELL') || n.includes('BAD') || n.includes('BEAR') || n.includes('VERY_BAD'))
+        return 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-400/10 dark:text-red-400 dark:ring-red-400/20';
+    if (n.includes('NEUTRAL'))
+        return 'bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-600/20 dark:bg-gray-400/10 dark:text-gray-400 dark:ring-gray-400/20';
+    return 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-400 dark:ring-amber-400/20';
 }
 
 function ratingLabel(rating?: TechnicalRating): string {
@@ -106,32 +91,23 @@ function formatDateTime(value?: string | null): string {
     return d.toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-function GaugeCard({
-    title,
-    data,
-}: {
-    title: string;
-    data?: { rating?: TechnicalRating; values?: Record<string, number> };
-}) {
+function GaugeCard({ title, data }: { title: string; data?: { rating?: TechnicalRating; values?: Record<string, number> } }) {
     const entries = Object.entries(data?.values || {});
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-tremor-default border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</p>
-                    <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">{ratingLabel(data?.rating)}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</p>
+                    <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">{ratingLabel(data?.rating)}</p>
                 </div>
-                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${ratingTone(data?.rating)}`}>
-                    {data?.rating ? data.rating.replaceAll('_', ' ') : 'Chưa có'}
+                <span className={`rounded-tremor-small px-2.5 py-1 text-[11px] font-semibold ${ratingBadgeClass(data?.rating)}`}>
+                    {data?.rating ? data.rating.replaceAll('_', ' ') : '—'}
                 </span>
             </div>
             {entries.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
                     {entries.map(([key, value]) => (
-                        <span
-                            key={key}
-                            className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                        >
+                        <span key={key} className="inline-flex items-center gap-1 rounded-tremor-small bg-gray-50 px-2.5 py-1 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                             <span className="font-medium">{key}</span>
                             <span className="font-semibold tabular-nums">{value}</span>
                         </span>
@@ -142,88 +118,70 @@ function GaugeCard({
     );
 }
 
-function SignalTable({
-    title,
-    rows,
-}: {
-    title: string;
-    rows: TechnicalSignal[];
-}) {
+function SignalTable({ title, rows }: { title: string; rows: TechnicalSignal[] }) {
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-center justify-between gap-3">
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h4>
-                <span className="text-xs text-slate-500 dark:text-slate-400">{rows.length} tín hiệu</span>
+        <div className="rounded-tremor-default border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h4>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{rows.length} tín hiệu</span>
             </div>
-            <div className="mt-3 overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">
-                        <tr>
-                            <th className="px-3 py-2 font-medium">Chỉ báo</th>
-                            <th className="px-3 py-2 font-medium">Giá trị</th>
-                            <th className="px-3 py-2 font-medium">Đánh giá</th>
+            <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 dark:bg-gray-800/70 dark:text-gray-400">
+                    <tr>
+                        <th className="px-4 py-2">Chỉ báo</th>
+                        <th className="px-4 py-2 text-right">Giá trị</th>
+                        <th className="px-4 py-2 text-right">Đánh giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.length > 0 ? rows.map((row, index) => (
+                        <tr key={`${row.name || 'signal'}-${index}`} className="border-t border-gray-100 dark:border-gray-800">
+                            <td className="px-4 py-2.5 font-medium text-gray-700 dark:text-gray-200">{row.name || '-'}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{valueText(row.value)}</td>
+                            <td className="px-4 py-2.5 text-right">
+                                <span className={`inline-flex rounded-tremor-small px-2 py-0.5 text-[11px] font-semibold ${ratingBadgeClass(row.rating)}`}>
+                                    {ratingLabel(row.rating)}
+                                </span>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {rows.length > 0 ? rows.map((row, index) => (
-                            <tr key={`${row.name || 'signal'}-${index}`} className="border-t border-slate-100 dark:border-slate-800">
-                                <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-200">{row.name || '-'}</td>
-                                <td className="px-3 py-2 tabular-nums text-slate-900 dark:text-white">{valueText(row.value)}</td>
-                                <td className="px-3 py-2">
-                                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${ratingTone(row.rating)}`}>
-                                        {ratingLabel(row.rating)}
-                                    </span>
-                                </td>
-                            </tr>
-                        )) : (
-                            <tr>
-                                <td colSpan={3} className="px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                                    Chưa có dữ liệu
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                    )) : (
+                        <tr>
+                            <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có dữ liệu</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
         </div>
     );
 }
 
 function PivotGrid({ pivot }: { pivot?: TechnicalPivot }) {
-    const rows: Array<{ label: string; value?: number | null; tone?: 'emerald' | 'rose' | 'amber' | 'slate' }> = [
-        { label: 'Pivot', value: pivot?.pivotPoint, tone: 'amber' },
-        { label: 'Kháng cự 1', value: pivot?.resistance1, tone: 'rose' },
-        { label: 'Kháng cự 2', value: pivot?.resistance2, tone: 'rose' },
-        { label: 'Kháng cự 3', value: pivot?.resistance3, tone: 'rose' },
-        { label: 'Hỗ trợ 1', value: pivot?.support1, tone: 'emerald' },
-        { label: 'Hỗ trợ 2', value: pivot?.support2, tone: 'emerald' },
-        { label: 'Hỗ trợ 3', value: pivot?.support3, tone: 'emerald' },
-        { label: 'Fib R1', value: pivot?.fibResistance1, tone: 'rose' },
-        { label: 'Fib R2', value: pivot?.fibResistance2, tone: 'rose' },
-        { label: 'Fib R3', value: pivot?.fibResistance3, tone: 'rose' },
-        { label: 'Fib S1', value: pivot?.fibSupport1, tone: 'emerald' },
-        { label: 'Fib S2', value: pivot?.fibSupport2, tone: 'emerald' },
-        { label: 'Fib S3', value: pivot?.fibSupport3, tone: 'emerald' },
+    const rows: Array<{ label: string; value?: number | null; cls: string }> = [
+        { label: 'Pivot', value: pivot?.pivotPoint, cls: 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400' },
+        { label: 'R1', value: pivot?.resistance1, cls: 'bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-400' },
+        { label: 'R2', value: pivot?.resistance2, cls: 'bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-400' },
+        { label: 'R3', value: pivot?.resistance3, cls: 'bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-400' },
+        { label: 'S1', value: pivot?.support1, cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400' },
+        { label: 'S2', value: pivot?.support2, cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400' },
+        { label: 'S3', value: pivot?.support3, cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400' },
+        { label: 'Fib R1', value: pivot?.fibResistance1, cls: 'bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-400' },
+        { label: 'Fib R2', value: pivot?.fibResistance2, cls: 'bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-400' },
+        { label: 'Fib R3', value: pivot?.fibResistance3, cls: 'bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-400' },
+        { label: 'Fib S1', value: pivot?.fibSupport1, cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400' },
+        { label: 'Fib S2', value: pivot?.fibSupport2, cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400' },
+        { label: 'Fib S3', value: pivot?.fibSupport3, cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400' },
     ];
 
-    const toneClass = (tone?: string) => {
-        if (tone === 'emerald') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300';
-        if (tone === 'rose') return 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300';
-        if (tone === 'amber') return 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300';
-        return 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
-    };
-
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-center justify-between gap-3">
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Pivot levels</h4>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Hỗ trợ / kháng cự</span>
+        <div className="rounded-tremor-default border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Pivot levels</h4>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3">
                 {rows.map((row) => (
-                    <div key={row.label} className={`rounded-xl px-3 py-2 ${toneClass(row.tone)}`}>
+                    <div key={row.label} className={`rounded-tremor-small px-3 py-2 ${row.cls}`}>
                         <div className="text-[11px] font-medium uppercase tracking-wide opacity-75">{row.label}</div>
-                        <div className="mt-1 font-semibold tabular-nums">{valueText(row.value)}</div>
+                        <div className="mt-0.5 font-semibold tabular-nums">{valueText(row.value)}</div>
                     </div>
                 ))}
             </div>
@@ -234,18 +192,17 @@ function PivotGrid({ pivot }: { pivot?: TechnicalPivot }) {
 export default function TechnicalTab({ symbol }: TechnicalTabProps) {
     const [activeFrame, setActiveFrame] = useState<TechnicalTimeframe>('ONE_DAY');
     const [snapshots, setSnapshots] = useState<SnapshotState>({});
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!symbol) return;
 
+        setLoading(true);
+        setError(null);
+
         const controller = new AbortController();
         let cancelled = false;
-        const clearErrorTimer = window.setTimeout(() => {
-            if (!cancelled) {
-                setError(null);
-            }
-        }, 0);
 
         Promise.allSettled(
             TIMEFRAMES.map(async (frame) => {
@@ -267,19 +224,18 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
                     }
                 });
                 setSnapshots(next);
-                if (!hasData) {
-                    setError('Không có dữ liệu kỹ thuật từ SQLite');
-                }
+                setLoading(false);
+                if (!hasData) setError('Chưa có dữ liệu kỹ thuật cho mã này');
             })
             .catch((err) => {
                 if (err?.name === 'AbortError') return;
+                setLoading(false);
                 setError('Không thể tải dữ liệu kỹ thuật');
             });
 
         return () => {
             cancelled = true;
             controller.abort();
-            window.clearTimeout(clearErrorTimer);
         };
     }, [symbol]);
 
@@ -287,65 +243,66 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
     const data = current?.data;
     const movingAverages = data?.movingAverages || [];
     const oscillators = data?.oscillators || [];
-    const isLoading = Object.keys(snapshots).length === 0 && !error;
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:to-slate-900">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            {/* Header */}
+            <div className="rounded-tremor-default border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Kĩ thuật</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Nguồn Vietcap IQ, đọc từ SQLite mỗi 5 phút
-                        </p>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Kĩ thuật</h3>
+                        {current?.fetched_at_utc && (
+                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                Cập nhật: {formatDateTime(current.fetched_at_utc)}
+                            </p>
+                        )}
                     </div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400">
-                        Cập nhật: <span className="font-medium text-slate-700 dark:text-slate-200">{formatDateTime(current?.fetched_at_utc || current?.serverDateTime)}</span>
+                    <div className="flex flex-wrap gap-2">
+                        {TIMEFRAMES.map((frame) => {
+                            const isActive = frame === activeFrame;
+                            const snapshot = snapshots[frame];
+                            return (
+                                <button
+                                    key={frame}
+                                    type="button"
+                                    onClick={() => setActiveFrame(frame)}
+                                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                                        isActive
+                                            ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                                    }`}
+                                >
+                                    {TIMEFRAME_LABELS[frame]}
+                                    {snapshot?.data?.gaugeSummary?.rating ? (
+                                        <span className="ml-1.5 text-[10px] font-medium opacity-70">
+                                            {snapshot.data.gaugeSummary.rating.replaceAll('_', ' ')}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            );
+                        })}
                     </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                    {TIMEFRAMES.map((frame) => {
-                        const isActive = frame === activeFrame;
-                        const snapshot = snapshots[frame];
-                        return (
-                            <button
-                                key={frame}
-                                type="button"
-                                onClick={() => setActiveFrame(frame)}
-                                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-                                    isActive
-                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-300'
-                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:text-white'
-                                }`}
-                            >
-                                {TIMEFRAME_LABELS[frame]}
-                                {snapshot?.data?.gaugeSummary?.rating ? (
-                                    <span className="ml-2 text-[11px] font-medium opacity-75">
-                                        {snapshot.data.gaugeSummary.rating.replaceAll('_', ' ')}
-                                    </span>
-                                ) : null}
-                            </button>
-                        );
-                    })}
                 </div>
             </div>
 
-            {isLoading && !data && (
-                <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="h-40 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
-                    <div className="h-40 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
-                    <div className="h-56 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800 lg:col-span-2" />
+            {/* Loading */}
+            {loading && (
+                <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="h-28 animate-pulse rounded-tremor-default bg-gray-100 dark:bg-gray-800" />
+                    <div className="h-28 animate-pulse rounded-tremor-default bg-gray-100 dark:bg-gray-800" />
+                    <div className="h-28 animate-pulse rounded-tremor-default bg-gray-100 dark:bg-gray-800" />
                 </div>
             )}
 
-            {error && !data && (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300">
-                    {error}
+            {/* Error */}
+            {!loading && error && (
+                <div className="rounded-tremor-default border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                    <p className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{error}</p>
                 </div>
             )}
 
-            {data && (
+            {/* Data */}
+            {!loading && data && (
                 <div className="space-y-4">
                     <div className="grid gap-4 lg:grid-cols-3">
                         <GaugeCard title="Tổng hợp" data={data.gaugeSummary} />
@@ -353,40 +310,12 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
                         <GaugeCard title="Oscillators" data={data.gaugeOscillator} />
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Giá và trạng thái</h4>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">Khung {TIMEFRAME_LABELS[activeFrame]}</p>
-                                </div>
-                                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${ratingTone(data.gaugeSummary?.rating)}`}>
-                                    {data.gaugeSummary?.rating ? data.gaugeSummary.rating.replaceAll('_', ' ') : 'N/A'}
-                                </span>
-                            </div>
-                            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                                    <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Giá</div>
-                                    <div className="mt-1 text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{valueText(data.price)}</div>
-                                </div>
-                                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                                    <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Match time</div>
-                                    <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{formatDateTime(data.matchTime)}</div>
-                                </div>
-                                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                                    <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Timeframe</div>
-                                    <div className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">{TIMEFRAME_LABELS[activeFrame]}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <PivotGrid pivot={data.pivot} />
-                    </div>
-
                     <div className="grid gap-4 xl:grid-cols-2">
-                        <SignalTable title="Moving averages" rows={movingAverages} />
+                        <SignalTable title="Moving Averages" rows={movingAverages} />
                         <SignalTable title="Oscillators" rows={oscillators} />
                     </div>
+
+                    <PivotGrid pivot={data.pivot} />
                 </div>
             )}
         </div>
