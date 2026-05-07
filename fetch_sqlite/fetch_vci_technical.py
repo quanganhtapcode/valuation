@@ -4,19 +4,17 @@
 Source:
   https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/{SYMBOL}/technical/{TIMEFRAME}
 
-The script is designed to run periodically and keep a local SQLite cache that
-the web app can serve without hitting Vietcap on every page load.
-
 Default behavior:
-  - Discover symbols from vci_company.sqlite (fallback: symbols.txt)
+  - Discover symbols from vci_screening.sqlite (same as other fetchers)
   - Fetch ONE_HOUR, ONE_DAY, ONE_WEEK for each symbol
-  - Upsert the raw upstream JSON into vci_technical.sqlite
+  - Upsert raw upstream JSON into vci_technical.sqlite
 
 Usage:
   python fetch_sqlite/fetch_vci_technical.py
   python fetch_sqlite/fetch_vci_technical.py --symbols FPT,VCB,SSI
   python fetch_sqlite/fetch_vci_technical.py --timeframes ONE_DAY
   python fetch_sqlite/fetch_vci_technical.py --db /path/to/vci_technical.sqlite
+  python fetch_sqlite/fetch_vci_technical.py --screening-db /path/to/vci_screening.sqlite
 """
 
 from __future__ import annotations
@@ -26,6 +24,7 @@ import datetime as dt
 import gzip
 import json
 import logging
+import os
 import random
 import sqlite3
 import time
@@ -36,9 +35,6 @@ from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any, Iterable
 
-from backend.db_path import resolve_vci_company_db_path
-
-
 log = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
@@ -46,9 +42,15 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
+_HERE = Path(__file__).resolve().parent
+
 API_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1/company"
 DEFAULT_TIMEFRAMES = ("ONE_HOUR", "ONE_DAY", "ONE_WEEK")
 
+
+# ---------------------------------------------------------------------------
+# HTTP helpers
+# ---------------------------------------------------------------------------
 
 def _device_id() -> str:
     return "".join(f"{random.randrange(256):02x}" for _ in range(12))
@@ -110,72 +112,95 @@ def _request_json(
             last_err = e
             if attempt >= retries:
                 raise
-        sleep_s = backoff_base_s * (2**attempt) + random.random() * 0.3
-        time.sleep(sleep_s)
+        time.sleep(backoff_base_s * (2 ** attempt) + random.random() * 0.3)
     if last_err is not None:
         raise last_err
     return None
 
 
+# ---------------------------------------------------------------------------
+# Symbol discovery — same pattern as fetch_vci_ratio_daily / fetch_vci_stats_financial
+# ---------------------------------------------------------------------------
+
 def _normalize_symbols(symbols: Iterable[str]) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
-    for symbol in symbols:
-        clean = (symbol or "").strip().upper()
-        if not clean or clean in seen:
-            continue
-        seen.add(clean)
-        out.append(clean)
+    for s in symbols:
+        clean = (s or "").strip().upper()
+        if clean and clean not in seen:
+            seen.add(clean)
+            out.append(clean)
     return out
 
 
-def _load_symbols_from_company_db() -> list[str]:
-    db_path = resolve_vci_company_db_path()
+def _symbols_from_screening(db: str) -> list[str]:
+    if not os.path.exists(db):
+        return []
     try:
-        with sqlite3.connect(db_path) as conn:
+        with sqlite3.connect(db) as conn:
             rows = conn.execute(
-                """
-                SELECT DISTINCT UPPER(ticker) AS ticker
-                FROM companies
-                WHERE ticker IS NOT NULL AND TRIM(ticker) != ''
-                ORDER BY ticker
-                """
+                "SELECT UPPER(ticker) FROM screening_data WHERE ticker IS NOT NULL"
             ).fetchall()
         return _normalize_symbols(r[0] for r in rows if r and r[0])
     except Exception as exc:
-        log.warning("Could not load symbols from company DB %s: %s", db_path, exc)
+        log.warning("Cannot read screening DB %s: %s", db, exc)
         return []
 
 
-def _load_symbols_from_file(path: Path) -> list[str]:
-    if not path.exists():
+def _symbols_from_company_db(db: str) -> list[str]:
+    if not os.path.exists(db):
         return []
     try:
-        return _normalize_symbols(
-            line.strip()
-            for line in path.read_text(encoding="utf-8").splitlines()
-            if line.strip() and not line.strip().startswith("#")
-        )
+        with sqlite3.connect(db) as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT UPPER(ticker) FROM companies WHERE ticker IS NOT NULL AND TRIM(ticker) != '' AND (is_index IS NULL OR is_index = 0)"
+            ).fetchall()
+        return _normalize_symbols(r[0] for r in rows if r and r[0])
     except Exception as exc:
-        log.warning("Could not load symbols from %s: %s", path, exc)
+        log.warning("Cannot read company DB %s: %s", db, exc)
         return []
 
 
-def discover_symbols(explicit: str | None = None) -> list[str]:
-    if explicit:
-        return _normalize_symbols(explicit.split(","))
+def collect_symbols(args: argparse.Namespace) -> list[str]:
+    if getattr(args, "symbols", None):
+        return _normalize_symbols(args.symbols.split(","))
 
-    symbols = _load_symbols_from_company_db()
+    # 1. vci_screening.sqlite — most reliable, refreshed every 5 min
+    screening_db = getattr(args, "screening_db", None) or str(_HERE / "vci_screening.sqlite")
+    symbols = _symbols_from_screening(screening_db)
     if symbols:
-        return symbols
+        log.info("Loaded %d symbols from screening DB", len(symbols))
+        return sorted(set(symbols))
 
-    fallback = _load_symbols_from_file(Path(__file__).resolve().parents[1] / "symbols.txt")
-    return fallback
+    # 2. vci_company.sqlite fallback
+    for candidate in [
+        _HERE / "vci_company.sqlite",
+        Path("/var/www/valuation/fetch_sqlite/vci_company.sqlite"),
+        Path("/var/www/store/fetch_sqlite/vci_company.sqlite"),
+    ]:
+        symbols = _symbols_from_company_db(str(candidate))
+        if symbols:
+            log.info("Loaded %d symbols from company DB %s", len(symbols), candidate)
+            return sorted(set(symbols))
 
+    log.error("No symbols found — pass --symbols A,B,C or ensure screening DB exists.")
+    return []
+
+
+# ---------------------------------------------------------------------------
+# DB path resolution (mirrors backend/db_path.py without importing it)
+# ---------------------------------------------------------------------------
 
 def _default_db_path() -> str:
-    return str(Path(__file__).resolve().parent / "vci_technical.sqlite")
+    env = os.getenv("VCI_TECHNICAL_DB_PATH", "")
+    if env and os.path.exists(env):
+        return env
+    return str(_HERE / "vci_technical.sqlite")
 
+
+# ---------------------------------------------------------------------------
+# SQLite schema
+# ---------------------------------------------------------------------------
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA journal_mode=WAL;")
@@ -184,16 +209,16 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS technical_snapshots (
-            ticker TEXT NOT NULL,
-            timeframe TEXT NOT NULL,
+            ticker          TEXT NOT NULL,
+            timeframe       TEXT NOT NULL,
             server_date_time TEXT,
-            trace_id TEXT,
-            api_status INTEGER,
-            api_code INTEGER,
-            api_msg TEXT,
-            successful INTEGER,
-            raw_json TEXT NOT NULL,
-            fetched_at_utc TEXT NOT NULL,
+            trace_id        TEXT,
+            api_status      INTEGER,
+            api_code        INTEGER,
+            api_msg         TEXT,
+            successful      INTEGER,
+            raw_json        TEXT NOT NULL,
+            fetched_at_utc  TEXT NOT NULL,
             PRIMARY KEY (ticker, timeframe)
         )
         """
@@ -207,13 +232,17 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS technical_meta (
-            key TEXT PRIMARY KEY,
+            key   TEXT PRIMARY KEY,
             value TEXT
         )
         """
     )
     conn.commit()
 
+
+# ---------------------------------------------------------------------------
+# Fetch + store
+# ---------------------------------------------------------------------------
 
 def _now_utc_iso() -> str:
     return dt.datetime.now(tz=dt.timezone.utc).replace(microsecond=0).isoformat()
@@ -229,16 +258,8 @@ def fetch_technical_snapshot(
     backoff_base_s: float,
 ) -> dict[str, Any] | None:
     url = f"{API_BASE}/{symbol.upper()}/technical/{timeframe.upper()}"
-    body = _request_json(
-        opener,
-        url,
-        timeout_s=timeout_s,
-        retries=retries,
-        backoff_base_s=backoff_base_s,
-    )
-    if not isinstance(body, dict):
-        return None
-    return body
+    body = _request_json(opener, url, timeout_s=timeout_s, retries=retries, backoff_base_s=backoff_base_s)
+    return body if isinstance(body, dict) else None
 
 
 def upsert_snapshot(
@@ -256,14 +277,14 @@ def upsert_snapshot(
             raw_json, fetched_at_utc
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(ticker, timeframe) DO UPDATE SET
-            server_date_time=excluded.server_date_time,
-            trace_id=excluded.trace_id,
-            api_status=excluded.api_status,
-            api_code=excluded.api_code,
-            api_msg=excluded.api_msg,
-            successful=excluded.successful,
-            raw_json=excluded.raw_json,
-            fetched_at_utc=excluded.fetched_at_utc
+            server_date_time = excluded.server_date_time,
+            trace_id         = excluded.trace_id,
+            api_status       = excluded.api_status,
+            api_code         = excluded.api_code,
+            api_msg          = excluded.api_msg,
+            successful       = excluded.successful,
+            raw_json         = excluded.raw_json,
+            fetched_at_utc   = excluded.fetched_at_utc
         """,
         (
             symbol.upper(),
@@ -293,12 +314,11 @@ def fetch_and_store(
     fetched_at_utc = _now_utc_iso()
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    tasks = [(symbol, timeframe) for symbol in symbols for timeframe in timeframes]
+    tasks = [(sym, tf) for sym in symbols for tf in timeframes]
     if not tasks:
         return 0, 0
 
-    ok = 0
-    skipped = 0
+    ok = skipped = 0
 
     conn = sqlite3.connect(str(db_path))
     try:
@@ -307,14 +327,9 @@ def fetch_and_store(
         def _run(task: tuple[str, str]) -> tuple[str, str, dict[str, Any] | None]:
             symbol, timeframe = task
             try:
-                opener = _build_opener()
                 payload = fetch_technical_snapshot(
-                    opener,
-                    symbol,
-                    timeframe,
-                    timeout_s=timeout_s,
-                    retries=retries,
-                    backoff_base_s=backoff_base_s,
+                    _build_opener(), symbol, timeframe,
+                    timeout_s=timeout_s, retries=retries, backoff_base_s=backoff_base_s,
                 )
                 return symbol, timeframe, payload
             except Exception as exc:
@@ -346,25 +361,31 @@ def fetch_and_store(
     return ok, skipped
 
 
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch Vietcap technical indicators to SQLite")
     parser.add_argument("--db", type=Path, default=Path(_default_db_path()), help="Output SQLite path")
-    parser.add_argument("--symbols", type=str, default="", help="Comma-separated ticker list. Defaults to all from company DB.")
-    parser.add_argument("--timeframes", type=str, default=",".join(DEFAULT_TIMEFRAMES), help="Comma-separated timeframe list.")
-    parser.add_argument("--workers", type=int, default=8, help="Concurrent workers.")
-    parser.add_argument("--timeout", type=int, default=20, help="Per-request timeout in seconds.")
-    parser.add_argument("--retries", type=int, default=3, help="Retry count per request.")
-    parser.add_argument("--backoff", type=float, default=1.0, help="Backoff base seconds.")
+    parser.add_argument("--screening-db", default=None, help="Path to vci_screening.sqlite for symbol discovery")
+    parser.add_argument("--symbols", default=None, help="Comma-separated ticker list (overrides auto-discovery)")
+    parser.add_argument("--timeframes", default=",".join(DEFAULT_TIMEFRAMES), help="Comma-separated timeframe list")
+    parser.add_argument("--workers", type=int, default=8, help="Concurrent workers")
+    parser.add_argument("--timeout", type=int, default=20, help="Per-request timeout in seconds")
+    parser.add_argument("--retries", type=int, default=3, help="Retry count per request")
+    parser.add_argument("--backoff", type=float, default=1.0, help="Backoff base seconds")
     args = parser.parse_args()
 
-    symbols = discover_symbols(args.symbols or None)
+    symbols = collect_symbols(args)
     if not symbols:
-        log.error("No symbols found. Populate vci_company.sqlite or pass --symbols.")
         raise SystemExit(1)
 
     timeframes = _normalize_symbols(args.timeframes.split(","))
     if not timeframes:
         timeframes = list(DEFAULT_TIMEFRAMES)
+
+    log.info("Fetching %d symbols × %d timeframes = %d requests", len(symbols), len(timeframes), len(symbols) * len(timeframes))
 
     try:
         ok, skipped = fetch_and_store(
@@ -376,18 +397,10 @@ def main() -> None:
             retries=args.retries,
             backoff_base_s=args.backoff,
         )
-        log.info(
-            "Done. Upserted %d snapshots, skipped %d. DB: %s",
-            ok,
-            skipped,
-            args.db,
-        )
+        log.info("Done. Upserted %d snapshots, skipped %d. DB: %s", ok, skipped, args.db)
     except urllib.error.HTTPError as e:
         if e.code in (403, 503):
-            log.error(
-                "HTTP %d from iq.vietcap.com.vn. If the VPS is blocked, run the fetcher from your local machine and copy the SQLite file back.",
-                e.code,
-            )
+            log.error("HTTP %d from Vietcap — VPS may be blocked, run fetcher locally and copy DB back.", e.code)
         raise SystemExit(1)
     except Exception as exc:
         log.error("Fatal: %s", exc)
