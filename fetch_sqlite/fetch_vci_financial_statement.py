@@ -391,9 +391,6 @@ def upsert_symbol_statements(
     value_rows = 0
     with conn:
         for section in SECTIONS:
-            conn.execute("DELETE FROM statement_periods WHERE ticker = ? AND section = ?", (ticker, section))
-            conn.execute("DELETE FROM statement_values WHERE ticker = ? AND section = ?", (ticker, section))
-
             payload = section_payloads.get(section) or {"years": [], "quarters": []}
             for period_kind, rows_key in (("YEAR", "years"), ("QUARTER", "quarters")):
                 rows = payload.get(rows_key)
@@ -641,33 +638,11 @@ def cleanup_normalized_values(conn: sqlite3.Connection) -> None:
     """
     deleted = conn.execute("DELETE FROM statement_values").rowcount
     conn.commit()
-    free_pages_before = 0
-    try:
-        free_pages_before = int(conn.execute("PRAGMA freelist_count").fetchone()[0] or 0)
-    except Exception:
-        pass
-    if free_pages_before > 0:
-        try:
-            # Physical shrink: deleting rows only moves pages to freelist.
-            # VACUUM rewrites the DB file and returns space to disk.
-            conn.execute("VACUUM")
-        except Exception:
-            pass
-    free_pages_after = 0
-    try:
-        free_pages_after = int(conn.execute("PRAGMA freelist_count").fetchone()[0] or 0)
-    except Exception:
-        pass
     try:
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     except Exception:
         pass
-    log.info(
-        "Normalized cleanup done: deleted %d rows from statement_values, freelist_before=%d, freelist_after=%d",
-        deleted,
-        free_pages_before,
-        free_pages_after,
-    )
+    log.info("Normalized cleanup done: deleted %d rows from statement_values", deleted)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -924,6 +899,10 @@ def main() -> int:
         if not args.keep_normalized_values:
             cleanup_normalized_values(conn)
 
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    except Exception:
+        pass
     conn.close()
 
     log.info(

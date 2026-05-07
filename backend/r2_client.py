@@ -41,9 +41,10 @@ class R2Client:
                 aws_secret_access_key=self.secret_access_key,
                 config=Config(
                     signature_version='s3v4',
-                    retries={'max_attempts': 3, 'mode': 'adaptive'}
+                    retries={'max_attempts': 3, 'mode': 'adaptive'},
+                    s3={'addressing_style': 'path'},
                 ),
-                region_name='auto'  # R2 uses 'auto' region
+                region_name='us-east-1',
             )
             logger.info(f"R2 client initialized successfully for bucket: {self.bucket_name}")
         except Exception as e:

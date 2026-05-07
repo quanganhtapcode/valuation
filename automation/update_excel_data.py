@@ -32,13 +32,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from backend.r2_client import get_r2_client
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
 DATA_DIR = os.path.join(BASE_DIR, "data")
 BACKUP_DIR = os.path.join(BASE_DIR, "backups")
 STATE_FILE = os.path.join(BACKUP_DIR, "excel_update_state.json")
-TICKER_FILE = os.path.join(BASE_DIR, "frontend-next", "public", "ticker_data.json")
-TELEGRAM_ENV_FILE = os.path.join(BASE_DIR, ".telegram_uptime.env")
+TICKER_FILE = os.path.join(PROJECT_ROOT, "frontend-next", "public", "ticker_data.json")
+TELEGRAM_ENV_FILE = os.path.join(PROJECT_ROOT, ".telegram_uptime.env")
 
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 # Performance / schedule config
 DEFAULT_WORKERS = 5
@@ -778,7 +779,7 @@ def listen_mode() -> int:
                 state = load_state()
 
                 def run_job(tkn: str, st: dict) -> None:
-                    global job_running
+                    nonlocal job_running
                     try:
                         print("[JOB] Validating token...", flush=True)
                         is_valid, detail = validate_bearer_token(tkn)

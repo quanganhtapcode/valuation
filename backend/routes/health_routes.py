@@ -3,7 +3,7 @@
 
 Checks:
   - price_history.sqlite : OHLCV data freshness
-  - fetch_sqlite/        : index_history, screening, news, standouts freshness
+  - fetch_sqlite/        : index_history, screening, news freshness
   - logs/pipeline.log    : lần chạy cuối + kết quả
   - systemd timer         : lần trigger cuối / tiếp theo (đọc qua subprocess)
 """
@@ -245,12 +245,7 @@ def health() -> tuple:
             freshness_minutes=15,
             freshness_sql="SELECT MAX(update_date) FROM news_items",
         ),
-        "standouts": _check_sqlite_file(
-            "standouts",
-            fetch_dir / "vci_ai_standouts.sqlite",
-            freshness_minutes=90,
-        ),
-        "cron_screener": _check_cron_screener_log(),
+"cron_screener": _check_cron_screener_log(),
         "cron_news": _check_cron_news_log(),
     }
 

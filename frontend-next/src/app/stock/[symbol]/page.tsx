@@ -14,7 +14,7 @@ import ValuationTab from '@/components/StockDetail/ValuationTab';
 import AnalysisTab from '@/components/StockDetail/AnalysisTab';
 import HoldersTab from '@/components/StockDetail/HoldersTab';
 import VciNewsFeed from '@/components/StockDetail/VciNewsFeed';
-import { Select, SelectItem } from '@tremor/react';
+import TechnicalTab from '@/components/StockDetail/TechnicalTab';
 import { getTickerData } from '@/lib/tickerCache';
 import { siteConfig } from '@/app/siteConfig';
 import { useLanguage } from "@/lib/languageContext";
@@ -95,7 +95,7 @@ export default function StockDetailPage() {
     const [isDescExpanded, setIsDescExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical'>('overview');
     const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['overview']));
     const [, startTransition] = useTransition();
     const [financialPeriod, setFinancialPeriod] = useState<'quarter' | 'year'>('quarter');
@@ -105,7 +105,7 @@ export default function StockDetailPage() {
     const [news, setNews] = useState<any[]>([]);
     const [epsHistory, setEpsHistory] = useState<Array<{ year: number; eps: number }>>([]);
 
-    const handleTabChange = useCallback((nextTab: 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news') => {
+    const handleTabChange = useCallback((nextTab: 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical') => {
         if (nextTab === activeTab) return;
         startTransition(() => {
             setActiveTab(nextTab);
@@ -359,7 +359,7 @@ export default function StockDetailPage() {
         wsSymbolRef.current = symbol;
 
         const unsub = subscribePricesStream({
-            onData: (data: any, type: string) => {
+            onData: (data: any) => {
                 // data shape: { SYM: { c, ref, vo, orderbook } }
                 if (!data || typeof data !== 'object') return;
                 const symData = data[symbol];
@@ -656,12 +656,13 @@ export default function StockDetailPage() {
                             { id: 'priceHistory', label: t.stock.tabs.priceHistory },
                             { id: 'news', label: t.stock.tabs.news },
                             { id: 'analysis', label: t.stock.tabs.analysis },
+                            { id: 'technical', label: t.stock.tabs.technical },
                             { id: 'valuation', label: t.stock.tabs.valuation },
                         ].map(tab => (
                             <button
                                 key={tab.id}
                                 type="button"
-                                onClick={() => handleTabChange(tab.id as 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news')}
+                                onClick={() => handleTabChange(tab.id as 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical')}
                                 className={classNames(
                                     'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] font-medium transition-colors',
                                     activeTab === tab.id
@@ -778,6 +779,13 @@ export default function StockDetailPage() {
                             initialHistory={null}
                             isLoading={false}
                         />
+                    </div>
+                )}
+
+                {/* Technical Tab - Lazy & Persistent */}
+                {visitedTabs.has('technical') && (
+                    <div className={activeTab === 'technical' ? 'block' : 'hidden'}>
+                        <TechnicalTab symbol={symbol} />
                     </div>
                 )}
             </div>
