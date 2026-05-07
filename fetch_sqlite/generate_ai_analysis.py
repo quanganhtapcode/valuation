@@ -89,11 +89,11 @@ def get_last_analysis(cache: sqlite3.Connection, ticker: str, year: int, q: int)
     return row[0] if row else None
 
 
-def count_new_news(news_conn: sqlite3.Connection, ticker: str, since_iso: str) -> int:
-    """Count market news items for ticker published after since_iso date."""
+def count_new_news(news_conn: sqlite3.Connection, ticker: str, _since_iso: str = "") -> int:
+    """Count news items for ticker in the last 14 days (rolling window)."""
     row = news_conn.execute(
-        "SELECT COUNT(*) FROM news_items WHERE ticker=? AND update_date > ?",
-        (ticker, since_iso[:10]),
+        "SELECT COUNT(*) FROM news_items WHERE ticker=? AND update_date >= date('now', '-14 days')",
+        (ticker,),
     ).fetchone()
     return int(row[0]) if row else 0
 
