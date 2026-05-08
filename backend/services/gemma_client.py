@@ -89,6 +89,7 @@ def build_financial_prompt(
     profit_qoq: float,
     gross_margin: float | None,
     news: list[dict] | None = None,
+    **kwargs,
 ) -> str:
     def fmt(v: float) -> str:
         if abs(v) >= 1e12:

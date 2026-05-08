@@ -26,6 +26,12 @@ from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
 
 from backend.services.gemma_client import build_financial_prompt, generate
+from backend.db_path import (
+    resolve_vci_stats_financial_db_path,
+    resolve_vci_company_db_path,
+    resolve_vci_technical_db_path,
+)
+from backend.services.vci_technical_sqlite import query_technical_snapshot
 
 FINANCIALS_DB = os.environ.get(
     "VCI_FINANCIAL_STATEMENT_DB_PATH",
@@ -44,6 +50,14 @@ CACHE_DB = os.environ.get(
 MARKET_NEWS_DB = os.environ.get(
     "VCI_MARKET_NEWS_DB_PATH",
     str(ROOT / "fetch_sqlite" / "vci_market_news.sqlite"),
+)
+STATS_FINANCIAL_DB = os.environ.get(
+    "VCI_STATS_FINANCIAL_DB_PATH",
+    str(ROOT / "fetch_sqlite" / "vci_stats_financial.sqlite"),
+)
+COMPANY_DB_PATH = os.environ.get(
+    "VCI_COMPANY_DB_PATH",
+    str(ROOT / "fetch_sqlite" / "vci_company.sqlite"),
 )
 
 HOSE_HNX_EXCHANGES = ("HSX", "HNX")
@@ -163,6 +177,178 @@ def fetch_stock_data(
     }
 
 
+def fetch_pe_pb_averages(stats_conn: sqlite3.Connection, ticker: str) -> dict:
+    """Return PE/PB 2-year and 5-year averages + ROE avg + dividend yield avg from stats_financial_history."""
+    rows_2yr = stats_conn.execute(
+        """SELECT pe, pb FROM (
+               SELECT pe, pb FROM stats_financial_history
+               WHERE ticker=? AND pe>0 AND pb>0
+               ORDER BY year_report DESC, quarter_report DESC LIMIT 8
+           )""",
+        (ticker,),
+    ).fetchall()
+    rows_5yr = stats_conn.execute(
+        """SELECT pe, pb, roe, dividend_yield FROM (
+               SELECT pe, pb, roe, dividend_yield FROM stats_financial_history
+               WHERE ticker=? AND pe>0 AND pb>0
+               ORDER BY year_report DESC, quarter_report DESC LIMIT 20
+           )""",
+        (ticker,),
+    ).fetchall()
+
+    def avg(vals):
+        vs = [v for v in vals if v is not None]
+        return round(sum(vs) / len(vs), 2) if vs else None
+
+    pe_2yr = avg([r[0] for r in rows_2yr])
+    pb_2yr = avg([r[1] for r in rows_2yr])
+    pe_5yr = avg([r[0] for r in rows_5yr])
+    pb_5yr = avg([r[1] for r in rows_5yr])
+    roe_avg = avg([r[2] for r in rows_5yr if r[2]])
+    div_avg = avg([r[3] for r in rows_5yr if r[3]])
+
+    return {
+        "pe_2yr_avg": pe_2yr,
+        "pb_2yr_avg": pb_2yr,
+        "pe_5yr_avg": pe_5yr,
+        "pb_5yr_avg": pb_5yr,
+        "roe_avg": roe_avg,
+        "dividend_yield_avg": div_avg,
+    }
+
+
+def fetch_sector_averages(scr_conn: sqlite3.Connection, stats_conn: sqlite3.Connection, ticker: str) -> dict:
+    """Return sector-median PE/PB for the ticker's ICB Level-2 sector."""
+    row = scr_conn.execute(
+        "SELECT icbCodeLv2 FROM screening_data WHERE ticker=?", (ticker,)
+    ).fetchone()
+    if not row or not row[0]:
+        return {"pe_sector": None, "pb_sector": None}
+    icb2 = str(row[0])
+
+    peers = scr_conn.execute(
+        "SELECT ticker FROM screening_data WHERE icbCodeLv2=? AND ticker!=?",
+        (icb2, ticker),
+    ).fetchall()
+    peer_tickers = [r[0] for r in peers]
+    if not peer_tickers:
+        return {"pe_sector": None, "pb_sector": None}
+
+    placeholders = ",".join("?" * len(peer_tickers))
+    agg = stats_conn.execute(
+        f"""SELECT AVG(pe), AVG(pb) FROM (
+                SELECT ticker, pe, pb, MAX(year_report*10+quarter_report) AS latest
+                FROM stats_financial_history
+                WHERE ticker IN ({placeholders}) AND pe>0 AND pe<50 AND pb>0
+                GROUP BY ticker
+            )""",
+        peer_tickers,
+    ).fetchone()
+    if not agg:
+        return {"pe_sector": None, "pb_sector": None}
+    return {
+        "pe_sector": round(agg[0], 2) if agg[0] else None,
+        "pb_sector": round(agg[1], 2) if agg[1] else None,
+    }
+
+
+def fetch_market_context(scr_conn: sqlite3.Connection, cmp_conn: sqlite3.Connection, ticker: str) -> dict:
+    """Return current_price, target_price, pe_ttm, pb_ttm from screening + company DBs."""
+    scr = scr_conn.execute(
+        "SELECT marketPrice, ttmPe, ttmPb, ttmRoe FROM screening_data WHERE ticker=?",
+        (ticker,),
+    ).fetchone()
+    cmp = cmp_conn.execute(
+        "SELECT target_price FROM companies WHERE ticker=?", (ticker,)
+    ).fetchone()
+
+    current_price = scr[0] if scr else None
+    pe_ttm = scr[1] if scr else None
+    pb_ttm = scr[2] if scr else None
+    roe_ttm = scr[3] if scr else None
+    target_price = cmp[0] if cmp else None
+
+    action = None
+    upside_pct = None
+    if target_price and current_price and current_price > 0:
+        upside_pct = round((target_price - current_price) / current_price * 100, 1)
+        if upside_pct >= 20:
+            action = "Mua"
+        elif upside_pct >= 10:
+            action = "Tích lũy"
+        elif upside_pct >= 0:
+            action = "Theo dõi"
+        else:
+            action = "Giảm tỷ trọng"
+
+    return {
+        "current_price": current_price,
+        "target_price": target_price,
+        "pe_ttm": round(pe_ttm, 2) if pe_ttm else None,
+        "pb_ttm": round(pb_ttm, 2) if pb_ttm else None,
+        "roe_ttm": round(roe_ttm * 100, 1) if roe_ttm and abs(roe_ttm) < 2 else (round(roe_ttm, 1) if roe_ttm else None),
+        "recommendation_action": action,
+        "upside_pct": upside_pct,
+    }
+
+
+def fetch_technical_summary(ticker: str) -> dict:
+    """Return MA rating, oscillator rating, and top MA values for support/resistance context."""
+    tech_db = resolve_vci_technical_db_path()
+    snapshot = query_technical_snapshot(tech_db, ticker, "ONE_DAY")
+    if not snapshot or not snapshot.get("success"):
+        return {}
+
+    data = snapshot.get("data") or {}
+
+    ma_gauge = (data.get("gaugeMovingAverage") or {}).get("rating", "")
+    osc_gauge = (data.get("gaugeOscillator") or {}).get("rating", "")
+
+    ma_values: dict[str, float] = {}
+    for item in data.get("movingAverages") or []:
+        if item.get("name") in ("sma50", "sma100", "sma200", "ema50", "ema200"):
+            if item.get("value"):
+                ma_values[item["name"]] = round(float(item["value"]), 0)
+
+    rating_map = {
+        "VERY_BAD": "Bán mạnh", "BAD": "Bán", "NEUTRAL": "Trung tính",
+        "GOOD": "Mua", "VERY_GOOD": "Mua mạnh",
+    }
+
+    return {
+        "ma_rating": rating_map.get(ma_gauge, ma_gauge),
+        "osc_rating": rating_map.get(osc_gauge, osc_gauge),
+        "ma_values": ma_values,
+    }
+
+
+def fetch_forecast_years(cache_conn: sqlite3.Connection, ticker: str) -> list[dict]:
+    """Return year rows from vci_financial_data_years, newest 6 rows (actuals + forecasts)."""
+    try:
+        rows = cache_conn.execute(
+            """SELECT year, is_forecast, revenue_growth, profit_growth, pe, pb, roe, eps, dividend_yield
+               FROM vci_financial_data_years WHERE ticker=?
+               ORDER BY year DESC LIMIT 6""",
+            (ticker,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []  # Table not yet created
+    return [
+        {
+            "year": r[0],
+            "is_forecast": bool(r[1]),
+            "revenue_growth": r[2],
+            "profit_growth": r[3],
+            "pe": r[4],
+            "pb": r[5],
+            "roe": r[6],
+            "eps": r[7],
+            "dividend_yield": r[8],
+        }
+        for r in reversed(rows)  # chronological order
+    ]
+
+
 def parse_analysis(raw: str) -> tuple[str, str | None]:
     """Return (analysis_vi_summary, analysis_json_str | None).
 
@@ -204,6 +390,8 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool) -> None:
     cmp = sqlite3.connect(f"file:{COMPANY_DB}?mode=ro", uri=True)
     cache = sqlite3.connect(CACHE_DB)
     news_conn = sqlite3.connect(f"file:{MARKET_NEWS_DB}?mode=ro", uri=True) if MARKET_NEWS_DB else None
+    stats_conn = sqlite3.connect(f"file:{STATS_FINANCIAL_DB}?mode=ro", uri=True)
+    cmp_conn = sqlite3.connect(f"file:{COMPANY_DB_PATH}?mode=ro", uri=True)
 
     year, q = detect_current_quarter(fin)
     quarter_label = f"Q{q}.{year}"
@@ -249,11 +437,21 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool) -> None:
 
         name = names.get(ticker, ticker)
         recent_news = fetch_recent_news(news_conn, ticker) if news_conn else []
+        pe_pb_avgs = fetch_pe_pb_averages(stats_conn, ticker)
+        sector_avgs = fetch_sector_averages(scr, stats_conn, ticker)
+        market_ctx = fetch_market_context(scr, cmp_conn, ticker)
+        tech = fetch_technical_summary(ticker)
+        forecast_years = fetch_forecast_years(cache, ticker)
         prompt = build_financial_prompt(
             ticker=ticker,
             name=name,
             quarter=quarter_label,
             news=recent_news,
+            forecast_years=forecast_years,
+            technical=tech,
+            **pe_pb_avgs,
+            **sector_avgs,
+            **market_ctx,
             **data,
         )
 
@@ -272,6 +470,8 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool) -> None:
 
     print(f"\nDone: {done} analyses generated for {quarter_label}")
     fin.close(); scr.close(); cmp.close(); cache.close()
+    stats_conn.close()
+    cmp_conn.close()
     if news_conn:
         news_conn.close()
 
