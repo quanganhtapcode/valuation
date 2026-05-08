@@ -27,8 +27,6 @@ load_dotenv(ROOT / ".env")
 
 from backend.services.gemma_client import build_financial_prompt, generate
 from backend.db_path import (
-    resolve_vci_stats_financial_db_path,
-    resolve_vci_company_db_path,
     resolve_vci_technical_db_path,
 )
 from backend.services.vci_technical_sqlite import query_technical_snapshot
@@ -54,10 +52,6 @@ MARKET_NEWS_DB = os.environ.get(
 STATS_FINANCIAL_DB = os.environ.get(
     "VCI_STATS_FINANCIAL_DB_PATH",
     str(ROOT / "fetch_sqlite" / "vci_stats_financial.sqlite"),
-)
-COMPANY_DB_PATH = os.environ.get(
-    "VCI_COMPANY_DB_PATH",
-    str(ROOT / "fetch_sqlite" / "vci_company.sqlite"),
 )
 
 HOSE_HNX_EXCHANGES = ("HSX", "HNX")
@@ -286,7 +280,7 @@ def fetch_market_context(scr_conn: sqlite3.Connection, cmp_conn: sqlite3.Connect
         "target_price": target_price,
         "pe_ttm": round(pe_ttm, 2) if pe_ttm else None,
         "pb_ttm": round(pb_ttm, 2) if pb_ttm else None,
-        "roe_ttm": round(roe_ttm * 100, 1) if roe_ttm and abs(roe_ttm) < 2 else (round(roe_ttm, 1) if roe_ttm else None),
+        "roe_ttm": round(roe_ttm, 1) if roe_ttm else None,
         "recommendation_action": action,
         "upside_pct": upside_pct,
     }
@@ -391,7 +385,7 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool) -> None:
     cache = sqlite3.connect(CACHE_DB)
     news_conn = sqlite3.connect(f"file:{MARKET_NEWS_DB}?mode=ro", uri=True) if MARKET_NEWS_DB else None
     stats_conn = sqlite3.connect(f"file:{STATS_FINANCIAL_DB}?mode=ro", uri=True)
-    cmp_conn = sqlite3.connect(f"file:{COMPANY_DB_PATH}?mode=ro", uri=True)
+    cmp_conn = sqlite3.connect(f"file:{COMPANY_DB}?mode=ro", uri=True)
 
     year, q = detect_current_quarter(fin)
     quarter_label = f"Q{q}.{year}"
