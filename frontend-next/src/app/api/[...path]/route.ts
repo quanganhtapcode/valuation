@@ -217,7 +217,7 @@ export async function GET(
             headers: passthroughHeaders,
         });
     } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
+        if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
             return NextResponse.json({ error: 'Backend request timed out' }, { status: 504 });
         }
         console.error('API Proxy Error:', error);
@@ -268,7 +268,7 @@ export async function POST(
         const data = await response.json();
         return NextResponse.json(data);
     } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
+        if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
             return NextResponse.json({ error: 'Backend request timed out' }, { status: 504 });
         }
         console.error('API Proxy POST Error:', error);
