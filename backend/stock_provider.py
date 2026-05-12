@@ -31,8 +31,9 @@ class StockDataProvider:
     def __init__(self):
         self.sources = ["VCI"]
         self._listing_cache = None
-        self._stock_data_cache = {} # In-memory cache for stock details
+        self._stock_data_cache = {} # In-memory cache for stock details (TTL 15s)
         self._price_cache = {} # Short-term cache for realtime prices (TTL 30s)
+        self._company_profiles_cache = None  # Memoized company_profile_export.json
         self.db_path = resolve_vci_screening_db_path()
         self.vci = VCIDataAccess()
         
@@ -370,17 +371,19 @@ class StockDataProvider:
 
             # 5. Company description from JSON export (exported from stocks_optimized.db)
             try:
-                import json
                 from pathlib import Path
-                profile_path = Path(__file__).resolve().parents[1] / "exports" / "company_profile_export.json"
-                if profile_path.exists():
-                    with open(profile_path, "r", encoding="utf-8") as f:
-                        profiles = json.load(f)
-                    profile_data = profiles.get(symbol, {})
-                    if profile_data:
-                        cp = profile_data.get("company_profile") or ""
-                        if cp:
-                            data['overview'] = {'description': cp}
+                if self._company_profiles_cache is None:
+                    profile_path = Path(__file__).resolve().parents[1] / "exports" / "company_profile_export.json"
+                    if profile_path.exists():
+                        with open(profile_path, "r", encoding="utf-8") as f:
+                            self._company_profiles_cache = json.load(f)
+                    else:
+                        self._company_profiles_cache = {}
+                profile_data = self._company_profiles_cache.get(symbol, {})
+                if profile_data:
+                    cp = profile_data.get("company_profile") or ""
+                    if cp:
+                        data['overview'] = {'description': cp}
             except Exception:
                 pass
 
@@ -408,11 +411,31 @@ class StockDataProvider:
     def get_stock_data(self, symbol: str, period: str = "year", fetch_current_price: bool = False, symbols_override=None) -> dict:
         """Get stock data: Primary: DB (SQLite), Fallback: Live API (Parallel)"""
         symbol = symbol.upper()
-        
+        cache_key = f"{symbol}:{period}"
+        _CACHE_TTL = 15  # seconds
+
+        # Check TTL cache before hitting the DB
+        cached = self._stock_data_cache.get(cache_key)
+        if cached is not None:
+            cached_data, cached_ts = cached
+            if time.time() - cached_ts < _CACHE_TTL:
+                logger.info(f"✓ Cache hit for {symbol} ({period})")
+                result = dict(cached_data)  # shallow copy so we don't mutate the cache
+                if fetch_current_price:
+                    price_data = self.get_current_price_with_change(symbol)
+                    if price_data:
+                        result.update(price_data)
+                        shares = result.get('shares_outstanding') or result.get('shareOutstanding')
+                        if pd.notna(shares) and shares > 0:
+                            result['market_cap'] = price_data['current_price'] * shares
+                return result
+
         # 1. Try DB first
         data = self._get_data_from_db(symbol, period)
         if data:
             logger.info(f"✓ Found {symbol} in DB")
+            # Store in cache without live price so cached copy stays price-neutral
+            self._stock_data_cache[cache_key] = (data, time.time())
             if fetch_current_price:
                 price_data = self.get_current_price_with_change(symbol)
                 if price_data:
