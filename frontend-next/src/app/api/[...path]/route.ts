@@ -131,6 +131,7 @@ export async function GET(
                 'User-Agent': 'Next.js API Proxy',
                 'Accept': '*/*',
             },
+            signal: AbortSignal.timeout(15000),
         };
 
         if (cachePolicy.mode === 'realtime') {
@@ -216,6 +217,9 @@ export async function GET(
             headers: passthroughHeaders,
         });
     } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            return NextResponse.json({ error: 'Backend request timed out' }, { status: 504 });
+        }
         console.error('API Proxy Error:', error);
         return NextResponse.json(
             { error: 'Failed to fetch data from backend' },
@@ -241,6 +245,7 @@ export async function POST(
                 'User-Agent': 'Next.js API Proxy',
             },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(15000),
         });
 
         if (!response.ok) {
@@ -263,6 +268,9 @@ export async function POST(
         const data = await response.json();
         return NextResponse.json(data);
     } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            return NextResponse.json({ error: 'Backend request timed out' }, { status: 504 });
+        }
         console.error('API Proxy POST Error:', error);
         return NextResponse.json(
             { error: 'Failed to post data to backend' },
