@@ -149,6 +149,8 @@ export default function StockDetailPage() {
     useEffect(() => {
         if (!symbol) return;
 
+        const controller = new AbortController();
+
         async function loadData() {
             setIsLoading(true);
             setError(null);
@@ -266,7 +268,7 @@ export default function StockDetailPage() {
                 setIsLoading(false);
 
                 // PHASE 2: Fetch news and EPS history in parallel
-                fetch(`/api/stock/${symbol}/news`)
+                fetch(`/api/stock/${symbol}/news`, { signal: controller.signal })
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         console.log('[News API] Response:', res);
@@ -283,7 +285,7 @@ export default function StockDetailPage() {
                     .catch(err => console.error('[News API] Error:', err));
 
                 // Fetch EPS history from income statement SQLite
-                fetch(`/api/stock/${symbol}/financial-report?type=income&period=year&limit=10`)
+                fetch(`/api/stock/${symbol}/financial-report?type=income&period=year&limit=10`, { signal: controller.signal })
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         console.log('[EPS API] Response:', res);
@@ -349,6 +351,10 @@ export default function StockDetailPage() {
         }
 
         loadData();
+
+        return () => {
+            controller.abort();
+        };
     }, [symbol, lang]);
 
     // ── WebSocket: Real-time price stream (VCI) ────────────────────────────
