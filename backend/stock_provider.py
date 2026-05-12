@@ -435,7 +435,7 @@ class StockDataProvider:
         if data:
             logger.info(f"✓ Found {symbol} in DB")
             # Store in cache without live price so cached copy stays price-neutral
-            self._stock_data_cache[cache_key] = (data, time.time())
+            self._stock_data_cache[cache_key] = (dict(data), time.time())
             if fetch_current_price:
                 price_data = self.get_current_price_with_change(symbol)
                 if price_data:
