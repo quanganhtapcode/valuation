@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '../../app/stock/[symbol]/page.module.css';
 import TradingViewChart from './TradingViewChart';
 import OrderBook from './OrderBook';
 import BankLoanBreakdown from './BankLoanBreakdown';
-import AiAnalysisCard from './AiAnalysisCard';
+import AiInsightCard from './AiInsightCard';
+import { fetchAiAnalysis } from '@/lib/api';
 import { useLanguage } from "@/lib/languageContext"
 import { translations } from "@/lib/translations"
 
@@ -197,6 +198,11 @@ export default function OverviewTab({
 }: OverviewTabProps) {
     const { lang } = useLanguage()
     const tOv = translations[lang].overview
+
+    const [aiData, setAiData] = useState<Awaited<ReturnType<typeof fetchAiAnalysis>> | null>(null);
+    useEffect(() => {
+        fetchAiAnalysis(_symbol).then(d => setAiData(d.available ? d : null));
+    }, [_symbol]);
 
     const stats = [
         { label: tOv.open,   value: formatSessionPrice(priceData?.open ?? 0),        color: undefined },
@@ -518,7 +524,12 @@ export default function OverviewTab({
                         </section>
                     );
                 })()}
-                <AiAnalysisCard symbol={_symbol} />
+                <AiInsightCard
+                    analysisJson={aiData?.analysis_json}
+                    newsJson={aiData?.news_json}
+                    quarter={aiData?.quarter}
+                    model={aiData?.model}
+                />
 
             </aside>
         </div>
