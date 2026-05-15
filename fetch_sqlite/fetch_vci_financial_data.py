@@ -178,7 +178,10 @@ def _headers(bearer: str) -> dict[str, str]:
         "authorization": f"Bearer {bearer}",
         "origin": "https://trading.vietcap.com.vn",
         "referer": "https://trading.vietcap.com.vn/",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "sec-fetch-site": "same-site",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-dest": "empty",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     }
 
 
@@ -190,12 +193,25 @@ def fetch_one(ticker: str, bearer: str) -> dict | None:
             raw = resp.read()
             if resp.headers.get("Content-Encoding") == "gzip" or raw[:2] == b"\x1f\x8b":
                 raw = gzip.decompress(raw)
-            return json.loads(raw)
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict) and parsed.get("successful") is False:
+                status = parsed.get("status", 0)
+                exc = parsed.get("exception", "")
+                if status == 401 or "expired" in str(exc).lower() or "token" in str(exc).lower():
+                    raise RuntimeError(f"Token expired (401): {exc}")
+                log.warning(f"[{ticker}] API error status={status}: {exc}")
+                return None
+            return parsed
     except urllib.error.HTTPError as e:
         if e.code == 401:
-            raise RuntimeError("Token expired (401)")
+            raise RuntimeError(f"Token expired (401)")
+        if e.code == 403:
+            log.warning(f"[{ticker}] HTTP 403 (WAF block or token rejected at network level)")
+            return None
         log.warning(f"[{ticker}] HTTP {e.code}")
         return None
+    except RuntimeError:
+        raise
     except Exception as e:
         log.warning(f"[{ticker}] {e}")
         return None
@@ -221,43 +237,35 @@ def _coerce_pct(v) -> float | None:
     return round(f, 2)
 
 
-def _find_rows(data: dict) -> list[dict]:
-    """Locate the list of annual rows inside the API response dict."""
-    for key in ("data", "financialData", "items", "financialReport", "annualData"):
-        val = data.get(key)
-        if isinstance(val, list) and val:
-            return val
-        if isinstance(val, dict):
-            for subkey in ("items", "data", "financialData", "annualData"):
-                sub = val.get(subkey)
-                if isinstance(sub, list) and sub:
-                    return sub
-    return []
-
-
-def _find_scalar(data: dict, *keys) -> float | None:
-    """Search for a scalar value in the response dict by multiple possible key names."""
-    for k in keys:
-        if k in data:
-            return _float(data[k])
-    for v in data.values():
-        if isinstance(v, dict):
-            for k in keys:
-                if k in v:
-                    return _float(v[k])
-    return None
-
-
 def parse_response(raw: dict, ticker: str, fetched_at: str) -> tuple[dict, list[dict]]:
-    """Parse VCI API response into (header_row, year_rows)."""
-    target_price = _find_scalar(raw, "targetPrice", "target_price", "priceTarget")
+    """Parse VCI v2 financial-data API response into (header_row, year_rows).
+
+    The API returns a wide format: each metric is a dict keyed by year string
+    e.g. {"2023": 7.37, "2024": 7.07, "TTM": 7.19, "2026F": 6.19, "2027F": 5.36}
+    Years ending in "F" are analyst forecasts; "TTM" is skipped.
+    """
+    data_block = raw.get("data") or {}
+    if not isinstance(data_block, dict):
+        data_block = {}
+
+    target_price = None
+    for src in (raw, data_block):
+        for k in ("targetPrice", "target_price", "priceTarget"):
+            v = _float(src.get(k))
+            if v:
+                target_price = v
+                break
+        if target_price:
+            break
+
     recommendation = None
-    for k in ("recommendation", "rating", "action"):
-        v = raw.get(k)
-        if not v and isinstance(raw.get("data"), dict):
-            v = (raw.get("data") or {}).get(k)
-        if v and isinstance(v, str):
-            recommendation = v.upper()
+    for src in (raw, data_block):
+        for k in ("recommendation", "rating", "action"):
+            v = src.get(k)
+            if v and isinstance(v, str):
+                recommendation = v.upper()
+                break
+        if recommendation:
             break
 
     header = {
@@ -268,43 +276,49 @@ def parse_response(raw: dict, ticker: str, fetched_at: str) -> tuple[dict, list[
         "fetched_at": fetched_at,
     }
 
-    rows_raw = _find_rows(raw)
+    # Collect all year keys from the pe metric dict (skip TTM)
+    all_year_keys: list[str] = []
+    for metric in ("pe", "revenue", "NPATMI", "eps", "roe", "pb"):
+        m = data_block.get(metric) or {}
+        if m:
+            all_year_keys = [k for k in m if k != "TTM"]
+            break
+
+    def get_metric(metric_name: str, year_key: str) -> float | None:
+        m = data_block.get(metric_name) or {}
+        return _float(m.get(year_key))
+
     year_rows = []
-    for item in rows_raw:
-        if not isinstance(item, dict):
-            continue
-        year = item.get("year") or item.get("fiscalYear") or item.get("reportYear")
-        if not year:
-            continue
+    for yk in all_year_keys:
+        is_forecast = 1 if yk.endswith("F") else 0
+        year_str = yk.rstrip("F")
         try:
-            year = int(year)
+            year = int(year_str)
         except (TypeError, ValueError):
             continue
-        is_fc_raw = item.get("isForecast") or item.get("isForcast") or item.get("forecast") or item.get("type")
-        if isinstance(is_fc_raw, bool):
-            is_fc = 1 if is_fc_raw else 0
-        elif isinstance(is_fc_raw, str):
-            is_fc = 1 if is_fc_raw.upper() in ("TRUE", "FORECAST", "F") else 0
-        elif isinstance(is_fc_raw, (int, float)):
-            is_fc = 1 if is_fc_raw else 0
-        else:
-            is_fc = 0
+
+        rg_raw = get_metric("revenueGrowth", yk)
+        pg_raw = (get_metric("NPATMIGrowth", yk)
+                  or get_metric("npatmigrowth", yk)
+                  or get_metric("profitGrowth", yk))
+        roe_raw = get_metric("roe", yk)
+        div_raw = get_metric("dividendYield", yk)
 
         year_rows.append({
             "ticker": ticker,
             "year": year,
-            "is_forecast": is_fc,
-            "revenue_growth": _coerce_pct(item.get("revenueGrowth") or item.get("revenue_growth")),
-            "profit_growth": _coerce_pct(item.get("npatGrowth") or item.get("npat_growth")
-                                          or item.get("profitGrowth") or item.get("netProfitGrowth")),
-            "pe": _float(item.get("pe") or item.get("peRatio")),
-            "pb": _float(item.get("pb") or item.get("pbRatio")),
-            "roe": _coerce_pct(item.get("roe")),
-            "eps": _float(item.get("eps")),
-            "dividend_yield": _coerce_pct(item.get("dividendYield") or item.get("dividend_yield")),
+            "is_forecast": is_forecast,
+            "revenue_growth": _coerce_pct(rg_raw),
+            "profit_growth": _coerce_pct(pg_raw),
+            "pe": get_metric("pe", yk),
+            "pb": get_metric("pb", yk),
+            "roe": _coerce_pct(roe_raw),
+            "eps": get_metric("eps", yk),
+            "dividend_yield": _coerce_pct(div_raw),
             "fetched_at": fetched_at,
         })
 
+    year_rows.sort(key=lambda r: r["year"])
     return header, year_rows
 
 
