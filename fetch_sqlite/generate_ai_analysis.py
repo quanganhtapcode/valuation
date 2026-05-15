@@ -25,11 +25,12 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
 
-from backend.services.gemma_client import build_financial_prompt, generate
+from backend.services.gemma_client import build_financial_prompt, build_combined_prompt, generate
 from backend.db_path import (
     resolve_vci_technical_db_path,
 )
 from backend.services.vci_technical_sqlite import query_technical_snapshot
+from backend.services.valuation_service import calculate_valuation
 
 FINANCIALS_DB = os.environ.get(
     "VCI_FINANCIAL_STATEMENT_DB_PATH",
@@ -198,8 +199,11 @@ def fetch_pe_pb_averages(stats_conn: sqlite3.Connection, ticker: str) -> dict:
     pb_2yr = avg([r[1] for r in rows_2yr])
     pe_5yr = avg([r[0] for r in rows_5yr])
     pb_5yr = avg([r[1] for r in rows_5yr])
-    roe_avg = avg([r[2] for r in rows_5yr if r[2]])
-    div_avg = avg([r[3] for r in rows_5yr if r[3]])
+    roe_raw = avg([r[2] for r in rows_5yr if r[2]])
+    div_raw = avg([r[3] for r in rows_5yr if r[3]])
+    # DB stores as decimals (0.23 = 23%) — convert to %
+    roe_avg = round(roe_raw * 100, 1) if roe_raw else None
+    div_avg = round(div_raw * 100, 1) if div_raw else None
 
     return {
         "pe_2yr_avg": pe_2yr,
@@ -343,6 +347,40 @@ def fetch_forecast_years(cache_conn: sqlite3.Connection, ticker: str) -> list[di
     ]
 
 
+def fetch_valuation_models(ticker: str) -> dict | None:
+    """Call ValuationService and return valuation model outputs."""
+    try:
+        result = calculate_valuation(ticker, {})
+        if not result.get("success"):
+            return None
+        return {
+            "fcfe": result.get("valuations", {}).get("fcfe"),
+            "fcff": result.get("valuations", {}).get("fcff"),
+            "justified_pe": result.get("valuations", {}).get("justified_pe"),
+            "justified_pb": result.get("valuations", {}).get("justified_pb"),
+            "graham": result.get("valuations", {}).get("graham"),
+            "weighted_average": result.get("valuations", {}).get("weighted_average"),
+            "fair_value_range": result.get("fair_value_range"),
+        }
+    except Exception as e:
+        logger.warning(f"ValuationService failed for {ticker}: {e}")
+        return None
+
+
+def parse_json_response(raw: str) -> str | None:
+    """Extract and validate JSON from AI response. Returns JSON string or None."""
+    import json, re
+    text = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        try:
+            data = json.loads(match.group())
+            return json.dumps(data, ensure_ascii=False)
+        except json.JSONDecodeError:
+            pass
+    return None
+
+
 def parse_analysis(raw: str) -> tuple[str, str | None]:
     """Return (analysis_vi_summary, analysis_json_str | None).
 
@@ -364,21 +402,47 @@ def parse_analysis(raw: str) -> tuple[str, str | None]:
 
 
 def save_analysis(
-    cache: sqlite3.Connection, ticker: str, year: int, q: int, raw: str, model: str
+    cache: sqlite3.Connection,
+    ticker: str,
+    year: int,
+    q: int,
+    combined_raw: str,
+    model: str,
 ) -> None:
-    summary, analysis_json = parse_analysis(raw)
+    """Parse combined JSON {valuation: ..., news_thesis: ...} and save to DB."""
+    import json as _json, re as _re
+
+    valuation_json = None
+    news_json = None
+    summary = combined_raw[:200]  # fallback
+
+    text = _re.sub(r"```(?:json)?", "", combined_raw).strip().rstrip("`").strip()
+    match = _re.search(r"\{.*\}", text, _re.DOTALL)
+    if match:
+        try:
+            data = _json.loads(match.group())
+            val_part = data.get("valuation")
+            news_part = data.get("news_thesis")
+            if val_part:
+                valuation_json = _json.dumps(val_part, ensure_ascii=False)
+                summary = val_part.get("valuation_summary", summary)
+            if news_part:
+                news_json = _json.dumps(news_part, ensure_ascii=False)
+        except _json.JSONDecodeError:
+            pass
+
     cache.execute(
         """
         INSERT OR REPLACE INTO ai_financial_analysis
-            (ticker, year_report, quarter_report, analysis_vi, analysis_json, model, generated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+            (ticker, year_report, quarter_report, analysis_vi, analysis_json, news_json, model, generated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (ticker, year, q, summary, analysis_json, model, datetime.now(timezone.utc).isoformat()),
+        (ticker, year, q, summary, valuation_json, news_json, model, datetime.now(timezone.utc).isoformat()),
     )
     cache.commit()
 
 
-def run(tickers_override: list[str] | None, limit: int, dry_run: bool) -> None:
+def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_missing: bool = False) -> None:
     fin = sqlite3.connect(f"file:{FINANCIALS_DB}?mode=ro", uri=True)
     scr = sqlite3.connect(f"file:{SCREENING_DB}?mode=ro", uri=True)
     cmp = sqlite3.connect(f"file:{COMPANY_DB}?mode=ro", uri=True)
@@ -403,19 +467,29 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool) -> None:
         ).fetchall()
         candidates = [r[0] for r in rows if r[0] in hose_hnx]
 
-    # Separate into new (never analyzed) and refresh (news threshold exceeded)
+    # Separate into new (never analyzed), refresh (news threshold), and regen (missing news_json)
     new_tickers = []
     refresh_tickers = []
+    regen_tickers = []
     for t in candidates:
         last_at = get_last_analysis(cache, t, year, q)
         if last_at is None:
             new_tickers.append(t)
-        elif news_conn and count_new_news(news_conn, t, last_at) >= NEWS_REFRESH_THRESHOLD:
-            refresh_tickers.append(t)
+        else:
+            # Check if this ticker needs the new split format (missing news_json)
+            has_news_json = cache.execute(
+                "SELECT news_json FROM ai_financial_analysis WHERE ticker=? AND year_report=? AND quarter_report=?",
+                (t, year, q),
+            ).fetchone()
+            if regen_missing and (not has_news_json or not has_news_json[0]):
+                regen_tickers.append(t)
+            elif news_conn and count_new_news(news_conn, t, last_at) >= NEWS_REFRESH_THRESHOLD:
+                refresh_tickers.append(t)
 
-    pending = new_tickers + refresh_tickers
+    pending = new_tickers + refresh_tickers + regen_tickers
     print(
         f"Pending: {len(new_tickers)} new + {len(refresh_tickers)} news-refresh "
+        f"+ {len(regen_tickers)} regen-missing "
         f"(skipping {len(candidates) - len(pending)} already done)"
     )
 
@@ -430,37 +504,56 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool) -> None:
             continue
 
         name = names.get(ticker, ticker)
-        recent_news = fetch_recent_news(news_conn, ticker) if news_conn else []
+        recent_news = fetch_recent_news(news_conn, ticker, limit=12) if news_conn else []
         pe_pb_avgs = fetch_pe_pb_averages(stats_conn, ticker)
         sector_avgs = fetch_sector_averages(scr, stats_conn, ticker)
         market_ctx = fetch_market_context(scr, cmp_conn, ticker)
         tech = fetch_technical_summary(ticker)
         forecast_years = fetch_forecast_years(cache, ticker)
-        prompt = build_financial_prompt(
+        valuation_models = fetch_valuation_models(ticker)
+
+        sector_row = scr.execute(
+            "SELECT viSector FROM screening_data WHERE ticker=?", (ticker,)
+        ).fetchone()
+        sector = sector_row[0] if sector_row and sector_row[0] else "Chứng khoán"
+
+        pe_pb_valuation_keys = ("pe_2yr_avg", "pb_2yr_avg", "pe_5yr_avg", "pb_5yr_avg")
+        combined_prompt = build_combined_prompt(
             ticker=ticker,
             name=name,
+            sector=sector,
             quarter=quarter_label,
-            news=recent_news,
             forecast_years=forecast_years,
             technical=tech,
-            **pe_pb_avgs,
+            valuation_models=valuation_models,
+            news=recent_news or [],
+            **{k: v for k, v in pe_pb_avgs.items() if k in pe_pb_valuation_keys},
             **sector_avgs,
             **market_ctx,
-            **data,
+            **{k: v for k, v in data.items() if k in (
+                "revenue", "revenue_yoy", "profit_yoy", "gross_margin"
+            )},
         )
 
         if dry_run:
-            print(f"  [{ticker}] DRY RUN — would generate analysis (news={len(recent_news)})")
+            print(f"  [{ticker}] DRY RUN — combined prompt {len(combined_prompt)} chars, news={len(recent_news)}, models={bool(valuation_models)}")
             continue
 
-        try:
-            analysis, model = generate(prompt)
-            save_analysis(cache, ticker, year, q, analysis, model)
-            print(f"  [{ticker}] {name} [{model}]: {analysis[:80]}...")
-            done += 1
-            time.sleep(RATE_LIMIT_DELAY)
-        except Exception as e:
-            print(f"  [{ticker}] ERROR: {e}")
+        for attempt in range(3):
+            try:
+                combined_raw, model_used = generate(combined_prompt)
+                save_analysis(cache, ticker, year, q, combined_raw, model_used)
+                print(f"  [{ticker}] {name} [{model_used}]: saved")
+                done += 1
+                time.sleep(RATE_LIMIT_DELAY)
+                break
+            except Exception as e:
+                if attempt < 2:
+                    wait = 60 * (attempt + 1)
+                    print(f"  [{ticker}] ERROR (attempt {attempt+1}): {e} — retrying in {wait}s")
+                    time.sleep(wait)
+                else:
+                    print(f"  [{ticker}] SKIP after 3 attempts: {e}")
 
     print(f"\nDone: {done} analyses generated for {quarter_label}")
     fin.close(); scr.close(); cmp.close(); cache.close()
@@ -475,5 +568,7 @@ if __name__ == "__main__":
     parser.add_argument("--ticker", nargs="+", help="Specific tickers to analyze")
     parser.add_argument("--limit", type=int, default=0, help="Max tickers to process")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--regen-missing", action="store_true",
+                        help="Re-generate tickers that have analysis_vi but missing news_json (old format)")
     args = parser.parse_args()
-    run(args.ticker, args.limit, args.dry_run)
+    run(args.ticker, args.limit, args.dry_run, regen_missing=args.regen_missing)
