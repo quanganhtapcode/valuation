@@ -367,6 +367,158 @@ def fetch_valuation_models(ticker: str) -> dict | None:
         return None
 
 
+def build_rule_based_analysis(
+    ticker: str,
+    name: str,
+    sector: str,
+    market_ctx: dict,
+    pe_pb_avgs: dict,
+    sector_avgs: dict,
+    tech: dict,
+    valuation_models: dict | None,
+    forecast_years: list[dict],
+) -> tuple[str, str]:
+    """Generate analysis_json + news_json deterministically — no LLM call.
+
+    Returns (analysis_json_str, news_json_str) using the same schema as Gemma output.
+    news_json is the empty-news sentinel so AiInsightCard hides the news zone.
+    """
+    import json as _json
+
+    pe_ttm = market_ctx.get("pe_ttm")
+    pb_ttm = market_ctx.get("pb_ttm")
+    roe_ttm = market_ctx.get("roe_ttm")
+    current_price = market_ctx.get("current_price")
+    target_price = market_ctx.get("target_price")
+    upside_pct = market_ctx.get("upside_pct")
+    recommendation = market_ctx.get("recommendation_action") or "Theo dõi"
+
+    pe_2yr = pe_pb_avgs.get("pe_2yr_avg")
+    pe_5yr = pe_pb_avgs.get("pe_5yr_avg")
+    pb_2yr = pe_pb_avgs.get("pb_2yr_avg")
+    pb_5yr = pe_pb_avgs.get("pb_5yr_avg")
+    pe_sector = sector_avgs.get("pe_sector")
+    pb_sector = sector_avgs.get("pb_sector")
+
+    def _assess(ttm: float | None, hist: float | None, sect: float | None) -> str:
+        if ttm is None:
+            return "hợp lý"
+        refs = [r for r in (hist, sect) if r]
+        if not refs:
+            return "hợp lý"
+        avg_ref = sum(refs) / len(refs)
+        if ttm < avg_ref * 0.85:
+            return "rẻ"
+        if ttm > avg_ref * 1.15:
+            return "đắt"
+        return "hợp lý"
+
+    pe_assessment = _assess(pe_ttm, pe_2yr, pe_sector)
+    pb_assessment = _assess(pb_ttm, pb_2yr, pb_sector)
+
+    pe_str = f"P/E {pe_ttm:.1f}x" if pe_ttm else "P/E N/A"
+    hist_str = f"TB2yr {pe_2yr:.1f}x" if pe_2yr else ""
+    sect_str = f"ngành {pe_sector:.1f}x" if pe_sector else ""
+    refs_str = " và ".join(filter(None, [hist_str, sect_str])) or "mức tham chiếu"
+    roe_str = f" ROE đạt {roe_ttm:.1f}%." if roe_ttm else "."
+    valuation_summary = (
+        f"{name} giao dịch ở {pe_str}, {pe_assessment} so với {refs_str}.{roe_str}"
+    )
+
+    if valuation_models and target_price and current_price and current_price > 0:
+        if upside_pct is not None:
+            model_consensus = (
+                f"Các mô hình định giá hội tụ quanh {target_price:,.0f}đ "
+                f"(upside {upside_pct:+.1f}%)."
+            )
+        else:
+            model_consensus = f"Target price {target_price:,.0f}đ từ tổng hợp các mô hình."
+    else:
+        model_consensus = "Chưa đủ dữ liệu để tổng hợp mô hình định giá."
+
+    buy_ratings = {"Mua mạnh", "Mua"}
+    sell_ratings = {"Bán mạnh", "Bán"}
+    ma_r = tech.get("ma_rating", "")
+    osc_r = tech.get("osc_rating", "")
+    if ma_r in buy_ratings and osc_r in buy_ratings:
+        signal = "Tích cực"
+    elif ma_r in sell_ratings and osc_r in sell_ratings:
+        signal = "Tiêu cực"
+    elif ma_r in buy_ratings or osc_r in buy_ratings:
+        signal = "Tích cực"
+    elif ma_r in sell_ratings or osc_r in sell_ratings:
+        signal = "Tiêu cực"
+    else:
+        signal = "Trung tính"
+
+    trend_map = {
+        "Tích cực": "Xu hướng tăng, chỉ báo kỹ thuật tích cực.",
+        "Tiêu cực": "Xu hướng giảm, chỉ báo kỹ thuật tiêu cực.",
+        "Trung tính": "Xu hướng trung tính, chưa rõ chiều.",
+    }
+    trend = trend_map[signal]
+
+    ma_vals = tech.get("ma_values") or {}
+    support: float | None = None
+    resistance: float | None = None
+    if current_price and ma_vals:
+        below = [v for v in ma_vals.values() if v < current_price]
+        above = [v for v in ma_vals.values() if v >= current_price]
+        support = round(max(below)) if below else None
+        resistance = round(min(above)) if above else None
+
+    if signal == "Tích cực" and pe_assessment in ("rẻ", "hợp lý"):
+        timing = "Ngay bây giờ"
+    elif pe_assessment == "rẻ":
+        timing = "Chờ xác nhận"
+    else:
+        timing = "Chờ pullback"
+
+    valuation_obj = {
+        "valuation_summary": valuation_summary,
+        "pe_assessment": pe_assessment,
+        "pb_assessment": pb_assessment,
+        "model_consensus": model_consensus,
+        "target_price": int(target_price) if target_price else None,
+        "target_rationale": "Tổng hợp các mô hình FCFE/FCFF/PE/PB/Graham.",
+        "recommendation": recommendation,
+        "upside_pct": upside_pct,
+        "timing": timing,
+        "technical": {
+            "trend": trend,
+            "support": int(support) if support else None,
+            "resistance": int(resistance) if resistance else None,
+            "signal": signal,
+        },
+        "valuation_table": {
+            "pe_ttm": pe_ttm,
+            "pe_2yr_avg": pe_2yr,
+            "pe_5yr_avg": pe_5yr,
+            "pe_sector": pe_sector,
+            "pb_ttm": pb_ttm,
+            "pb_2yr_avg": pb_2yr,
+            "pb_5yr_avg": pb_5yr,
+            "pb_sector": pb_sector,
+            "pe_commentary": f"P/E TTM {pe_assessment} so với lịch sử và ngành.",
+            "pb_commentary": f"P/B TTM {pb_assessment} so với lịch sử và ngành.",
+        },
+    }
+
+    news_obj = {
+        "overall_sentiment": "mixed",
+        "summary": "Chưa có tin tức gần đây.",
+        "bull_case": [],
+        "bear_case": [],
+        "key_events": [],
+        "watch_out": "Chờ cập nhật thêm tin tức.",
+    }
+
+    return (
+        _json.dumps(valuation_obj, ensure_ascii=False),
+        _json.dumps(news_obj, ensure_ascii=False),
+    )
+
+
 def parse_json_response(raw: str) -> str | None:
     """Extract and validate JSON from AI response. Returns JSON string or None."""
     import json, re
@@ -496,7 +648,10 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_mis
     if limit:
         pending = pending[:limit]
 
-    done = 0
+    done_ai = 0
+    done_rule = 0
+    pe_pb_valuation_keys = ("pe_2yr_avg", "pb_2yr_avg", "pe_5yr_avg", "pb_5yr_avg")
+
     for ticker in pending:
         data = fetch_stock_data(fin, ticker, year, q)
         if not data:
@@ -517,45 +672,80 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_mis
         ).fetchone()
         sector = sector_row[0] if sector_row and sector_row[0] else "Chứng khoán"
 
-        pe_pb_valuation_keys = ("pe_2yr_avg", "pb_2yr_avg", "pe_5yr_avg", "pb_5yr_avg")
-        combined_prompt = build_combined_prompt(
-            ticker=ticker,
-            name=name,
-            sector=sector,
-            quarter=quarter_label,
-            forecast_years=forecast_years,
-            technical=tech,
-            valuation_models=valuation_models,
-            news=recent_news or [],
-            **{k: v for k, v in pe_pb_avgs.items() if k in pe_pb_valuation_keys},
-            **sector_avgs,
-            **market_ctx,
-            **{k: v for k, v in data.items() if k in (
-                "revenue", "revenue_yoy", "profit_yoy", "gross_margin"
-            )},
-        )
+        has_news = len(recent_news) > 0
 
         if dry_run:
-            print(f"  [{ticker}] DRY RUN — combined prompt {len(combined_prompt)} chars, news={len(recent_news)}, models={bool(valuation_models)}")
+            path = "AI" if has_news else "rule-based"
+            if has_news:
+                combined_prompt = build_combined_prompt(
+                    ticker=ticker, name=name, sector=sector, quarter=quarter_label,
+                    forecast_years=forecast_years, technical=tech,
+                    valuation_models=valuation_models, news=recent_news,
+                    **{k: v for k, v in pe_pb_avgs.items() if k in pe_pb_valuation_keys},
+                    **sector_avgs, **market_ctx,
+                    **{k: v for k, v in data.items() if k in (
+                        "revenue", "revenue_yoy", "profit_yoy", "gross_margin"
+                    )},
+                )
+                print(f"  [{ticker}] DRY RUN [{path}] — prompt {len(combined_prompt)} chars, news={len(recent_news)}")
+            else:
+                print(f"  [{ticker}] DRY RUN [{path}] — news=0, skipping Gemma")
             continue
 
-        for attempt in range(3):
+        if has_news:
+            # ── AI path: Gemma call ──────────────────────────────────────
+            combined_prompt = build_combined_prompt(
+                ticker=ticker, name=name, sector=sector, quarter=quarter_label,
+                forecast_years=forecast_years, technical=tech,
+                valuation_models=valuation_models, news=recent_news,
+                **{k: v for k, v in pe_pb_avgs.items() if k in pe_pb_valuation_keys},
+                **sector_avgs, **market_ctx,
+                **{k: v for k, v in data.items() if k in (
+                    "revenue", "revenue_yoy", "profit_yoy", "gross_margin"
+                )},
+            )
+            for attempt in range(3):
+                try:
+                    combined_raw, model_used = generate(combined_prompt)
+                    save_analysis(cache, ticker, year, q, combined_raw, model_used)
+                    print(f"  [{ticker}] {name} [AI/{model_used}]: saved")
+                    done_ai += 1
+                    time.sleep(RATE_LIMIT_DELAY)
+                    break
+                except Exception as e:
+                    if attempt < 2:
+                        wait = 60 * (attempt + 1)
+                        print(f"  [{ticker}] ERROR (attempt {attempt+1}): {e} — retrying in {wait}s")
+                        time.sleep(wait)
+                    else:
+                        print(f"  [{ticker}] SKIP after 3 attempts: {e}")
+        else:
+            # ── Rule-based path: no Gemma call ───────────────────────────
             try:
-                combined_raw, model_used = generate(combined_prompt)
-                save_analysis(cache, ticker, year, q, combined_raw, model_used)
-                print(f"  [{ticker}] {name} [{model_used}]: saved")
-                done += 1
-                time.sleep(RATE_LIMIT_DELAY)
-                break
+                analysis_json, news_json = build_rule_based_analysis(
+                    ticker=ticker, name=name, sector=sector,
+                    market_ctx=market_ctx, pe_pb_avgs=pe_pb_avgs,
+                    sector_avgs=sector_avgs, tech=tech,
+                    valuation_models=valuation_models,
+                    forecast_years=forecast_years,
+                )
+                cache.execute(
+                    """
+                    INSERT OR REPLACE INTO ai_financial_analysis
+                        (ticker, year_report, quarter_report, analysis_vi,
+                         analysis_json, news_json, model, generated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (ticker, year, q, name, analysis_json, news_json,
+                     "rule-based", datetime.now(timezone.utc).isoformat()),
+                )
+                cache.commit()
+                print(f"  [{ticker}] {name} [rule-based]: saved")
+                done_rule += 1
             except Exception as e:
-                if attempt < 2:
-                    wait = 60 * (attempt + 1)
-                    print(f"  [{ticker}] ERROR (attempt {attempt+1}): {e} — retrying in {wait}s")
-                    time.sleep(wait)
-                else:
-                    print(f"  [{ticker}] SKIP after 3 attempts: {e}")
+                print(f"  [{ticker}] rule-based ERROR: {e}")
 
-    print(f"\nDone: {done} analyses generated for {quarter_label}")
+    print(f"\nDone: {done_ai} AI + {done_rule} rule-based analyses for {quarter_label}")
     fin.close(); scr.close(); cmp.close(); cache.close()
     stats_conn.close()
     cmp_conn.close()
