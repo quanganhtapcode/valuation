@@ -704,21 +704,47 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_mis
                     "revenue", "revenue_yoy", "profit_yoy", "gross_margin"
                 )},
             )
-            for attempt in range(3):
+            ai_ok = False
+            for attempt in range(2):
                 try:
                     combined_raw, model_used = generate(combined_prompt)
                     save_analysis(cache, ticker, year, q, combined_raw, model_used)
                     print(f"  [{ticker}] {name} [AI/{model_used}]: saved")
                     done_ai += 1
                     time.sleep(RATE_LIMIT_DELAY)
+                    ai_ok = True
                     break
                 except Exception as e:
-                    if attempt < 2:
-                        wait = 60 * (attempt + 1)
-                        print(f"  [{ticker}] ERROR (attempt {attempt+1}): {e} — retrying in {wait}s")
-                        time.sleep(wait)
+                    if attempt == 0:
+                        print(f"  [{ticker}] AI error (attempt 1): {e} — retrying in 30s")
+                        time.sleep(30)
                     else:
-                        print(f"  [{ticker}] SKIP after 3 attempts: {e}")
+                        print(f"  [{ticker}] AI exhausted after 2 attempts: {e} — falling back to rule-based")
+
+            if not ai_ok:
+                try:
+                    analysis_json, news_json = build_rule_based_analysis(
+                        ticker=ticker, name=name, sector=sector,
+                        market_ctx=market_ctx, pe_pb_avgs=pe_pb_avgs,
+                        sector_avgs=sector_avgs, tech=tech,
+                        valuation_models=valuation_models,
+                        forecast_years=forecast_years,
+                    )
+                    cache.execute(
+                        """
+                        INSERT OR REPLACE INTO ai_financial_analysis
+                            (ticker, year_report, quarter_report, analysis_vi,
+                             analysis_json, news_json, model, generated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (ticker, year, q, name, analysis_json, news_json,
+                         "rule-based-fallback", datetime.now(timezone.utc).isoformat()),
+                    )
+                    cache.commit()
+                    print(f"  [{ticker}] {name} [rule-based-fallback]: saved")
+                    done_rule += 1
+                except Exception as e2:
+                    print(f"  [{ticker}] fallback also failed: {e2}")
         else:
             # ── Rule-based path: no Gemma call ───────────────────────────
             try:
