@@ -5,6 +5,9 @@ import tickerData from '../../../../public/ticker_data.json';
 
 type Props = { params: Promise<{ symbol: string }> };
 
+export const dynamic = 'force-static';
+export const revalidate = 300;
+
 type StockSeoData = {
   symbol: string;
   companyName: string;
