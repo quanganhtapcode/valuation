@@ -7,8 +7,8 @@ import {
   PEChartData,
 } from '@/lib/api';
 
-// Force runtime SSR to avoid build-time prerender making network calls.
-export const dynamic = 'force-dynamic';
+// The overview shell is static; live market data is loaded client-side.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | VNINDEX, VN30, Cổ Phiếu',
