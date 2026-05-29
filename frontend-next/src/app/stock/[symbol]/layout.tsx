@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { siteConfig } from '@/app/siteConfig';
+import tickerData from '../../../../public/ticker_data.json';
 
 type Props = { params: Promise<{ symbol: string }> };
 
@@ -11,78 +13,51 @@ type StockSeoData = {
   price: number | null;
 };
 
-const BACKEND_API =
-  process.env.NODE_ENV === 'development'
-    ? (process.env.BACKEND_API_URL_LOCAL || 'http://127.0.0.1:8000/api')
-    : (process.env.BACKEND_API_URL || 'https://api.quanganh.org/v1/valuation');
-
 function normalizeSymbol(symbol: string): string {
   return (symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
 }
 
-function toNumber(value: unknown): number | null {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
-
 function buildDescription(data: StockSeoData): string {
   const parts = [
-    `${data.symbol} stock analysis, valuation and financial insights`,
+    `Phân tích và định giá cổ phiếu ${data.symbol}`,
   ];
 
   if (data.companyName && data.companyName !== data.symbol) {
-    parts.push(`for ${data.companyName}`);
+    parts.push(data.companyName);
   }
 
   if (data.exchange && data.exchange !== 'N/A') {
-    parts.push(`listed on ${data.exchange}`);
+    parts.push(`niêm yết trên ${data.exchange}`);
   }
 
   if (data.sector && data.sector !== 'N/A' && data.sector.toLowerCase() !== 'unknown') {
-    parts.push(`in ${data.sector}`);
+    parts.push(`ngành ${data.sector}`);
   }
 
   if (data.price && data.price > 0) {
-    parts.push(`with latest reference around ${Math.round(data.price).toLocaleString('en-US')} VND`);
+    parts.push(`giá tham chiếu khoảng ${Math.round(data.price).toLocaleString('en-US')} VND`);
   }
 
-  return `${parts.join(', ')}. Track price history, valuation scenarios, holders, and peer comparison.`;
+  return `${parts.join(', ')}. Theo dõi giá, lịch sử giao dịch, báo cáo tài chính, P/E, P/B, ROE, cổ đông, tin tức và mô hình định giá.`;
 }
 
-async function fetchStockSeoData(symbol: string): Promise<StockSeoData | null> {
-  try {
-    const url = `${BACKEND_API}/stock/${encodeURIComponent(symbol)}?fetch_price=true`;
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Next.js Stock SEO Metadata',
-        Accept: 'application/json',
-      },
-      cache: 'no-store',
-    });
+const getStockSeoData = cache((symbol: string): StockSeoData | null => {
+  const tickers = Array.isArray((tickerData as any).tickers) ? (tickerData as any).tickers : [];
+  const ticker = tickers.find((item: any) => String(item?.symbol || '').toUpperCase() === symbol);
+  if (!ticker) return null;
 
-    if (!response.ok) return null;
+  const name = String(ticker.name || ticker.en_name || symbol).trim() || symbol;
+  const sector = String(ticker.sector || ticker.en_sector || 'N/A').trim() || 'N/A';
+  const exchange = String(ticker.exchange || 'N/A').trim() || 'N/A';
 
-    const payload = await response.json();
-    const data = payload?.data || payload || {};
-    if (!data || typeof data !== 'object') return null;
-
-    const name = String(data.name || data.company_name || symbol).trim() || symbol;
-    const sector = String(data.sector || data.industry || 'N/A').trim() || 'N/A';
-    const exchange = String(data.exchange || 'N/A').trim() || 'N/A';
-
-    const price = toNumber(data.current_price ?? data.price ?? data.close);
-
-    return {
-      symbol,
-      companyName: name,
-      sector,
-      exchange,
-      price,
-    };
-  } catch {
-    return null;
-  }
-}
+  return {
+    symbol,
+    companyName: name,
+    sector,
+    exchange,
+    price: null,
+  };
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params;
@@ -90,13 +65,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!sym) {
     return {
-      title: 'Stock',
-      description: 'Vietnam stock analysis and valuation.',
+      title: 'Cổ phiếu',
+      description: 'Phân tích và định giá cổ phiếu Việt Nam.',
       robots: { index: false, follow: false },
     };
   }
 
-  const stock = (await fetchStockSeoData(sym)) || {
+  const stock = getStockSeoData(sym) || {
     symbol: sym,
     companyName: sym,
     sector: 'N/A',
@@ -106,15 +81,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const hasCompanyName = stock.companyName && stock.companyName !== sym;
   const pageTitle = hasCompanyName
-    ? `${sym} - ${stock.companyName} Stock Analysis & Valuation`
-    : `${sym} Stock Analysis & Valuation`;
+    ? `${sym} - ${stock.companyName} | Phân tích & định giá cổ phiếu`
+    : `${sym} | Phân tích & định giá cổ phiếu`;
   const description = buildDescription(stock);
   const canonicalPath = `/stock/${sym}`;
   const ogTitle = hasCompanyName
-    ? `${sym} (${stock.companyName}) | Stock Analysis - Quang Anh`
-    : `${sym} | Stock Analysis - Quang Anh`;
+    ? `${sym} (${stock.companyName}) | Phân tích cổ phiếu - Quang Anh`
+    : `${sym} | Phân tích cổ phiếu - Quang Anh`;
 
   const keywords = [
+    `${sym} cổ phiếu`,
+    `${sym} giá cổ phiếu`,
+    `${sym} định giá`,
+    `${sym} báo cáo tài chính`,
+    `${sym} cổ đông`,
+    `${sym} phân tích kỹ thuật`,
     `${sym} stock`,
     `${sym} valuation`,
     `${sym} price`,
@@ -133,7 +114,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     keywords.push(`${stock.sector} vietnam stocks`);
   }
 
-  const logo = siteConfig.stockLogoUrl(sym);
   const ogImagePath = `/stock/${sym}/opengraph-image`;
 
   return {
@@ -144,6 +124,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: canonicalPath,
       languages: {
         'x-default': canonicalPath,
+        vi: canonicalPath,
         en: canonicalPath,
       },
     },
@@ -151,7 +132,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: ogTitle,
       description,
       url: canonicalPath,
-      type: 'article',
+      type: 'website',
       images: [
         {
           url: ogImagePath,
@@ -165,7 +146,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title: ogTitle,
       description,
-      images: [ogImagePath, logo],
+      images: [ogImagePath],
     },
   };
 }
@@ -184,7 +165,7 @@ export default async function StockLayout({
     return <>{children}</>;
   }
 
-  const stock = await fetchStockSeoData(sym);
+  const stock = getStockSeoData(sym);
   const companyName = stock?.companyName || sym;
   const pageUrl = `${siteConfig.url}/stock/${sym}`;
   const displayName = companyName !== sym ? `${companyName} (${sym})` : sym;
@@ -192,12 +173,12 @@ export default async function StockLayout({
   const webPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: `${displayName} Stock Analysis`,
+    name: `${displayName} - Phân tích cổ phiếu`,
     description: stock
       ? buildDescription(stock)
-      : `${sym} stock analysis, valuation and financial insights for Vietnam market.`,
+      : `Phân tích và định giá cổ phiếu ${sym} trên thị trường Việt Nam.`,
     url: pageUrl,
-    inLanguage: 'en',
+    inLanguage: 'vi',
     isPartOf: {
       '@type': 'WebSite',
       name: siteConfig.name,
@@ -221,13 +202,13 @@ export default async function StockLayout({
       {
         '@type': 'ListItem',
         position: 1,
-        name: 'Home',
+        name: 'Trang chủ',
         item: siteConfig.url,
       },
       {
         '@type': 'ListItem',
         position: 2,
-        name: 'Stock',
+        name: 'Cổ phiếu',
         item: `${siteConfig.url}/stock/${sym}`,
       },
       {
@@ -244,7 +225,7 @@ export default async function StockLayout({
       ? {
           '@context': 'https://schema.org',
           '@type': 'Offer',
-          name: `${sym} Latest Quote`,
+          name: `${sym} giá tham chiếu gần nhất`,
           url: pageUrl,
           price: Number(stock.price.toFixed(2)),
           priceCurrency: 'VND',
