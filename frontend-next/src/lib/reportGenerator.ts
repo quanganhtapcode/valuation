@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
-import { API_BASE } from './api';
+import { API_BASE } from './apiCore';
 
 // ─── Color constants ─────────────────────────────────────────────────────────
 const DARK         = '1E293B';
