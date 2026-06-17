@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
     createChart,
     IChartApi,
@@ -12,7 +12,7 @@ import {
     CrosshairMode,
     MouseEventParams,
 } from 'lightweight-charts';
-import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, ValuationStats, isTradingHours } from '@/lib/api';
+import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, isTradingHours } from '@/lib/api';
 import { cx } from '@/lib/utils';
 import { RiHistoryLine } from '@remixicon/react';
 import IndexHistoryModal from '@/components/IndexCard/IndexHistoryModal';
@@ -93,12 +93,6 @@ function fmtVal(n: number): string {
     return ty >= 1000 ? `${(ty / 1000).toFixed(2)} N.Tỷ` : `${ty.toFixed(2)} Tỷ`;
 }
 
-function toNum(v: unknown): number | null {
-    if (typeof v === 'number' && Number.isFinite(v)) return v;
-    if (typeof v === 'string') { const p = Number(v); return Number.isFinite(p) ? p : null; }
-    return null;
-}
-
 function buildTheme(isDark: boolean) {
     return {
         isDark,
@@ -161,7 +155,6 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
     // ── Data state ────────────────────────────────────────────────────────────
     const [vnRows,   setVnRows]   = useState<PEChartData[]>([]);
-    const [vnStats,  setVnStats]  = useState<{ pe?: ValuationStats; pb?: ValuationStats }>({});
     const [vnLoad,   setVnLoad]   = useState(false);
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
@@ -188,7 +181,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         if (vnRows.length > 0) return;
         setVnLoad(true);
         fetchPEChartByRange('ALL', 'both')
-            .then(r => { setVnRows(r.series); setVnStats(r.stats); })
+            .then(r => { setVnRows(r.series); })
             .catch(console.error)
             .finally(() => setVnLoad(false));
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -221,7 +214,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             })
             .catch(console.error)
             .finally(() => setIdxLoad(false));
-    }, [selectedId, isVN]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [selectedId, isVN]);
 
     // ── Derive chart series from data + range ─────────────────────────────────
     const cutoff = cutoffISO(range);
@@ -319,7 +312,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         const vol = chart.addSeries(HistogramSeries, {
             priceFormat:      { type: 'volume' },
             priceScaleId:     '',
-            // @ts-ignore — scaleMargins works at runtime in lightweight-charts v5
+            // @ts-expect-error scaleMargins works at runtime in lightweight-charts v5.
             scaleMargins:     { top: 0.90, bottom: 0 },
             priceLineVisible: false,
             lastValueVisible: false,

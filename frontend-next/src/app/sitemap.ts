@@ -1,16 +1,22 @@
 import { MetadataRoute } from 'next';
 import { readFile } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { siteConfig } from '@/app/siteConfig';
+
+export const revalidate = 86400;
 
 function normalizeSymbol(raw: unknown): string {
   return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
 }
 
-async function loadStockSymbols(): Promise<string[]> {
+async function loadStockSymbols(): Promise<{ symbols: string[]; lastModified: Date }> {
   try {
     const filePath = path.join(process.cwd(), 'public', 'ticker_data.json');
-    const raw = await readFile(filePath, 'utf8');
+    const [raw, fileStat] = await Promise.all([
+      readFile(filePath, 'utf8'),
+      stat(filePath),
+    ]);
     const parsed = JSON.parse(raw);
     const tickers = Array.isArray(parsed?.tickers) ? parsed.tickers : [];
     const deduped = new Set<string>();
@@ -20,9 +26,15 @@ async function loadStockSymbols(): Promise<string[]> {
       if (sym) deduped.add(sym);
     }
 
-    return Array.from(deduped);
+    return {
+      symbols: Array.from(deduped),
+      lastModified: fileStat.mtime,
+    };
   } catch {
-    return [];
+    return {
+      symbols: [],
+      lastModified: new Date(),
+    };
   }
 }
 
@@ -46,10 +58,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteConfig.url}/disclaimer`,  lastModified: now, changeFrequency: 'yearly',  priority: 0.2 },
   ];
 
-  const symbols = await loadStockSymbols();
+  const { symbols, lastModified: stockLastModified } = await loadStockSymbols();
   const stockRoutes: MetadataRoute.Sitemap = symbols.map((symbol) => ({
     url: `${siteConfig.url}/stock/${symbol}`,
-    lastModified: now,
+    lastModified: stockLastModified,
     changeFrequency: 'daily',
     priority: 0.7,
   }));

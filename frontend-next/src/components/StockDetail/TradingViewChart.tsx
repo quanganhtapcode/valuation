@@ -356,7 +356,6 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             candlestickSeriesRef.current = null;
             volumeSeriesRef.current = null;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Sync dark mode ───────────────────────────────────────────────────────

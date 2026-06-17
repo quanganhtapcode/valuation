@@ -1,27 +1,49 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback, useRef } from 'react';
+import { useState, useEffect, useTransition, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
 import { useWatchlist } from '@/lib/watchlistContext';
 import { RiStarFill, RiStarLine } from '@remixicon/react';
 import styles from './page.module.css';
-import OverviewTab from '@/components/StockDetail/OverviewTab';
-import FinancialsTab from '@/components/StockDetail/FinancialsTab';
-import PriceHistoryTab from '@/components/StockDetail/PriceHistoryTab';
-import ValuationTab from '@/components/StockDetail/ValuationTab';
-import AnalysisTab from '@/components/StockDetail/AnalysisTab';
-import HoldersTab from '@/components/StockDetail/HoldersTab';
-import VciNewsFeed from '@/components/StockDetail/VciNewsFeed';
-import TechnicalTab from '@/components/StockDetail/TechnicalTab';
 import { getTickerData } from '@/lib/tickerCache';
 import { siteConfig } from '@/app/siteConfig';
 import { useLanguage } from "@/lib/languageContext";
 import { translations } from "@/lib/translations";
 
+type StockTabId = 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical';
+
+function TabLoading() {
+    return (
+        <div className="flex items-center justify-center p-10">
+            <div className="spinner" />
+        </div>
+    );
+}
+
+const OverviewTab = dynamic(() => import('@/components/StockDetail/OverviewTab'), { loading: TabLoading });
+const FinancialsTab = dynamic(() => import('@/components/StockDetail/FinancialsTab'), { loading: TabLoading });
+const PriceHistoryTab = dynamic(() => import('@/components/StockDetail/PriceHistoryTab'), { loading: TabLoading });
+const ValuationTab = dynamic(() => import('@/components/StockDetail/ValuationTab'), { loading: TabLoading });
+const AnalysisTab = dynamic(() => import('@/components/StockDetail/AnalysisTab'), { loading: TabLoading });
+const HoldersTab = dynamic(() => import('@/components/StockDetail/HoldersTab'), { loading: TabLoading });
+const VciNewsFeed = dynamic(() => import('@/components/StockDetail/VciNewsFeed'), { loading: TabLoading });
+const TechnicalTab = dynamic(() => import('@/components/StockDetail/TechnicalTab'), { loading: TabLoading });
+
 function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
+}
+
+function scheduleIdleWork(callback: () => void, timeout = 1200): () => void {
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        const idleId = window.requestIdleCallback(callback, { timeout });
+        return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timer = window.setTimeout(callback, Math.min(timeout, 300));
+    return () => window.clearTimeout(timer);
 }
 
 interface StockInfo {
@@ -95,39 +117,20 @@ export default function StockDetailPage() {
     const [isDescExpanded, setIsDescExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical'>('overview');
-    const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['overview']));
+    const [activeTab, setActiveTab] = useState<StockTabId>('overview');
+    const [visitedTabs, setVisitedTabs] = useState<Set<StockTabId>>(new Set<StockTabId>(['overview']));
     const [, startTransition] = useTransition();
     const [financialPeriod, setFinancialPeriod] = useState<'quarter' | 'year'>('quarter');
-    const [prefetchedChartData, setPrefetchedChartData] = useState<any>(null);
-    const [isHistoryLoading, setIsHistoryLoading] = useState(true);
     const [rawOverviewData, setRawOverviewData] = useState<StockApiData | null>(null);
     const [news, setNews] = useState<any[]>([]);
     const [epsHistory, setEpsHistory] = useState<Array<{ year: number; eps: number }>>([]);
 
-    const handleTabChange = useCallback((nextTab: 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical') => {
+    const handleTabChange = useCallback((nextTab: StockTabId) => {
         if (nextTab === activeTab) return;
         startTransition(() => {
             setActiveTab(nextTab);
         });
     }, [activeTab, startTransition]);
-
-    // SHARED DATA: Fetch historical-chart-data ONCE, share with FinancialsTab & AnalysisTab
-    useEffect(() => {
-        if (!symbol) return;
-        setIsHistoryLoading(true);
-        const controller = new AbortController();
-        fetch(`/api/stock/${symbol}/historical-chart-data?period=quarter`, { signal: controller.signal })
-            .then(r => r.ok ? r.json() : null)
-            .then(res => {
-                if (res?.success && res.data) {
-                    setPrefetchedChartData(res); // pass full response so consumers can parse
-                }
-            })
-            .catch(() => { })
-            .finally(() => setIsHistoryLoading(false));
-        return () => controller.abort();
-    }, [symbol]);
 
     // New state for chart loading
     const [isChartLoading, setIsChartLoading] = useState(false);
@@ -150,6 +153,7 @@ export default function StockDetailPage() {
         if (!symbol) return;
 
         const controller = new AbortController();
+        const idleCleanups: Array<() => void> = [];
 
         async function loadData() {
             setIsLoading(true);
@@ -158,7 +162,7 @@ export default function StockDetailPage() {
             try {
                 // Start realtime price request immediately so it runs in parallel
                 // with ticker/overview fetching instead of waiting for them.
-                const realtimePricePromise = fetch(`/api/stock/${symbol}/current-price`)
+                const realtimePricePromise = fetch(`/api/stock/${symbol}/current-price`, { signal: controller.signal })
                     .then(r => r.ok ? r.json() : null)
                     .catch(() => null);
 
@@ -267,48 +271,43 @@ export default function StockDetailPage() {
                 // Render Header immediately with DB data
                 setIsLoading(false);
 
-                // PHASE 2: Fetch news and EPS history in parallel
-                fetch(`/api/stock/${symbol}/news`, { signal: controller.signal })
-                    .then(r => r.ok ? r.json() : null)
-                    .then(res => {
-                        console.log('[News API] Response:', res);
-                        // API returns {success: true, data: [...]}
-                        const newsData = res?.data || res;
-                        console.log('[News API] Extracted data:', newsData, 'isArray:', Array.isArray(newsData));
-                        if (Array.isArray(newsData) && newsData.length > 0) {
-                            setNews(newsData.slice(0, 6));
-                            console.log('[News API] Set news:', newsData.slice(0, 6).length, 'items');
-                        } else {
-                            console.warn('[News API] No news data or invalid format');
-                        }
-                    })
-                    .catch(err => console.error('[News API] Error:', err));
-
-                // Fetch EPS history from income statement SQLite
-                fetch(`/api/stock/${symbol}/financial-report?type=income&period=year&limit=10`, { signal: controller.signal })
-                    .then(r => r.ok ? r.json() : null)
-                    .then(res => {
-                        console.log('[EPS API] Response:', res);
-                        const rows = res?.data || res;
-                        console.log('[EPS API] Rows:', Array.isArray(rows) ? rows.length : 'not array');
-                        if (Array.isArray(rows) && rows.length > 0) {
-                            // Extract EPS (isa23 = basic EPS) from income statement
-                            const epsHistory = rows
-                                .filter((row: any) => row.isa23 !== null && row.isa23 !== undefined)
-                                .map((row: any) => ({
-                                    year: row.year || row.year_report || 0,
-                                    eps: Number(row.isa23) || 0,
-                                }))
-                                .filter((item: any) => item.eps > 0)
-                                .sort((a: any, b: any) => a.year - b.year);
-                            console.log('[EPS API] Extracted EPS history:', epsHistory);
-                            if (epsHistory.length > 0) {
-                                setEpsHistory(epsHistory);
-                                console.log('[EPS API] Set EPS history:', epsHistory.length, 'items');
+                // PHASE 2: Non-critical overview enrichments. Keep them off the
+                // critical path so first paint is not competing with extra API calls.
+                idleCleanups.push(scheduleIdleWork(() => {
+                    fetch(`/api/stock/${symbol}/news`, { signal: controller.signal })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(res => {
+                            const newsData = res?.data || res;
+                            if (Array.isArray(newsData) && newsData.length > 0) {
+                                setNews(newsData.slice(0, 6));
                             }
-                        }
-                    })
-                    .catch(err => console.error('[EPS API] Error:', err));
+                        })
+                        .catch(err => {
+                            if (!controller.signal.aborted) console.error('[News API] Error:', err);
+                        });
+
+                    fetch(`/api/stock/${symbol}/financial-report?type=income&period=year&limit=10`, { signal: controller.signal })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(res => {
+                            const rows = res?.data || res;
+                            if (Array.isArray(rows) && rows.length > 0) {
+                                const epsHistory = rows
+                                    .filter((row: any) => row.isa23 !== null && row.isa23 !== undefined)
+                                    .map((row: any) => ({
+                                        year: row.year || row.year_report || 0,
+                                        eps: Number(row.isa23) || 0,
+                                    }))
+                                    .filter((item: any) => item.eps > 0)
+                                    .sort((a: any, b: any) => a.year - b.year);
+                                if (epsHistory.length > 0) {
+                                    setEpsHistory(epsHistory);
+                                }
+                            }
+                        })
+                        .catch(err => {
+                            if (!controller.signal.aborted) console.error('[EPS API] Error:', err);
+                        });
+                }));
 
                 // PHASE 2: Apply real-time price when available
                 const priceRes = await realtimePricePromise;
@@ -353,16 +352,14 @@ export default function StockDetailPage() {
         loadData();
 
         return () => {
+            idleCleanups.forEach(cleanup => cleanup());
             controller.abort();
         };
     }, [symbol, lang]);
 
     // ── WebSocket: Real-time price stream (VCI) ────────────────────────────
-    const wsSymbolRef = useRef<string>('');
-
     useEffect(() => {
         if (!symbol) return;
-        wsSymbolRef.current = symbol;
 
         const unsub = subscribePricesStream({
             onData: (data: any) => {
@@ -424,7 +421,6 @@ export default function StockDetailPage() {
 
         return () => {
             unsub();
-            wsSymbolRef.current = '';
         };
     }, [symbol]);
 
@@ -434,12 +430,13 @@ export default function StockDetailPage() {
     // 1. Fetch FULL PRICE History Once (Independent)
     useEffect(() => {
         if (!symbol) return;
+        const controller = new AbortController();
 
         async function loadFullHistory() {
             setIsChartLoading(true);
             try {
                 // Fetch ALL history (defaults to 5 years/ALL in backend)
-                const res = await fetch(`/api/stock/history/${symbol}?period=ALL`);
+                const res = await fetch(`/api/stock/history/${symbol}?period=ALL`, { signal: controller.signal });
                 if (res.ok) {
                     const json = await res.json();
                     const rawData = json.data || json.Data || json || [];
@@ -486,12 +483,16 @@ export default function StockDetailPage() {
                     }
                 }
             } catch (e) {
-                console.error("Fetch full history failed", e);
+                if (!controller.signal.aborted) console.error("Fetch full history failed", e);
             } finally {
                 setIsChartLoading(false);
             }
         }
-        loadFullHistory();
+        const cancelIdle = scheduleIdleWork(loadFullHistory, 900);
+        return () => {
+            cancelIdle();
+            controller.abort();
+        };
     }, [symbol]);
 
     // 2. Use all data (infinite range)
@@ -668,7 +669,7 @@ export default function StockDetailPage() {
                             <button
                                 key={tab.id}
                                 type="button"
-                                onClick={() => handleTabChange(tab.id as 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical')}
+                                onClick={() => handleTabChange(tab.id as StockTabId)}
                                 className={classNames(
                                     'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] font-medium transition-colors',
                                     activeTab === tab.id
@@ -716,9 +717,7 @@ export default function StockDetailPage() {
                             symbol={symbol}
                             period={financialPeriod}
                             setPeriod={setFinancialPeriod}
-                            initialChartData={prefetchedChartData}
                             initialOverviewData={rawOverviewData}
-                            isLoading={isHistoryLoading}
                             onDownloadExcel={handleDownloadExcel}
                         />
                     </div>

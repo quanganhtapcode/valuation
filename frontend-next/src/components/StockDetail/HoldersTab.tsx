@@ -81,9 +81,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         if (!symbol) return;
 
         const controller = new AbortController();
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(true);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setError(null);
 
         fetch(`${API_BASE}/stock/holders/${symbol}`, {
@@ -115,10 +113,8 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
 
     useEffect(() => {
         if (institutional.length >= individuals.length && institutional.length > 0) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setActiveView('institutional');
         } else if (individuals.length > 0) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setActiveView('individuals');
         }
     }, [institutional.length, individuals.length]);

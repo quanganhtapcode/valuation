@@ -70,7 +70,6 @@ export default React.memo(function IndexCard({
     value,
     change,
     percentChange,
-    chartData: _chartData = [],
     advances = 0,
     declines = 0,
     noChanges = 0,

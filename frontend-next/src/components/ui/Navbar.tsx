@@ -49,7 +49,7 @@ export function Navbar() {
     const { lang } = useLanguage()
     const t = translations[lang].nav
 
-    const NAV_GROUPS = [
+    const NAV_GROUPS = useMemo(() => [
         {
             id: "market",
             label: t.market,
@@ -69,7 +69,7 @@ export function Navbar() {
                 { label: t.news, href: "https://stock.quanganh.org/news", icon: RiCalendarEventLine, desc: t.newsDesc },
             ],
         },
-    ]
+    ], [t])
 
     const scrolled = useScroll(15)
     const [open, setOpen] = React.useState(false)
@@ -98,7 +98,7 @@ export function Navbar() {
             if (mobileExpanded === g.id) h += g.items.length * SUB_ITEM_H + 4;
         });
         return h + 8; // small buffer
-    }, [mobileExpanded]);
+    }, [mobileExpanded, NAV_GROUPS]);
 
     // Close everything on navigation
     useEffect(() => {

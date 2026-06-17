@@ -1,12 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import HeroIndexCard from '@/components/HeroIndexCard';
-import NewsSection from '@/components/NewsSection';
-
-import { CryptoPrices, FFWorldMarkets, FFForexRates, GoldPrice, Lottery, MarketPulse, WatchlistCard } from '@/components/Sidebar';
-import { HeatmapVN30 } from '@/components/HeatmapVN30';
-import { EarningsSeason } from '@/components/EarningsSeason';
+import dynamic from 'next/dynamic';
 import {
     fetchAllIndices,
     subscribeIndicesStream,
@@ -25,6 +20,48 @@ import {
 import styles from './page.module.css';
 
 const MOVERS_REFRESH_INTERVAL_MS = 30000;
+
+function PanelSkeleton({ height = 'h-40' }: { height?: string }) {
+    return (
+        <div className={`rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${height}`}>
+            <div className="h-full animate-pulse bg-slate-100 dark:bg-slate-800/60" />
+        </div>
+    );
+}
+
+const HeroIndexCard = dynamic(() => import('@/components/HeroIndexCard'), {
+    loading: () => <PanelSkeleton height="h-[440px]" />,
+});
+const NewsSection = dynamic(() => import('@/components/NewsSection'), {
+    loading: () => <PanelSkeleton height="h-80" />,
+});
+const HeatmapVN30 = dynamic(() => import('@/components/HeatmapVN30').then(mod => mod.HeatmapVN30), {
+    loading: () => <PanelSkeleton height="h-[620px]" />,
+});
+const EarningsSeason = dynamic(() => import('@/components/EarningsSeason').then(mod => mod.EarningsSeason), {
+    loading: () => <PanelSkeleton height="h-72" />,
+});
+const WatchlistCard = dynamic(() => import('@/components/Sidebar/WatchlistCard'), {
+    loading: () => <PanelSkeleton height="h-52" />,
+});
+const MarketPulse = dynamic(() => import('@/components/Sidebar/MarketPulse'), {
+    loading: () => <PanelSkeleton height="h-64" />,
+});
+const FFWorldMarkets = dynamic(() => import('@/components/Sidebar/FFWorldMarkets'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+const FFForexRates = dynamic(() => import('@/components/Sidebar/FFForexRates'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+const CryptoPrices = dynamic(() => import('@/components/Sidebar/CryptoPrices'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+const GoldPrice = dynamic(() => import('@/components/Sidebar/GoldPrice'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+const Lottery = dynamic(() => import('@/components/Sidebar/Lottery'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
 
 const PLACEHOLDER_INDICES: { id: string; name: string }[] = Object.entries(INDEX_MAP).map(([, info]) => ({
     id: info.id,

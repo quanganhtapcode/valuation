@@ -14,7 +14,6 @@ import {
     TableCell,
 } from '@tremor/react';
 import { LineChart } from '@tremor/react';
-import { formatNumber } from '@/lib/api';
 import { cx } from '@/lib/utils';
 import BankingPeerTable from './BankingPeerTable';
 

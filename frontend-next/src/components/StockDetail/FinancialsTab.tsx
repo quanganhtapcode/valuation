@@ -17,9 +17,7 @@ interface FinancialsTabProps {
     symbol: string;
     period?: 'quarter' | 'year';
     setPeriod?: (p: 'quarter' | 'year') => void;
-    initialChartData?: any;
     initialOverviewData?: any;
-    isLoading?: boolean;
     onDownloadExcel?: () => void;
 }
 
@@ -694,16 +692,12 @@ function SettingsPopover({
 function SectionedTable({
     sections,
     rows,
-    displayUnit,
-    fieldLabels,
     getRowLabel,
     getSectionTitle,
     divisor,
 }: {
     sections: { title: string; rows: { key: string; label: string; isTotal?: boolean; isGrandTotal?: boolean; isPct?: boolean; isMultiple?: boolean; indent?: boolean }[]; isPctSection?: boolean }[];
     rows: any[];
-    displayUnit: DisplayUnit;
-    fieldLabels?: Record<string, string>;
     getRowLabel?: (key: string, fallback: string) => string;
     getSectionTitle?: (rawTitle: string) => string;
     divisor?: number;
@@ -873,13 +867,11 @@ function buildKeyStatsData(
 function KeyStatsTable({
     metrics,
     data,
-    displayUnit,
     getMetricLabel,
     divisor,
 }: {
     metrics: typeof NORMAL_KEY_METRICS;
     data: Record<string, any>;
-    displayUnit: DisplayUnit;
     getMetricLabel?: (key: string, fallback: string) => string;
     divisor?: number;
 }) {
@@ -970,12 +962,9 @@ export default function FinancialsTab({
     symbol,
     period,
     setPeriod,
-    initialChartData,
     initialOverviewData,
-    isLoading: parentLoading = false,
     onDownloadExcel,
 }: FinancialsTabProps) {
-    const [loading, setLoading] = useState(false);
     const [reportLoading, setReportLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<ReportType>('key_stats');
     // Initialise from parent prop; 'year' maps to 'annual', 'quarter' to 'quarterly'
@@ -991,8 +980,6 @@ export default function FinancialsTab({
         ratios: [],
         notes: [],
     });
-    const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
-
     // ── i18n ─────────────────────────────────────────────────────────────────
 
     const { lang } = useLanguage()
@@ -1080,23 +1067,6 @@ export default function FinancialsTab({
         if (initialOverviewData) setOverviewData(initialOverviewData);
     }, [initialOverviewData]);
 
-    // Fetch field labels
-    useEffect(() => {
-        Promise.allSettled([
-            fetch(`/api/stock/${symbol}/financial-report-metrics?type=income`).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report-metrics?type=balance`).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report-metrics?type=cashflow`).then(r => r.json()),
-        ]).then(([incomeMeta, balanceMeta, cashflowMeta]) => {
-            const unwrap = (res: PromiseSettledResult<any>) => {
-                if (res.status !== 'fulfilled' || !res.value) return {};
-                return res.value.field_map || res.value.field_map_en || {};
-            };
-            const labels: Record<string, string> = {};
-            Object.assign(labels, unwrap(incomeMeta), unwrap(balanceMeta), unwrap(cashflowMeta));
-            setFieldLabels(labels);
-        }).catch(() => {});
-    }, [symbol]);
-
     // Fetch financial reports
     useEffect(() => {
         const controller = new AbortController();
@@ -1130,15 +1100,6 @@ export default function FinancialsTab({
     }, [symbol, effectivePeriod]);
 
     // ── Render ────────────────────────────────────────────────────────────────
-
-    if (loading || parentLoading) {
-        return (
-            <div className="flex items-center justify-center p-12">
-                <div className="spinner" />
-                <span className="ml-3 text-sm text-gray-500">Loading data...</span>
-            </div>
-        );
-    }
 
     const isBank = isBankStock(symbol, overviewData);
     const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Key Stats';
@@ -1206,7 +1167,6 @@ export default function FinancialsTab({
                             <KeyStatsTable
                                 metrics={isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS}
                                 data={buildKeyStatsData(overviewData, reportData.income, reportData.balance, reportData.cashflow)}
-                                displayUnit={displayUnit}
                                 getMetricLabel={metricLabel}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                             />
@@ -1217,8 +1177,6 @@ export default function FinancialsTab({
                             <SectionedTable
                                 sections={isBank ? BANK_INCOME_SECTIONS : INCOME_SECTIONS}
                                 rows={reportData.income}
-                                displayUnit={displayUnit}
-                                fieldLabels={fieldLabels}
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
@@ -1230,8 +1188,6 @@ export default function FinancialsTab({
                             <SectionedTable
                                 sections={isBank ? BANK_BALANCE_SECTIONS : BALANCE_SECTIONS}
                                 rows={reportData.balance}
-                                displayUnit={displayUnit}
-                                fieldLabels={fieldLabels}
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
@@ -1243,8 +1199,6 @@ export default function FinancialsTab({
                             <SectionedTable
                                 sections={isBank ? BANK_CASHFLOW_SECTIONS : CASHFLOW_SECTIONS}
                                 rows={reportData.cashflow}
-                                displayUnit={displayUnit}
-                                fieldLabels={fieldLabels}
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
@@ -1256,8 +1210,6 @@ export default function FinancialsTab({
                             <SectionedTable
                                 sections={RATIOS_SECTIONS}
                                 rows={reportData.ratios}
-                                displayUnit={displayUnit}
-                                fieldLabels={fieldLabels}
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
@@ -1269,7 +1221,6 @@ export default function FinancialsTab({
                             <SectionedTable
                                 sections={isBank ? BANK_NOTES_SECTIONS : NORMAL_NOTES_SECTIONS}
                                 rows={reportData.notes}
-                                displayUnit={displayUnit}
                                 getSectionTitle={s => s}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                             />
