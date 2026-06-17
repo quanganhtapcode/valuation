@@ -4,24 +4,40 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AreaChart, BarChart, Card } from '@tremor/react';
 import { API } from '@/lib/api';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
-
-// ── Downsample: keep last N points for display ────────────────────────────────
-// Recharts tooltip is O(n) on every mousemove — keep points low to avoid lag.
-const MAX_MONTHLY  = 36;   // 3 years of monthly data
-const MAX_QUARTERLY = 20;  // 5 years of quarterly
-const MAX_ANNUAL   = 20;   // 20 years annual
-const MAX_DAILY    = 60;   // ~3 months of daily
-
-function downsample<T>(arr: T[], max: number): T[] {
-    return arr.length > max ? arr.slice(arr.length - max) : arr;
-}
-
-function limitByFreq<T>(arr: T[], freq: string): T[] {
-    if (freq.includes('ngày') || freq.includes('ngay')) return downsample(arr, MAX_DAILY);
-    if (freq.includes('tháng') || freq.includes('thang')) return downsample(arr, MAX_MONTHLY);
-    if (freq.includes('quý') || freq.includes('Quý')) return downsample(arr, MAX_QUARTERLY);
-    return downsample(arr, MAX_ANNUAL);
-}
+import {
+    FA_COLORS,
+    FF_ALL_INDEX_CHANNELS,
+    FF_AMERICAS_CHANNELS,
+    FF_ASIA_CHANNELS,
+    FF_EUROPE_CHANNELS,
+    FF_FOREX_CHANNELS,
+    FF_TO_YAHOO,
+    KEY_STATS,
+    RANGE_OPTIONS,
+    RATES_REFRESH_MS,
+    TV_CONFIGS,
+    VIETNAM_SUBTABS,
+    VIETNAM_TAB_FA,
+    VIETNAM_TAB_TV,
+    calcYAxisWidth,
+    fmtMilVND,
+    fmtTrVND,
+    fmtUsdChange,
+    fmtUsdPrice,
+    fmtVndChange,
+    fmtVndPrice,
+    getMarketSessions,
+    limitByFreq,
+    normalizeColor,
+    type DetailSelection,
+    type FAData,
+    type FAIndicator,
+    type FFCardDef,
+    type PricePoint,
+    type RateItem,
+    type RatesData,
+    type VietnamSubTabId,
+} from './config';
 
 // ── Lazy section: only mount children when scrolled into view ─────────────────
 function LazySection({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -35,66 +51,6 @@ function LazySection({ children, className }: { children: React.ReactNode; class
         return () => obs.disconnect();
     }, []);
     return <div ref={ref} className={className}>{vis ? children : <div className="h-[260px] rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />}</div>;
-}
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface RateItem {
-    symbol: string;
-    name: string;
-    price: number;
-    change: number;
-    changePercent: number;
-    unit?: string;
-}
-interface PricePoint { date: string; close: number }
-
-interface RatesData {
-    exchange_rates: RateItem[];
-    commodities:    RateItem[];
-}
-
-// FireAnt types
-interface FAIndicator {
-    id: number;
-    nameVN: string;
-    name: string;
-    unit: string;
-    frequency: string;
-    source?: string;
-    lastValue: number | null;
-    lastDate: string;
-    data: { date: string; value: number }[];
-}
-type FAData = Record<string, FAIndicator[]>;   // type → indicators[]
-
-const RANGE_OPTIONS = [
-    { label: '1T', days: 30 },
-    { label: '3T', days: 90 },
-    { label: '6T', days: 180 },
-    { label: '1N', days: 365 },
-    { label: '3N', days: 1095 },
-] as const;
-
-const RATES_REFRESH_MS = 5 * 60 * 1000;
-
-// ── Formatters ────────────────────────────────────────────────────────────────
-
-function fmtVndPrice(val: number) {
-    if (val >= 1000) return val.toLocaleString('en-US', { maximumFractionDigits: 0 });
-    if (val >= 10)   return val.toFixed(2);
-    return val.toFixed(4);
-}
-function fmtUsdPrice(val: number) {
-    if (val >= 1000) return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return val.toFixed(2);
-}
-function fmtVndChange(val: number) {
-    const abs = Math.abs(val);
-    return `${val >= 0 ? '+' : '-'}${abs >= 10 ? abs.toFixed(0) : abs.toFixed(2)}`;
-}
-function fmtUsdChange(val: number) {
-    return `${val >= 0 ? '+' : '-'}${Math.abs(val).toFixed(2)}`;
 }
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
@@ -219,59 +175,6 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
     );
 }
 
-// ── FF live channel definitions ───────────────────────────────────────────────
-
-const FF_FOREX_CHANNELS = [
-    { channel: 'EUR/USD',  label: 'EUR/USD',  fmt: (p: number) => p.toFixed(4) },
-    { channel: 'GBP/USD',  label: 'GBP/USD',  fmt: (p: number) => p.toFixed(4) },
-    { channel: 'USD/JPY',  label: 'USD/JPY',  fmt: (p: number) => p.toFixed(2) },
-    { channel: 'AUD/USD',  label: 'AUD/USD',  fmt: (p: number) => p.toFixed(4) },
-    { channel: 'USD/CHF',  label: 'USD/CHF',  fmt: (p: number) => p.toFixed(4) },
-    { channel: 'USD/CAD',  label: 'USD/CAD',  fmt: (p: number) => p.toFixed(4) },
-    { channel: 'NZD/USD',  label: 'NZD/USD',  fmt: (p: number) => p.toFixed(4) },
-] as const;
-
-const FF_ASIA_CHANNELS = [
-    { channel: 'Nikkei225/USD', label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-    { channel: 'ASX/USD',       label: 'ASX 200',    fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-] as const;
-
-const FF_EUROPE_CHANNELS = [
-    { channel: 'DAX/USD',     label: 'DAX',          fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-    { channel: 'FTSE100/USD', label: 'FTSE 100',     fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-    { channel: 'CAC/USD',     label: 'CAC 40',       fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-    { channel: 'STOXX50/USD', label: 'Euro Stoxx 50',fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-] as const;
-
-const FF_AMERICAS_CHANNELS = [
-    { channel: 'SPX/USD',    label: 'S&P 500',      fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-    { channel: 'NDX/USD',    label: 'Nasdaq 100',   fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-    { channel: 'Dow/USD',    label: 'Dow Jones',    fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-    { channel: 'US2000/USD', label: 'Russell 2000', fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
-    { channel: 'VIX/USD',    label: 'VIX',          fmt: (p: number) => p.toFixed(2) },
-    { channel: 'DXY/USD',    label: 'USD Index',    fmt: (p: number) => p.toFixed(2) },
-] as const;
-
-const FF_ALL_INDEX_CHANNELS = [...FF_ASIA_CHANNELS, ...FF_EUROPE_CHANNELS, ...FF_AMERICAS_CHANNELS];
-
-// FF commodity → Yahoo symbol mapping
-const FF_TO_YAHOO: Record<string, string> = {
-    'Gold/USD': 'GC=F', 'WTI/USD': 'CL=F', 'Silver/USD': 'SI=F', 'Brent/USD': 'BZ=F',
-};
-
-// ── Market session detector ────────────────────────────────────────────────────
-function getMarketSessions(): { asia: boolean; europe: boolean; americas: boolean } {
-    const d = new Date();
-    const dow = d.getUTCDay();
-    if (dow === 0 || dow === 6) return { asia: false, europe: false, americas: false };
-    const t = d.getUTCHours() * 60 + d.getUTCMinutes();
-    return {
-        asia:     t < 390 || (t >= 1380 && dow !== 6),
-        europe:   t >= 420 && t < 930,
-        americas: t >= 810 && t < 1200,
-    };
-}
-
 function SessionBadge({ open, tz }: { open: boolean; tz: string }) {
     return (
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
@@ -284,8 +187,6 @@ function SessionBadge({ open, tz }: { open: boolean; tz: string }) {
         </span>
     );
 }
-
-interface FFCardDef { channel: string; label: string; fmt: (p: number) => string }
 
 function FFLiveCard({ def, snap }: { def: FFCardDef; snap: FFPrice | undefined }) {
     const up        = (snap?.changePercent ?? 0) >= 0;
@@ -357,149 +258,6 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
             )}
         </div>
     );
-}
-
-// ── Y-axis width: auto-size based on longest label ───────────────────────────
-function calcYAxisWidth(values: number[], fmt: (v: number) => string): number {
-    if (!values.length) return 56;
-    const maxLen = Math.max(...values.map(v => fmt(v).length));
-    return Math.max(44, Math.min(96, maxLen * 7 + 10));
-}
-
-// ── TradingView chart card (generic — all 28 ECONOMICS symbols) ───────────────
-
-const fmtPct     = (v: number) => `${v.toFixed(2)}%`;
-const fmtBillUSD = (v: number) => `${(v / 1e9).toFixed(1)} tỷ $`;
-const fmtTrVND   = (v: number) => `${(v / 1e12).toFixed(0)} nghìn tỷ ₫`;
-const fmtMilVND  = (v: number) => `${(v / 1e6).toFixed(1)} triệu ₫`;
-const fmtMilPpl  = (v: number) => `${(v / 1e6).toFixed(1)}M người`;
-const fmtUSD     = (v: number) => `$${v.toFixed(0)}`;
-const fmtUSDL    = (v: number) => `$${v.toFixed(2)}/L`;
-const fmtIdx     = (v: number) => v.toFixed(2);
-
-interface TVConfig {
-    titleVN: string;
-    source: string;
-    fmt: (v: number) => string;
-    unitLabel: string;
-    defaultDays: number;
-    color: string;
-    barChart?: boolean;
-    freq: 'daily' | 'monthly' | 'annual';
-    compareLag?: number;
-    compareLabel?: string;
-}
-
-const TV_CONFIGS: Record<string, TVConfig> = {
-    // Rates
-    'ECONOMICS:VNINBR': { titleVN: 'Lãi Suất Liên Ngân Hàng Qua Đêm', source: 'TradingView / NHNN · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 365, color: 'indigo', freq: 'daily', compareLag: 1, compareLabel: 'kỳ trước' },
-    'ECONOMICS:VNINTR': { titleVN: 'Lãi Suất Chính Sách', source: 'TradingView / NHNN · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'blue', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNDIR': { titleVN: 'Lãi Suất Tiền Gửi', source: 'TradingView / WB · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    // GDP
-    'ECONOMICS:VNGDPYY': { titleVN: 'Tăng Trưởng GDP (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'emerald', barChart: true, freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNGDPCP': { titleVN: 'GDP Thực Tế (hàng quý)', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'blue', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNGDPS': { titleVN: 'GDP - Dịch Vụ', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNGDPMAN': { titleVN: 'GDP - Công Nghiệp', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNGDPA': { titleVN: 'GDP - Nông Nghiệp', source: 'TradingView / GSO · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'lime', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNGDPPC': { titleVN: 'GDP Bình Quân Đầu Người', source: 'TradingView / WB · USD',
-        fmt: fmtUSD, unitLabel: 'USD', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    'ECONOMICS:VNGNP': { titleVN: 'GNP', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    'ECONOMICS:VNGFCF': { titleVN: 'Đầu Tư Tài Sản Cố Định', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'amber', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    // Prices
-    'ECONOMICS:VNIRYY': { titleVN: 'Lạm Phát (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'rose', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNCPI': { titleVN: 'Chỉ Số Giá Tiêu Dùng (CPI)', source: 'TradingView / GSO · chỉ số',
-        fmt: fmtIdx, unitLabel: 'chỉ số', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNFI': { titleVN: 'Lạm Phát Thực Phẩm', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'amber', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNCIR': { titleVN: 'Lạm Phát Lõi', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'red', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNGASP': { titleVN: 'Giá Xăng Dầu', source: 'TradingView / VN · USD/lít',
-        fmt: fmtUSDL, unitLabel: 'USD/lít', defaultDays: 1095, color: 'yellow', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    // Money
-    'ECONOMICS:VNFER': { titleVN: 'Dự Trữ Ngoại Hối', source: 'TradingView / NHNN · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1825, color: 'emerald', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNM2': { titleVN: 'Cung Tiền M2', source: 'TradingView / WB · nghìn tỷ ₫',
-        fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    // Trade
-    'ECONOMICS:VNEXP': { titleVN: 'Xuất Khẩu', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'emerald', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNIMP': { titleVN: 'Nhập Khẩu', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'rose', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNBOT': { titleVN: 'Cán Cân Thương Mại', source: 'TradingView / Hải quan VN · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'blue', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNFDI': { titleVN: 'Đầu Tư Trực Tiếp Nước Ngoài (FDI)', source: 'TradingView / MPI · tỷ $',
-        fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'indigo', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    // Labour
-    'ECONOMICS:VNUR': { titleVN: 'Tỷ Lệ Thất Nghiệp', source: 'TradingView / GSO · %',
-        fmt: fmtPct, unitLabel: '%', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNWAG': { titleVN: 'Lương Bình Quân', source: 'TradingView / GSO · triệu ₫/tháng',
-        fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNMW': { titleVN: 'Lương Tối Thiểu', source: 'TradingView / MoLISA · triệu ₫/tháng',
-        fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    'ECONOMICS:VNPOP': { titleVN: 'Dân Số', source: 'TradingView / WB · triệu người',
-        fmt: fmtMilPpl, unitLabel: 'triệu người', defaultDays: 3650, color: 'slate', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    // Business & Consumer
-    'ECONOMICS:VNIPYY': { titleVN: 'Sản Lượng Công Nghiệp (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1095, color: 'orange', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNRSYY': { titleVN: 'Doanh Thu Bán Lẻ (YoY)', source: 'TradingView / GSO · %/năm',
-        fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1095, color: 'cyan', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-};
-const FA_COLORS: Record<string, string> = {
-    GDP: 'emerald', Prices: 'rose', Trade: 'blue', Labour: 'violet',
-    Money: 'amber', Consumer: 'cyan', Business: 'orange', InterestRate: 'indigo', Taxes: 'gray',
-};
-
-type VietnamSubTabId = 'growth' | 'prices' | 'trade' | 'money' | 'labour' | 'taxes';
-type DetailSelection = { kind: 'tv'; key: string } | { kind: 'fa'; key: number; type: string };
-type TremorColor = 'blue' | 'cyan' | 'emerald' | 'gray' | 'green' | 'indigo' | 'lime' | 'orange' | 'pink' | 'purple' | 'red' | 'rose' | 'sky' | 'slate' | 'teal' | 'violet' | 'yellow';
-
-const VIETNAM_SUBTABS: { id: VietnamSubTabId; label: string; subtitle: string }[] = [
-    { id: 'growth', label: 'Tăng trưởng', subtitle: 'GDP, cơ cấu ngành, đầu tư tài sản' },
-    { id: 'prices', label: 'Giá cả', subtitle: 'CPI, lạm phát, giá năng lượng' },
-    { id: 'trade', label: 'Thương mại', subtitle: 'Xuất nhập khẩu, cán cân, FDI' },
-    { id: 'money', label: 'Tiền tệ', subtitle: 'Lãi suất, M2, dự trữ ngoại hối' },
-    { id: 'labour', label: 'Lao động', subtitle: 'Việc làm, thu nhập, dân số' },
-    { id: 'taxes', label: 'Thuế', subtitle: 'Ngân sách và thuế' },
-];
-
-const VIETNAM_TAB_TV: Record<VietnamSubTabId, string[]> = {
-    growth: ['ECONOMICS:VNGDPYY', 'ECONOMICS:VNGDPPC', 'ECONOMICS:VNGNP', 'ECONOMICS:VNGFCF'],
-    prices: ['ECONOMICS:VNIRYY', 'ECONOMICS:VNCPI', 'ECONOMICS:VNCIR', 'ECONOMICS:VNFI', 'ECONOMICS:VNGASP'],
-    trade: ['ECONOMICS:VNBOT', 'ECONOMICS:VNEXP', 'ECONOMICS:VNIMP', 'ECONOMICS:VNFDI'],
-    money: ['ECONOMICS:VNINBR', 'ECONOMICS:VNINTR', 'ECONOMICS:VNFER', 'ECONOMICS:VNM2', 'ECONOMICS:VNDIR'],
-    labour: ['ECONOMICS:VNUR', 'ECONOMICS:VNWAG', 'ECONOMICS:VNMW', 'ECONOMICS:VNPOP', 'ECONOMICS:VNIPYY', 'ECONOMICS:VNRSYY'],
-    taxes: [],
-};
-
-const VIETNAM_TAB_FA: Record<VietnamSubTabId, string[]> = {
-    growth: ['GDP', 'Business'],
-    prices: ['Prices', 'Consumer'],
-    trade: [],
-    money: ['Money', 'InterestRate'],
-    labour: ['Labour'],
-    taxes: ['Taxes'],
-};
-
-const KEY_STATS: { sym: string; tab: VietnamSubTabId }[] = [
-    { sym: 'ECONOMICS:VNGDPYY', tab: 'growth' },
-    { sym: 'ECONOMICS:VNIRYY', tab: 'prices' },
-    { sym: 'ECONOMICS:VNBOT', tab: 'trade' },
-    { sym: 'ECONOMICS:VNINBR', tab: 'money' },
-];
-
-function normalizeColor(color: string): TremorColor {
-    return (color === 'amber' ? 'yellow' : color) as TremorColor;
 }
 
 function getSourceLabel(source: string) {
