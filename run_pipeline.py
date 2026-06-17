@@ -46,19 +46,7 @@ def _add_updater_to_path() -> None:
 
 
 def _load_symbols() -> list[str]:
-    """Load symbol list from symbols.txt, falling back to vci_screening."""
-    symbols_file = BASE_DIR / "symbols.txt"
-    if symbols_file.exists():
-        symbols = [
-            line.strip().upper()
-            for line in symbols_file.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
-        if symbols:
-            logger.info(f"Loaded {len(symbols)} symbols from symbols.txt")
-            return symbols
-
-    logger.warning("symbols.txt not found — querying vci_screening")
+    """Load the active symbol list from vci_screening."""
     import sqlite3
     try:
         from backend.db_path import resolve_vci_screening_db_path

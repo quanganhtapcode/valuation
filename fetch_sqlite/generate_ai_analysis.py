@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate Gemma 4 AI analysis for new quarterly financial reports.
+Generate AI analysis for new quarterly financial reports.
 
 Run after fetch_vci_financial_statement.py to analyze newly added tickers.
 
@@ -25,7 +25,7 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
 
-from backend.services.gemma_client import build_financial_prompt, build_combined_prompt, generate
+from backend.services.gemma_client import build_combined_prompt, generate
 from backend.db_path import (
     resolve_vci_technical_db_path,
 )
@@ -380,7 +380,7 @@ def build_rule_based_analysis(
 ) -> tuple[str, str]:
     """Generate analysis_json + news_json deterministically — no LLM call.
 
-    Returns (analysis_json_str, news_json_str) using the same schema as Gemma output.
+    Returns (analysis_json_str, news_json_str) using the same schema as AI output.
     news_json is the empty-news sentinel so AiInsightCard hides the news zone.
     """
     import json as _json
@@ -689,11 +689,11 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_mis
                 )
                 print(f"  [{ticker}] DRY RUN [{path}] — prompt {len(combined_prompt)} chars, news={len(recent_news)}")
             else:
-                print(f"  [{ticker}] DRY RUN [{path}] — news=0, skipping Gemma")
+                print(f"  [{ticker}] DRY RUN [{path}] — news=0, skipping LLM")
             continue
 
         if has_news:
-            # ── AI path: Gemma call ──────────────────────────────────────
+            # ── AI path: LLM call ──────────────────────────────────────
             combined_prompt = build_combined_prompt(
                 ticker=ticker, name=name, sector=sector, quarter=quarter_label,
                 forecast_years=forecast_years, technical=tech,
@@ -746,7 +746,7 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_mis
                 except Exception as e2:
                     print(f"  [{ticker}] fallback also failed: {e2}")
         else:
-            # ── Rule-based path: no Gemma call ───────────────────────────
+            # ── Rule-based path: no LLM call ───────────────────────────
             try:
                 analysis_json, news_json = build_rule_based_analysis(
                     ticker=ticker, name=name, sector=sector,
