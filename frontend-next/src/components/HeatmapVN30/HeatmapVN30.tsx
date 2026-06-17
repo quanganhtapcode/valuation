@@ -91,7 +91,7 @@ function changeColor(pct: number): string {
   return '#8bd071';
 }
 
-function textColor(_pct: number): string {
+function textColor(): string {
   return '#0f172a';
 }
 
@@ -265,7 +265,7 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
                     if (iw < 2 || ih < 2) return null;
 
                     const bg = changeColor(stock.change);
-                    const fg = textColor(stock.change);
+                    const fg = textColor();
                     const cx = ix + iw / 2;
                     const cy = iy + ih / 2;
                     const fs = Math.min(14, Math.max(8, Math.min(iw / 4.2, ih / 3.0)));

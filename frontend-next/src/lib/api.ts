@@ -11,6 +11,10 @@ export * from './stockApi';
 // API Base URL - prefer same-origin proxy (/api) for consistent caching/CORS
 // Can be overridden via NEXT_PUBLIC_API_URL environment variable
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+const REALTIME_API_BASE =
+    process.env.NEXT_PUBLIC_REALTIME_API_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_API_URL ||
+    'https://api.quanganh.org/v1/valuation';
 
 // Sync price refresh cadence with backend VCI polling loop (3 seconds).
 export const PRICE_SYNC_INTERVAL_MS = 15000;
@@ -22,9 +26,9 @@ export const API = {
     PE_CHART: `${API_BASE}/market/pe-chart`,
     EMA50_BREADTH: `${API_BASE}/market/ema50-breadth`,
     SCREENER: `${API_BASE}/market/screener`,
-    VCI_INDICES: `${API_BASE}/market/vci-indices`,
+    VCI_INDICES: `${REALTIME_API_BASE}/market/vci-indices`,
     NEWS: `${API_BASE}/market/news`,
-    TOP_MOVERS: `${API_BASE}/market/top-movers`,
+    TOP_MOVERS: `${REALTIME_API_BASE}/market/top-movers`,
     FOREIGN_FLOW: `${API_BASE}/market/foreign-flow`,
     FOREIGN_NET_VALUE: `${API_BASE}/market/foreign-net-value`,
     FOREIGN_VOLUME_CHART: `${API_BASE}/market/foreign-volume-chart`,
@@ -1109,6 +1113,7 @@ export interface AiAnalysisData {
     quarter?: string;
     analysis_vi?: string;
     analysis_json?: string;
+    news_json?: string;
     model?: string;
     generated_at?: string;
 }

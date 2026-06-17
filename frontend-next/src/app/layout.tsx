@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
 import MainWrapper from "@/components/ui/MainWrapper";
 import { ThemeProvider } from "next-themes";
-import { TickerTape } from "@/components/TickerTape";
+import { LazyTickerTape } from "@/components/TickerTape";
 import { ClientErrorBoundary } from "@/components/ui/ClientErrorBoundary";
 import { siteConfig } from "@/app/siteConfig";
 import { WatchlistProvider } from "@/lib/watchlistContext"
@@ -89,6 +89,13 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -136,18 +143,15 @@ export default function RootLayout({
 
   return (
     <html lang="vi" suppressHydrationWarning>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
-        />
-      </head>
       <body className={`${inter.className} ${inter.variable} min-h-screen scroll-auto antialiased selection:bg-indigo-100 selection:text-indigo-700 dark:bg-gray-950`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c") }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -156,7 +160,7 @@ export default function RootLayout({
           <LanguageProvider>
             <WatchlistProvider>
               <Navbar />
-              <TickerTape />
+              <LazyTickerTape />
               <ClientErrorBoundary>
                 <MainWrapper>{children}</MainWrapper>
               </ClientErrorBoundary>

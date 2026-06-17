@@ -25,9 +25,7 @@ export default function Lottery() {
     const [provIndex, setProvIndex] = useState(0);
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setProvIndex(0);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsLoading(true);
         fetchLottery(region)
             .then(setData)

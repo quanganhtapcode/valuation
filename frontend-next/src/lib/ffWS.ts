@@ -93,5 +93,3 @@ export function getFFWS(): FFWSManager {
   }
   return _manager;
 }
-
-if (typeof window !== 'undefined') getFFWS();
