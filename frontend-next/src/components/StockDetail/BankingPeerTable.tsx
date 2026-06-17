@@ -137,10 +137,12 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
 
     useEffect(() => {
         if (initialPeers && mode === 'quarter' && peers.length === 0) {
-            setPeers((initialPeers.data || []).map(normalizePeer));
-            setMedianPe(initialPeers.medianPe ?? null);
-            setPeriod(initialPeers.period ?? null);
-            setLoading(false);
+            queueMicrotask(() => {
+                setPeers((initialPeers.data || []).map(normalizePeer));
+                setMedianPe(initialPeers.medianPe ?? null);
+                setPeriod(initialPeers.period ?? null);
+                setLoading(false);
+            });
         }
     }, [initialPeers]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -152,7 +154,9 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
         fetchKeyRef.current = key;
 
         let cancelled = false;
-        setLoading(true);
+        queueMicrotask(() => {
+            if (!cancelled) setLoading(true);
+        });
         fetch(`/api/stock/peers-vci/${symbol}?mode=${mode}`)
             .then(r => r.json())
             .then(res => {

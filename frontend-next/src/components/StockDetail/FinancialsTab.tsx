@@ -1064,13 +1064,17 @@ export default function FinancialsTab({
     // ── Fetch data ────────────────────────────────────────────────────────────
 
     useEffect(() => {
-        if (initialOverviewData) setOverviewData(initialOverviewData);
+        if (initialOverviewData) {
+            queueMicrotask(() => setOverviewData(initialOverviewData));
+        }
     }, [initialOverviewData]);
 
     // Fetch financial reports
     useEffect(() => {
         const controller = new AbortController();
-        setReportLoading(true);
+        queueMicrotask(() => {
+            if (!controller.signal.aborted) setReportLoading(true);
+        });
 
         Promise.allSettled([
             fetch(`/api/stock/${symbol}/financial-report?type=income&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),

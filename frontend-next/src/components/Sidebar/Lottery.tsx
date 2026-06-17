@@ -25,12 +25,14 @@ export default function Lottery() {
     const [provIndex, setProvIndex] = useState(0);
 
     useEffect(() => {
-        setProvIndex(0);
-        setIsLoading(true);
-        fetchLottery(region)
-            .then(setData)
-            .catch(console.error)
-            .finally(() => setIsLoading(false));
+        queueMicrotask(() => {
+            setProvIndex(0);
+            setIsLoading(true);
+            fetchLottery(region)
+                .then(setData)
+                .catch(console.error)
+                .finally(() => setIsLoading(false));
+        });
     }, [region]);
 
     return (

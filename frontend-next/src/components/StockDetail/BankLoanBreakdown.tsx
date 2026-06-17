@@ -117,8 +117,10 @@ export default function BankLoanBreakdown({ symbol }: { symbol: string }) {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        setLoading(true);
-        setError(null);
+        queueMicrotask(() => {
+            setLoading(true);
+            setError(null);
+        });
         const yearParam = selectedYear ? `?year=${selectedYear}` : '';
         fetch(`/api/stock/${symbol}/loan-breakdown${yearParam}`)
             .then(r => r.json())

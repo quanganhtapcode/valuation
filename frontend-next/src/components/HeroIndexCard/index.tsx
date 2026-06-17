@@ -179,11 +179,13 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     // ── Fetch VN-Index full history once ──────────────────────────────────────
     useEffect(() => {
         if (vnRows.length > 0) return;
-        setVnLoad(true);
-        fetchPEChartByRange('ALL', 'both')
-            .then(r => { setVnRows(r.series); })
-            .catch(console.error)
-            .finally(() => setVnLoad(false));
+        queueMicrotask(() => {
+            setVnLoad(true);
+            fetchPEChartByRange('ALL', 'both')
+                .then(r => { setVnRows(r.series); })
+                .catch(console.error)
+                .finally(() => setVnLoad(false));
+        });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Fetch other indices on demand ─────────────────────────────────────────
@@ -447,7 +449,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         peRef.current.applyOptions({ visible: showPE && isVN });
         pbRef.current.applyOptions({ visible: showPB && isVN });
         chartRef.current.applyOptions({ leftPriceScale: { visible: hasOverlay } });
-        setTooltip(null);
+        queueMicrotask(() => setTooltip(null));
     }, [showPE, showPB, isVN]);
 
     // ── On index switch: hide overlays if leaving VN-Index ────────────────────
@@ -459,7 +461,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             pbRef.current?.applyOptions({ visible: false });
             chartRef.current.applyOptions({ leftPriceScale: { visible: false } });
         }
-        setTooltip(null);
+        queueMicrotask(() => setTooltip(null));
     }, [isVN, selectedId]);
 
     // ── Fit on range change ───────────────────────────────────────────────────

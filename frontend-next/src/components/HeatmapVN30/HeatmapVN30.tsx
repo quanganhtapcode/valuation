@@ -149,8 +149,10 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
 
   // Reset data (shows spinner) when exchange changes
   useEffect(() => {
-    setData(null);
-    setHover(null);
+    queueMicrotask(() => {
+      setData(null);
+      setHover(null);
+    });
   }, [exchange]);
 
   const load = useCallback(async () => {
@@ -164,12 +166,12 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
 
   useEffect(() => {
     if (!externalData) return;
-    setData(externalData);
+    queueMicrotask(() => setData(externalData));
   }, [externalData]);
 
   useEffect(() => {
     if (useExternalOnly) return;
-    load();
+    queueMicrotask(() => { void load(); });
     if (!isTradingHours()) return;
     // Poll every 15s — no setLoading(true) so no spinner flicker on updates
     const timer = setInterval(load, PRICE_SYNC_INTERVAL_MS);

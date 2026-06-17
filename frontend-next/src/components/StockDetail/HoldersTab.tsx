@@ -81,8 +81,11 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         if (!symbol) return;
 
         const controller = new AbortController();
-        setLoading(true);
-        setError(null);
+        queueMicrotask(() => {
+            if (controller.signal.aborted) return;
+            setLoading(true);
+            setError(null);
+        });
 
         fetch(`${API_BASE}/stock/holders/${symbol}`, {
             cache: 'no-store',
@@ -112,11 +115,13 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
     const individuals = useMemo(() => data?.individuals || [], [data]);
 
     useEffect(() => {
-        if (institutional.length >= individuals.length && institutional.length > 0) {
-            setActiveView('institutional');
-        } else if (individuals.length > 0) {
-            setActiveView('individuals');
-        }
+        queueMicrotask(() => {
+            if (institutional.length >= individuals.length && institutional.length > 0) {
+                setActiveView('institutional');
+            } else if (individuals.length > 0) {
+                setActiveView('individuals');
+            }
+        });
     }, [institutional.length, individuals.length]);
 
     const rows = useMemo(() => {
