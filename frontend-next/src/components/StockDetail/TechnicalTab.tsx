@@ -305,11 +305,13 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
     useEffect(() => {
         if (!symbol) return;
 
-        setLoading(true);
-        setError(null);
-
         const controller = new AbortController();
         let cancelled = false;
+        queueMicrotask(() => {
+            if (cancelled || controller.signal.aborted) return;
+            setLoading(true);
+            setError(null);
+        });
 
         Promise.allSettled(
             TIMEFRAMES.map(async (frame) => {

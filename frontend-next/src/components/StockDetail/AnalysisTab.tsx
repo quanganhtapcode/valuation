@@ -153,7 +153,7 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
     // Populate from initialHistory prop when it arrives
     useEffect(() => {
         if (initialHistory && peHistory.length === 0) {
-            setPeHistory(topeHistory(initialHistory));
+            queueMicrotask(() => setPeHistory(topeHistory(initialHistory)));
         }
     }, [initialHistory]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -164,7 +164,9 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
         fetchedSymbolRef.current = symbol;
 
         let cancelled = false;
-        setLoading(true);
+        queueMicrotask(() => {
+            if (!cancelled) setLoading(true);
+        });
 
         const peersPromise = fetch(`/api/stock/peers-vci/${symbol}`).then(r => r.json());
 

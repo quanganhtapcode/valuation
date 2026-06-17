@@ -19,8 +19,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         const stored = localStorage.getItem("lang") as Lang | null
-        if (stored === "vi" || stored === "en") setLang(stored)
-        setMounted(true)
+        queueMicrotask(() => {
+            if (stored === "vi" || stored === "en") setLang(stored)
+            setMounted(true)
+        })
     }, [])
 
     const setLanguage = (l: Lang) => {
