@@ -16,7 +16,7 @@ export default function NewsPage() {
         async function loadNews() {
             try {
                 setIsLoading(true);
-                const response = await fetch(`/api/market/news?page=${page}&size=${pageSize}`);
+                const response = await fetch(`/api/market/news?page=${page}&size=${pageSize}&compact=1`);
                 if (!response.ok) throw new Error('Failed to fetch news');
                 const data = await response.json();
                 // Handle API response with Data property
@@ -70,12 +70,12 @@ export default function NewsPage() {
                 <>
                 <div className={styles.newsList}>
                     {news.map((item, index) => {
-                        const title = item.Title || '';
-                        const link = item.Link || item.NewsUrl || '#';
+                        const title = item.title || item.Title || '';
+                        const link = item.url || item.Link || item.NewsUrl || '#';
                         const url = link.startsWith('http') ? link : `https://cafef.vn${link}`;
-                        const img = item.ImageThumb || item.Avatar || '';
-                        const time = formatRelativeTime(item.PostDate || item.PublishDate, 'vi-VN');
-                        const symbol = item.Symbol || '';
+                        const img = item.image_url || item.ImageThumb || item.Avatar || '';
+                        const time = formatRelativeTime(item.publish_date || item.PostDate || item.PublishDate, 'vi-VN');
+                        const symbol = item.symbol || item.Symbol || '';
                         const change = item.ChangePrice || 0;
                         const isUp = change >= 0;
 

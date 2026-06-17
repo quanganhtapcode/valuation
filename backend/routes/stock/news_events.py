@@ -12,7 +12,7 @@ from flask import Blueprint, jsonify, request
 from backend.db_path import resolve_vci_news_events_db_path
 from backend.services.news_service import NewsService
 from backend.utils import validate_stock_symbol
-from backend.services.vci_news_sqlite import query_news_for_symbol, default_news_db_path
+from backend.services.vci_news_sqlite import compact_news_item, query_news_for_symbol, default_news_db_path
 from backend.routes.market.http_headers import VCI_HEADERS
 from backend.cache_utils import cache_get, cache_set
 
@@ -65,12 +65,15 @@ def register(stock_bp: Blueprint) -> None:
             if not is_valid:
                 return jsonify({"success": False, "error": clean_symbol}), 400
 
-            cache_key = f"news_{clean_symbol}"
+            compact = request.args.get("compact") == "1"
+            cache_key = f"news_{clean_symbol}_{'compact' if compact else 'full'}"
 
             # SQLite cache (VCI AI)
             try:
                 items = query_news_for_symbol(default_news_db_path(), clean_symbol, limit=12)
                 if items:
+                    if compact:
+                        items = [compact_news_item(item) for item in items]
                     result = {"success": True, "data": items}
                     cache_set(cache_key, result)
                     return jsonify(result)
@@ -83,6 +86,8 @@ def register(stock_bp: Blueprint) -> None:
 
             # Upstream fallback (kept for compatibility)
             news_data = NewsService.fetch_news(ticker=clean_symbol, page=1, page_size=12)
+            if compact:
+                news_data = [compact_news_item(item) for item in news_data]
             result = {"success": True, "data": news_data}
             cache_set(cache_key, result)
             return jsonify(result)

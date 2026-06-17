@@ -156,6 +156,22 @@ def normalize_news_item(item: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def compact_news_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Return only fields used by the web UI news cards."""
+    normalized = normalize_news_item(item)
+    return {
+        "id": normalized.get("id") or normalized.get("news_id") or normalized.get("newsId"),
+        "title": normalized.get("title") or normalized.get("Title") or "",
+        "url": normalized.get("url") or normalized.get("Link") or normalized.get("NewsUrl") or "",
+        "source": normalized.get("source") or normalized.get("Source") or "",
+        "publish_date": normalized.get("publish_date") or normalized.get("PublishDate") or normalized.get("PostDate") or "",
+        "image_url": normalized.get("image_url") or normalized.get("ImageThumb") or normalized.get("Avatar") or "",
+        "sentiment": normalized.get("sentiment") or normalized.get("Sentiment") or "",
+        "score": normalized.get("score") if normalized.get("score") is not None else normalized.get("Score"),
+        "symbol": normalized.get("symbol") or normalized.get("Symbol") or "",
+    }
+
+
 def query_news_for_symbol(
     db_path: str,
     symbol: str,

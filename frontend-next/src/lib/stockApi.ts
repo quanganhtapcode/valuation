@@ -3,7 +3,7 @@
  * Functions to fetch stock data from SQLite-backed Python backend
  */
 
-import { API_BASE } from './api';
+import { API, API_BASE } from './api';
 import type {
     Company,
     StockOverview,
@@ -286,7 +286,7 @@ export async function fetchRatios(
  */
 export async function fetchCurrentPrice(symbol: string): Promise<RealtimePrice | null> {
     try {
-        const response = await fetch(`${API_BASE}/current-price/${symbol}`);
+        const response = await fetch(API.CURRENT_PRICE(symbol));
         if (!response.ok) return null;
         return unwrap<RealtimePrice>(await response.json());
     } catch (error) {
