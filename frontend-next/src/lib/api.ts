@@ -54,9 +54,9 @@ export const API = {
     STOCK_PROFILE: (symbol: string) => `${API_BASE}/stock/${symbol}/profile`,
     STOCK_RATIO_HISTORY: (symbol: string) => `${API_BASE}/stock/${symbol}/ratio-history`,
     STOCK_RATIO_SERIES: (symbol: string) => `${API_BASE}/stock/${symbol}/ratio-series`,
-    STOCK_OVERVIEW_FULL: (symbol: string) => `${API_BASE}/stock/${symbol}/overview-full`,
+    STOCK_OVERVIEW_FULL: (symbol: string) => `${REALTIME_API_BASE}/stock/${symbol}/overview-full`,
     APP_DATA: (symbol: string) => `${API_BASE}/app-data/${symbol}?fetch_price=true`,
-    CURRENT_PRICE: (symbol: string) => `${API_BASE}/current-price/${symbol}`,
+    CURRENT_PRICE: (symbol: string) => `${REALTIME_API_BASE}/stock/${symbol}/current-price`,
     PRICE: (symbol: string) => `${API_BASE}/price/${symbol}`,
     HISTORICAL_CHART: (symbol: string) => `${API_BASE}/historical-chart-data/${symbol}`,
     STOCK_HISTORY: (symbol: string) => `${API_BASE}/stock/history/${symbol}`,
@@ -640,7 +640,7 @@ export async function fetchNews(page: number = 1, size: number = 100): Promise<N
         Data?: NewsItem[];
     }
     const response = await fetchAPI<NewsResponse | NewsItem[]>(
-        `${API.NEWS}?page=${page}&size=${size}`
+        `${API.NEWS}?page=${page}&size=${size}&compact=1`
     );
 
     if (Array.isArray(response)) {

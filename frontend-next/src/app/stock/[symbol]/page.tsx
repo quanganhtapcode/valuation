@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
+import { API, formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
 import { useWatchlist } from '@/lib/watchlistContext';
 import { RiStarFill, RiStarLine } from '@remixicon/react';
@@ -162,38 +162,19 @@ export default function StockDetailPage() {
             try {
                 // Start realtime price request immediately so it runs in parallel
                 // with ticker/overview fetching instead of waiting for them.
-                const realtimePricePromise = fetch(`/api/stock/${symbol}/current-price`, { signal: controller.signal })
+                const realtimePricePromise = fetch(API.CURRENT_PRICE(symbol), { signal: controller.signal })
                     .then(r => r.ok ? r.json() : null)
                     .catch(() => null);
 
-                // PHASE 1: Fast data from DB/cache — split into focused endpoints
-                //  /api/stock/<symbol>/summary     (~500B): identity + price + key ratios
-                //  /api/stock/<symbol>/profile     (~1.5KB): company description
-                //  /api/stock/<symbol>/ratio-history (~1.5KB): 12-year PE/PB/ROE/ROA series
-                //  /api/stock/<symbol>/ratio-series  (~500B): quarterly arrays for mini-charts
-                const [tickerData, summaryRes, profileRes, ratioHistoryRes, ratioSeriesRes] = await Promise.all([
+                // PHASE 1: Critical overview payload. Use one direct backend request
+                // instead of four proxy requests so first render is not gated by
+                // repeated provider/cache work.
+                const [tickerData, stockRes] = await Promise.all([
                     getTickerData(),
-                    fetch(`/api/stock/${symbol}/summary`).then(r => r.ok ? r.json() : null).catch(() => null),
-                    fetch(`/api/stock/${symbol}/profile`).then(r => r.ok ? r.json() : null).catch(() => null),
-                    fetch(`/api/stock/${symbol}/ratio-history`).then(r => r.ok ? r.json() : null).catch(() => null),
-                    fetch(`/api/stock/${symbol}/ratio-series`).then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch(API.STOCK_OVERVIEW_FULL(symbol), { signal: controller.signal })
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null),
                 ]);
-
-                // Merge all split responses into one object for backward-compat with components
-                const stockRes = summaryRes && profileRes ? {
-                    ...summaryRes,
-                    ...profileRes,
-                    history: ratioHistoryRes?.history || [],
-                    current_ratio_data: ratioSeriesRes?.current_ratio_data,
-                    quick_ratio_data: ratioSeriesRes?.quick_ratio_data,
-                    ev_ebitda: ratioSeriesRes?.ev_ebitda,
-                    debt_to_equity_adjusted: ratioSeriesRes?.debt_to_equity_adjusted,
-                    cash_ratio: ratioSeriesRes?.cash_ratio,
-                    interest_coverage: ratioSeriesRes?.interest_coverage,
-                    asset_turnover: ratioSeriesRes?.asset_turnover,
-                    inventory_turnover: ratioSeriesRes?.inventory_turnover,
-                    ebit_margin: ratioSeriesRes?.ebit_margin,
-                } : null;
 
                 // --- Process Ticker Info ---
                 let baseInfo: StockInfo = {
@@ -274,7 +255,7 @@ export default function StockDetailPage() {
                 // PHASE 2: Non-critical overview enrichments. Keep them off the
                 // critical path so first paint is not competing with extra API calls.
                 idleCleanups.push(scheduleIdleWork(() => {
-                    fetch(`/api/stock/${symbol}/news`, { signal: controller.signal })
+                    fetch(`/api/stock/${symbol}/news?compact=1`, { signal: controller.signal })
                         .then(r => r.ok ? r.json() : null)
                         .then(res => {
                             const newsData = res?.data || res;
