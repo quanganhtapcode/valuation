@@ -3,7 +3,7 @@
  * Functions to fetch stock data from SQLite-backed Python backend
  */
 
-import { API, API_BASE } from './api';
+import { API, API_BASE } from './apiCore';
 import type {
     Company,
     StockOverview,
