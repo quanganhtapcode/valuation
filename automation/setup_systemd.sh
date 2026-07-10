@@ -1,14 +1,18 @@
 #!/bin/bash
 # Setup systemd service & timer on VPS
 
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "=============================================="
 echo "SETUP SYSTEMD SERVICE & TIMER"
 echo "=============================================="
 
 # 1. Copy service & timer files to systemd
 echo "1. Installing service & timer files..."
-sudo cp stock-fetch.service /etc/systemd/system/
-sudo cp stock-fetch.timer /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/stock-fetch.service" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/stock-fetch.timer" /etc/systemd/system/
 
 # 2. Reload systemd
 echo "2. Reloading systemd daemon..."

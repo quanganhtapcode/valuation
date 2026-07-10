@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Generate frontend-next/public/ticker_data.json from vci_company.sqlite.
+"""Generate frontend-next/public/ticker_data.json from the canonical stock universe.
 
-Sources (in priority order):
-  1. vci_company.sqlite  → name, en_name, sector, isbank, logo_url
-  2. vci_screening.sqlite → exchange (more up-to-date than company.floor)
+Source:
+  vci_company.sqlite active_stocks view
 
 Output fields per ticker:
   symbol    – ticker code
@@ -37,23 +36,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from backend.db_path import resolve_vci_company_db_path, resolve_vci_screening_db_path
+from backend.db_path import resolve_vci_company_db_path
+from backend.security_master import refresh_security_master
 
 OUTPUT = ROOT / "frontend-next" / "public" / "ticker_data.json"
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
-
-# Exchange alias normalisation (VCI uses HSX for HOSE)
-_EXCHANGE_MAP = {
-    "HSX": "HOSE",
-    "HOSE": "HOSE",
-    "HNX": "HNX",
-    "UPCOM": "UPCOM",
-}
-
-LISTED_FLOORS = {"HOSE", "HNX", "UPCOM"}
-
 
 def _connect(path: str):
     if not path or not os.path.exists(path):
@@ -65,23 +54,8 @@ def _connect(path: str):
 
 def build_ticker_data() -> list[dict]:
     company_db = resolve_vci_company_db_path()
-    screening_db = resolve_vci_screening_db_path()
+    refresh_security_master(company_db_path=company_db)
 
-    # ── 1. Load exchange from screening (most up-to-date) ─────────────────────
-    exchange_map: dict[str, str] = {}
-    conn = _connect(screening_db)
-    if conn:
-        rows = conn.execute("SELECT ticker, exchange FROM screening_data").fetchall()
-        for r in rows:
-            ex = _EXCHANGE_MAP.get((r["exchange"] or "").upper())
-            if ex:
-                exchange_map[r["ticker"]] = ex
-        conn.close()
-        log.info("Loaded exchange for %d tickers from screening", len(exchange_map))
-    else:
-        log.warning("vci_screening.sqlite not found — exchange from company.floor only")
-
-    # ── 2. Load company info ──────────────────────────────────────────────────
     conn = _connect(company_db)
     if not conn:
         log.error("vci_company.sqlite not found at %s", company_db)
@@ -89,29 +63,17 @@ def build_ticker_data() -> list[dict]:
 
     rows = conn.execute("""
         SELECT ticker, organ_name, en_organ_name, short_name,
-               floor, isbank,
+               exchange, is_bank AS isbank,
                icb_name3, en_icb_name3
-        FROM companies
+        FROM active_stocks
         ORDER BY ticker
     """).fetchall()
     conn.close()
     log.info("Loaded %d companies from vci_company", len(rows))
 
     tickers: list[dict] = []
-    skipped = 0
     for r in rows:
         ticker = r["ticker"]
-
-        # Resolve exchange: screening wins, fallback to company.floor
-        exchange = exchange_map.get(ticker)
-        if not exchange:
-            floor = _EXCHANGE_MAP.get((r["floor"] or "").upper())
-            exchange = floor
-
-        # Skip non-listed (OTC, OTHER, STOP, no exchange)
-        if exchange not in LISTED_FLOORS:
-            skipped += 1
-            continue
 
         tickers.append({
             "symbol":    ticker,
@@ -119,11 +81,11 @@ def build_ticker_data() -> list[dict]:
             "en_name":   r["en_organ_name"] or r["short_name"] or ticker,
             "sector":    r["icb_name3"] or "Unknown",
             "en_sector": r["en_icb_name3"] or "Unknown",
-            "exchange":  exchange,
+            "exchange":  r["exchange"],
             "isbank":    bool(r["isbank"]),
         })
 
-    log.info("Included %d tickers, skipped %d non-listed", len(tickers), skipped)
+    log.info("Included %d active stocks from security_master", len(tickers))
     return tickers
 
 

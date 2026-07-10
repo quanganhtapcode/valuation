@@ -19,7 +19,7 @@ def register(stock_bp: Blueprint) -> None:
             conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
             row = conn.execute(
                 """
-                SELECT year_report, quarter_report, analysis_vi, analysis_json, model, generated_at
+                SELECT year_report, quarter_report, analysis_vi, analysis_json, news_json, model, generated_at
                 FROM ai_financial_analysis
                 WHERE ticker = ?
                 ORDER BY year_report DESC, quarter_report DESC
@@ -32,7 +32,7 @@ def register(stock_bp: Blueprint) -> None:
             if not row:
                 return jsonify({"available": False}), 200
 
-            year, q, analysis, analysis_json, model, generated_at = row
+            year, q, analysis, analysis_json, news_json, model, generated_at = row
             return jsonify({
                 "available": True,
                 "ticker": ticker,
@@ -41,6 +41,7 @@ def register(stock_bp: Blueprint) -> None:
                 "q": q,
                 "analysis_vi": analysis,
                 "analysis_json": analysis_json,
+                "news_json": news_json,
                 "model": model,
                 "generated_at": generated_at,
             })

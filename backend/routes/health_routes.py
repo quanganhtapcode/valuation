@@ -2,7 +2,7 @@
 /health endpoint — kiểm tra nhanh trạng thái toàn bộ hệ thống.
 
 Checks:
-  - price_history.sqlite : OHLCV data freshness
+  - vci_price_history.sqlite : OHLCV data freshness
   - fetch_sqlite/        : index_history, screening, news freshness
   - logs/pipeline.log    : lần chạy cuối + kết quả
   - systemd timer         : lần trigger cuối / tiếp theo (đọc qua subprocess)
@@ -16,6 +16,7 @@ import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from flask import Blueprint, jsonify, request
 from backend.cache_utils import cache_stats, cache_invalidate_namespaces
@@ -26,6 +27,7 @@ health_bp = Blueprint("health", __name__)
 # ─── Path helpers ─────────────────────────────────────────────────────────────
 
 BASE_DIR = Path(__file__).resolve().parents[2]   # project root
+VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 
 def _fetch_sqlite_dir() -> Path:
@@ -79,6 +81,12 @@ def _run(cmd: str) -> str:
 
 def _status(ok: bool) -> str:
     return "ok" if ok else "warn"
+
+
+def _is_vn_market_session() -> bool:
+    """True during the automated intraday fetch window for Vietnamese trading days."""
+    now = datetime.now(tz=VN_TZ)
+    return now.weekday() < 5 and 9 <= now.hour < 16
 
 
 def _overall(checks: dict) -> str:
@@ -195,8 +203,15 @@ def _check_cron_screener_log() -> dict:
     age = _file_age_minutes(log)
     if not log.exists():
         return {"status": "warn", "message": "cron_screener.log not found"}
-    st = "ok" if (age is not None and age < 15) else "warn"
-    return {"status": st, "age_minutes": age, "last_modified": _file_mtime_iso(log)}
+    freshness_minutes = 15 if _is_vn_market_session() else 72 * 60
+    st = "ok" if (age is not None and age < freshness_minutes) else "warn"
+    return {
+        "status": st,
+        "age_minutes": age,
+        "last_modified": _file_mtime_iso(log),
+        "freshness_minutes": freshness_minutes,
+        "market_session": _is_vn_market_session(),
+    }
 
 
 def _check_cron_news_log() -> dict:
@@ -231,13 +246,13 @@ def health() -> tuple:
         "index_history": _check_sqlite_file(
             "index_history",
             fetch_dir / "vci_index_history.sqlite",
-            freshness_minutes=30,
+            freshness_minutes=30 if _is_vn_market_session() else 72 * 60,
             freshness_sql="SELECT MAX(tradingDate) FROM market_index_history WHERE symbol='VNINDEX'",
         ),
         "screening": _check_sqlite_file(
             "screening",
             fetch_dir / "vci_screening.sqlite",
-            freshness_minutes=15,
+            freshness_minutes=15 if _is_vn_market_session() else 72 * 60,
         ),
         "news": _check_sqlite_file(
             "news",

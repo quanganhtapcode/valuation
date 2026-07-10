@@ -28,6 +28,7 @@ from urllib3.util.retry import Retry
 
 # Add project root to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.r2_client import get_r2_client
 
@@ -800,6 +801,24 @@ def listen_mode() -> int:
                             bot_token=bot_token,
                             chat_id=chat_id,
                         )
+                        # Collect VCI analyst forecasts (PE/PB forward) reusing same token
+                        try:
+                            send_telegram_message(
+                                bot_token, chat_id,
+                                "📊 Bắt đầu thu thập dữ liệu forecast PE/PB (~685 mã)...",
+                            )
+                            from fetch_sqlite.fetch_vci_financial_data import run as run_forecast
+                            run_forecast(tickers_override=None, limit=0, dry_run=False, bearer=tkn)
+                            send_telegram_message(
+                                bot_token, chat_id,
+                                "✅ Thu thập forecast PE/PB hoàn tất.",
+                            )
+                        except Exception as exc:
+                            print(f"[JOB] Forecast fetch error: {exc}", flush=True)
+                            send_telegram_message(
+                                bot_token, chat_id,
+                                f"⚠️ Forecast fetch lỗi: {exc}",
+                            )
                     except Exception as exc:
                         print(f"[JOB] Exception: {exc}", flush=True)
                         try:

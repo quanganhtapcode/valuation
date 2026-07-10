@@ -721,6 +721,42 @@ export interface EarningsSeasonData {
     updated_at: string;
 }
 
+export interface MarketTakeawayNews {
+    title?: string;
+    url?: string;
+    source?: string;
+    publish_date?: string;
+    symbol?: string;
+}
+
+export interface MarketTakeawayMover {
+    symbol: string;
+    company_name: string;
+    price: number;
+    change_pct: number;
+    value: number;
+    exchange: string;
+    direction: 'up' | 'down';
+    news: MarketTakeawayNews[];
+}
+
+export interface MarketTakeawayWatchItem {
+    symbol: string;
+    takeaway: string;
+    direction: 'up' | 'down';
+}
+
+export interface MarketTakeawaysData {
+    available: boolean;
+    headline: string;
+    summary: string[];
+    watchlist?: MarketTakeawayWatchItem[];
+    movers: MarketTakeawayMover[];
+    earnings: EarningsSeasonData;
+    model: string;
+    generated_at: string;
+}
+
 export interface AiAnalysisData {
     available: boolean;
     ticker?: string;
@@ -743,6 +779,14 @@ export async function fetchAiAnalysis(symbol: string): Promise<AiAnalysisData> {
 export async function fetchEarningsSeason(): Promise<EarningsSeasonData | null> {
     try {
         return await fetchAPI<EarningsSeasonData>(API.EARNINGS_SEASON);
+    } catch {
+        return null;
+    }
+}
+
+export async function fetchMarketTakeaways(): Promise<MarketTakeawaysData | null> {
+    try {
+        return await fetchAPI<MarketTakeawaysData>(API.AI_TAKEAWAYS);
     } catch {
         return null;
     }

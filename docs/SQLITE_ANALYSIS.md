@@ -36,7 +36,7 @@ its own SQLite file, which makes refresh, backup and rollback easier.
 | Current market snapshot | `vci_screening.sqlite` | Freshest broad ticker snapshot with price, sector and market cap |
 | TTM ratios | `vci_stats_financial.sqlite` | Richest current ratio dataset including banking KPIs |
 | Daily PE/PB | `vci_ratio_daily.sqlite` | Highest-priority daily valuation multiples |
-| Historical price | `fetch_sqlite/price_history.sqlite` | Dedicated OHLCV store with upsert by symbol/date |
+| Historical price | `fetch_sqlite/vci_price_history.sqlite` | Dedicated OHLCV store with upsert by symbol/date |
 | News cache | `vci_market_news.sqlite` | Fast market news reads without hitting upstream per request |
 | News/events/dividends by symbol | `vci_news_events.sqlite` | Per-symbol tab data |
 | Shareholders | `vci_shareholders.sqlite` | Holder list by ticker |

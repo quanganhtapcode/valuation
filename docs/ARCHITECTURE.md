@@ -41,7 +41,7 @@ Next.js frontend on Vercel
 
 ```text
 fetch_sqlite/
-  vci_company.sqlite             company/profile/industry
+  vci_company.sqlite             canonical security master + company/profile/industry
   vci_financials.sqlite          VCI financial statements
   vci_screening.sqlite           live market snapshot
   vci_stats_financial.sqlite     TTM ratios and banking KPIs
@@ -55,7 +55,7 @@ fetch_sqlite/
   macro_history.sqlite           VCI macro
   fireant_macro.sqlite           FireAnt macro
   valuation_cache.sqlite         computed valuation cache
-  price_history.sqlite           daily stock OHLCV
+  vci_price_history.sqlite           daily stock OHLCV
 ```
 
 Deprecated:
@@ -78,7 +78,7 @@ Active cron jobs from `automation/setup_cron_vps.sh`:
 | `*/7 * * * *` | `fetch_sqlite/fetch_vci_screener.py` | `vci_screening.sqlite` |
 | `5 * * * *` | `fetch_sqlite/fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` |
 | `*/10 * * * *` | `fetch_sqlite/fetch_vci_market_news.py` | `vci_market_news.sqlite` |
-| `30 11 * * *` | `PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history` | `fetch_sqlite/price_history.sqlite` |
+| `30 11 * * *` | `PRICE_HISTORY_DB_PATH=fetch_sqlite/vci_price_history.sqlite python -m backend.updater.update_price_history` | `fetch_sqlite/vci_price_history.sqlite` |
 | `10 13 * * *` | `fetch_sqlite/fetch_vci_shareholders.py` | `vci_shareholders.sqlite` |
 | `35 13 * * *` | `fetch_sqlite/fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` |
 | `30 18 * * *` | `fetch_sqlite/fetch_vci_valuation.py` | `vci_valuation.sqlite` |
@@ -109,7 +109,6 @@ backend/
     source_priority.py       PE/PB and ratio source priority
     valuation_service.py     DCF/comparable valuation
     vci_news_sqlite.py       AI news cache reader
-    vci_standouts_sqlite.py  standouts cache reader
   routes/
     market/                  market endpoints
     stock/                   per-stock endpoints
@@ -143,7 +142,7 @@ vci_ratio_daily.sqlite
 Company/industry:
 
 ```text
-vci_company.sqlite
+vci_company.sqlite security_master / active_stocks
   -> vci_screening.sqlite
 ```
 

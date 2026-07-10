@@ -9,7 +9,7 @@ legacy root-level databases (`stocks_optimized.db`, `vietnam_stocks.db`).
 
 | File | Size | Rows (main table) | Tickers | Update cadence |
 |------|------|-------------------|---------|----------------|
-| `vci_company.sqlite` | 6.2 MB | 2 075 companies | 2 075 | Monthly |
+| `vci_company.sqlite` | 6.2 MB | 2 088 securities / 1 553 active stocks | 2 088 | Weekly |
 | `vci_financials.sqlite` | 198 MB | ~43 k BS / IS / CF | 1 554 | Quarterly |
 | `vci_screening.sqlite` | 2.7 MB | 1 547 | 1 547 | Daily |
 | `vci_stats_financial.sqlite` | 18 MB | 48 002 (history) | 1 547 | Weekly |
@@ -30,10 +30,10 @@ legacy root-level databases (`stocks_optimized.db`, `vietnam_stocks.db`).
 
 ## 1. `vci_company.sqlite`
 
-**Nội dung:** Danh mục toàn bộ cổ phiếu niêm yết và OTC, thông tin ngành ICB, profile công ty.
+**Nội dung:** Security master canonical, danh mục niêm yết/OTC, ngành ICB và profile công ty.
 
 **Nguồn:** VCI IQ API — `iq.vietcap.com.vn`  
-**Tần suất update:** ~hàng tháng (hoặc khi có IPO / hủy niêm yết)  
+**Tần suất update:** Hàng tuần và khi có IPO / hủy niêm yết
 **Fetcher:** `fetch_sqlite/fetch_vci_company.py`
 
 ```bash
@@ -56,8 +56,24 @@ python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite
 | `company_profile` | TEXT | mô tả dài |
 | `fetched_at` | TEXT | ISO-8601 |
 
+### Universe canonical: `security_master`, `active_stocks`
+
+`security_master` kết hợp metadata dài hạn từ `companies` với universe đang giao
+dịch từ `vci_screening.sqlite`. Các pipeline chỉ nên lấy danh sách mã từ view
+`active_stocks`, thay vì tự lọc trực tiếp từng nguồn.
+
+| Cột | Ý nghĩa |
+|-----|---------|
+| `exchange` | `HOSE`, `HNX`, `UPCOM` đã chuẩn hóa |
+| `security_type` | `stock` hoặc `index` |
+| `listing_status` | `active`, `inactive`, `unlisted` |
+| `is_active` | Có mặt trong snapshot screening hiện tại |
+| `first_seen_at`, `last_seen_at` | Vòng đời mã trong universe active |
+| `synced_at` | Thời điểm đồng bộ security master |
+
 **Thống kê:**
-- 2 075 công ty tổng cộng
+- 2 088 securities tổng cộng
+- 1 553 cổ phiếu active: HOSE 403, HNX 300, UPCOM 850
 - Sàn: HOSE, HNX, UPCOM, OTC, STOP, OTHER
 - 19 ngành ICB cấp 2
 
@@ -73,10 +89,10 @@ python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite
 
 ```bash
 python fetch_sqlite/fetch_vci_financial_statement.py \
-  --db fetch_sqlite/vci_financials.sqlite \
+  --db-path fetch_sqlite/vci_financials.sqlite \
   --tickers VNM ACB VCB
 # Toàn bộ thị trường (~8–12 giờ):
-python fetch_sqlite/fetch_vci_financial_statement.py --db fetch_sqlite/vci_financials.sqlite
+python fetch_sqlite/fetch_vci_financial_statement.py --db-path fetch_sqlite/vci_financials.sqlite
 ```
 
 ### Schema chính: `balance_sheet`, `income_statement`, `cash_flow`

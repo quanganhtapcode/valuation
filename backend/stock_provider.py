@@ -162,7 +162,7 @@ class StockDataProvider:
         - vci_screening.sqlite       → snapshot fallback for missing market fields
         - vci_stats_financial.sqlite (history) → ratio chart series
         - vci_financials.sqlite     → income statement, balance sheet, cash flow
-        - price_history.sqlite      → OHLCV
+        - vci_price_history.sqlite      → OHLCV
         """
         try:
             data = {'symbol': symbol, 'data_source': 'VCI_SQLite', 'data_period': period}

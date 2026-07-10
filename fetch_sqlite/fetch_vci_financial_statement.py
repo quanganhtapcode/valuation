@@ -45,6 +45,7 @@ V1_COMPANY_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1/company"
 DEVICE_ID = "".join(f"{random.randrange(256):02x}" for _ in range(12))
 HTTP_LOCK = threading.Lock()
 FIELD_CODE_RE = re.compile(r"^[a-z]{3}\d+$", re.IGNORECASE)
+REQUEST_DELAY_S = 0.0
 
 # Wide-format table names per section (mirrors vci_financials.sqlite schema)
 SECTION_TABLE_MAP: dict[str, str] = {
@@ -102,6 +103,8 @@ def _request_json(
                 with opener.open(req, timeout=timeout_s) as resp:
                     raw = resp.read()
                     enc = (resp.headers.get("Content-Encoding") or "").lower()
+                if REQUEST_DELAY_S > 0:
+                    time.sleep(REQUEST_DELAY_S)
             if "gzip" in enc:
                 raw = gzip.decompress(raw)
             body = json.loads(raw.decode("utf-8", errors="replace"))
@@ -385,12 +388,45 @@ def upsert_symbol_statements(
     fetched_at: str,
     *,
     store_values_json: bool,
+    write_wide: bool = False,
+    wide_columns: "dict[str, set[str]] | None" = None,
 ) -> tuple[int, int]:
     ticker = symbol.upper()
     period_rows = 0
     value_rows = 0
+
+    # Phase 1 (direct-wide mode only): discover new field codes and extend table schemas.
+    # DDL (ALTER TABLE) must happen outside the data transaction.
+    if write_wide and wide_columns is not None:
+        for section in SECTIONS:
+            table = SECTION_TABLE_MAP[section]
+            payload = section_payloads.get(section) or {"years": [], "quarters": []}
+            wcols = wide_columns.setdefault(section, set())
+            new_cols: set[str] = set()
+            for rows_key in ("years", "quarters"):
+                for row in (payload.get(rows_key) or []):
+                    if not isinstance(row, dict):
+                        continue
+                    for k in row:
+                        if isinstance(k, str) and FIELD_CODE_RE.fullmatch(k.lower()) and k.lower() not in wcols:
+                            new_cols.add(k.lower())
+            if new_cols:
+                actual = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+                for f in new_cols:
+                    if f not in actual:
+                        conn.execute(f'ALTER TABLE {table} ADD COLUMN "{f}" REAL')
+                    wcols.add(f)
+                    fields_by_section.setdefault(section, set()).add(f)
+                    conn.execute(
+                        "INSERT OR IGNORE INTO statement_metrics(section, field, name, fetched_at) VALUES (?,?,?,?)",
+                        (section, f, f.upper(), fetched_at),
+                    )
+        conn.commit()
+
+    # Phase 2: write data (statement_periods + wide tables or statement_values)
     with conn:
         for section in SECTIONS:
+            table = SECTION_TABLE_MAP[section]
             payload = section_payloads.get(section) or {"years": [], "quarters": []}
             for period_kind, rows_key in (("YEAR", "years"), ("QUARTER", "quarters")):
                 rows = payload.get(rows_key)
@@ -434,48 +470,83 @@ def upsert_symbol_statements(
                     row_key_map: dict[str, str] = {
                         k.lower(): k for k in row.keys() if isinstance(k, str)
                     }
-                    dynamic_fields = {
-                        key for key in row_key_map.keys() if FIELD_CODE_RE.fullmatch(key)
-                    }
 
-                    # Some symbols (especially NOTE of banks) can have extra field codes
-                    # not present in metrics fetched from the mapping symbol. Persist them.
-                    fields = fields_by_section.setdefault(section, set())
-                    missing_fields = dynamic_fields - fields
-                    for mf in missing_fields:
-                        conn.execute(
-                            """
-                            INSERT OR IGNORE INTO statement_metrics(
-                              section, field, name, fetched_at
-                            ) VALUES (?, ?, ?, ?)
-                            """,
-                            (section, mf, mf.upper(), fetched_at),
-                        )
-                    fields.update(dynamic_fields)
-
-                    for field in fields:
-                        raw_key = row_key_map.get(field)
-                        if not raw_key:
-                            continue
-                        fv = _to_float(row.get(raw_key))
-                        conn.execute(
-                            """
-                            INSERT OR REPLACE INTO statement_values(
-                              ticker, section, period_kind, year_report, quarter_report, field, value, fetched_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                ticker,
-                                section,
-                                period_kind,
-                                year_report,
-                                quarter_report,
-                                field,
-                                fv,
-                                fetched_at,
-                            ),
-                        )
+                    if write_wide and wide_columns is not None:
+                        # Write directly to wide table — no statement_values intermediate
+                        wcols = wide_columns.get(section, set())
+                        meta: list[Any] = [
+                            ticker, period_kind, year_report, quarter_report,
+                            _to_int(row.get("lengthReport"), 0) or None,
+                            str(row.get("publicDate") or "").strip() or None,
+                            str(row.get("createDate") or "").strip() or None,
+                            str(row.get("updateDate") or "").strip() or None,
+                            fetched_at,
+                        ]
+                        if wcols:
+                            all_cols = list(wcols)
+                            field_cols = ", ".join(f'"{f}"' for f in all_cols)
+                            placeholders = ", ".join("?" for _ in all_cols)
+                            fvs = [
+                                _to_float(row.get(row_key_map[f])) if f in row_key_map else None
+                                for f in all_cols
+                            ]
+                            conn.execute(
+                                f"INSERT OR REPLACE INTO {table} "
+                                f"(ticker, period_kind, year_report, quarter_report, "
+                                f"length_report, public_date, create_date, update_date, fetched_at, "
+                                f"{field_cols}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {placeholders})",
+                                [*meta, *fvs],
+                            )
+                        else:
+                            conn.execute(
+                                f"INSERT OR REPLACE INTO {table} "
+                                f"(ticker, period_kind, year_report, quarter_report, "
+                                f"length_report, public_date, create_date, update_date, fetched_at) "
+                                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                meta,
+                            )
                         value_rows += 1
+                    else:
+                        # Legacy path: write to statement_values (used for --no-wide-convert or --convert-only)
+                        dynamic_fields = {
+                            key for key in row_key_map.keys() if FIELD_CODE_RE.fullmatch(key)
+                        }
+                        fields = fields_by_section.setdefault(section, set())
+                        missing_fields = dynamic_fields - fields
+                        for mf in missing_fields:
+                            conn.execute(
+                                """
+                                INSERT OR IGNORE INTO statement_metrics(
+                                  section, field, name, fetched_at
+                                ) VALUES (?, ?, ?, ?)
+                                """,
+                                (section, mf, mf.upper(), fetched_at),
+                            )
+                        fields.update(dynamic_fields)
+
+                        for field in fields:
+                            raw_key = row_key_map.get(field)
+                            if not raw_key:
+                                continue
+                            fv = _to_float(row.get(raw_key))
+                            conn.execute(
+                                """
+                                INSERT OR REPLACE INTO statement_values(
+                                  ticker, section, period_kind, year_report, quarter_report, field, value, fetched_at
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (
+                                    ticker,
+                                    section,
+                                    period_kind,
+                                    year_report,
+                                    quarter_report,
+                                    field,
+                                    fv,
+                                    fetched_at,
+                                ),
+                            )
+                            value_rows += 1
     return period_rows, value_rows
 
 
@@ -594,19 +665,6 @@ def convert_normalized_to_wide(conn: sqlite3.Connection) -> None:
 
         log.info("  [%s] loading values for %d periods …", table, len(periods))
 
-        # Load all values for the section at once → lookup dict
-        val_map: dict[tuple[str, str, int, int], dict[str, Any]] = {}
-        for row in conn.execute(
-            "SELECT ticker, period_kind, year_report, quarter_report, field, value "
-            "FROM statement_values WHERE section = ?",
-            (section,),
-        ):
-            key = (row[0], row[1], row[2], row[3])
-            if key not in val_map:
-                val_map[key] = {}
-            val_map[key][row[4]] = row[5]
-
-        # Build batch upsert
         field_cols = ", ".join(f'"{f}"' for f in fields)
         placeholders = ", ".join("?" for _ in fields)
         insert_sql = (
@@ -617,14 +675,37 @@ def convert_normalized_to_wide(conn: sqlite3.Connection) -> None:
             f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {placeholders})"
         )
 
-        batch = []
-        for ticker, pk, yr, qr, lr, pub, cre, upd, fat in periods:
-            fvs = val_map.get((ticker, pk, yr, qr), {})
-            batch.append([ticker, pk, yr, qr, lr, pub, cre, upd, fat, *[fvs.get(f) for f in fields]])
+        # Process in ticker batches to avoid loading millions of rows into RAM at once
+        TICKER_BATCH = 200
+        tickers_in_section = list({row[0] for row in periods})
+        upserted = 0
+        for i in range(0, len(tickers_in_section), TICKER_BATCH):
+            ticker_batch = tickers_in_section[i : i + TICKER_BATCH]
+            ph = ",".join("?" for _ in ticker_batch)
+            val_map: dict[tuple[str, str, int, int], dict[str, Any]] = {}
+            for row in conn.execute(
+                f"SELECT ticker, period_kind, year_report, quarter_report, field, value "
+                f"FROM statement_values WHERE section = ? AND ticker IN ({ph})",
+                [section, *ticker_batch],
+            ):
+                key = (row[0], row[1], row[2], row[3])
+                if key not in val_map:
+                    val_map[key] = {}
+                val_map[key][row[4]] = row[5]
 
-        conn.executemany(insert_sql, batch)
-        conn.commit()
-        log.info("  [%s] upserted %d wide rows", table, len(batch))
+            batch = []
+            for ticker, pk, yr, qr, lr, pub, cre, upd, fat in periods:
+                if ticker not in ticker_batch:
+                    continue
+                fvs = val_map.get((ticker, pk, yr, qr), {})
+                batch.append([ticker, pk, yr, qr, lr, pub, cre, upd, fat, *[fvs.get(f) for f in fields]])
+
+            if batch:
+                conn.executemany(insert_sql, batch)
+                conn.commit()
+                upserted += len(batch)
+
+        log.info("  [%s] upserted %d wide rows", table, upserted)
 
     log.info("Wide-format conversion done.")
 
@@ -636,13 +717,51 @@ def cleanup_normalized_values(conn: sqlite3.Connection) -> None:
     dominates database size. Clearing it keeps runtime tables intact while cutting
     disk footprint dramatically.
     """
-    deleted = conn.execute("DELETE FROM statement_values").rowcount
-    conn.commit()
+    deleted: int | None
+    try:
+        deleted = conn.execute("DELETE FROM statement_values").rowcount
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        # Large DELETE in WAL mode can temporarily need extra disk for journal pages.
+        # If disk is tight, fall back to table reset (drop + recreate) to avoid rerunning
+        # the whole fetch job after wide tables are already built.
+        if "database or disk is full" not in str(exc).lower():
+            raise
+        conn.rollback()
+        log.warning("DELETE statement_values failed due to low disk; recreating table instead")
+        conn.execute("DROP TABLE IF EXISTS statement_values")
+        conn.execute(
+            """
+            CREATE TABLE statement_values (
+              ticker         TEXT NOT NULL,
+              section        TEXT NOT NULL,
+              period_kind    TEXT NOT NULL,  -- YEAR | QUARTER
+              year_report    INTEGER NOT NULL,
+              quarter_report INTEGER NOT NULL,
+              field          TEXT NOT NULL,
+              value          REAL,
+              fetched_at     TEXT NOT NULL,
+              PRIMARY KEY (ticker, section, period_kind, year_report, quarter_report, field)
+            );
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_statement_values_ticker ON statement_values(ticker);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_statement_values_field ON statement_values(field);")
+        conn.commit()
+        deleted = None
     try:
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     except Exception:
         pass
-    log.info("Normalized cleanup done: deleted %d rows from statement_values", deleted)
+    try:
+        conn.execute("VACUUM")
+        log.info("VACUUM complete — disk space reclaimed")
+    except Exception as exc:
+        log.warning("VACUUM failed: %s", exc)
+    if deleted is None:
+        log.info("Normalized cleanup done: statement_values table recreated")
+    else:
+        log.info("Normalized cleanup done: deleted %d rows from statement_values", deleted)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -672,14 +791,20 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-years",
         type=int,
-        default=8,
-        help="Keep latest N yearly periods per symbol/section. 0 = keep all.",
+        default=0,
+        help="Keep latest N yearly periods per symbol/section. 0 = keep all (default).",
     )
     parser.add_argument(
         "--max-quarters",
         type=int,
-        default=16,
-        help="Keep latest N quarterly periods per symbol/section. 0 = keep all.",
+        default=0,
+        help="Keep latest N quarterly periods per symbol/section. 0 = keep all (default).",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        help="Delay in seconds after each HTTP request. Useful for throttling.",
     )
     parser.add_argument(
         "--store-values-json",
@@ -732,6 +857,8 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
+    global REQUEST_DELAY_S
+    REQUEST_DELAY_S = max(0.0, float(args.delay))
     opener = _build_opener()
 
     out_dir = Path(args.out_dir).resolve() if args.out_dir else _default_out_dir()
@@ -775,6 +902,22 @@ def main() -> int:
     fields_by_section = upsert_metrics(conn, metrics, fetched_at)
     mapping_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info("Mapping saved: %s", mapping_path)
+
+    # Pre-create wide tables and enable direct-write mode (avoids building statement_values
+    # as a multi-GB intermediate table that causes disk exhaustion on full runs).
+    wide_columns: dict[str, set[str]] | None = None
+    if not args.no_wide_convert:
+        wide_columns = {}
+        for section in SECTIONS:
+            table = SECTION_TABLE_MAP[section]
+            fields_list = list(fields_by_section.get(section, set()))
+            _ensure_wide_table(conn, table, fields_list)
+            wide_columns[section] = set(fields_list)
+        log.info(
+            "Wide tables pre-created — direct-write mode ON (no statement_values intermediate). "
+            "Fields per section: %s",
+            {s: len(f) for s, f in wide_columns.items()},
+        )
 
     floors = _norm_floor_set(args.floors)
 
@@ -866,6 +1009,8 @@ def main() -> int:
                         fields_by_section=fields_by_section,
                         fetched_at=fetched_at,
                         store_values_json=args.store_values_json,
+                        write_wide=(wide_columns is not None),
+                        wide_columns=wide_columns,
                     )
                     total_period_rows += p_rows
                     total_value_rows += v_rows
@@ -895,7 +1040,11 @@ def main() -> int:
     conn.commit()
 
     if not args.no_wide_convert:
-        convert_normalized_to_wide(conn)
+        if wide_columns is None:
+            # Fallback: post-hoc conversion when direct-write was disabled
+            convert_normalized_to_wide(conn)
+        # statement_values is empty in direct-write mode; cleanup is a cheap no-op but still
+        # runs VACUUM to compact the WAL and reclaim any fragmented pages.
         if not args.keep_normalized_values:
             cleanup_normalized_values(conn)
 

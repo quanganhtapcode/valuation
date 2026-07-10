@@ -41,7 +41,8 @@ Vercel không proxy WebSocket. Frontend phải dùng
 ├── scripts/                 Utility scripts
 ├── automation/              VPS deploy/systemd/cron helpers
 ├── docs/                    Architecture, runbook, SQLite docs
-├── update_excel_data.py     VietCap Excel download/upload workflow
+├── automation/update_excel_data.py
+│                            VietCap Excel download/upload workflow
 ├── requirements.txt         Python dependencies
 └── package.json             Convenience scripts
 ```
@@ -84,7 +85,7 @@ python fetch_sqlite/fetch_vci_stats_financial.py --db fetch_sqlite/vci_stats_fin
 python fetch_sqlite/fetch_vci_market_news.py --db fetch_sqlite/vci_market_news.sqlite --pages 5 --page-size 50
 python fetch_sqlite/fetch_vci_ratio_daily.py --db fetch_sqlite/vci_ratio_daily.sqlite
 python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite
-PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history
+PRICE_HISTORY_DB_PATH=fetch_sqlite/vci_price_history.sqlite python -m backend.updater.update_price_history
 ```
 
 ## Canonical SQLite Layer
@@ -93,7 +94,7 @@ All canonical data lives in `fetch_sqlite/`.
 
 | File | Writer | Purpose |
 |---|---|---|
-| `fetch_sqlite/vci_company.sqlite` | `fetch_vci_company.py` | Company names, profiles, floor and ICB industry classification |
+| `fetch_sqlite/vci_company.sqlite` | `fetch_vci_company.py` | Canonical security master, active stock universe, company and ICB metadata |
 | `fetch_sqlite/vci_financials.sqlite` | `fetch_vci_financial_statement.py` | Wide-format VCI financial statements |
 | `fetch_sqlite/vci_screening.sqlite` | `fetch_vci_screener.py` | Market snapshot: price, sector, market cap, PE/PB/ROE |
 | `fetch_sqlite/vci_stats_financial.sqlite` | `fetch_vci_stats_financial.py` | TTM ratios, shares, market cap and banking KPIs |
@@ -107,7 +108,7 @@ All canonical data lives in `fetch_sqlite/`.
 | `fetch_sqlite/macro_history.sqlite` | `fetch_macro_history.py` | VCI macro time series |
 | `fetch_sqlite/fireant_macro.sqlite` | `fetch_fireant_macro.py` | FireAnt macro indicators |
 | `fetch_sqlite/valuation_cache.sqlite` | `backend/updater/batch_valuations.py` | Cached valuation outputs |
-| `fetch_sqlite/price_history.sqlite` | `backend/updater/update_price_history.py` | Daily stock OHLCV history |
+| `fetch_sqlite/vci_price_history.sqlite` | `backend/updater/update_price_history.py` | Daily stock OHLCV history |
 
 Legacy DBs:
 
@@ -133,7 +134,7 @@ Active cron jobs are managed by `automation/setup_cron_vps.sh`.
 | `*/7 * * * *` | `fetch_sqlite/fetch_vci_screener.py` | `vci_screening.sqlite` |
 | `5 * * * *` | `fetch_sqlite/fetch_vci_stats_financial.py` | `vci_stats_financial.sqlite` |
 | `*/10 * * * *` | `fetch_sqlite/fetch_vci_market_news.py` | `vci_market_news.sqlite` |
-| `30 11 * * *` | `PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history` | `fetch_sqlite/price_history.sqlite` |
+| `30 11 * * *` | `PRICE_HISTORY_DB_PATH=fetch_sqlite/vci_price_history.sqlite python -m backend.updater.update_price_history` | `fetch_sqlite/vci_price_history.sqlite` |
 | `10 13 * * *` | `fetch_sqlite/fetch_vci_shareholders.py` | `vci_shareholders.sqlite` |
 | `35 13 * * *` | `fetch_sqlite/fetch_vci_ratio_daily.py` | `vci_ratio_daily.sqlite` |
 | `30 18 * * *` | `fetch_sqlite/fetch_vci_valuation.py` | `vci_valuation.sqlite` |
@@ -196,7 +197,7 @@ Backend:
 | Variable | Purpose |
 |---|---|
 | `VNSTOCK_API_KEY`, `VNSTOCK_API_KEYS` | Only needed for legacy vnstock-backed jobs |
-| `PRICE_HISTORY_DB_PATH` | Override for `fetch_sqlite/price_history.sqlite` |
+| `PRICE_HISTORY_DB_PATH` | Override for `fetch_sqlite/vci_price_history.sqlite` |
 | `VCI_SCREENING_DB_PATH` | Override for `vci_screening.sqlite` |
 | `VCI_STATS_FINANCIAL_DB_PATH` | Override for `vci_stats_financial.sqlite` |
 | `VCI_RATIO_DAILY_DB_PATH` | Override for `vci_ratio_daily.sqlite` |
@@ -249,7 +250,7 @@ sqlite3 /var/www/valuation/fetch_sqlite/vci_screening.sqlite "SELECT COUNT(*) FR
 sqlite3 /var/www/valuation/fetch_sqlite/vci_stats_financial.sqlite "SELECT COUNT(*) FROM stats_financial;"
 sqlite3 /var/www/valuation/fetch_sqlite/vci_ratio_daily.sqlite "SELECT COUNT(*) FROM ratio_daily;"
 sqlite3 /var/www/valuation/fetch_sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta;"
-sqlite3 /var/www/valuation/fetch_sqlite/price_history.sqlite "SELECT COUNT(*) FROM stock_price_history;"
+sqlite3 /var/www/valuation/fetch_sqlite/vci_price_history.sqlite "SELECT COUNT(*) FROM stock_price_history;"
 ```
 
 ## Troubleshooting

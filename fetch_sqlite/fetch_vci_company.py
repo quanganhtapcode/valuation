@@ -463,8 +463,30 @@ def fetch_and_store(db_path: Path, *, dry_run: bool = False) -> None:
     finally:
         conn.close()
 
-    # Regenerate ticker_data.json from the updated SQLite
+    _refresh_security_master(db_path)
+
+    # Regenerate ticker_data.json from the updated canonical universe
     _regenerate_ticker_data(db_path)
+
+
+def _refresh_security_master(company_db: Path) -> None:
+    """Rebuild the active stock universe before downstream artifacts."""
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-m", "backend.security_master", "--company-db", str(company_db)],
+        capture_output=True,
+        text=True,
+        cwd=str(root),
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "security_master refresh failed: "
+            f"{(result.stderr or result.stdout).strip()}"
+        )
+    log.info(result.stdout.strip())
 
 
 def _regenerate_ticker_data(company_db: Path) -> None:

@@ -7,7 +7,7 @@ Replaces the old monolithic stocks_optimized.db with distributed VCI sources:
 - vci_company.sqlite     → company names, ICB sectors, logos
 - vci_financials.sqlite  → balance sheet, income statement, cash flow (wide format)
 - vci_shareholders.sqlite → shareholder lists
-- price_history.sqlite   → daily OHLCV
+- vci_price_history.sqlite   → daily OHLCV
 """
 
 from __future__ import annotations
@@ -235,7 +235,7 @@ class VCIDataAccess:
 
     # ── Price history ───────────────────────────────────────────────────
     def get_price_history(self, symbol: str, limit: int = 250) -> list[dict]:
-        """Get daily OHLCV from price_history.sqlite."""
+        """Get daily OHLCV from vci_price_history.sqlite."""
         db_path = resolve_price_history_db_path()
         with _connect(db_path) as conn:
             if conn is None:

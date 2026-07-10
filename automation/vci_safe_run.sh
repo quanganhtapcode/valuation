@@ -122,7 +122,7 @@ calc_metrics() {
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM companies;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN (icb_code4 IS NOT NULL AND TRIM(icb_code4) <> '' AND logo_url IS NOT NULL AND TRIM(logo_url) <> '') THEN 1 ELSE 0 END) FROM companies;")"
       ;;
-    price_history.sqlite)
+    vci_price_history.sqlite)
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM stock_price_history;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN close IS NOT NULL THEN 1 ELSE 0 END) FROM stock_price_history;")"
       ;;
@@ -141,6 +141,10 @@ calc_metrics() {
     vci_news_events.sqlite)
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM items;")"
       quality="$(sql_scalar "$db" "SELECT SUM(CASE WHEN raw_json IS NOT NULL AND TRIM(raw_json) <> '' THEN 1 ELSE 0 END) FROM items;")"
+      ;;
+    vci_financials.sqlite)
+      total="$(sql_scalar "$db" "SELECT COUNT(*) FROM statement_periods;")"
+      quality="$(sql_scalar "$db" "SELECT COUNT(*) FROM income_statement;")"
       ;;
     *)
       total="$(sql_scalar "$db" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';")"
@@ -251,6 +255,10 @@ max_attempts=$((RETRIES + 1))
 run_ok=0
 while [[ $attempt -le $max_attempts ]]; do
   echo "[safe-run][$JOB_NAME] attempt=$attempt/$max_attempts"
+  if [[ $attempt -gt 1 && -f "$last_backup" ]]; then
+    cp -f "$last_backup" "$DB_PATH"
+    echo "[safe-run][$JOB_NAME] restored last backup before retry: $last_backup"
+  fi
   if bash -lc "$RUN_CMD"; then
     run_ok=1
     break

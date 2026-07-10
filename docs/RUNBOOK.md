@@ -59,7 +59,7 @@ Active cron entries:
 | `*/7 * * * *` | `vci_screening.sqlite` | `fetch_sqlite/cron_screener.log` |
 | `5 * * * *` | `vci_stats_financial.sqlite` | `fetch_sqlite/cron_stats_financial.log` |
 | `*/10 * * * *` | `vci_market_news.sqlite` | `fetch_sqlite/cron_vci_market_news.log` |
-| `30 11 * * *` | `fetch_sqlite/price_history.sqlite` | `logs/price_history_update.log` |
+| `30 11 * * *` | `fetch_sqlite/vci_price_history.sqlite` | `logs/price_history_update.log` |
 | `10 13 * * *` | `vci_shareholders.sqlite` | `fetch_sqlite/cron_shareholders.log` |
 | `35 13 * * *` | `vci_ratio_daily.sqlite` | `fetch_sqlite/cron_ratio_daily.log` |
 | `30 18 * * *` | `vci_valuation.sqlite` | `fetch_sqlite/cron_valuation.log` |
@@ -89,7 +89,7 @@ python fetch_sqlite/fetch_vci_market_news.py --db fetch_sqlite/vci_market_news.s
 python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite
 python fetch_sqlite/fetch_vci_valuation.py --db fetch_sqlite/vci_valuation.sqlite
 python fetch_sqlite/fetch_vci_foreign.py --db fetch_sqlite/vci_foreign.sqlite
-PRICE_HISTORY_DB_PATH=fetch_sqlite/price_history.sqlite python -m backend.updater.update_price_history
+PRICE_HISTORY_DB_PATH=fetch_sqlite/vci_price_history.sqlite python -m backend.updater.update_price_history
 ```
 
 ## SQLite Checks
@@ -102,7 +102,7 @@ sqlite3 fetch_sqlite/vci_screening.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM
 sqlite3 fetch_sqlite/vci_stats_financial.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM stats_financial;"
 sqlite3 fetch_sqlite/vci_ratio_daily.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM ratio_daily;"
 sqlite3 fetch_sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta ORDER BY key;"
-sqlite3 fetch_sqlite/price_history.sqlite "SELECT COUNT(*), MAX(time) FROM stock_price_history;"
+sqlite3 fetch_sqlite/vci_price_history.sqlite "SELECT COUNT(*), MAX(time) FROM stock_price_history;"
 ```
 
 Integrity checks:
@@ -220,7 +220,7 @@ Vacuum during quiet hours:
 
 ```bash
 sqlite3 fetch_sqlite/vci_market_news.sqlite "VACUUM;"
-sqlite3 fetch_sqlite/price_history.sqlite "VACUUM;"
+sqlite3 fetch_sqlite/vci_price_history.sqlite "VACUUM;"
 ```
 
 Delete old logs:

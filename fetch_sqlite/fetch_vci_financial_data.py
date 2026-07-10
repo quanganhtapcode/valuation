@@ -363,8 +363,9 @@ def get_tickers(override: list[str] | None) -> list[str]:
     return [r[0] for r in rows]
 
 
-def run(tickers_override: list[str] | None, limit: int, dry_run: bool) -> None:
-    bearer = obtain_token()
+def run(tickers_override: list[str] | None, limit: int, dry_run: bool, bearer: str | None = None) -> None:
+    if not bearer:
+        bearer = obtain_token()
     if not bearer:
         sys.exit(1)
 

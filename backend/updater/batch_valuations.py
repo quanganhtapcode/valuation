@@ -31,13 +31,10 @@ CREATE TABLE IF NOT EXISTS valuations (
 
 
 def _get_symbols() -> list[str]:
-    """Return all symbols from vci_screening."""
-    from backend.db_path import resolve_vci_screening_db_path
-    with sqlite3.connect(resolve_vci_screening_db_path()) as conn:
-        rows = conn.execute(
-            "SELECT DISTINCT ticker FROM screening_data ORDER BY ticker"
-        ).fetchall()
-    return [r[0] for r in rows if r[0]]
+    """Return the canonical active stock universe."""
+    from backend.security_master import active_stock_symbols
+
+    return active_stock_symbols()
 
 
 def _ensure_cache_db() -> str:

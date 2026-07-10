@@ -583,6 +583,9 @@ def save_analysis(
         except _json.JSONDecodeError:
             pass
 
+    if not valuation_json or not news_json:
+        raise ValueError("AI response did not contain valid valuation/news_thesis JSON")
+
     cache.execute(
         """
         INSERT OR REPLACE INTO ai_financial_analysis

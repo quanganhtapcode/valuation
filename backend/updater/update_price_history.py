@@ -1,11 +1,11 @@
 """
 Price History Updater
-Fetches historical price data from VCI API and stores in price_history.sqlite.
+Fetches historical price data from VCI API and stores in vci_price_history.sqlite.
 Stored separately from vietnam_stocks.db so it can be deleted/rebuilt independently.
 """
 
+import argparse
 import os
-import sys
 import sqlite3
 import logging
 import time
@@ -14,11 +14,8 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Tuple
 
-# Add backend to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from data_sources.vci import VCIClient
-from db_path import resolve_price_history_db_path, resolve_vci_screening_db_path
+from backend.data_sources.vci import VCIClient
+from backend.db_path import resolve_price_history_db_path, resolve_vci_screening_db_path
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -144,7 +141,7 @@ class PriceHistoryUpdater:
             return []
 
     def insert_price_records(self, symbol: str, records: List[Dict]) -> int:
-        """Upsert OHLCV records into price_history.sqlite. Returns inserted count."""
+        """Upsert OHLCV records into vci_price_history.sqlite. Returns inserted count."""
         if not records:
             return 0
 
@@ -308,27 +305,43 @@ class PriceHistoryUpdater:
                 logger.warning(f"  … and {len(failed_symbols) - 30} more")
 
 
-def main():
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Update canonical VCI stock price history"
+    )
+    parser.add_argument(
+        "--test",
+        "-t",
+        action="store_true",
+        help="Update only the first five symbols",
+    )
+    parser.add_argument(
+        "--symbols",
+        help="Comma-separated symbols to update, for example VCB,FPT,VNM",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Fetch full history instead of the latest incremental page",
+    )
+    parser.add_argument(
+        "--pages",
+        type=int,
+        default=None,
+        help="Pages per symbol (default: 1 incremental, 25 full)",
+    )
+    args = parser.parse_args()
+    if args.pages is not None and args.pages < 1:
+        parser.error("--pages must be at least 1")
+    return args
+
+
+def main() -> None:
     os.makedirs('logs', exist_ok=True)
-    test_mode = '--test' in sys.argv or '-t' in sys.argv
-
-    symbols = None
-    if '--symbols' in sys.argv:
-        idx = sys.argv.index('--symbols')
-        if idx + 1 < len(sys.argv):
-            symbols = sys.argv[idx + 1].split(',')
-
-    incremental = '--full' not in sys.argv
-
-    # --pages N: number of pages to fetch per symbol (default: 1 incremental, 25 full)
-    pages_per_symbol = 1 if incremental else 25
-    if '--pages' in sys.argv:
-        idx = sys.argv.index('--pages')
-        if idx + 1 < len(sys.argv):
-            try:
-                pages_per_symbol = int(sys.argv[idx + 1])
-            except ValueError:
-                pass
+    args = _parse_args()
+    symbols = [s.strip().upper() for s in args.symbols.split(',') if s.strip()] if args.symbols else None
+    incremental = not args.full
+    pages_per_symbol = args.pages if args.pages is not None else (1 if incremental else 25)
 
     updater = PriceHistoryUpdater(
         max_workers=3,
@@ -338,7 +351,7 @@ def main():
         retries=2,
         retry_backoff=1.5,
     )
-    updater.run(symbols=symbols, test_mode=test_mode)
+    updater.run(symbols=symbols, test_mode=args.test)
 
 
 if __name__ == '__main__':

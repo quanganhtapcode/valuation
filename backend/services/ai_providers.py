@@ -25,7 +25,7 @@ _OPENROUTER_MODEL_CHAIN = [
         "OPENROUTER_MODEL_CHAIN",
         os.environ.get(
             "OPENROUTER_MODEL",
-            "google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free,openai/gpt-oss-120b:free",
+            "openrouter/free,google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free,openai/gpt-oss-120b:free",
         ),
     ).split(",")
     if m.strip()
@@ -159,3 +159,21 @@ def generate(prompt: str) -> tuple[str, str]:
                     break
 
     raise RuntimeError(f"All models exhausted. Last error: {last_err}")
+
+
+def generate_openrouter(prompt: str) -> tuple[str, str]:
+    """Generate with OpenRouter models only. Returns (response_text, model_used)."""
+    last_err: Exception | None = None
+    models = _provider_models("openrouter")
+    if not models:
+        raise RuntimeError("OPENROUTER_API_KEY not set")
+
+    for model in models:
+        model_key = f"openrouter:{model}"
+        try:
+            return _call_openrouter_model(model, prompt), model_key
+        except Exception as e:
+            last_err = e
+            logger.warning("OpenRouter model %s failed: %s", model_key, e)
+
+    raise RuntimeError(f"All OpenRouter models exhausted. Last error: {last_err}")

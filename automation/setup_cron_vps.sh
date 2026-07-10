@@ -18,7 +18,7 @@ CRON_STATS_FINANCIAL="5 * * * * cd /var/www/valuation && bash automation/vci_saf
 
 # ── Daily jobs ────────────────────────────────────────────────────────────────
 
-CRON_PRICE_HISTORY="30 11 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name price_history --db fetch_sqlite/price_history.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python -m backend.updater.update_price_history\" >> logs/price_history_update.log 2>&1"
+CRON_PRICE_HISTORY="30 11 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name price_history --db fetch_sqlite/vci_price_history.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python -m backend.updater.update_price_history\" >> logs/price_history_update.log 2>&1"
 
 CRON_RATIO_DAILY="35 13 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name ratio_daily --db fetch_sqlite/vci_ratio_daily.sqlite --retries 2 --retry-sleep 15 --drop-total-pct 0.20 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python fetch_sqlite/fetch_vci_ratio_daily.py --db fetch_sqlite/vci_ratio_daily.sqlite --workers 4 --delay 0.12 --retries 4\" >> logs/cron_ratio_daily.log 2>&1"
 
@@ -28,7 +28,7 @@ CRON_INDEX_HISTORY="45 15 * * 1-5 cd /var/www/valuation && bash automation/vci_s
 
 CRON_VALUATION="30 18 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name valuation --db fetch_sqlite/vci_valuation.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python fetch_sqlite/fetch_vci_valuation.py --db fetch_sqlite/vci_valuation.sqlite\" >> logs/cron_valuation.log 2>&1"
 
-CRON_FINANCIALS="15 18 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name financials --db fetch_sqlite/vci_financials.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python fetch_sqlite/fetch_vci_financial_statement.py --db-path fetch_sqlite/vci_financials.sqlite --workers 6 --batch-size 40 --max-years 8 --max-quarters 16\" >> logs/cron_financials.log 2>&1"
+CRON_FINANCIALS="15 18 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name financials --db fetch_sqlite/vci_financials.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python fetch_sqlite/fetch_vci_financial_statement.py --db-path fetch_sqlite/vci_financials.sqlite --workers 6 --batch-size 40 --max-years 0 --max-quarters 0\" >> logs/cron_financials.log 2>&1"
 
 CRON_NEWS_EVENTS="0 20 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name news_events --db fetch_sqlite/vci_news_events.sqlite --retries 2 --retry-sleep 30 --drop-total-pct 0.10 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python -m backend.updater.batch_news --incremental\" >> logs/cron_news_events.log 2>&1"
 

@@ -4,7 +4,7 @@ Beta and WACC calculator for Vietnamese stocks.
 Source priority:
 1. fireant_macro.sqlite → beta_cache (weekly batch fetch, freshest within 8 days)
 2. FireAnt API live     → /symbols/{ticker}/fundamental (on cache miss)
-3. OLS regression       → price_history.sqlite vs vci_index_history.sqlite (VN30)
+3. OLS regression       → vci_price_history.sqlite vs vci_index_history.sqlite (VN30)
 4. Fallback 1.0
 
 WACC = Rf + β × ERP  (CAPM, simplified — no debt structure)

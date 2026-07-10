@@ -22,6 +22,7 @@ export const API = {
     GOLD: `${API_BASE}/market/gold`,
     LOTTERY: `${API_BASE}/market/lottery`,
     EARNINGS_SEASON: `${API_BASE}/market/earnings-season`,
+    AI_TAKEAWAYS: `${API_BASE}/market/ai-takeaways`,
     STOCK_AI_ANALYSIS: (symbol: string) => `${API_BASE}/${symbol}/ai-analysis`,
     MACRO_RATES: `${API_BASE}/market/macro/rates`,
     MACRO_ECONOMIC: `${API_BASE}/market/macro/economic`,

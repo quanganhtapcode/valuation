@@ -27,6 +27,8 @@ logs/
 *.log
 fetch_sqlite/cron*.log
 fetch_sqlite/backups/
+automation/backups/
+exports/
 
 # Benchmarks / perf reports
 logs/perf/
@@ -55,3 +57,7 @@ Thumbs.db
 # Exported data files (large, regenerated)
 company_profile_export.json
 company_table_export.json
+
+# Generated financial-statement metadata (recreated by the canonical fetcher)
+vci_financial_statement_data/financial_statement_metrics.json
+vci_financial_statement_data/symbols_search_bar.json

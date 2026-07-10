@@ -1,9 +1,9 @@
 [Unit]
-Description=Daily Stock Fetch Timer
+Description=Stock Derived Data Maintenance Timer
 Requires=stock-fetch.service
 
 [Timer]
-# Chạy 4 lần/ngày để giảm độ trễ cập nhật BCTC và chỉ số tổng hợp
+# Chạy 4 lần/ngày để cập nhật security master và valuation cache.
 # 00:00, 06:00, 12:00, 18:00 giờ máy chủ
 OnCalendar=*-*-* 00,06,12,18:00:00
 # Nếu miss schedule (VPS tắt), chạy ngay khi bật lại
