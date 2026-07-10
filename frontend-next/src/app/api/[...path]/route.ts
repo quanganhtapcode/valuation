@@ -53,6 +53,7 @@ const MEDIUM_CACHE_PATH_PREFIXES = [
 
 const LONG_CACHE_PATH_PREFIXES = [
     'company/profile/',
+    'market/ai-takeaways',
     'tickers',
     'health',
 ];

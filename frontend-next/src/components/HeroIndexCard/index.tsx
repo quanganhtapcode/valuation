@@ -159,6 +159,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
     const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
+    const vnCache   = useRef<Map<string, PEChartData[]>>(new Map());
     const liveVnRef = useRef<{ time: UTCTime; value: number } | null>(null);
 
     // ── Chart refs ────────────────────────────────────────────────────────────
@@ -176,17 +177,28 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const isVN     = selectedId === 'vnindex';
     const selected = indices.find(i => i.id === selectedId) || indices[0];
 
-    // ── Fetch VN-Index full history once ──────────────────────────────────────
+    // ── Fetch only the history needed by the selected range ───────────────────
+    const vnTimeframe = range === 'MAX' ? 'ALL' : range === '1Y' ? '1Y' : '6M';
     useEffect(() => {
-        if (vnRows.length > 0) return;
-        queueMicrotask(() => {
-            setVnLoad(true);
-            fetchPEChartByRange('ALL', 'both')
-                .then(r => { setVnRows(r.series); })
-                .catch(console.error)
-                .finally(() => setVnLoad(false));
-        });
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        const cached = vnCache.current.get(vnTimeframe);
+        if (cached) {
+            setVnRows(cached);
+            return;
+        }
+
+        const controller = new AbortController();
+        setVnLoad(true);
+        fetchPEChartByRange(vnTimeframe, 'both', { signal: controller.signal })
+            .then(({ series }) => {
+                vnCache.current.set(vnTimeframe, series);
+                setVnRows(series);
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') console.error(error);
+            })
+            .finally(() => setVnLoad(false));
+        return () => controller.abort();
+    }, [vnTimeframe]);
 
     // ── Fetch other indices on demand ─────────────────────────────────────────
     useEffect(() => {

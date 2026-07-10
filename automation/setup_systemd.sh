@@ -13,6 +13,8 @@ echo "=============================================="
 echo "1. Installing service & timer files..."
 sudo cp "$SCRIPT_DIR/stock-fetch.service" /etc/systemd/system/
 sudo cp "$SCRIPT_DIR/stock-fetch.timer" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/market-ai-takeaways.service" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/market-ai-takeaways.timer" /etc/systemd/system/
 
 # 2. Reload systemd
 echo "2. Reloading systemd daemon..."
@@ -21,10 +23,12 @@ sudo systemctl daemon-reload
 # 3. Enable timer (auto-start on boot)
 echo "3. Enabling timer..."
 sudo systemctl enable stock-fetch.timer
+sudo systemctl enable market-ai-takeaways.timer
 
 # 4. Start timer
 echo "4. Starting timer..."
 sudo systemctl start stock-fetch.timer
+sudo systemctl start market-ai-takeaways.timer
 
 # 5. Check status
 echo ""
@@ -32,9 +36,11 @@ echo "=============================================="
 echo "STATUS"
 echo "=============================================="
 sudo systemctl status stock-fetch.timer --no-pager
+sudo systemctl status market-ai-takeaways.timer --no-pager
 echo ""
 echo "Next scheduled run:"
 sudo systemctl list-timers stock-fetch.timer --no-pager
+sudo systemctl list-timers market-ai-takeaways.timer --no-pager
 
 echo ""
 echo "=============================================="
@@ -43,6 +49,8 @@ echo "=============================================="
 echo "Check timer status:  sudo systemctl status stock-fetch.timer"
 echo "Check service logs:  sudo journalctl -u stock-fetch.service -f"
 echo "Run now (manual):    sudo systemctl start stock-fetch.service"
+echo "Check AI timer:      sudo systemctl status market-ai-takeaways.timer"
+echo "Run AI now:          sudo systemctl start market-ai-takeaways.service"
 echo "Stop timer:          sudo systemctl stop stock-fetch.timer"
 echo "Disable timer:       sudo systemctl disable stock-fetch.timer"
 echo ""

@@ -1,0 +1,13 @@
+[Unit]
+Description=Market AI Takeaways Refresh Timer
+Requires=market-ai-takeaways.service
+
+[Timer]
+# Refresh during the Vietnamese trading session, then once after market close.
+OnCalendar=Mon..Fri *-*-* 09..15:10:00
+OnCalendar=Mon..Fri *-*-* 18:10:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

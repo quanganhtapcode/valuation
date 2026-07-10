@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { fetchMarketTakeaways, EarningsSeasonData, EarningsGrower, MarketTakeawaysData } from '@/lib/api';
+import { fetchEarningsSeason, fetchMarketTakeaways, EarningsSeasonData, EarningsGrower, MarketTakeawaysData } from '@/lib/api';
 
 type TabKey = 'revenue_yoy' | 'revenue_qoq' | 'profit_yoy' | 'profit_qoq';
 
@@ -75,17 +75,30 @@ function Skeleton() {
 
 export default function EarningsSeason() {
     const [takeaways, setTakeaways] = useState<MarketTakeawaysData | null>(null);
+    const [earnings, setEarnings] = useState<EarningsSeasonData | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabKey>('revenue_yoy');
 
     useEffect(() => {
-        fetchMarketTakeaways().then(d => {
-            setTakeaways(d);
-            setLoading(false);
+        let cancelled = false;
+        fetchEarningsSeason().then(data => {
+            if (!cancelled) {
+                setEarnings(data);
+                setLoading(false);
+            }
         });
+
+        const fetchTakeaways = () => fetchMarketTakeaways().then(data => {
+            if (!cancelled) setTakeaways(data);
+        });
+        const idleTimer = window.setTimeout(fetchTakeaways, 500);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(idleTimer);
+        };
     }, []);
 
-    const data: EarningsSeasonData | null = takeaways?.earnings ?? null;
+    const data: EarningsSeasonData | null = takeaways?.earnings ?? earnings;
     const growers: EarningsGrower[] = data
         ? activeTab === 'revenue_yoy' ? data.top_revenue_yoy
         : activeTab === 'revenue_qoq' ? data.top_revenue_qoq
@@ -115,10 +128,11 @@ export default function EarningsSeason() {
 
             {loading ? (
                 <Skeleton />
-            ) : !takeaways || !data ? (
+            ) : !data ? (
                 <p className="text-sm text-gray-400 dark:text-gray-500">Không thể tải dữ liệu.</p>
             ) : (
                 <>
+                    {takeaways && (
                     <div className="mb-4 rounded-xl bg-slate-50 p-3 dark:bg-gray-800">
                         <div className="mb-2 flex items-center justify-between gap-3">
                             <p className="text-sm font-semibold text-gray-900 dark:text-gray-50">
@@ -141,8 +155,9 @@ export default function EarningsSeason() {
                             ))}
                         </ul>
                     </div>
+                    )}
 
-                    {takeaways.watchlist && takeaways.watchlist.length > 0 && (
+                    {takeaways?.watchlist && takeaways.watchlist.length > 0 && (
                         <div className="mb-4 grid gap-2 sm:grid-cols-2">
                             {takeaways.watchlist.slice(0, 4).map((item) => (
                                 <Link
