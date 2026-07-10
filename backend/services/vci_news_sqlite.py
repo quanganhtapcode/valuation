@@ -105,6 +105,39 @@ def query_market_news(
     return result
 
 
+def query_recent_market_news(
+    db_path: str,
+    *,
+    since: dt.datetime,
+    limit: int = 30,
+) -> list[dict[str, Any]]:
+    """Return market news published since a local timestamp, newest first."""
+    if not db_path or not os.path.exists(db_path):
+        return []
+
+    limit = min(max(int(limit or 30), 1), 100)
+    cutoff = since.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+    with _connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT raw_json
+            FROM news_items
+            WHERE update_date >= ?
+            ORDER BY update_date DESC
+            LIMIT ?
+            """,
+            (cutoff, limit),
+        ).fetchall()
+
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            result.append(normalize_news_item(json.loads(row[0])))
+        except (TypeError, json.JSONDecodeError):
+            continue
+    return result
+
+
 def normalize_news_item(item: dict[str, Any]) -> dict[str, Any]:
     """Normalize a news item to include both legacy and modern field names.
 

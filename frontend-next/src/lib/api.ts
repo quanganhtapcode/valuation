@@ -743,7 +743,7 @@ export interface MarketTakeawayMover {
 export interface MarketTakeawayWatchItem {
     symbol: string;
     takeaway: string;
-    direction: 'up' | 'down';
+    direction: 'up' | 'down' | 'neutral';
 }
 
 export interface MarketTakeawaysData {
@@ -752,7 +752,7 @@ export interface MarketTakeawaysData {
     summary: string[];
     watchlist?: MarketTakeawayWatchItem[];
     movers: MarketTakeawayMover[];
-    earnings: EarningsSeasonData;
+    recent_news?: MarketTakeawayNews[];
     model: string;
     generated_at: string;
 }

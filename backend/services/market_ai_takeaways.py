@@ -4,18 +4,24 @@ import json
 import logging
 import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.db_path import resolve_valuation_cache_db_path
 from backend.services.ai_providers import generate_openrouter
-from backend.services.vci_news_sqlite import compact_news_item, default_news_db_path, query_news_for_symbol
+from backend.services.vci_news_sqlite import (
+    compact_news_item,
+    default_news_db_path,
+    query_news_for_symbol,
+    query_recent_market_news,
+)
 
 logger = logging.getLogger(__name__)
 
-_CACHE_KEY = "market_ai_takeaways_v1"
+_CACHE_KEY = "market_ai_takeaways_v2"
 _MOVE_LIMIT = 5
 _NEWS_LIMIT_PER_SYMBOL = 3
+_RECENT_NEWS_LIMIT = 30
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS market_ai_takeaways (
     cache_key TEXT PRIMARY KEY,
@@ -73,6 +79,17 @@ def _load_movers_with_news() -> list[dict[str, Any]]:
     return movers
 
 
+def _load_recent_market_news() -> list[dict[str, Any]]:
+    """Load the shared market-news feed from the last 24 hours for the AI prompt."""
+    now_local = datetime.now().astimezone()
+    rows = query_recent_market_news(
+        default_news_db_path(),
+        since=now_local - timedelta(hours=24),
+        limit=_RECENT_NEWS_LIMIT,
+    )
+    return [compact_news_item(item) for item in rows]
+
+
 def _extract_json_object(text: str) -> dict[str, Any]:
     cleaned = re.sub(r"^```(?:json)?\s*", "", (text or "").strip())
     cleaned = re.sub(r"\s*```$", "", cleaned)
@@ -85,7 +102,9 @@ def _extract_json_object(text: str) -> dict[str, Any]:
         return json.loads(match.group(0))
 
 
-def _fallback_takeaways(movers: list[dict[str, Any]], earnings: dict[str, Any]) -> dict[str, Any]:
+def _fallback_takeaways(
+    movers: list[dict[str, Any]], recent_news: list[dict[str, Any]]
+) -> dict[str, Any]:
     up = [m for m in movers if m.get("direction") == "up"][:3]
     down = [m for m in movers if m.get("direction") == "down"][:2]
     summary: list[str] = []
@@ -97,60 +116,53 @@ def _fallback_takeaways(movers: list[dict[str, Any]], earnings: dict[str, Any]) 
         summary.append("Chiều giảm đáng chú ý: " + ", ".join(
             f"{m['symbol']} {m['change_pct']:.2f}%" for m in down
         ) + ".")
-    for mover in up:
-        title = (mover.get("news") or [{}])[0].get("title")
+    for item in recent_news[:3]:
+        title = item.get("title")
         if title:
-            summary.append(f"{mover['symbol']}: tin mới nhất là \"{title}\".")
-            break
-    summary.append(
-        f"Mùa BCTC {earnings.get('quarter')}: {earnings.get('reported_count')}/{earnings.get('total_count')} "
-        f"công ty HOSE/HNX đã có báo cáo, bao phủ {earnings.get('market_cap_pct')}% vốn hóa."
-    )
+            symbol = str(item.get("symbol") or "").upper()
+            prefix = f"{symbol}: " if symbol else "Tin đáng chú ý: "
+            summary.append(f"{prefix}{title}")
+            if len(summary) >= 4:
+                break
     return {
         "headline": "Biến động thị trường trong ngày",
         "summary": summary[:4],
         "watchlist": [],
         "movers": movers,
-        "earnings": earnings,
+        "recent_news": recent_news,
         "model": "deterministic-fallback",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "available": False,
     }
 
 
-def _build_prompt(movers: list[dict[str, Any]], earnings: dict[str, Any]) -> str:
+def _build_prompt(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]]) -> str:
     payload = {
-        "market_scope": "Vietnam listed stocks, HSX top movers snapshot",
+        "market_scope": "Vietnam listed stocks, market snapshot and news published in the last 24 hours",
         "movers": movers,
-        "earnings_season": {
-            key: earnings.get(key)
-            for key in ("quarter", "reported_count", "total_count", "reported_pct", "market_cap_pct")
-        } | {
-            "top_revenue_yoy": earnings.get("top_revenue_yoy", [])[:3],
-            "top_profit_yoy": earnings.get("top_profit_yoy", [])[:3],
-        },
+        "recent_news_24h": recent_news,
     }
     return (
-        "Tom tat nhanh cac bien dong lon trong ngay cho nha dau tu chung khoan Viet Nam.\n"
-        "Dua CHI tren JSON dau vao. Khong bia nguyen nhan neu tin khong noi ro. "
-        "Neu co phieu tang/giam manh co tin lien quan, neu takeaway ngan gon tu tieu de tin. "
+        "Tom tat tin va bien dong noi bat trong 24 gio gan nhat cho nha dau tu chung khoan Viet Nam.\n"
+        "Dua CHI tren JSON dau vao. Uu tien ma co phieu xuat hien trong tin noi bat, "
+        "hoac co bien dong gia lon; co the chon ma khong nam trong danh sach movers neu tin dang chu y. "
+        "Neu tin va bien dong khong lien he ro rang, chi neu tung su kien, khong khang dinh quan he nhan qua. "
         "Khong khuyen nghi mua ban. Viet tieng Viet co dau, trung lap.\n\n"
         "Tra ve JSON hop le dung schema:\n"
         "{\"headline\":\"string toi da 90 ky tu\",\"summary\":[\"3-5 bullet, moi bullet toi da 170 ky tu\"],"
-        "\"watchlist\":[{\"symbol\":\"AAA\",\"takeaway\":\"string toi da 140 ky tu\",\"direction\":\"up|down\"}]}\n\n"
+        "\"watchlist\":[{\"symbol\":\"AAA\",\"takeaway\":\"string toi da 140 ky tu, neu co thi nhac tieu de tin\","
+        "\"direction\":\"up|down|neutral\"}]}\n\n"
         f"INPUT_JSON:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 
 
 def compute_ai_takeaways() -> dict[str, Any]:
-    from backend.routes.market.earnings_season import compute_earnings_season
-
     movers = _load_movers_with_news()
-    earnings = compute_earnings_season()
-    if not movers:
-        return _fallback_takeaways(movers, earnings)
+    recent_news = _load_recent_market_news()
+    if not movers and not recent_news:
+        return _fallback_takeaways(movers, recent_news)
     try:
-        text, model = generate_openrouter(_build_prompt(movers, earnings))
+        text, model = generate_openrouter(_build_prompt(movers, recent_news))
         parsed = _extract_json_object(text)
         summary = [str(item).strip() for item in parsed.get("summary", []) if str(item).strip()]
         if not summary:
@@ -161,14 +173,14 @@ def compute_ai_takeaways() -> dict[str, Any]:
             "summary": summary[:5],
             "watchlist": watchlist[:5],
             "movers": movers,
-            "earnings": earnings,
+            "recent_news": recent_news,
             "model": model,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "available": True,
         }
     except Exception as exc:
         logger.warning("AI market takeaways fallback: %s", exc)
-        return _fallback_takeaways(movers, earnings)
+        return _fallback_takeaways(movers, recent_news)
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
