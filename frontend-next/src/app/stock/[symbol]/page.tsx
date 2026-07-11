@@ -225,7 +225,13 @@ export default function StockDetailPage() {
                         debtToEquity: data.debt_to_equity ?? data.debtToEquity ?? data.de,
                         currentRatio: data.current_ratio ?? data.currentRatio,
                     });
-                    setRawOverviewData(data);
+                    // The summary API does not identify whether EPS/BVPS are reported
+                    // values or values derived from price multiples. Do not seed derived
+                    // per-share figures into the Financials tab.
+                    const overviewWithoutDerivedPerShareValues = Object.fromEntries(
+                        Object.entries(data).filter(([key]) => key !== 'eps' && key !== 'bvps'),
+                    ) as StockApiData;
+                    setRawOverviewData(overviewWithoutDerivedPerShareValues);
 
                     // Update description from DB if available (faster than fallback fetch)
                     const description = data.company_profile || data.overview?.description;
