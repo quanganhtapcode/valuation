@@ -70,7 +70,16 @@ interface AiValuationCardProps {
     analysisJson?: string | null;
     analysisVi?: string | null;
     quarter?: string;
-    model?: string;
+    generatedAt?: string;
+}
+
+function formatGeneratedAt(value?: string): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }).format(date);
 }
 
 function fmtX(v: number | null | undefined) {
@@ -221,7 +230,7 @@ function LongTermGrid({ data }: { data: LongTerm }) {
     );
 }
 
-export default function AiValuationCard({ analysisJson, analysisVi, quarter, model }: AiValuationCardProps) {
+export default function AiValuationCard({ analysisJson, analysisVi, quarter, generatedAt }: AiValuationCardProps) {
     if (!analysisJson && !analysisVi) return null;
 
     let data: ValuationAnalysis | null = null;
@@ -247,6 +256,7 @@ export default function AiValuationCard({ analysisJson, analysisVi, quarter, mod
         typeof data.recommendation === 'object'
     ));
     const isValuationSchema = data && (data.valuation_summary || data.target_price != null || data.valuation_table);
+    const generatedLabel = formatGeneratedAt(generatedAt);
 
     const rec = recommendationAction;
 
@@ -264,7 +274,7 @@ export default function AiValuationCard({ analysisJson, analysisVi, quarter, mod
                         </span>
                     )}
                 </div>
-                {model && <span className="text-[10px] text-blue-400 dark:text-blue-500">{model}</span>}
+                {generatedLabel && <span className="text-[10px] text-blue-400 dark:text-blue-500">Cập nhật {generatedLabel}</span>}
             </div>
 
             {(isRichReport || isValuationSchema) && data ? (

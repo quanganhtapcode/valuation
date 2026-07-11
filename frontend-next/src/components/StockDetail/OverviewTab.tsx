@@ -337,7 +337,7 @@ export default function OverviewTab({
                         analysisJson={aiData?.analysis_json}
                         newsJson={aiData?.news_json}
                         quarter={aiData?.quarter}
-                        model={aiData?.model}
+                        generatedAt={aiData?.generated_at}
                     />
                 </div>
 

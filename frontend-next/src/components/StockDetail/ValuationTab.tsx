@@ -406,7 +406,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     analysisJson={aiData.analysis_json}
                     analysisVi={aiData.analysis_vi}
                     quarter={aiData.quarter}
-                    model={aiData.model}
+                    generatedAt={aiData.generated_at}
                 />
             )}
 

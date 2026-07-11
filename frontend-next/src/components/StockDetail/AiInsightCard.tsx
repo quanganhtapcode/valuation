@@ -43,7 +43,7 @@ interface AiInsightCardProps {
     analysisJson?: string | null;
     newsJson?: string | null;
     quarter?: string;
-    model?: string;
+    generatedAt?: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -60,9 +60,18 @@ function sentimentBadge(s: string | undefined) {
     return { label: 'Trung lập', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' };
 }
 
+function formatGeneratedAt(value?: string): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }).format(date);
+}
+
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function AiInsightCard({ analysisJson, newsJson, quarter, model }: AiInsightCardProps) {
+export default function AiInsightCard({ analysisJson, newsJson, quarter, generatedAt }: AiInsightCardProps) {
     if (!analysisJson && !newsJson) return null;
 
     let analysis: CombinedAnalysis | null = null;
@@ -76,6 +85,7 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, model }
     const hasBear = (news?.bear_case?.length ?? 0) > 0;
     const hasNews = hasBull || hasBear || (news?.key_events?.length ?? 0) > 0 || !!news?.watch_out;
     const badge = sentimentBadge(news?.overall_sentiment);
+    const generatedLabel = formatGeneratedAt(generatedAt);
 
     return (
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-labelledby="ai-insight-title">
@@ -92,7 +102,7 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, model }
                         </span>
                     )}
                 </div>
-                {model && <span className="text-[10px] text-slate-400 dark:text-slate-500">{model}</span>}
+                {generatedLabel && <span className="text-[10px] text-slate-400 dark:text-slate-500">Cập nhật {generatedLabel}</span>}
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
