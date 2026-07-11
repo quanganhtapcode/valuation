@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 const VIETCAP_DETAILS_URL = 'https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/details';
+const PROFILE_REVALIDATE_SECONDS = 60 * 60 * 24 * 30;
 
 export async function GET(
     request: Request,
@@ -24,7 +25,7 @@ export async function GET(
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
                 'device-id': '7a3c8d9e1f20',
             },
-            next: { revalidate: 86400 },
+            next: { revalidate: PROFILE_REVALIDATE_SECONDS },
             signal: AbortSignal.timeout(10000),
         });
 
@@ -42,7 +43,11 @@ export async function GET(
                 profile: typeof profile === 'string' ? profile : null,
                 source: 'Vietcap IQ',
             },
-            { headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' } },
+            {
+                headers: {
+                    'Cache-Control': `public, s-maxage=${PROFILE_REVALIDATE_SECONDS}, stale-while-revalidate=604800`,
+                },
+            },
         );
     } catch (error) {
         console.error(`Vietcap company profile request failed for ${symbol}:`, error);
