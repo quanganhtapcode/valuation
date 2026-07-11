@@ -23,12 +23,10 @@ interface HistoricalData {
 }
 
 type Interval = 'D' | 'W' | 'M';
+type ChartRange = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | '5Y';
 
 const INTERVAL_LABELS: Record<Interval, string> = { D: '1D', W: '1W', M: '1M' };
-const INTERVAL_CYCLE: Record<Interval, Interval> = { D: 'W', W: 'M', M: 'D' };
-
-// Default bars to show per interval (~3 months D, ~1 year W, ~2 years M)
-const INTERVAL_BARS: Record<Interval, number> = { D: 75, W: 52, M: 24 };
+const RANGE_LABELS: ChartRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '5Y'];
 
 interface TradingViewChartProps {
     data: HistoricalData[];
@@ -161,35 +159,65 @@ function aggregateData(data: HistoricalData[], interval: Interval): HistoricalDa
     return result;
 }
 
+function filterRange(data: HistoricalData[], range: ChartRange): HistoricalData[] {
+    if (!data.length) return data;
+    const latest = new Date(data[data.length - 1].time);
+    const from = new Date(latest);
+
+    if (range === '1D') return data.slice(-1);
+    if (range === '1W') from.setDate(from.getDate() - 7);
+    if (range === '1M') from.setMonth(from.getMonth() - 1);
+    if (range === '3M') from.setMonth(from.getMonth() - 3);
+    if (range === '6M') from.setMonth(from.getMonth() - 6);
+    if (range === 'YTD') from.setMonth(0, 1);
+    if (range === '1Y') from.setFullYear(from.getFullYear() - 1);
+    if (range === '5Y') from.setFullYear(from.getFullYear() - 5);
+
+    return data.filter((item) => new Date(item.time) >= from);
+}
+
 // ── Interval selector ─────────────────────────────────────────────────────────
-function IntervalSelector({ interval, setInterval }: { interval: Interval; setInterval: (i: Interval) => void }) {
+function ChartControls({ range, setRange, interval, setInterval }: {
+    range: ChartRange;
+    setRange: (range: ChartRange) => void;
+    interval: Interval;
+    setInterval: (interval: Interval) => void;
+}) {
     return (
-        <div className="flex items-center gap-1">
-            {/* Desktop buttons */}
-            {(['D', 'W', 'M'] as Interval[]).map((iv) => (
+        <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto scrollbar-hide">
+                {RANGE_LABELS.map((item) => (
+                    <button
+                        key={item}
+                        type="button"
+                        onClick={() => setRange(item)}
+                        className={`shrink-0 rounded px-2 py-1 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                            range === item
+                                ? 'bg-blue-600 text-white'
+                                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                        }`}
+                    >
+                        {item}
+                    </button>
+                ))}
+            </div>
+            <div className="hidden shrink-0 items-center gap-0.5 border-l border-slate-200 pl-2 dark:border-slate-700 sm:flex">
+                {(['D', 'W', 'M'] as Interval[]).map((iv) => (
                 <button
                     key={iv}
+                    type="button"
                     onClick={() => setInterval(iv)}
-                    className={`hidden sm:inline-flex rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    aria-label={`Gom nhóm biểu đồ theo ${INTERVAL_LABELS[iv]}`}
+                    className={`inline-flex rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
                         interval === iv
-                            ? 'bg-blue-600 text-white shadow-sm'
+                            ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white'
                             : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
                     }`}
                 >
                     {INTERVAL_LABELS[iv]}
                 </button>
             ))}
-
-            {/* Mobile cycling button */}
-            <button
-                onClick={() => setInterval(INTERVAL_CYCLE[interval])}
-                className="sm:hidden flex items-center gap-1 rounded px-2.5 py-1 text-xs font-semibold bg-blue-600 text-white shadow-sm"
-            >
-                {INTERVAL_LABELS[interval]}
-                <svg className="w-3 h-3 opacity-80" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 4.5L6 8.5L10 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-            </button>
+            </div>
         </div>
     );
 }
@@ -238,6 +266,7 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const volumeSeriesRef      = useRef<ISeriesApi<'Histogram'> | null>(null);
     const [interval, setIntervalState] = useState<Interval>('D');
+    const [range, setRange] = useState<ChartRange>('1Y');
     const intervalRef = useRef<Interval>('D');
 
     // Bar displayed in the OHLCV overlay (null = hidden, only shown while hovering/touching)
@@ -248,7 +277,15 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
     const theme  = useMemo(() => buildTheme(isDark), [isDark]);
 
     const normalizedData = useMemo(() => normalizeData(data), [data]);
-    const aggregatedData = useMemo(() => aggregateData(normalizedData, interval), [normalizedData, interval]);
+    const rangedData = useMemo(() => filterRange(normalizedData, range), [normalizedData, range]);
+    const aggregatedData = useMemo(() => aggregateData(rangedData, interval), [rangedData, interval]);
+    const rangeChange = useMemo(() => {
+        if (rangedData.length < 2) return null;
+        const first = rangedData[0].close;
+        const last = rangedData[rangedData.length - 1].close;
+        const value = last - first;
+        return { value, percent: first > 0 ? (value / first) * 100 : 0 };
+    }, [rangedData]);
 
     // keep intervalRef in sync for use inside effects
     useEffect(() => { intervalRef.current = interval; }, [interval]);
@@ -393,13 +430,9 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             color: d.close >= d.open ? 'rgba(22,163,74,0.28)' : 'rgba(220,38,38,0.28)',
         })));
 
-        // Anchor viewport to right edge: always show last N bars.
-        // Negative `from` is valid — lightweight-charts renders empty space to the left,
-        // so the chart never gets pinned to a historical start date.
         const total = aggregatedData.length;
-        const barsToShow = INTERVAL_BARS[intervalRef.current];
         chartRef.current.timeScale().setVisibleLogicalRange({
-            from: total - barsToShow,
+            from: Math.max(0, total - 1) - total,
             to:   total + 2,
         });
     }, [aggregatedData]);
@@ -409,12 +442,23 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         setHoveredBar(null);
     }, []);
 
+    const handleRangeChange = useCallback((nextRange: ChartRange) => {
+        setRange(nextRange);
+        setHoveredBar(null);
+    }, []);
+
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="w-full">
-            {/* Toolbar: interval only (range removed — always show all data) */}
-            <div className="mb-2 flex items-center justify-end px-1">
-                <IntervalSelector interval={interval} setInterval={setInterval} />
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">
+                    {rangeChange ? (
+                        <span className={rangeChange.value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                            {rangeChange.value >= 0 ? '+' : ''}{formatPrice(rangeChange.value)} ({rangeChange.percent >= 0 ? '+' : ''}{rangeChange.percent.toFixed(2)}%)
+                        </span>
+                    ) : '—'}
+                </div>
+                <ChartControls range={range} setRange={handleRangeChange} interval={interval} setInterval={setInterval} />
             </div>
 
             {/* Chart area — always mounted so chart instance is never destroyed */}

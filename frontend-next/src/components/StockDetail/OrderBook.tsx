@@ -70,24 +70,24 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
     const bidRatio = totalVol > 0 ? totalBid / totalVol : 0.5;
 
     return (
-        <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700/50 dark:bg-slate-900/80" aria-labelledby="order-book-title">
 
             {/* ── Header ─────────────────────────────────────────── */}
             <div className="flex items-center justify-between px-3.5 py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 select-none">
-                    Bảng giá
+                <span id="order-book-title" className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 select-none">
+                    Sổ lệnh
                 </span>
                 {hasData && (
                     <span className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-500 dark:text-emerald-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                        Live
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 motion-reduce:animate-none animate-pulse" />
+                        Trực tiếp
                     </span>
                 )}
             </div>
 
             {!hasData ? (
                 <div className="py-8 text-center text-[12px] text-slate-300 dark:text-slate-600 select-none">
-                    Ngoài giờ giao dịch
+                    Chưa có dữ liệu sổ lệnh
                 </div>
             ) : (
                 <>
@@ -203,7 +203,7 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
                         {/* Spread */}
                         {spread > 0 && (
                             <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500">
-                                <span>Spread</span>
+                                <span>Chênh lệch</span>
                                 <span className="font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
                                     {fmtPrice(spread)}
                                 </span>
@@ -214,6 +214,6 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
                     </div>
                 </>
             )}
-        </div>
+        </section>
     );
 }

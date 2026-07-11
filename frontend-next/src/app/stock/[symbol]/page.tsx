@@ -510,10 +510,10 @@ export default function StockDetailPage() {
     return (
         <div className={styles.container}>
             {/* ── Stock header ─────────────────────────────────────── */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] mb-0 overflow-hidden">
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] mb-0">
 
                 {/* Top identity bar */}
-                <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-0">
+                <div className="flex items-center gap-2.5 px-5 pt-4 pb-0">
                     {/* Logo */}
                     <div className="relative w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -567,7 +567,7 @@ export default function StockDetailPage() {
                 </div>
 
                 {/* Company name */}
-                <p className="px-4 pt-0.5 pb-0 text-[12px] text-slate-500 dark:text-slate-400 truncate leading-snug">
+                <p className="px-5 pt-0.5 pb-0 text-[13px] text-slate-500 dark:text-slate-400 truncate leading-snug">
                     {stockInfo?.companyName || '—'}
                 </p>
 
@@ -592,11 +592,12 @@ export default function StockDetailPage() {
                     const changeStr = `${isUp ? '+' : ''}${formatNumber(priceData.change)}`;
 
                     return (
-                        <div className="px-4 py-3 flex items-center justify-between gap-4">
+                        <>
+                            <div className="px-5 py-4 flex items-center justify-between gap-4">
                             {/* LEFT — price + change */}
                             <div className="flex flex-col gap-1 min-w-0">
                                 <div className="flex items-baseline gap-3 flex-wrap">
-                                    <span className="text-[2rem] font-bold tabular-nums leading-none" style={{ color: priceColor }}>
+                                    <span className="text-[2.25rem] font-bold tabular-nums leading-none tracking-tight" style={{ color: priceColor }}>
                                         {formatNumber(priceData.price)}
                                     </span>
                                     <div className="flex items-baseline gap-1.5 tabular-nums font-bold" style={{ color: changeColor }}>
@@ -604,11 +605,7 @@ export default function StockDetailPage() {
                                         <span className="text-[12px] font-semibold opacity-75">({changeStr})</span>
                                     </div>
                                 </div>
-                                {priceData.volume > 0 && (
-                                    <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                        KL <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(priceData.volume, { maximumFractionDigits: 0 })}</span>
-                                    </div>
-                                )}
+                                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{t.detail.latestData}</div>
                             </div>
 
                             {/* RIGHT — target badge + KLCP */}
@@ -630,13 +627,31 @@ export default function StockDetailPage() {
                                     </div>
                                 ) : null}
                             </div>
-                        </div>
+                            </div>
+
+                        <dl className="grid grid-cols-2 border-t border-slate-100 dark:border-slate-800/60 sm:grid-cols-3 lg:grid-cols-5">
+                            {[
+                                { label: t.overview.open, value: priceData.open },
+                                { label: t.overview.high, value: priceData.high },
+                                { label: t.overview.low, value: priceData.low },
+                                { label: t.overview.volume, value: priceData.volume },
+                                { label: t.detail.marketCap, value: financials?.marketCap },
+                            ].map((item, index) => (
+                                <div key={item.label} className={`min-w-0 px-5 py-3 ${index < 4 ? 'lg:border-r lg:border-slate-100 lg:dark:border-slate-800/60' : ''}`}>
+                                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{item.label}</dt>
+                                    <dd className="mt-1 truncate text-[13px] font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+                                        {item.value ? formatNumber(item.value, { maximumFractionDigits: 0 }) : '—'}
+                                    </dd>
+                                </div>
+                            ))}
+                            </dl>
+                        </>
                     );
                 })()}
 
                 {/* Tab Navigation — Vietcap underline style */}
-                <div className="border-t border-slate-100 dark:border-slate-800/60 mt-0">
-                    <nav className="flex overflow-x-auto scrollbar-hide px-1" aria-label="Tabs">
+                <div className="sticky top-16 z-20 border-t border-slate-100 dark:border-slate-800/60 bg-white dark:bg-[#111827]">
+                    <nav className="flex overflow-x-auto scrollbar-hide px-2" aria-label="Điều hướng chi tiết cổ phiếu">
                         {[
                             { id: 'overview', label: t.stock.tabs.overview },
                             { id: 'financials', label: t.stock.tabs.financials },
@@ -652,9 +667,9 @@ export default function StockDetailPage() {
                                 type="button"
                                 onClick={() => handleTabChange(tab.id as StockTabId)}
                                 className={classNames(
-                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] font-medium transition-colors',
+                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-blue-600',
                                     activeTab === tab.id
-                                        ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                                        ? 'border-blue-600 text-blue-700 dark:text-blue-400'
                                         : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                                 )}
                                 aria-current={activeTab === tab.id ? 'page' : undefined}

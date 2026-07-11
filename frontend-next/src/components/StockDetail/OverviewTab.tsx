@@ -4,6 +4,7 @@ import TradingViewChart from './TradingViewChart';
 import OrderBook from './OrderBook';
 import BankLoanBreakdown from './BankLoanBreakdown';
 import AiInsightCard from './AiInsightCard';
+import FinancialMetricsPanel from './FinancialMetricsPanel';
 import { fetchAiAnalysis } from '@/lib/api';
 import { useLanguage } from "@/lib/languageContext"
 import { translations } from "@/lib/translations"
@@ -198,6 +199,7 @@ export default function OverviewTab({
 }: OverviewTabProps) {
     const { lang } = useLanguage()
     const tOv = translations[lang].overview
+    const tDetail = translations[lang].detail
 
     const [aiData, setAiData] = useState<Awaited<ReturnType<typeof fetchAiAnalysis>> | null>(null);
     useEffect(() => {
@@ -330,147 +332,17 @@ export default function OverviewTab({
 
             {/* Right Column */}
             <aside className={styles.rightColumn}>
-                {/* Company Info */}
-                <section className={`${styles.section} ${styles.sectionCompanyInfo}`}>
-                    <div className="flex flex-col gap-5">
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[11px] uppercase tracking-wider font-semibold text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                                Full Name
-                            </span>
-                            <span className="text-[15px] font-medium leading-relaxed text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">
-                                {stockInfo?.companyName}
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-6 pt-2 border-t border-gray-50 dark:border-gray-800/50">
-                            <div className="flex flex-col gap-1.5">
-                                <span className="text-[11px] uppercase tracking-wider font-semibold text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                                    Exchange
-                                </span>
-                                <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                    {stockInfo?.exchange}
-                                </span>
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <span className="text-[11px] uppercase tracking-wider font-semibold text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                                    Sector
-                                </span>
-                                <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                    {stockInfo?.sector}
-                                </span>
-                            </div>
-                        </div>
+                <div className={styles.sectionAiInsight}>
+                    <AiInsightCard
+                        analysisJson={aiData?.analysis_json}
+                        newsJson={aiData?.news_json}
+                        quarter={aiData?.quarter}
+                        model={aiData?.model}
+                    />
+                </div>
 
-                        {/* Description - Seamlessly follows */}
-                        <div className="flex flex-col gap-1.5 pt-2 border-t border-gray-50 dark:border-gray-800/50">
-                            <span className="text-[11px] uppercase tracking-wider font-semibold text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                                Introduction
-                            </span>
-                            <div className="text-[13px] leading-relaxed text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis text-justify">
-                                {stockInfo?.overview?.description
-                                    ? (isDescExpanded
-                                        ? stockInfo.overview.description
-                                        : (stockInfo.overview.description.length > 300
-                                            ? stockInfo.overview.description.slice(0, 300) + '...'
-                                            : stockInfo.overview.description))
-                                    : "No detailed description available for this company."
-                                }
-                            </div>
-                            {stockInfo?.overview?.description && stockInfo.overview.description.length > 300 && (
-                                <button
-                                    onClick={() => setIsDescExpanded(!isDescExpanded)}
-                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-500 dark:hover:text-blue-400 self-start mt-1 transition-colors focus:outline-none"
-                                >
-                                    {isDescExpanded ? 'Show less' : 'Read more'}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Key Metrics - Matching Reference Design */}
                 {financials && (
-                    <section className={`${styles.section} ${styles.sectionMetrics}`}>
-                        <div className={styles.metricsGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            {/* P/E TTM */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>P/E TTM:</span>
-                                <span className={styles.metricValue}>
-                                    {financials.pe !== undefined && financials.pe !== null && financials.pe > 0 ? financials.pe.toFixed(2) : '-'}
-                                </span>
-                            </div>
-
-                            {/* P/B TTM */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>P/B TTM:</span>
-                                <span className={styles.metricValue}>
-                                    {financials.pb !== undefined && financials.pb !== null && financials.pb > 0 ? financials.pb.toFixed(2) : '-'}
-                                </span>
-                            </div>
-
-                            {/* ROE */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>ROE (%):</span>
-                                <span className={styles.metricValue}>
-                                    {financials.roe !== undefined && financials.roe !== 0
-                                        ? `${(Math.abs(financials.roe) < 1 ? financials.roe * 100 : financials.roe).toFixed(1)}%`
-                                        : '-'}
-                                </span>
-                            </div>
-
-                            {/* ROA */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>ROA (%):</span>
-                                <span className={styles.metricValue}>
-                                    {financials.roa !== undefined && financials.roa !== 0
-                                        ? `${(Math.abs(financials.roa) < 1 ? financials.roa * 100 : financials.roa).toFixed(1)}%`
-                                        : '-'}
-                                </span>
-                            </div>
-
-                            {/* Net Margin */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>NET MARGIN (%):</span>
-                                <span className={styles.metricValue}>
-                                    {financials.netProfitMargin !== undefined && financials.netProfitMargin !== 0
-                                        ? `${(Math.abs(financials.netProfitMargin) < 1 ? financials.netProfitMargin * 100 : financials.netProfitMargin).toFixed(1)}%`
-                                        : '-'}
-                                </span>
-                            </div>
-
-                            {/* Gross Margin */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>GROSS MARGIN (%):</span>
-                                <span className={styles.metricValue}>
-                                    {financials.grossMargin !== undefined && financials.grossMargin !== 0
-                                        ? `${(Math.abs(financials.grossMargin) < 1 ? financials.grossMargin * 100 : financials.grossMargin).toFixed(1)}%`
-                                        : '-'}
-                                </span>
-                            </div>
-
-                            {/* Debt/Equity */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>DEBT/EQUITY:</span>
-                                <span className={styles.metricValue}>
-                                    {financials.debtToEquity !== undefined && financials.debtToEquity !== 0
-                                        ? financials.debtToEquity.toFixed(2)
-                                        : '-'}
-                                </span>
-                            </div>
-
-                            {/* Current Ratio */}
-                            <div className={styles.metricCard}>
-                                <span className={styles.metricLabel}>CURRENT RATIO:</span>
-                                <span className={styles.metricValue}>
-                                    {financials.currentRatio !== undefined && financials.currentRatio !== 0
-                                        ? financials.currentRatio.toFixed(2)
-                                        : '-'}
-                                </span>
-                            </div>
-                        </div>
-                        <p className="text-[11px] text-tremor-content-subtle dark:text-dark-tremor-content-subtle mt-3 italic text-center">
-                            * Data from VCI Stats Financial (TTM)
-                        </p>
-                    </section>
+                    <FinancialMetricsPanel financials={financials} />
                 )}
 
                 {/* EPS History Section */}
@@ -483,7 +355,7 @@ export default function OverviewTab({
                         <section className={`${styles.section} ${styles.sectionEpsHistory}`}>
                             <div className={styles.sectionHeader}>
                                 <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                    EPS History
+                                    {tDetail.epsHistory}
                                 </h3>
                             </div>
                             <div className="flex items-end gap-2 h-40 px-2">
@@ -524,12 +396,32 @@ export default function OverviewTab({
                         </section>
                     );
                 })()}
-                <AiInsightCard
-                    analysisJson={aiData?.analysis_json}
-                    newsJson={aiData?.news_json}
-                    quarter={aiData?.quarter}
-                    model={aiData?.model}
-                />
+                <section className={`${styles.section} ${styles.sectionCompanyInfo}`}>
+                    <div className={styles.companyProfileHeader}>
+                        <h3 className={styles.sectionTitle}>{tDetail.companyProfile}</h3>
+                        <span>{stockInfo?.exchange} · {stockInfo?.sector}</span>
+                    </div>
+                    {stockInfo?.overview?.description ? (
+                        <>
+                            <p className={styles.companyDescription}>
+                                {isDescExpanded || stockInfo.overview.description.length <= 300
+                                    ? stockInfo.overview.description
+                                    : `${stockInfo.overview.description.slice(0, 300)}…`}
+                            </p>
+                            {stockInfo.overview.description.length > 300 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDescExpanded(!isDescExpanded)}
+                                    className={styles.profileToggle}
+                                >
+                                    {isDescExpanded ? tDetail.showLess : tDetail.showMore}
+                                </button>
+                            )}
+                        </>
+                    ) : (
+                        <p className={styles.companyEmpty}>{tDetail.profileUpdating}</p>
+                    )}
+                </section>
 
             </aside>
         </div>

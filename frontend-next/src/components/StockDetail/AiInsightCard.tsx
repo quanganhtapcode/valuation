@@ -78,31 +78,32 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, model }
     const badge = sentimentBadge(news?.overall_sentiment);
 
     return (
-        <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900/40 overflow-hidden">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-labelledby="ai-insight-title">
 
             {/* ── Header ─────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                 <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
-                        AI Insight
+                    <span id="ai-insight-title" className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+                        Phân tích AI
                     </span>
                     {quarter && (
-                        <span className="rounded-full bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-300">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                             {quarter}
                         </span>
                     )}
                 </div>
-                {model && <span className="text-[10px] text-blue-400 dark:text-blue-500">{model}</span>}
+                {model && <span className="text-[10px] text-slate-400 dark:text-slate-500">{model}</span>}
             </div>
 
-            <div className="divide-y divide-blue-100 dark:divide-blue-900/30">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
 
                 {/* ── Zone 1: Current technical read ───────────────────── */}
                 {tech && (
                     <div className="px-4 py-3 space-y-1.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
-                            Kỹ thuật hiện tại
-                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Tín hiệu kỹ thuật</p>
+                            {analysis?.timing && <span className="text-[10px] text-slate-400 dark:text-slate-500">{analysis.timing}</span>}
+                        </div>
                         {tech.signal && (
                             <p className={`text-[11px] font-semibold ${signalColor(tech.signal)}`}>
                                 {tech.signal}
@@ -139,9 +140,7 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, model }
                     <div className="px-4 py-3 space-y-2">
                         {/* Header */}
                         <div className="flex items-center gap-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
-                                News Thesis
-                            </p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Luận điểm từ tin tức</p>
                             <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${badge.cls}`}>
                                 {badge.label}
                             </span>
@@ -159,7 +158,7 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, model }
                                 {hasBull && (
                                     <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-2 space-y-1">
                                         <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/50 rounded px-1.5 py-0.5">
-                                            Bull
+                                            Hỗ trợ
                                         </span>
                                         {news.bull_case!.slice(0, 3).map((item, i) => (
                                             <div key={i} className="flex gap-1">
@@ -174,7 +173,7 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, model }
                                 {hasBear && (
                                     <div className="rounded-lg bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 p-2 space-y-1">
                                         <span className="text-[9px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/50 rounded px-1.5 py-0.5">
-                                            Bear
+                                            Rủi ro
                                         </span>
                                         {news.bear_case!.slice(0, 3).map((item, i) => (
                                             <div key={i} className="flex gap-1">
@@ -213,6 +212,9 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, model }
                 )}
 
             </div>
-        </div>
+            <p className="border-t border-slate-100 px-4 py-2 text-[10px] leading-relaxed text-slate-400 dark:border-slate-800 dark:text-slate-500">
+                Nội dung mang tính tham khảo, không phải khuyến nghị đầu tư.
+            </p>
+        </section>
     );
 }

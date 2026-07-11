@@ -1,5 +1,5 @@
 .container {
-    max-width: var(--max-width);
+    max-width: 1440px;
     margin: 0 auto;
     padding: var(--space-24);
     overflow-x: hidden;
@@ -194,8 +194,8 @@
 
 .mainContent {
     display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: var(--space-24);
+    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+    gap: var(--space-16);
     margin-top: 0;
 }
 
@@ -203,7 +203,7 @@
 .mainContentFull {
     display: block;
     width: 100%;
-    margin-top: 2rem;
+    margin-top: var(--space-16);
     min-height: 600px;
     contain: layout;
 }
@@ -218,13 +218,16 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-20);
+    align-self: start;
+    position: sticky;
+    top: 80px;
 }
 
 /* Section */
 .section {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     padding: var(--space-20);
 }
 
@@ -246,6 +249,103 @@
 
 .sectionHeader .sectionTitle {
     margin: 0;
+}
+
+.sectionSubtitle {
+    margin: 4px 0 0;
+    color: var(--color-text-subtle);
+    font-size: 12px;
+}
+
+.metricGroups {
+    display: grid;
+    gap: 16px;
+}
+
+.metricGroup h4 {
+    margin: 0 0 6px;
+    color: var(--color-text-secondary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.metricGroup dl {
+    margin: 0;
+}
+
+.metricRow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 30px;
+    border-bottom: 1px solid var(--color-border-light);
+    font-size: 13px;
+}
+
+.metricRow:last-child {
+    border-bottom: 0;
+}
+
+.metricRow dt {
+    color: var(--color-text-secondary);
+}
+
+.metricRow dd {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 14px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+
+.companyProfileHeader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.companyProfileHeader .sectionTitle {
+    margin: 0;
+}
+
+.companyProfileHeader span {
+    color: var(--color-text-subtle);
+    font-size: 11px;
+    text-align: right;
+}
+
+.companyDescription,
+.companyEmpty {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.companyEmpty {
+    font-style: italic;
+}
+
+.profileToggle {
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.profileToggle:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 3px;
+    border-radius: 2px;
 }
 
 /* Time Ranges */
@@ -435,7 +535,7 @@
     }
 
     .rightColumn {
-        order: -1;
+        position: static;
     }
 
     .priceGrid {
@@ -1050,6 +1150,10 @@
     display: block;
 }
 
+.sectionAiInsight {
+    display: block;
+}
+
 @media (max-width: 768px) {
 
     .leftColumn,
@@ -1067,8 +1171,12 @@
         order: 1;
     }
 
-    .sectionCompanyInfo {
+    .sectionAiInsight {
         order: 2;
+    }
+
+    .sectionCompanyInfo {
+        order: 6;
     }
 
     .sectionMetrics {
