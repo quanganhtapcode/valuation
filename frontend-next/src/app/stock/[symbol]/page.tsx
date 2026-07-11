@@ -36,6 +36,12 @@ function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
 }
 
+function profileHtmlToText(value: string): string {
+    const documentFragment = document.createElement('div');
+    documentFragment.innerHTML = value;
+    return (documentFragment.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
 function scheduleIdleWork(callback: () => void, timeout = 1200): () => void {
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
         const idleId = window.requestIdleCallback(callback, { timeout });
@@ -255,6 +261,22 @@ export default function StockDetailPage() {
                 // PHASE 2: Non-critical overview enrichments. Keep them off the
                 // critical path so first paint is not competing with extra API calls.
                 idleCleanups.push(scheduleIdleWork(() => {
+                    fetch(`/api/company-profile/${symbol}?lang=${lang}`, { signal: controller.signal })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(res => {
+                            if (res?.available && typeof res.profile === 'string') {
+                                const description = profileHtmlToText(res.profile);
+                                if (!description) return;
+                                setStockInfo(prev => prev ? {
+                                    ...prev,
+                                    overview: { ...prev.overview, description },
+                                } : prev);
+                            }
+                        })
+                        .catch(err => {
+                            if (!controller.signal.aborted) console.error('[Company profile API] Error:', err);
+                        });
+
                     fetch(`/api/stock/${symbol}/news?compact=1`, { signal: controller.signal })
                         .then(r => r.ok ? r.json() : null)
                         .then(res => {
