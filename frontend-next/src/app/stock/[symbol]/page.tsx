@@ -94,7 +94,6 @@ interface HistoricalData {
 }
 
 interface FinancialData {
-    eps?: number;
     pe?: number;
     pb?: number;
     roe?: number;
@@ -172,12 +171,11 @@ export default function StockDetailPage() {
                     .then(r => r.ok ? r.json() : null)
                     .catch(() => null);
 
-                // PHASE 1: Critical overview payload. Use one direct backend request
-                // instead of four proxy requests so first render is not gated by
-                // repeated provider/cache work.
+                // PHASE 1: Quote and key metrics only. Profile, news, EPS and chart
+                // data are non-critical and load after the first render.
                 const [tickerData, stockRes] = await Promise.all([
                     getTickerData(),
-                    fetch(API.STOCK_OVERVIEW_FULL(symbol), { signal: controller.signal })
+                    fetch(API.STOCK_SUMMARY(symbol), { signal: controller.signal })
                         .then(r => r.ok ? r.json() : null)
                         .catch(() => null),
                 ]);
@@ -214,7 +212,6 @@ export default function StockDetailPage() {
                     const tp = data.target_price ?? data.targetPrice ?? null;
                     if (tp) setTargetPrice(Number(tp));
                     setFinancials({
-                        eps: data.eps || (data.current_price && data.pe && data.pe > 0 ? Math.round(data.current_price / data.pe) : undefined),
                         pe: data.pe,
                         pb: data.pb,
                         roe: data.roe,
