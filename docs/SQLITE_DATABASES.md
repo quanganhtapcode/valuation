@@ -33,7 +33,7 @@ legacy root-level databases (`stocks_optimized.db`, `vietnam_stocks.db`).
 **Nội dung:** Security master canonical, danh mục niêm yết/OTC, ngành ICB và profile công ty.
 
 **Nguồn:** VCI IQ API — `iq.vietcap.com.vn`  
-**Tần suất update:** Hàng tuần và khi có IPO / hủy niêm yết
+**Tần suất update:** Hàng tuần và khi có IPO / hủy niêm yết. Sau mỗi lần fetch thành công, cron cũng chạy `scripts/generate_ticker_data.py` để đồng bộ `frontend-next/public/ticker_data.json`; mã active mới sẽ xuất hiện trong tìm kiếm và watchlist.
 **Fetcher:** `fetch_sqlite/fetch_vci_company.py`
 
 ```bash
