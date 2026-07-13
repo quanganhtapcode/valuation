@@ -4,6 +4,8 @@ import {
     Card,
 } from '@tremor/react';
 import { GoldPriceItem, formatRelativeTime } from '@/lib/api';
+import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 interface GoldPriceProps {
     prices: GoldPriceItem[];
@@ -13,6 +15,8 @@ interface GoldPriceProps {
 }
 
 export default function GoldPrice({ prices, isLoading, updatedAt, source }: GoldPriceProps) {
+    const { lang } = useLanguage();
+    const t = translations[lang].dashboard;
     // Show 3 gold classes + silver bar if available
     const displayPrices = prices?.filter(p =>
         ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)', 'Bạc Thỏi Phú Quý 999'].includes(p.TypeName)
@@ -30,7 +34,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
             <div className="flex items-center gap-2 px-5 py-4">
                 <span className="text-xl">🏆</span>
                 <span className="text-base font-bold text-gray-900 dark:text-gray-100">
-                    Giá Vàng & Bạc
+                    {t.goldSilver}
                 </span>
             </div>
 
@@ -70,13 +74,13 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                                     {/* Right: Prices */}
                                     <div className="flex flex-col items-end gap-0.5 shrink-0">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Mua:</span>
+                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">{t.buy}:</span>
                                             <span className="text-[13px] font-bold text-emerald-600 tabular-nums">
                                                 {item.Buy}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Bán:</span>
+                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">{t.sell}:</span>
                                             <span className="text-[13px] font-bold text-rose-500/90 dark:text-rose-400 tabular-nums">
                                                 {item.Sell}
                                             </span>
@@ -92,17 +96,17 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
             {/* Footer Update Time */}
             <div className="text-center py-3">
                 <span className="text-[11px] text-gray-600 dark:text-gray-400 italic">
-                    Cập nhật: {(() => {
+                    {t.updated}: {(() => {
                         try {
                             if (!updatedAt) return '';
 
-                            const relative = formatRelativeTime(updatedAt, 'vi-VN');
+                            const relative = formatRelativeTime(updatedAt, lang === 'en' ? 'en-US' : 'vi-VN');
                             if (relative) return relative;
 
                             if (updatedAt.includes('/') && updatedAt.includes(':')) return updatedAt;
                             const date = new Date(updatedAt);
                             if (isNaN(date.getTime())) return updatedAt;
-                            return date.toLocaleString('vi-VN', {
+                            return date.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN', {
                                 hour: '2-digit',
                                 minute: '2-digit',
                                 day: '2-digit',

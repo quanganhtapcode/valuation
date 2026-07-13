@@ -1,10 +1,65 @@
 .container {
-    max-width: var(--max-width);
+    max-width: 1480px;
     margin: 0 auto;
-    padding: var(--space-24);
+    padding: 8px var(--space-24) var(--space-40);
     width: 100%;
     overflow-x: hidden;
     box-sizing: border-box;
+}
+
+.dashboardHeader {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-24);
+    padding: 0 4px var(--space-24);
+}
+
+.eyebrow {
+    margin: 0 0 6px;
+    color: var(--color-primary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+.dashboardHeader h1 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: clamp(26px, 3vw, 36px);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 1.08;
+}
+
+.subtitle {
+    max-width: 620px;
+    margin: 8px 0 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+}
+
+.marketStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+    box-shadow: var(--shadow-sm);
+    padding: 8px 12px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.marketStatus span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-success);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
 }
 
 /* Update Time */
@@ -19,14 +74,14 @@
 .mainContent {
     display: grid;
     grid-template-columns: 1fr var(--sidebar-width);
-    gap: var(--space-24);
+    gap: 28px;
 }
 
 /* Left Column */
 .leftColumn {
     display: flex;
     flex-direction: column;
-    gap: var(--space-24);
+    gap: 20px;
     min-width: 0;
     /* Prevent overflow */
 }
@@ -35,7 +90,7 @@
 .rightColumn {
     display: flex;
     flex-direction: column;
-    gap: var(--space-16);
+    gap: 14px;
 }
 
 /* Indices Grid */
@@ -68,6 +123,17 @@
 @media (max-width: 768px) {
     .container {
         padding: var(--space-12);
+    }
+
+    .dashboardHeader {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 14px;
+        padding: 4px 2px 18px;
+    }
+
+    .dashboardHeader h1 {
+        font-size: 27px;
     }
 
     .indicesGrid {

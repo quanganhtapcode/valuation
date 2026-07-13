@@ -4,6 +4,8 @@ import { NewsItem, formatRelativeTime } from '@/lib/api';
 import { Card, Icon } from '@tremor/react';
 import { RiArrowRightUpLine, RiNewspaperLine } from '@remixicon/react';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 interface NewsSectionProps {
     news: NewsItem[];
@@ -20,12 +22,14 @@ function sentimentColor(sentiment: string | undefined): string {
 }
 
 export default function NewsSection({ news, isLoading, error }: NewsSectionProps) {
+    const { lang } = useLanguage();
+    const t = translations[lang].dashboard;
     if (isLoading) {
         return (
             <Card className="p-4 md:p-6">
                 <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                     <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
-                    <h3 className="text-base md:text-lg font-bold">Market News</h3>
+                    <h3 className="text-base md:text-lg font-bold">{t.news}</h3>
                 </div>
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                     {Array.from({ length: 6 }).map((_, i) => (
@@ -45,7 +49,7 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
             <Card className="p-4 md:p-6">
                 <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                     <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
-                    <h3 className="text-base md:text-lg font-bold">Market News</h3>
+                    <h3 className="text-base md:text-lg font-bold">{t.news}</h3>
                 </div>
                 <div className="mt-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/80 dark:bg-rose-950/30 p-4">
                     <p className="text-rose-600 dark:text-rose-400 font-medium text-sm">⚠️ {error}</p>
@@ -60,17 +64,17 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                 <div>
                     <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                         <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
-                        <h3 className="text-base md:text-lg font-bold">Market News</h3>
+                        <h3 className="text-base md:text-lg font-bold">{t.news}</h3>
                     </div>
                     <p className="mt-1 text-xs md:text-sm text-slate-500 dark:text-slate-400">
-                        Tin mới nhất, cập nhật liên tục theo thị trường.
+                        {t.newsSubtitle}
                     </p>
                 </div>
                 <Link
                     href="/news"
                     className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-400"
                 >
-                    View all
+                    {t.viewAll}
                     <Icon icon={RiArrowRightUpLine} size="xs" className="ml-1" />
                 </Link>
             </div>

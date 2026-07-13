@@ -501,7 +501,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     return (
         <>
             {/* ── Index sub-bar ── */}
-            <div className="flex items-stretch overflow-x-auto bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/60 rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-stretch overflow-x-auto border border-slate-200/80 bg-white/90 shadow-sm dark:border-slate-800/80 dark:bg-slate-900/90 rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {INDEX_TABS.map(tab => {
                     const idx    = indices.find(i => i.id === tab.id);
                     const active = tab.id === selectedId;
@@ -513,8 +513,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                             className={cx(
                                 'flex items-center gap-2.5 px-4 h-11 border-r border-gray-100 dark:border-gray-800/60 flex-shrink-0 cursor-pointer transition-colors last:border-r-0',
                                 active
-                                    ? 'border-b-2 border-b-blue-500 -mb-[1px]'
-                                    : 'border-b-2 border-b-transparent hover:bg-gray-50 dark:hover:bg-gray-800/40',
+                                    ? 'border-b-2 border-b-blue-600 bg-blue-50/60 -mb-[1px] dark:bg-blue-500/10'
+                                    : 'border-b-2 border-b-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40',
                             )}
                         >
                             <span className={cx('text-xs font-semibold whitespace-nowrap', active ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500')}>
@@ -541,14 +541,14 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             </div>
 
             {/* ── Hero card ── */}
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800/60 rounded-xl overflow-hidden">
+            <div className="bg-white/95 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-sm overflow-hidden">
 
                 {/* Stats header */}
-                <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-0">
+                <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-0 md:px-6 md:pt-6">
 
                     {/* Left: price + KPIs */}
                     <div className="min-w-0">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.07em] text-gray-400 dark:text-gray-500">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
                             {selected?.name || '—'}
                         </div>
 
@@ -556,7 +556,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                             <>
                                 <div className="flex items-baseline gap-3 mt-2 flex-wrap">
                                     <span className={cx(
-                                        'text-[44px] font-semibold tabular-nums leading-none tracking-tight',
+                                        'text-[44px] font-bold tabular-nums leading-none tracking-[-0.05em]',
                                         isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
                                     )}>
                                         {selected.value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
@@ -636,7 +636,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 </div>
 
                 {/* Chart area */}
-                <div className="relative pt-2">
+                <div className="relative pt-3">
                     {isLoading && <LoadingOverlay isDark={isDark} />}
 
                     {tooltip && (

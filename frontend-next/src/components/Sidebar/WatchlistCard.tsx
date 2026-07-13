@@ -8,6 +8,8 @@ import { useWatchlist } from '@/lib/watchlistContext';
 import { formatNumber, isTradingHours, PRICE_SYNC_INTERVAL_MS, IDLE_REFRESH_INTERVAL_MS } from '@/lib/api';
 import { getTickerData } from '@/lib/tickerCache';
 import { siteConfig } from '@/app/siteConfig';
+import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 interface ExternalWatchlistPrice {
     price: number;
@@ -56,6 +58,8 @@ function StockLogo({ symbol }: { symbol: string }) {
 }
 
 export default function WatchlistCard({ externalPrices = {}, useExternalOnly = false }: WatchlistCardProps) {
+    const { lang } = useLanguage();
+    const t = translations[lang].dashboard;
     const { watchlist, toggle, removeSymbol } = useWatchlist();
     const [items, setItems] = useState<WatchItem[]>([]);
     const [collapsed, setCollapsed] = useState(false);
@@ -150,7 +154,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                         <RiEqualizerLine className="h-4 w-4" />
                     </button>
                 </div>
-                <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-1">Nhấn icon để thêm cổ phiếu.</p>
+                <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-1">{t.watchlistHint}</p>
             </div>
         </Card>
     );
@@ -164,7 +168,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                             <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">Watchlist</span>
                             <RiArrowRightSLine className={`h-4 w-4 text-tremor-content dark:text-dark-tremor-content transition-transform duration-200 ${collapsed ? '' : 'rotate-90'}`} />
                         </button>
-                        <button type="button" onClick={() => setModalOpen(true)} title="Chỉnh sửa Watchlist"
+                        <button type="button" onClick={() => setModalOpen(true)} title={t.editWatchlist}
                             className="p-1.5 rounded-md text-tremor-content hover:text-tremor-content-strong hover:bg-tremor-background-muted dark:text-dark-tremor-content dark:hover:text-dark-tremor-content-strong dark:hover:bg-dark-tremor-background-muted transition-colors">
                             <RiEqualizerLine className="h-4 w-4" />
                         </button>
@@ -208,14 +212,14 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                     <div className="relative w-full sm:w-96 max-h-[80vh] bg-tremor-background dark:bg-dark-tremor-background rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col overflow-hidden">
                         <div className="px-5 pt-5 pb-4 flex-shrink-0">
                             <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">Watchlist</h2>
-                            <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">Tìm kiếm để thêm  nhấn  để xoá</p>
+                            <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">{t.watchlistHint}</p>
                             <div className="relative mt-3">
                                 <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-tremor-content dark:text-dark-tremor-content pointer-events-none" />
                                 <input
                                     ref={searchRef}
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    placeholder="Tìm mã cổ phiếu..."
+                                    placeholder={t.searchStocks}
                                     className="w-full pl-9 pr-3 py-2 rounded-tremor-default border border-tremor-border dark:border-dark-tremor-border bg-tremor-background-muted dark:bg-dark-tremor-background-muted text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong placeholder:text-tremor-content dark:placeholder:text-dark-tremor-content outline-none focus:ring-2 focus:ring-tremor-brand dark:focus:ring-dark-tremor-brand"
                                 />
                             </div>
@@ -234,7 +238,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                                     <div className="text-xs text-tremor-content dark:text-dark-tremor-content truncate">{t.name}</div>
                                                 </div>
                                                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${inList ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-tremor-background-muted dark:bg-dark-tremor-background-muted text-tremor-content dark:text-dark-tremor-content'}`}>
-                                                    {inList ? 'Đã thêm' : '+ Thêm'}
+                                                    {inList ? t.added : t.add}
                                                 </span>
                                             </button>
                                         );
@@ -244,7 +248,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-tremor-border dark:divide-dark-tremor-border px-2">
                             {watchlist.length === 0 ? (
-                                <p className="text-center text-sm text-tremor-content dark:text-dark-tremor-content py-8">Watchlist trống</p>
+                                <p className="text-center text-sm text-tremor-content dark:text-dark-tremor-content py-8">{t.emptyWatchlist}</p>
                             ) : items.map(item => (
                                 <div key={item.symbol} className="flex items-center gap-3 px-3 py-2.5">
                                     <StockLogo symbol={item.symbol} />
@@ -254,7 +258,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                     </div>
                                     <button type="button" onClick={() => removeSymbol(item.symbol)}
                                         className="flex-shrink-0 p-1.5 rounded-full text-tremor-content hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-colors"
-                                        title={`Xoá ${item.symbol}`}>
+                                        title={`${t.remove} ${item.symbol}`}>
                                         <RiCloseLine className="h-4 w-4" />
                                     </button>
                                 </div>

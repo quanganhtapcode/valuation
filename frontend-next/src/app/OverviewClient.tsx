@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 import dynamic from 'next/dynamic';
 import {
     fetchAllIndices,
@@ -116,6 +118,8 @@ export default function OverviewClient({
     initialGoldPrices,
     initialGoldUpdated,
 }: OverviewClientProps) {
+    const { lang } = useLanguage();
+    const t = translations[lang].dashboard;
     const [indices, setIndices] = useState<IndexData[]>(initialIndices);
     const [news, setNews] = useState<NewsItem[]>(initialNews);
     const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
@@ -278,6 +282,17 @@ export default function OverviewClient({
 
     return (
         <div className={styles.container}>
+            <div className={styles.dashboardHeader}>
+                <div>
+                    <p className={styles.eyebrow}>{t.eyebrow}</p>
+                    <h1>{t.title}</h1>
+                    <p className={styles.subtitle}>{t.subtitle}</p>
+                </div>
+                <div className={styles.marketStatus}>
+                    <span />
+                    {t.liveData}
+                </div>
+            </div>
             <div className={styles.mainContent}>
                 <div className={styles.leftColumn}>
                     <HeroIndexCard

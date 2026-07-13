@@ -3,6 +3,8 @@
 import { Card } from '@tremor/react';
 import { useEffect, useState } from 'react';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
+import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 const ITEMS = [
     { channel: 'EUR/USD', label: 'EUR/USD', fmt: (p: number) => p.toFixed(4) },
@@ -13,6 +15,8 @@ const ITEMS = [
 ];
 
 export default function FFForexRates() {
+    const { lang } = useLanguage();
+    const t = translations[lang].dashboard;
     const [prices, setPrices] = useState<Map<string, FFPrice>>(new Map());
 
     useEffect(() => {
@@ -32,7 +36,7 @@ export default function FFForexRates() {
             <div className="flex items-center justify-between gap-2 px-5 py-4">
                 <div className="flex items-center gap-2">
                     <span className="text-xl">💱</span>
-                    <span className="text-base font-bold text-gray-900 dark:text-gray-100">Ngoại Hối</span>
+                    <span className="text-base font-bold text-gray-900 dark:text-gray-100">{t.forex}</span>
                 </div>
                 <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                     {loaded.length > 0 ? 'Live' : '...'}

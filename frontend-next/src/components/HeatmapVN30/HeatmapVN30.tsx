@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { API_BASE, isTradingHours, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
+import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 //  Types
 interface Stock { ticker: string; cap: number; change: number; price: number; name: string; sector: string }
@@ -107,6 +109,8 @@ const LABEL_H = 20;
 
 //  Component
 export default function HeatmapVN30({ externalData = null, useExternalOnly = false }: HeatmapVN30Props) {
+  const { lang } = useLanguage();
+  const labels = translations[lang].dashboard;
   const [data, setData] = useState<HeatmapData | null>(null);
   const [exchange, setExchange] = useState<HeatmapExchange>('HSX');
   const [cw, setCw] = useState(800);
@@ -188,10 +192,13 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
   );
 
   return (
-    <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f1117] p-0.5 shadow-sm overflow-hidden">
+    <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#0f1117] p-0.5 shadow-sm overflow-hidden">
       {!useExternalOnly && (
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Market Heatmap</h3>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{labels.breadth}</p>
+            <h3 className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100">{labels.heatmap}</h3>
+          </div>
           <div className="grid grid-cols-3 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-900">
             {HEATMAP_EXCHANGES.map(item => (
               <button
