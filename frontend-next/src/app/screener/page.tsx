@@ -247,15 +247,16 @@ export default function ScreenerPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      <div className="mx-auto max-w-[1500px] p-3 md:p-6 space-y-3">
+    <div className="min-h-screen text-slate-900 dark:text-slate-100">
+      <div className="mx-auto max-w-[1500px] p-3 md:p-6 space-y-4">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200/80 bg-white/90 px-4 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 md:px-6 md:py-5">
           <div>
-            <h1 className="text-2xl md:text-4xl font-bold">Stock Screener</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 hidden md:block">
-              Filter Vietnamese stocks by valuation, quality, and growth metrics.
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-blue-600 dark:text-blue-400">Research workspace</p>
+            <h1 className="text-2xl font-bold tracking-tight md:text-4xl">Stock Screener</h1>
+            <p className="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 md:block">
+              Screen the active HOSE, HNX, and UPCOM universe by valuation, quality, and growth.
             </p>
           </div>
 
@@ -297,22 +298,22 @@ export default function ScreenerPage() {
         </div>
 
         {/* Filter panel */}
-        <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden ${filtersOpen ? 'block' : 'hidden md:block'}`}>
+        <div className={`overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${filtersOpen ? 'block' : 'hidden md:block'}`}>
           {/* Industry filter (ICB) */}
           {icbSectors.length > 0 && (
-            <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">Ngành</span>
+          <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">Sector</span>
               <select
                 value={selectedSector}
                 onChange={(e) => { setSelectedSector(e.target.value); setPage(1); }}
                 className="input flex-1 max-w-xs"
               >
-                <option value="">Tất cả ngành</option>
+                <option value="">All sectors</option>
                 {(() => {
                   // Group icbSectors by icb_name1
                   const groups: Record<string, IcbSector[]> = {};
                   for (const s of icbSectors) {
-                    const g = s.icb_name1 || 'Khác';
+                  const g = s.icb_name1 || 'Other';
                     if (!groups[g]) groups[g] = [];
                     groups[g].push(s);
                   }
@@ -329,7 +330,7 @@ export default function ScreenerPage() {
                 <button
                   onClick={() => { setSelectedSector(''); setPage(1); }}
                   className="text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                  title="Xóa lọc ngành"
+                  title="Clear sector filter"
                 >✕</button>
               )}
             </div>
@@ -411,9 +412,12 @@ export default function ScreenerPage() {
         </div>
 
         {/* Results */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 md:p-4">
+        <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-5">
           <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="text-sm text-slate-500 tabular-nums">{summary}</div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Results</p>
+              <div className="mt-0.5 text-sm font-semibold text-slate-600 tabular-nums dark:text-slate-300">{summary}</div>
+            </div>
             <div className="flex gap-2">
               <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as ScreenerSortKey)}>
                 {SORT_OPTIONS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}

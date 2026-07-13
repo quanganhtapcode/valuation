@@ -611,7 +611,7 @@ def register(market_bp: Blueprint) -> None:
                     """
                     SELECT DISTINCT
                         icb_name1, icb_name2, icb_code1, icb_code2
-                    FROM companies
+                    FROM active_stocks
                     WHERE icb_name2 IS NOT NULL AND icb_name2 != ''
                     ORDER BY icb_name1, icb_name2
                     """
@@ -734,7 +734,7 @@ def register(market_bp: Blueprint) -> None:
             else "LEFT JOIN (SELECT NULL AS ticker, NULL AS pe, NULL AS pb, NULL AS roe, NULL AS gross_margin, NULL AS after_tax_margin, NULL AS market_cap WHERE 0) sf_latest ON 0"
         )
         company_join = (
-            "LEFT JOIN co.companies c ON s.ticker = c.ticker"
+            "JOIN co.active_stocks c ON s.ticker = c.ticker"
             if has_company_db
             else "LEFT JOIN (SELECT NULL AS ticker, NULL AS icb_name1, NULL AS icb_name2, NULL AS icb_name3, NULL AS icb_name4, NULL AS icb_code1, NULL AS icb_code2, NULL AS icb_code3, NULL AS icb_code4 WHERE 0) c ON 0"
         )
