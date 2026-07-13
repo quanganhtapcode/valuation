@@ -179,7 +179,7 @@ export default function CryptoPrices() {
                     <span className="text-base font-bold text-gray-900 dark:text-gray-100">Crypto (OKX)</span>
                 </div>
                 <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                    {status === 'connected' ? 'Live' : status === 'connecting' ? '...' : 'Reconnecting'}
+                    {status === 'connecting' ? '...' : status === 'disconnected' ? 'Reconnecting' : ''}
                 </span>
             </div>
 

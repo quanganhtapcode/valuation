@@ -534,10 +534,6 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                     );
                 })}
                 <div className="flex-1" />
-                <div className="flex items-center gap-1.5 px-4 text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                    LIVE
-                </div>
             </div>
 
             {/* ── Hero card ── */}
