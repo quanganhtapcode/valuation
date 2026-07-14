@@ -14,7 +14,7 @@ import {
     RiGlobalLine,
     RiLineChartLine,
     RiMenuLine,
-    RiMoreLine,
+    RiMore2Line,
     RiPieChartLine,
     RiSearchLine,
 } from "@remixicon/react"
@@ -331,7 +331,7 @@ export function Navbar() {
                                     ref={desktopInputRef}
                                     type="text"
                                     className={cx(
-                                        "w-32 lg:w-48 rounded-full border border-gray-200 bg-gray-50/50 py-1.5 pl-9 pr-4 text-sm outline-none transition-all placeholder:text-gray-500 focus:w-64 lg:focus:w-72 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus:border-blue-500",
+                                        "w-40 lg:w-52 rounded-full border border-gray-200 bg-gray-50/50 py-1.5 pl-9 pr-16 text-sm outline-none transition-all placeholder:text-gray-500 focus:w-64 lg:focus:w-72 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus:border-blue-500",
                                         focusInput
                                     )}
                                     placeholder={t.searchPlaceholder}
@@ -346,9 +346,9 @@ export function Navbar() {
                                     }}
                                     onFocus={() => { setSearchOpen(true); if (!tickersLoaded) void ensureTickersLoaded(); }}
                                 />
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center group-focus-within:opacity-100 opacity-0 transition-opacity pointer-events-none">
-                                    <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-gray-200 bg-gray-100 px-1.5 font-mono text-[10px] font-medium text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-400">
-                                        ⌘K
+                                <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center">
+                                    <kbd className="inline-flex h-5 items-center rounded border border-gray-200 bg-white px-1.5 font-mono text-[10px] font-medium text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+                                        Ctrl K
                                     </kbd>
                                 </div>
                             </div>
@@ -424,7 +424,7 @@ export function Navbar() {
                                         : "border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
                                 )}
                             >
-                                <RiMoreLine className="size-5" aria-hidden="true" />
+                                <RiMore2Line className="size-5" aria-hidden="true" />
                             </button>
                             {settingsOpen && (
                                 <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-xl shadow-black/10 dark:border-gray-800 dark:bg-gray-950">
