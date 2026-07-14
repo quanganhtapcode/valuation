@@ -536,9 +536,9 @@ export default function StockDetailPage() {
         <div className={styles.container}>
             {/* ── Stock quote header ───────────────────────────────── */}
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#111827]">
-                <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-5 sm:px-6">
+                <div className="flex items-start justify-between gap-4 px-5 py-3 sm:px-6 md:py-2.5">
                     <div className="flex min-w-0 items-start gap-3">
-                    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 md:h-9 md:w-9">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={siteConfig.stockLogoUrl(symbol)}
@@ -558,7 +558,7 @@ export default function StockDetailPage() {
 
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                        <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">{symbol}</h1>
+                        <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white md:text-lg">{symbol}</h1>
                         {(stockInfo?.exchange || stockInfo?.sector) && (
                             <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                                 {stockInfo?.exchange && (
@@ -575,7 +575,7 @@ export default function StockDetailPage() {
                             </div>
                         )}
                         </div>
-                        <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{stockInfo?.companyName || '—'}</p>
+                        <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400 md:text-[13px]">{stockInfo?.companyName || '—'}</p>
                     </div>
                     </div>
 
@@ -612,11 +612,11 @@ export default function StockDetailPage() {
 
                     return (
                         <>
-                            <div className="grid gap-5 border-t border-slate-100 px-5 py-5 dark:border-slate-800 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:px-6">
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-t border-slate-100 px-5 py-4 dark:border-slate-800 sm:gap-5 sm:px-6 sm:py-4 md:py-3">
                             <div className="min-w-0">
                                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">{t.detail.latestData}</p>
                                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                                    <span className="text-4xl font-bold leading-none tracking-tight tabular-nums sm:text-5xl" style={{ color: priceColor }}>
+                                    <span className="text-[2.35rem] font-bold leading-none tracking-tight tabular-nums sm:text-[2.75rem] md:text-[2.5rem]" style={{ color: priceColor }}>
                                         {formatNumber(priceData.price)}
                                     </span>
                                     <div className="flex items-baseline gap-1.5 font-bold tabular-nums" style={{ color: changeColor }}>
@@ -626,7 +626,7 @@ export default function StockDetailPage() {
                                 </div>
                             </div>
 
-                            <div className="flex flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+                            <div className="flex max-w-[154px] flex-col items-end gap-1.5 sm:max-w-none sm:gap-2">
                                 {targetPct !== null && (
                                     <div className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold"
                                         style={{
@@ -646,7 +646,7 @@ export default function StockDetailPage() {
                             </div>
                             </div>
 
-                        <dl className="grid grid-cols-2 border-t border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/20 sm:grid-cols-3 lg:grid-cols-5">
+                        <dl className="grid grid-flow-col auto-cols-[minmax(132px,1fr)] overflow-x-auto border-t border-slate-100 bg-slate-50/70 scrollbar-hide dark:border-slate-800 dark:bg-slate-900/20 sm:grid-flow-row sm:grid-cols-3 sm:auto-cols-auto sm:overflow-visible lg:grid-cols-5">
                             {[
                                 { label: t.overview.open, value: priceData.open },
                                 { label: t.overview.high, value: priceData.high },
@@ -654,7 +654,7 @@ export default function StockDetailPage() {
                                 { label: t.overview.volume, value: priceData.volume },
                                 { label: t.detail.marketCap, value: financials?.marketCap },
                             ].map((item, index) => (
-                                <div key={item.label} className={`min-w-0 px-5 py-3.5 ${index < 4 ? 'lg:border-r lg:border-slate-200 lg:dark:border-slate-800' : ''}`}>
+                                <div key={item.label} className={`min-w-0 border-r border-slate-200 px-5 py-3 dark:border-slate-800 sm:py-2.5 ${index < 4 ? 'lg:border-r lg:border-slate-200 lg:dark:border-slate-800' : ''}`}>
                                     <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{item.label}</dt>
                                     <dd className="mt-1 truncate text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">
                                         {item.value ? formatNumber(item.value, { maximumFractionDigits: 0 }) : '—'}
@@ -666,7 +666,7 @@ export default function StockDetailPage() {
                     );
                 })()}
 
-                <div className="sticky top-16 z-20 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-[#111827]">
+                <div className="sticky top-[60px] z-20 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-[#111827] md:top-[68px]">
                     <nav className="flex overflow-x-auto px-3 scrollbar-hide" aria-label="Điều hướng chi tiết cổ phiếu">
                         {[
                             { id: 'overview', label: t.stock.tabs.overview },
@@ -683,7 +683,7 @@ export default function StockDetailPage() {
                                 type="button"
                                 onClick={() => handleTabChange(tab.id as StockTabId)}
                                 className={classNames(
-                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-blue-600',
+                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-blue-600 md:py-2.5',
                                     activeTab === tab.id
                                         ? 'border-blue-600 text-blue-700 dark:text-blue-400'
                                         : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
