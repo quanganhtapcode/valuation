@@ -614,7 +614,6 @@ export default function StockDetailPage() {
                         <>
                             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-t border-slate-100 px-5 py-4 dark:border-slate-800 sm:gap-5 sm:px-6 sm:py-4 md:py-3">
                             <div className="min-w-0">
-                                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">{t.detail.latestData}</p>
                                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                                     <span className="text-[2.35rem] font-bold leading-none tracking-tight tabular-nums sm:text-[2.75rem] md:text-[2.5rem]" style={{ color: priceColor }}>
                                         {formatNumber(priceData.price)}
@@ -646,22 +645,6 @@ export default function StockDetailPage() {
                             </div>
                             </div>
 
-                        <dl className="grid grid-flow-col auto-cols-[minmax(132px,1fr)] overflow-x-auto border-t border-slate-100 bg-slate-50/70 scrollbar-hide dark:border-slate-800 dark:bg-slate-900/20 sm:grid-flow-row sm:grid-cols-3 sm:auto-cols-auto sm:overflow-visible lg:grid-cols-5">
-                            {[
-                                { label: t.overview.open, value: priceData.open },
-                                { label: t.overview.high, value: priceData.high },
-                                { label: t.overview.low, value: priceData.low },
-                                { label: t.overview.volume, value: priceData.volume },
-                                { label: t.detail.marketCap, value: financials?.marketCap },
-                            ].map((item, index) => (
-                                <div key={item.label} className={`min-w-0 border-r border-slate-200 px-5 py-3 dark:border-slate-800 sm:py-2.5 ${index < 4 ? 'lg:border-r lg:border-slate-200 lg:dark:border-slate-800' : ''}`}>
-                                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{item.label}</dt>
-                                    <dd className="mt-1 truncate text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">
-                                        {item.value ? formatNumber(item.value, { maximumFractionDigits: 0 }) : '—'}
-                                    </dd>
-                                </div>
-                            ))}
-                            </dl>
                         </>
                     );
                 })()}
