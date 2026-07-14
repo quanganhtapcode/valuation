@@ -279,14 +279,6 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
     const normalizedData = useMemo(() => normalizeData(data), [data]);
     const rangedData = useMemo(() => filterRange(normalizedData, range), [normalizedData, range]);
     const aggregatedData = useMemo(() => aggregateData(rangedData, interval), [rangedData, interval]);
-    const rangeChange = useMemo(() => {
-        if (rangedData.length < 2) return null;
-        const first = rangedData[0].close;
-        const last = rangedData[rangedData.length - 1].close;
-        const value = last - first;
-        return { value, percent: first > 0 ? (value / first) * 100 : 0 };
-    }, [rangedData]);
-
     // keep intervalRef in sync for use inside effects
     useEffect(() => { intervalRef.current = interval; }, [interval]);
 
@@ -450,17 +442,6 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="w-full">
-            <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">
-                    {rangeChange ? (
-                        <span className={rangeChange.value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
-                            {rangeChange.value >= 0 ? '+' : ''}{formatPrice(rangeChange.value)} ({rangeChange.percent >= 0 ? '+' : ''}{rangeChange.percent.toFixed(2)}%)
-                        </span>
-                    ) : '—'}
-                </div>
-                <ChartControls range={range} setRange={handleRangeChange} interval={interval} setInterval={setInterval} />
-            </div>
-
             {/* Chart area — always mounted so chart instance is never destroyed */}
             <div className="relative">
                 {/* Loading overlay */}
@@ -489,6 +470,11 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
                 <OHLCVOverlay bar={hoveredBar} />
 
                 <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '400px' }} />
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 px-1 pt-3 dark:border-slate-800">
+                <span className="hidden text-[11px] font-medium text-slate-400 sm:inline">Khoảng thời gian</span>
+                <ChartControls range={range} setRange={handleRangeChange} interval={interval} setInterval={setInterval} />
             </div>
         </div>
     );

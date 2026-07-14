@@ -53,12 +53,13 @@ export default function FinancialMetricsPanel({ financials }: FinancialMetricsPa
     ];
 
     return (
-        <section className={`${styles.section} ${styles.sectionMetrics}`} aria-labelledby="financial-metrics-title">
-            <div className={styles.sectionHeader}>
+        <section className={`${styles.section} ${styles.sectionMetrics} ${styles.metricsPanel}`} aria-labelledby="financial-metrics-title">
+            <div className={styles.metricsPanelHeader}>
                 <div>
-                    <h3 id="financial-metrics-title" className={styles.sectionTitle}>{t.financialMetrics}</h3>
+                    <h3 id="financial-metrics-title" className={styles.sectionTitle}>{t.indicators}</h3>
                     <p className={styles.sectionSubtitle}>{t.ttmData}</p>
                 </div>
+                <span className={styles.metricsPanelBadge}>TTM</span>
             </div>
             <div className={styles.metricGroups}>
                 {groups.map((group) => (

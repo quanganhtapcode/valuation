@@ -85,6 +85,7 @@ export const translations = {
             editWatchlist: "Chỉnh sửa danh sách theo dõi", searchStocks: "Tìm mã cổ phiếu...", added: "Đã thêm", add: "+ Thêm", emptyWatchlist: "Danh sách theo dõi trống", remove: "Xoá",
         },
         detail: {
+            indicators: "Chỉ số",
             marketCap: "Vốn hóa",
             latestData: "Dữ liệu mới nhất",
             valuation: "Định giá",
@@ -247,6 +248,7 @@ export const translations = {
             editWatchlist: "Edit watchlist", searchStocks: "Search stock symbols...", added: "Added", add: "+ Add", emptyWatchlist: "Your watchlist is empty", remove: "Remove",
         },
         detail: {
+            indicators: "Indicators",
             marketCap: "Market cap",
             latestData: "Latest data",
             valuation: "Valuation",

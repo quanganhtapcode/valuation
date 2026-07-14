@@ -221,21 +221,21 @@ export default function OverviewTab({
                 {/* Price Chart */}
                 <section className={`${styles.section} ${styles.sectionChart} mt-2 sm:mt-0`}>
                     <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                        <h3 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
                             {tOv.priceChart}
                         </h3>
                     </div>
 
-                    {/* Session stats bar */}
+                    {/* Session snapshot */}
                     {priceData && (priceData.open > 0 || priceData.volume > 0) && (
-                        <div className="mb-5 grid grid-cols-5 gap-0 rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden text-center bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="mb-4 grid grid-cols-5 gap-0 border-y border-slate-100 text-center dark:border-slate-800">
                             {stats.map((s, i) => (
                                 <div
                                     key={s.label}
-                                    className={`py-2 px-1 ${i < stats.length - 1 ? 'border-r border-slate-100 dark:border-slate-800' : ''}`}
+                                    className={`min-w-0 px-1 py-2.5 ${i < stats.length - 1 ? 'border-r border-slate-100 dark:border-slate-800' : ''}`}
                                 >
-                                    <div className="text-[9px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500 mb-0.5 leading-none">{s.label}</div>
-                                    <div className={`text-[12px] font-bold tabular-nums leading-tight ${s.color ?? 'text-slate-700 dark:text-slate-200'}`}>{s.value}</div>
+                                    <div className="mb-1 truncate text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{s.label}</div>
+                                    <div className={`truncate text-[12px] font-bold leading-tight tabular-nums ${s.color ?? 'text-slate-700 dark:text-slate-200'}`}>{s.value}</div>
                                 </div>
                             ))}
                         </div>
