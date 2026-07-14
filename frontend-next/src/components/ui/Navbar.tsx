@@ -347,8 +347,9 @@ export function Navbar() {
                                     onFocus={() => { setSearchOpen(true); if (!tickersLoaded) void ensureTickersLoaded(); }}
                                 />
                                 <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center">
-                                    <kbd className="inline-flex h-5 items-center rounded border border-gray-200 bg-white px-1.5 font-mono text-[10px] font-medium text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-                                        Ctrl K
+                                    <kbd aria-label="Command K" className="inline-flex h-5 items-center gap-0.5 rounded border border-gray-200 bg-white px-1.5 font-sans text-[11px] font-medium leading-none text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+                                        <span className="text-[13px] leading-none">⌘</span>
+                                        <span>K</span>
                                     </kbd>
                                 </div>
                             </div>
