@@ -36,7 +36,7 @@ export default function EarningsSeason() {
     }, []);
 
     return (
-        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800">
+        <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800">
             <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                     <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">AI Market Takeaways</h2>

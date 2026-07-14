@@ -501,7 +501,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     return (
         <>
             {/* ── Index sub-bar ── */}
-            <div className="flex items-stretch overflow-x-auto border border-slate-200/80 bg-white/90 shadow-sm dark:border-slate-800/80 dark:bg-slate-900/90 rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-stretch overflow-x-auto rounded-xl border border-slate-200/80 bg-white/90 shadow-sm dark:border-slate-800/80 dark:bg-slate-900/90 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {INDEX_TABS.map(tab => {
                     const idx    = indices.find(i => i.id === tab.id);
                     const active = tab.id === selectedId;
@@ -537,7 +537,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             </div>
 
             {/* ── Hero card ── */}
-            <div className="bg-white/95 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
 
                 {/* Stats header */}
                 <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-0 md:px-6 md:pt-6">

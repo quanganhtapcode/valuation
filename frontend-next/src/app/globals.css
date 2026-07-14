@@ -7,10 +7,10 @@
    ============================================================ */
 :root {
     /* Colors */
-    --color-background: #f7f8fc;
+    --color-background: #f8fafc;
     --color-surface: #FFFFFF;
-    --color-text: #182230;
-    --color-text-secondary: #5f6b7a;
+    --color-text: #202124;
+    --color-text-secondary: #667085;
 
     /* Primary - Green accent */
     --color-primary: #155eef;
@@ -25,8 +25,8 @@
     --color-info: #3b82f6;
 
     /* Borders */
-    --color-border: #e3e8ef;
-    --color-border-light: #eef1f5;
+    --color-border: #e5e7eb;
+    --color-border-light: #f1f3f5;
 
     /* Typography */
     --font-family-base: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
@@ -62,13 +62,13 @@
     /* Border Radius */
     --radius-sm: 6px;
     --radius-base: 10px;
-    --radius-md: 14px;
-    --radius-lg: 20px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
     --radius-full: 9999px;
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.03), 0 1px 3px rgba(15, 23, 42, 0.04);
-    --shadow-md: 0 12px 28px rgba(25, 39, 74, 0.08), 0 2px 6px rgba(25, 39, 74, 0.04);
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 8px 20px rgba(15, 23, 42, 0.08), 0 2px 5px rgba(15, 23, 42, 0.03);
     --shadow-lg: 0 20px 44px rgba(25, 39, 74, 0.12), 0 4px 12px rgba(25, 39, 74, 0.05);
 
     /* Layout */
@@ -103,10 +103,10 @@ body {
     font-family: var(--font-family-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
-    letter-spacing: -0.011em;
+    letter-spacing: -0.01em;
     color: var(--color-text);
     background-color: var(--color-background);
-    background-image: linear-gradient(180deg, #fbfcfe 0, var(--color-background) 420px);
+    background-image: linear-gradient(180deg, #ffffff 0, var(--color-background) 360px);
 }
 
 html {
@@ -220,8 +220,8 @@ img {
 }
 
 .card:hover {
-    border-color: #d3dbe7;
-    box-shadow: var(--shadow-md);
+    border-color: #d0d5dd;
+    box-shadow: var(--shadow-sm);
 }
 
 /* Shared page rhythm: all routes use the same generous, readable gutters. */

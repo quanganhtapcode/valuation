@@ -1,7 +1,7 @@
 .container {
     max-width: var(--max-width);
     margin: 0 auto;
-    padding: 24px var(--space-24) 48px;
+    padding: 16px var(--space-24) 40px;
     width: 100%;
     overflow-x: hidden;
     box-sizing: border-box;
@@ -74,14 +74,14 @@
 .mainContent {
     display: grid;
     grid-template-columns: 1fr var(--sidebar-width);
-    gap: 24px;
+    gap: 16px;
 }
 
 /* Left Column */
 .leftColumn {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
     min-width: 0;
     /* Prevent overflow */
 }
@@ -90,7 +90,7 @@
 .rightColumn {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
 
 /* Indices Grid */

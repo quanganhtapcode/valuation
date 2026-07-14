@@ -14,6 +14,7 @@ import {
     RiGlobalLine,
     RiLineChartLine,
     RiMenuLine,
+    RiMoreLine,
     RiPieChartLine,
     RiSearchLine,
 } from "@remixicon/react"
@@ -77,6 +78,7 @@ export function Navbar() {
     const [open, setOpen] = React.useState(false)
     const [mobileExpanded, setMobileExpanded] = useState<string | null>(null)
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+    const [settingsOpen, setSettingsOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedQuery] = useDebounce(searchQuery, 300);
@@ -88,6 +90,7 @@ export function Navbar() {
     const mobileSearchRef = useRef<HTMLDivElement>(null);
     const desktopInputRef = useRef<HTMLInputElement>(null);
     const mobileInputRef = useRef<HTMLInputElement>(null);
+    const settingsRef = useRef<HTMLDivElement>(null);
     const dropdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const router = useRouter();
@@ -95,8 +98,7 @@ export function Navbar() {
 
     // Compute mobile menu height dynamically to avoid oversized blur
     const mobileOpenHeight = useMemo(() => {
-        // Includes the always-visible Overview link plus the expandable groups.
-        let h = HEADER_ROW_H + NAV_MARGIN_H + SUB_ITEM_H + NAV_GROUPS.length * GROUP_BTN_H + NAV_GROUPS.length * 4;
+        let h = HEADER_ROW_H + NAV_MARGIN_H + NAV_GROUPS.length * GROUP_BTN_H + (NAV_GROUPS.length - 1) * 4;
         NAV_GROUPS.forEach(g => {
             if (mobileExpanded === g.id) h += g.items.length * SUB_ITEM_H + 4;
         });
@@ -110,6 +112,7 @@ export function Navbar() {
         setOpen(false);
         setMobileExpanded(null);
         setActiveDropdown(null);
+        setSettingsOpen(false);
     }, [pathname]);
 
     useEffect(() => {
@@ -143,14 +146,13 @@ export function Navbar() {
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             const target = event.target as Node;
-            if (searchOpen) {
-                const inside = searchRef.current?.contains(target) || mobileSearchRef.current?.contains(target);
-                if (!inside) setSearchOpen(false);
-            }
+            const insideSearch = searchRef.current?.contains(target) || mobileSearchRef.current?.contains(target);
+            if (searchOpen && !insideSearch) setSearchOpen(false);
+            if (settingsOpen && !settingsRef.current?.contains(target)) setSettingsOpen(false);
         }
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [searchOpen]);
+    }, [searchOpen, settingsOpen]);
 
     useEffect(() => {
         if (typeof debouncedQuery !== 'string' || debouncedQuery.length < 1) {
@@ -246,17 +248,6 @@ export function Navbar() {
                     {/* Desktop Nav */}
                     <nav className="hidden md:flex flex-1 justify-center">
                         <div className="flex items-center gap-1 font-medium">
-                            <Link
-                                href="/"
-                                className={cx(
-                                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                                    pathname === "/"
-                                        ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
-                                        : "text-gray-700 hover:bg-gray-100 hover:text-blue-700 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-blue-300"
-                                )}
-                            >
-                                {t.overview}
-                            </Link>
                             {NAV_GROUPS.map((group) => (
                                 <div
                                     key={group.id}
@@ -420,9 +411,36 @@ export function Navbar() {
                                 </div>
                             )}
                         </div>
-                        <div className="h-6 w-px bg-gray-200 dark:bg-gray-800" />
-                        <LanguageSwitch />
-                        <ThemeSwitch />
+                        <div className="relative" ref={settingsRef}>
+                            <button
+                                type="button"
+                                aria-label="Display and language settings"
+                                aria-expanded={settingsOpen}
+                                onClick={() => setSettingsOpen(prev => !prev)}
+                                className={cx(
+                                    "flex size-9 items-center justify-center rounded-lg border transition-colors",
+                                    settingsOpen
+                                        ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-300"
+                                        : "border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+                                )}
+                            >
+                                <RiMoreLine className="size-5" aria-hidden="true" />
+                            </button>
+                            {settingsOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-xl shadow-black/10 dark:border-gray-800 dark:bg-gray-950">
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Language</p>
+                                            <LanguageSwitch />
+                                        </div>
+                                        <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
+                                            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Appearance</p>
+                                            <ThemeSwitch />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Mobile: Search + Hamburger */}
@@ -443,18 +461,6 @@ export function Navbar() {
                 {/* Mobile Menu */}
                 <nav className={cx("my-6 flex ease-in-out will-change-transform md:hidden", open ? "" : "hidden")}>
                     <ul className="w-full space-y-1 font-medium">
-                        <li>
-                            <Link
-                                href="/"
-                                onClick={() => setOpen(false)}
-                                className={cx(
-                                    "flex w-full items-center rounded-lg px-3 py-2.5 text-base font-semibold transition-colors",
-                                    pathname === "/" ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" : "text-gray-900 hover:bg-gray-100 dark:text-gray-50 dark:hover:bg-gray-800"
-                                )}
-                            >
-                                {t.overview}
-                            </Link>
-                        </li>
                         {NAV_GROUPS.map((group) => (
                             <li key={group.id}>
                                 <button

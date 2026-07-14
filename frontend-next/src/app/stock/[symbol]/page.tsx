@@ -535,10 +535,10 @@ export default function StockDetailPage() {
     return (
         <div className={styles.container}>
             {/* ── Stock quote header ───────────────────────────────── */}
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#111827]">
+            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#111827]">
                 <div className="flex items-start justify-between gap-4 px-5 py-3 sm:px-6 md:py-2.5">
                     <div className="flex min-w-0 items-start gap-3">
-                    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 md:h-9 md:w-9">
+                    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 md:h-9 md:w-9">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={siteConfig.stockLogoUrl(symbol)}
@@ -550,7 +550,7 @@ export default function StockDetailPage() {
                                 else { t.style.display = 'none'; }
                             }}
                         />
-                        <div className="absolute inset-0 flex items-center justify-center rounded-xl text-[11px] font-bold text-white"
+                        <div className="absolute inset-0 flex items-center justify-center rounded-lg text-[11px] font-bold text-white"
                             style={{ background: 'linear-gradient(135deg,#2563eb,#3b82f6)', zIndex: -1 }}>
                             {symbol.slice(0, 2)}
                         </div>
