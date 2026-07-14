@@ -7,14 +7,14 @@
    ============================================================ */
 :root {
     /* Colors */
-    --color-background: #f5f7fb;
+    --color-background: #f7f8fc;
     --color-surface: #FFFFFF;
-    --color-text: #172033;
-    --color-text-secondary: #667085;
+    --color-text: #182230;
+    --color-text-secondary: #5f6b7a;
 
     /* Primary - Green accent */
-    --color-primary: #2563eb;
-    --color-primary-hover: #1d4ed8;
+    --color-primary: #155eef;
+    --color-primary-hover: #004eeb;
     --color-primary-active: #1e40af;
     --color-primary-light: #eff6ff;
 
@@ -25,8 +25,8 @@
     --color-info: #3b82f6;
 
     /* Borders */
-    --color-border: #e4e9f2;
-    --color-border-light: #f0f3f8;
+    --color-border: #e3e8ef;
+    --color-border-light: #eef1f5;
 
     /* Typography */
     --font-family-base: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
@@ -73,7 +73,7 @@
 
     /* Layout */
     --max-width: 1440px;
-    --sidebar-width: 340px;
+    --sidebar-width: 328px;
 }
 
 /* Dark mode */
@@ -106,7 +106,7 @@ body {
     letter-spacing: -0.011em;
     color: var(--color-text);
     background-color: var(--color-background);
-    background-image: radial-gradient(circle at 50% -20%, rgba(37, 99, 235, 0.07), transparent 38%);
+    background-image: linear-gradient(180deg, #fbfcfe 0, var(--color-background) 420px);
 }
 
 html {
@@ -152,6 +152,11 @@ main {
 a {
     color: inherit;
     text-decoration: none;
+}
+
+::selection {
+    background: #dbeafe;
+    color: #1e3a8a;
 }
 
 button {
@@ -210,11 +215,26 @@ img {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: var(--space-20);
-    transition: box-shadow 0.2s ease;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
+    border-color: #d3dbe7;
     box-shadow: var(--shadow-md);
+}
+
+/* Shared page rhythm: all routes use the same generous, readable gutters. */
+.page-shell {
+    width: min(100%, var(--max-width));
+    margin: 0 auto;
+    padding: 24px;
+}
+
+@media (max-width: 768px) {
+    .page-shell {
+        padding: 16px 12px;
+    }
 }
 
 /* Loading spinner */

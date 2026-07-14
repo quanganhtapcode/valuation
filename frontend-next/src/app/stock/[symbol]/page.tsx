@@ -534,37 +534,35 @@ export default function StockDetailPage() {
 
     return (
         <div className={styles.container}>
-            {/* ── Stock header ─────────────────────────────────────── */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] mb-0">
-
-                {/* Top identity bar */}
-                <div className="flex items-center gap-2.5 px-5 pt-4 pb-0">
-                    {/* Logo */}
-                    <div className="relative w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {/* ── Stock quote header ───────────────────────────────── */}
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#111827]">
+                <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-5 sm:px-6">
+                    <div className="flex min-w-0 items-start gap-3">
+                    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={siteConfig.stockLogoUrl(symbol)}
                             alt={symbol}
-                            className="w-full h-full object-contain p-0.5"
+                            className="h-full w-full object-contain p-1"
                             onError={(e) => {
                                 const t = e.target as HTMLImageElement;
                                 if (!t.src.includes('/logos/')) { t.src = `/logos/${symbol}.jpg`; }
                                 else { t.style.display = 'none'; }
                             }}
                         />
-                        <div className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white rounded-md"
+                        <div className="absolute inset-0 flex items-center justify-center rounded-xl text-[11px] font-bold text-white"
                             style={{ background: 'linear-gradient(135deg,#2563eb,#3b82f6)', zIndex: -1 }}>
                             {symbol.slice(0, 2)}
                         </div>
                     </div>
 
-                    {/* Symbol + exchange + sector */}
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <h1 className="text-[15px] font-bold text-slate-900 dark:text-white leading-none tracking-tight">{symbol}</h1>
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">{symbol}</h1>
                         {(stockInfo?.exchange || stockInfo?.sector) && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                                 {stockInfo?.exchange && (
-                                    <span className="border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 font-semibold leading-none">
+                                    <span className="rounded-md border border-slate-300 px-1.5 py-0.5 font-semibold leading-none dark:border-slate-600">
                                         {stockInfo.exchange}
                                     </span>
                                 )}
@@ -572,18 +570,20 @@ export default function StockDetailPage() {
                                     <span className="text-slate-300 dark:text-slate-600">·</span>
                                 )}
                                 {stockInfo?.sector && (
-                                    <span className="truncate max-w-[180px]">{stockInfo.sector}</span>
+                                    <span className="max-w-[180px] truncate">{stockInfo.sector}</span>
                                 )}
                             </div>
                         )}
+                        </div>
+                        <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{stockInfo?.companyName || '—'}</p>
+                    </div>
                     </div>
 
-                    {/* Watchlist star */}
                     <button
                         type="button"
                         onClick={() => toggleWatchlist(symbol)}
                         title={isWatchlisted ? t.stock.removeWatchlist : t.stock.addWatchlist}
-                        className="p-1 rounded-full transition-colors hover:bg-amber-50 dark:hover:bg-amber-950/40 flex-shrink-0"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-amber-200 hover:bg-amber-50 dark:border-slate-700 dark:hover:border-amber-900 dark:hover:bg-amber-950/40"
                     >
                         {isWatchlisted
                             ? <RiStarFill className="h-4.5 w-4.5 text-amber-400" />
@@ -591,12 +591,6 @@ export default function StockDetailPage() {
                     </button>
                 </div>
 
-                {/* Company name */}
-                <p className="px-5 pt-0.5 pb-0 text-[13px] text-slate-500 dark:text-slate-400 truncate leading-snug">
-                    {stockInfo?.companyName || '—'}
-                </p>
-
-                {/* Price section */}
                 {priceData && (() => {
                     const isCeiling = priceData.ceiling > 0 && priceData.price >= priceData.ceiling;
                     const isFloor = priceData.floor > 0 && priceData.price <= priceData.floor;
@@ -618,43 +612,41 @@ export default function StockDetailPage() {
 
                     return (
                         <>
-                            <div className="px-5 py-4 flex items-center justify-between gap-4">
-                            {/* LEFT — price + change */}
-                            <div className="flex flex-col gap-1 min-w-0">
-                                <div className="flex items-baseline gap-3 flex-wrap">
-                                    <span className="text-[2.25rem] font-bold tabular-nums leading-none tracking-tight" style={{ color: priceColor }}>
+                            <div className="grid gap-5 border-t border-slate-100 px-5 py-5 dark:border-slate-800 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:px-6">
+                            <div className="min-w-0">
+                                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">{t.detail.latestData}</p>
+                                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                                    <span className="text-4xl font-bold leading-none tracking-tight tabular-nums sm:text-5xl" style={{ color: priceColor }}>
                                         {formatNumber(priceData.price)}
                                     </span>
-                                    <div className="flex items-baseline gap-1.5 tabular-nums font-bold" style={{ color: changeColor }}>
-                                        <span className="text-[1.15rem]">{pctStr}</span>
-                                        <span className="text-[12px] font-semibold opacity-75">({changeStr})</span>
+                                    <div className="flex items-baseline gap-1.5 font-bold tabular-nums" style={{ color: changeColor }}>
+                                        <span className="text-base">{pctStr}</span>
+                                        <span className="text-xs font-semibold opacity-75">({changeStr})</span>
                                     </div>
                                 </div>
-                                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{t.detail.latestData}</div>
                             </div>
 
-                            {/* RIGHT — target badge + KLCP */}
-                            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                            <div className="flex flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-end">
                                 {targetPct !== null && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold border"
+                                    <div className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold"
                                         style={{
                                             background: targetPct >= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.08)',
                                             borderColor: targetPct >= 0 ? 'rgba(22,163,74,0.25)' : 'rgba(239,68,68,0.25)',
                                             color: targetPct >= 0 ? '#16a34a' : '#ef4444',
                                         }}>
-                                        <span className="text-slate-400 dark:text-slate-500 font-medium text-[10px]">{t.stock.upside}</span>
+                                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{t.stock.upside}</span>
                                         <span>{targetPct >= 0 ? '▲' : '▼'} {Math.abs(targetPct).toFixed(1)}%</span>
                                     </div>
                                 )}
                                 {financials?.sharesOutstanding ? (
-                                    <div className="text-[11px] text-slate-400 dark:text-slate-500">
-                                        {t.stock.shares} <span className="text-slate-600 dark:text-slate-300 font-medium tabular-nums">{formatNumber(financials.sharesOutstanding)}</span>
+                                    <div className="text-xs text-slate-400 dark:text-slate-500">
+                                        {t.stock.shares} <span className="font-medium tabular-nums text-slate-600 dark:text-slate-300">{formatNumber(financials.sharesOutstanding)}</span>
                                     </div>
                                 ) : null}
                             </div>
                             </div>
 
-                        <dl className="grid grid-cols-2 border-t border-slate-100 dark:border-slate-800/60 sm:grid-cols-3 lg:grid-cols-5">
+                        <dl className="grid grid-cols-2 border-t border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/20 sm:grid-cols-3 lg:grid-cols-5">
                             {[
                                 { label: t.overview.open, value: priceData.open },
                                 { label: t.overview.high, value: priceData.high },
@@ -662,9 +654,9 @@ export default function StockDetailPage() {
                                 { label: t.overview.volume, value: priceData.volume },
                                 { label: t.detail.marketCap, value: financials?.marketCap },
                             ].map((item, index) => (
-                                <div key={item.label} className={`min-w-0 px-5 py-3 ${index < 4 ? 'lg:border-r lg:border-slate-100 lg:dark:border-slate-800/60' : ''}`}>
+                                <div key={item.label} className={`min-w-0 px-5 py-3.5 ${index < 4 ? 'lg:border-r lg:border-slate-200 lg:dark:border-slate-800' : ''}`}>
                                     <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{item.label}</dt>
-                                    <dd className="mt-1 truncate text-[13px] font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+                                    <dd className="mt-1 truncate text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">
                                         {item.value ? formatNumber(item.value, { maximumFractionDigits: 0 }) : '—'}
                                     </dd>
                                 </div>
@@ -674,9 +666,8 @@ export default function StockDetailPage() {
                     );
                 })()}
 
-                {/* Tab Navigation — Vietcap underline style */}
-                <div className="sticky top-16 z-20 border-t border-slate-100 dark:border-slate-800/60 bg-white dark:bg-[#111827]">
-                    <nav className="flex overflow-x-auto scrollbar-hide px-2" aria-label="Điều hướng chi tiết cổ phiếu">
+                <div className="sticky top-16 z-20 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-[#111827]">
+                    <nav className="flex overflow-x-auto px-3 scrollbar-hide" aria-label="Điều hướng chi tiết cổ phiếu">
                         {[
                             { id: 'overview', label: t.stock.tabs.overview },
                             { id: 'financials', label: t.stock.tabs.financials },
@@ -692,7 +683,7 @@ export default function StockDetailPage() {
                                 type="button"
                                 onClick={() => handleTabChange(tab.id as StockTabId)}
                                 className={classNames(
-                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-blue-600',
+                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-blue-600',
                                     activeTab === tab.id
                                         ? 'border-blue-600 text-blue-700 dark:text-blue-400'
                                         : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -704,7 +695,7 @@ export default function StockDetailPage() {
                         ))}
                     </nav>
                 </div>
-            </div>
+            </section>
 
             {/* Main Content with Persistent Tabs (Lazy Loaded) */}
             <div className={styles.mainContentFull}>

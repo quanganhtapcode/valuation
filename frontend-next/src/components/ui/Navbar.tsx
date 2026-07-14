@@ -24,6 +24,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { DatabaseLogo } from "@/components/DatabaseLogo"
 import { Button } from "@/components/Button"
 import { getTickerData } from "@/lib/tickerCache"
+import ThemeSwitch from "@/components/ThemeSwitch"
+import LanguageSwitch from "@/components/LanguageSwitch"
 
 interface Ticker {
     symbol: string;
@@ -93,7 +95,8 @@ export function Navbar() {
 
     // Compute mobile menu height dynamically to avoid oversized blur
     const mobileOpenHeight = useMemo(() => {
-        let h = HEADER_ROW_H + NAV_MARGIN_H + NAV_GROUPS.length * GROUP_BTN_H + (NAV_GROUPS.length - 1) * 4;
+        // Includes the always-visible Overview link plus the expandable groups.
+        let h = HEADER_ROW_H + NAV_MARGIN_H + SUB_ITEM_H + NAV_GROUPS.length * GROUP_BTN_H + NAV_GROUPS.length * 4;
         NAV_GROUPS.forEach(g => {
             if (mobileExpanded === g.id) h += g.items.length * SUB_ITEM_H + 4;
         });
@@ -224,30 +227,36 @@ export function Navbar() {
     return (
         <header
             className={cx(
-                "fixed inset-x-2 top-2 z-50 mx-auto flex max-w-6xl transform-gpu animate-slide-down-fade justify-center overflow-visible rounded-xl border border-transparent px-3 py-2.5 md:top-4 md:px-3 md:py-3 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1.03)] will-change-transform",
-                !open && "h-14 md:h-16",
-                scrolled || open || searchOpen
-                    ? cx(
-                        "backdrop-blur-nav max-w-4xl border-gray-100 shadow-xl shadow-black/5 dark:border-white/15",
-                        open ? "bg-white dark:bg-gray-900" : "bg-white/80 dark:bg-black/70"
-                    )
-                    : "bg-white/0 dark:bg-gray-950/0",
+                "fixed inset-x-0 top-0 z-50 flex h-[60px] transform-gpu animate-slide-down-fade justify-center overflow-visible border-b border-gray-200/90 bg-white/95 px-3 py-2 backdrop-blur-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-950/95 md:h-[68px] md:px-6",
+                open && "h-auto min-h-[60px] bg-white dark:bg-gray-950",
+                scrolled && "shadow-sm",
             )}
             style={open ? { height: `${mobileOpenHeight}px` } : undefined}
         >
-            <div className="w-full md:my-auto">
+            <div className="w-full max-w-[1440px] md:my-auto">
                 <div className="flex items-center justify-between gap-4">
                     {/* Logo */}
                     <div className="flex-shrink-0">
                         <Link href={siteConfig.baseLinks.overview}>
                             <span className="sr-only">Overview</span>
-                            <DatabaseLogo className="w-24 md:w-32" />
+                            <DatabaseLogo className="w-24 md:w-28" />
                         </Link>
                     </div>
 
                     {/* Desktop Nav */}
                     <nav className="hidden md:flex flex-1 justify-center">
                         <div className="flex items-center gap-1 font-medium">
+                            <Link
+                                href="/"
+                                className={cx(
+                                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                                    pathname === "/"
+                                        ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                                        : "text-gray-700 hover:bg-gray-100 hover:text-blue-700 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-blue-300"
+                                )}
+                            >
+                                {t.overview}
+                            </Link>
                             {NAV_GROUPS.map((group) => (
                                 <div
                                     key={group.id}
@@ -323,7 +332,7 @@ export function Navbar() {
                     </nav>
 
                     {/* Desktop Search */}
-                    <div className="hidden items-center md:flex">
+                    <div className="hidden items-center gap-2 md:flex">
                         <div className="relative" ref={searchRef}>
                             <div className="relative group">
                                 <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
@@ -411,6 +420,9 @@ export function Navbar() {
                                 </div>
                             )}
                         </div>
+                        <div className="h-6 w-px bg-gray-200 dark:bg-gray-800" />
+                        <LanguageSwitch />
+                        <ThemeSwitch />
                     </div>
 
                     {/* Mobile: Search + Hamburger */}
@@ -431,6 +443,18 @@ export function Navbar() {
                 {/* Mobile Menu */}
                 <nav className={cx("my-6 flex ease-in-out will-change-transform md:hidden", open ? "" : "hidden")}>
                     <ul className="w-full space-y-1 font-medium">
+                        <li>
+                            <Link
+                                href="/"
+                                onClick={() => setOpen(false)}
+                                className={cx(
+                                    "flex w-full items-center rounded-lg px-3 py-2.5 text-base font-semibold transition-colors",
+                                    pathname === "/" ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300" : "text-gray-900 hover:bg-gray-100 dark:text-gray-50 dark:hover:bg-gray-800"
+                                )}
+                            >
+                                {t.overview}
+                            </Link>
+                        </li>
                         {NAV_GROUPS.map((group) => (
                             <li key={group.id}>
                                 <button

@@ -7,8 +7,8 @@ export default function MainWrapper({ children }: { children: React.ReactNode })
   const isStockPage = pathname?.startsWith('/stock/');
   // Stock pages: no ticker tape, so less top padding needed
   const paddingClass = isStockPage
-    ? 'pt-[72px] md:pt-[84px]'
-    : 'pt-[112px] md:pt-[140px]';
+    ? 'pt-[84px]'
+    : 'pt-[116px]';
   return (
     <main className={`${paddingClass} min-h-[calc(100vh-400px)]`}>
       {children}

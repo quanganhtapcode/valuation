@@ -53,7 +53,7 @@ export default function TickerTape() {
   // Skeleton while connecting
   if (activeItems.length === 0) {
     return (
-      <div className="fixed z-40 h-6 overflow-hidden bg-white/80 backdrop-blur-md border border-gray-200/50 dark:border-gray-800/50 dark:bg-gray-950/80 top-[72px] md:top-[92px] left-1/2 -translate-x-1/2 w-[calc(100%-16px)] max-w-7xl shadow-sm rounded-full">
+      <div className="fixed z-40 h-7 overflow-hidden border-b border-gray-200/80 bg-white/95 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/95 top-[60px] md:top-[68px] inset-x-0 shadow-sm">
         <div className="h-full flex items-center px-6 gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-2.5 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" style={{ width: `${48 + (i % 3) * 16}px` }} />
@@ -67,7 +67,7 @@ export default function TickerTape() {
   const duration = Math.max(30, activeItems.length * 6);
 
   return (
-    <div className="fixed z-40 h-6 overflow-hidden bg-white/80 backdrop-blur-md border border-gray-200/50 dark:border-gray-800/50 dark:bg-gray-950/80 top-[72px] md:top-[92px] left-1/2 -translate-x-1/2 w-[calc(100%-16px)] max-w-7xl shadow-sm rounded-full">
+    <div className="fixed z-40 h-7 overflow-hidden border-b border-gray-200/80 bg-white/95 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/95 top-[60px] md:top-[68px] inset-x-0 shadow-sm">
       <div className="h-full flex items-center px-4">
         <style dangerouslySetInnerHTML={{
           __html: `

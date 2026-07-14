@@ -1,7 +1,7 @@
 .container {
-    max-width: 1480px;
+    max-width: var(--max-width);
     margin: 0 auto;
-    padding: 8px var(--space-24) var(--space-40);
+    padding: 24px var(--space-24) 48px;
     width: 100%;
     overflow-x: hidden;
     box-sizing: border-box;
@@ -12,12 +12,12 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: var(--space-24);
-    padding: 0 4px var(--space-24);
+    padding: 0 4px 28px;
 }
 
 .eyebrow {
     margin: 0 0 6px;
-    color: var(--color-primary);
+    color: #175cd3;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -26,7 +26,7 @@
 .dashboardHeader h1 {
     margin: 0;
     color: var(--color-text);
-    font-size: clamp(26px, 3vw, 36px);
+    font-size: clamp(28px, 3vw, 38px);
     font-weight: 700;
     letter-spacing: -0.045em;
     line-height: 1.08;
@@ -74,14 +74,14 @@
 .mainContent {
     display: grid;
     grid-template-columns: 1fr var(--sidebar-width);
-    gap: 28px;
+    gap: 24px;
 }
 
 /* Left Column */
 .leftColumn {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
     min-width: 0;
     /* Prevent overflow */
 }
@@ -90,7 +90,7 @@
 .rightColumn {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
 }
 
 /* Indices Grid */
