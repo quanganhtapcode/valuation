@@ -1,9 +1,9 @@
 import styles from './page.module.css';
 
 export const metadata = {
-    title: 'Điều Khoản Sử Dụng | Quang Anh Stocks',
+    title: 'Điều Khoản Sử Dụng | Phần Mềm Phân Tích Cổ Phiếu',
     description:
-        'Điều khoản sử dụng dịch vụ nền tảng phân tích cổ phiếu Quang Anh: quyền và nghĩa vụ người dùng, giới hạn sử dụng dữ liệu và quy định pháp lý áp dụng.',
+        'Điều khoản sử dụng phần mềm phân tích cổ phiếu: quyền và nghĩa vụ người dùng, giới hạn sử dụng dữ liệu và quy định pháp lý áp dụng.',
     keywords: [
         'điều khoản sử dụng',
         'terms of service quang anh',
@@ -11,9 +11,9 @@ export const metadata = {
     ],
     alternates: { canonical: '/terms' },
     openGraph: {
-        title: 'Điều Khoản Sử Dụng | Quang Anh Stocks',
+        title: 'Điều Khoản Sử Dụng | Phần Mềm Phân Tích Cổ Phiếu',
         description:
-            'Điều khoản sử dụng dịch vụ nền tảng phân tích và định giá cổ phiếu Việt Nam Quang Anh.',
+            'Điều khoản sử dụng phần mềm phân tích và định giá cổ phiếu Việt Nam.',
         url: '/terms',
     },
 };
@@ -22,14 +22,15 @@ export default function TermsPage() {
     return (
         <main className={styles.container}>
             <header className={styles.pageHeader}>
-                <p className={styles.eyebrow}>PHÁP LÝ &amp; MINH BẠCH</p>
-                <h1 className={styles.title}>Điều khoản <span>sử dụng</span></h1>
+                <p className={styles.eyebrow}>LEGAL &amp; TRANSPARENCY</p>
+                <h1 className={styles.title}>Terms of <span>service</span></h1>
                 <div className={styles.headerAccent} />
-                <p className={styles.intro}>Quy định cách truy cập, sử dụng dữ liệu và các công cụ nghiên cứu trên nền tảng Quang Anh.</p>
-                <div className={styles.lastUpdated}>Cập nhật lần cuối: 23/03/2026</div>
-                <nav className={styles.legalNav} aria-label="Tài liệu pháp lý">
-                    <a href="/disclaimer">Miễn trừ</a><a className={styles.activeNav} href="/terms">Điều khoản</a><a href="/privacy">Quyền riêng tư</a>
+                <p className={styles.intro}>Rules for accessing and using data, research tools, and content available through the Platform.</p>
+                <div className={styles.lastUpdated}>Last updated: March 23, 2026</div>
+                <nav className={styles.legalNav} aria-label="Legal documents">
+                    <a href="/disclaimer">Disclaimer</a><a className={styles.activeNav} href="/terms">Terms</a><a href="/privacy">Privacy</a>
                 </nav>
+                <details className={styles.vietnameseSummary}><summary>Tóm tắt tiếng Việt</summary><p>Bạn được sử dụng phần mềm cho mục đích cá nhân, nghiên cứu và phi thương mại. Không được sao chép dữ liệu quy mô lớn, tự động thu thập dữ liệu hoặc tái phân phối nội dung khi chưa có chấp thuận. Việc sử dụng vẫn chịu sự điều chỉnh của Điều khoản, Chính sách quyền riêng tư và Tuyên bố miễn trừ.</p></details>
             </header>
 
             <div className={styles.content}>
@@ -37,13 +38,13 @@ export default function TermsPage() {
                 <section className={styles.section}>
                     <h2>1. Introduction and Acceptance</h2>
                     <p>
-                        These Terms of Service (&quot;Terms&quot;) govern your access to and use of the stock analysis platform operated by Quang Anh, accessible at <strong>stock.quanganh.org</strong> (the &quot;Platform&quot;), including all associated features, data services, valuation tools, application programming interfaces, and content (collectively, the &quot;Service&quot;).
+                        These Terms of Service (&quot;Terms&quot;) govern your access to and use of the stock analysis software developed by Quang Anh (the &quot;Developer&quot;), accessible at <strong>stock.quanganh.org</strong> (the &quot;Platform&quot;), including all associated features, data services, valuation tools, application programming interfaces, and content (collectively, the &quot;Service&quot;).
                     </p>
                     <p>
                         By accessing or using any part of the Service, you (&quot;User&quot; or &quot;you&quot;) agree to be legally bound by these Terms, our <a href="/privacy" className={styles.link}>Privacy Policy</a>, and our <a href="/disclaimer" className={styles.link}>Disclaimer</a>, all of which are incorporated by reference. If you do not agree to all of these Terms, you are not authorized to access or use the Service and must immediately cease doing so.
                     </p>
                     <p>
-                        Quang Anh reserves the right to modify these Terms at any time. Continued use of the Service following the posting of any changes constitutes acceptance of those changes. It is your responsibility to review these Terms periodically.
+                        the Developer reserves the right to modify these Terms at any time. Continued use of the Service following the posting of any changes constitutes acceptance of those changes. It is your responsibility to review these Terms periodically.
                     </p>
                 </section>
 
@@ -63,7 +64,7 @@ export default function TermsPage() {
                 <section className={styles.section}>
                     <h2>3. Description of Service</h2>
                     <p>
-                        Quang Anh is a financial data aggregation and analysis platform focused on the Vietnamese equity markets, covering securities listed on the Ho Chi Minh Stock Exchange (HOSE), the Hanoi Stock Exchange (HNX), and the Unlisted Public Company Market (UPCOM). The Service provides:
+                        the Developer is a financial data aggregation and analysis platform focused on the Vietnamese equity markets, covering securities listed on the Ho Chi Minh Stock Exchange (HOSE), the Hanoi Stock Exchange (HNX), and the Unlisted Public Company Market (UPCOM). The Service provides:
                     </p>
                     <ul className={styles.list}>
                         <li>Real-time and delayed market price data, trading volumes, and index levels sourced from licensed data providers including VCI (Viet Capital Securities);</li>
@@ -74,14 +75,14 @@ export default function TermsPage() {
                         <li>Foreign ownership tracking and institutional holding data where publicly disclosed.</li>
                     </ul>
                     <p>
-                        The scope, features, and data coverage of the Service may change over time. Quang Anh reserves the right to modify, suspend, or discontinue any part of the Service with or without notice.
+                        The scope, features, and data coverage of the Service may change over time. the Developer reserves the right to modify, suspend, or discontinue any part of the Service with or without notice.
                     </p>
                 </section>
 
                 <section className={styles.section}>
                     <h2>4. License Grant and Permitted Use</h2>
                     <p>
-                        Subject to your compliance with these Terms, Quang Anh grants you a limited, non-exclusive, non-transferable, non-sublicensable, revocable license to access and use the Service solely for your own personal, non-commercial informational and research purposes.
+                        Subject to your compliance with these Terms, the Developer grants you a limited, non-exclusive, non-transferable, non-sublicensable, revocable license to access and use the Service solely for your own personal, non-commercial informational and research purposes.
                     </p>
                     <p>
                         This license expressly permits you to:
@@ -90,14 +91,14 @@ export default function TermsPage() {
                         <li>View, analyze, and interact with Market Data and Content through the Platform&apos;s standard user interface;</li>
                         <li>Use valuation tools to perform calculations and scenario analyses for personal investment research;</li>
                         <li>Download data exports made available through the Platform&apos;s designated download features for personal use only;</li>
-                        <li>Share screenshots or limited extracts for educational, journalistic, or personal discussion purposes, provided proper attribution to Quang Anh is given.</li>
+                        <li>Share screenshots or limited extracts for educational, journalistic, or personal discussion purposes, provided proper attribution to the Developer is given.</li>
                     </ul>
                 </section>
 
                 <section className={styles.section}>
                     <h2>5. Prohibited Uses</h2>
                     <p className={styles.highlight}>
-                        Any use of the Service beyond the scope of the Authorized Use described in Section 4 is strictly prohibited without prior written consent from Quang Anh. The following activities are expressly prohibited:
+                        Any use of the Service beyond the scope of the Authorized Use described in Section 4 is strictly prohibited without prior written consent from the Developer. The following activities are expressly prohibited:
                     </p>
                     <ul className={styles.list}>
                         <li><strong>Automated Data Harvesting:</strong> Using bots, crawlers, scrapers, spiders, scripts, or any automated tool to extract, copy, index, or aggregate any data from the Platform, including but not limited to bulk price data, financial statement data, or screening results.</li>
@@ -123,7 +124,7 @@ export default function TermsPage() {
                         <li><strong>Data Delays:</strong> Real-time pricing data is subject to transmission and processing delays. Depending on the data source and market session, quotes may be delayed by up to 15–20 minutes. We make no representation that any price quote reflects the actual current market price at the moment of display.</li>
                         <li><strong>Source Dependencies:</strong> The accuracy and completeness of Market Data is dependent on our upstream data providers (including VCI, CafeF, and exchange feeds). We are not responsible for errors, omissions, or interruptions introduced at the source level.</li>
                         <li><strong>Financial Statement Data:</strong> Fundamental data is sourced from official company disclosures filed with the State Securities Commission of Vietnam (SSC) and aggregated by third-party data vendors. Minor discrepancies may exist between our displayed figures and the source documents. Users are encouraged to verify critical figures against official filings.</li>
-                        <li><strong>Calculation Methodology:</strong> All valuation model outputs, financial ratios, and screening scores are computed according to Quang Anh&apos;s proprietary methodologies. Different methodologies will produce different results. Users should independently verify calculations using their own methods before relying on them.</li>
+                        <li><strong>Calculation Methodology:</strong> All valuation model outputs, financial ratios, and screening scores are computed according to the Developer&apos;s proprietary methodologies. Different methodologies will produce different results. Users should independently verify calculations using their own methods before relying on them.</li>
                         <li><strong>Corporate Actions:</strong> Historical price data may or may not be adjusted for dividends, stock splits, bonus shares, or rights issues. Check data labels for adjustment status. Unadjusted historical data does not reflect total returns.</li>
                     </ul>
                 </section>
@@ -144,7 +145,7 @@ export default function TermsPage() {
                 <section className={styles.section}>
                     <h2>8. Intellectual Property Rights</h2>
                     <p>
-                        All Content on the Platform — including but not limited to: the Platform&apos;s source code, frontend interface design, data pipeline architecture, valuation model implementations, chart visualizations, screening algorithms, compiled financial databases, logo, brand name, and all original text — is the intellectual property of Quang Anh and is protected by applicable copyright, trademark, database right, and trade secret laws.
+                        All Content on the Platform — including but not limited to: the Platform&apos;s source code, frontend interface design, data pipeline architecture, valuation model implementations, chart visualizations, screening algorithms, compiled financial databases, logo, brand name, and all original text — is the intellectual property of the Developer and is protected by applicable copyright, trademark, database right, and trade secret laws.
                     </p>
                     <p>
                         Market Data and financial information displayed on the Platform may be subject to the intellectual property rights of our data providers (including VCI, CafeF, and exchanges). Such data is made available to you under the terms of our agreements with those providers and does not convey any license beyond personal use.
@@ -160,7 +161,7 @@ export default function TermsPage() {
                         The Service may display content, news articles, announcements, and links sourced from third parties, including but not limited to: VCI IQ, CafeF, Vietstock, the State Securities Commission of Vietnam, listed company investor relations pages, and other financial media. Such third-party content is provided for informational context only.
                     </p>
                     <p>
-                        Quang Anh does not review, endorse, warrant, or assume responsibility for any third-party content, and is not liable for any loss or damage that may arise from your use of or reliance on it. The inclusion of any third-party link or content reference does not imply a partnership, affiliation, sponsorship, or endorsement relationship.
+                        the Developer does not review, endorse, warrant, or assume responsibility for any third-party content, and is not liable for any loss or damage that may arise from your use of or reliance on it. The inclusion of any third-party link or content reference does not imply a partnership, affiliation, sponsorship, or endorsement relationship.
                     </p>
                 </section>
 
@@ -194,21 +195,21 @@ export default function TermsPage() {
                 <section className={styles.section}>
                     <h2>12. Indemnification</h2>
                     <p>
-                        You agree to defend, indemnify, and hold harmless Quang Anh and its developers, contributors, and affiliates from and against any claims, liabilities, damages, judgments, awards, losses, costs, expenses, and fees (including reasonable legal fees) arising out of or relating to: (a) your violation of these Terms; (b) your Prohibited Use of the Service; (c) your use of Market Data or valuation outputs in any investment decision; (d) your infringement of any intellectual property rights of Quang Anh or any third party; or (e) any false or misleading information you provide in connection with your use of the Service.
+                        You agree to defend, indemnify, and hold harmless the Developer and its developers, contributors, and affiliates from and against any claims, liabilities, damages, judgments, awards, losses, costs, expenses, and fees (including reasonable legal fees) arising out of or relating to: (a) your violation of these Terms; (b) your Prohibited Use of the Service; (c) your use of Market Data or valuation outputs in any investment decision; (d) your infringement of any intellectual property rights of the Developer or any third party; or (e) any false or misleading information you provide in connection with your use of the Service.
                     </p>
                 </section>
 
                 <section className={styles.section}>
                     <h2>13. Service Modifications and Termination</h2>
                     <p>
-                        Quang Anh reserves the right, at its sole discretion and at any time, to: (a) modify, suspend, or discontinue any part of the Service, temporarily or permanently, with or without notice; (b) change data coverage, update frequencies, or feature availability; (c) impose usage limits or access restrictions on any part of the Service; or (d) terminate your access to the Service if you breach these Terms. Quang Anh shall not be liable to you or any third party for any modification, suspension, or discontinuation of the Service.
+                        the Developer reserves the right, at its sole discretion and at any time, to: (a) modify, suspend, or discontinue any part of the Service, temporarily or permanently, with or without notice; (b) change data coverage, update frequencies, or feature availability; (c) impose usage limits or access restrictions on any part of the Service; or (d) terminate your access to the Service if you breach these Terms. the Developer shall not be liable to you or any third party for any modification, suspension, or discontinuation of the Service.
                     </p>
                 </section>
 
                 <section className={styles.section}>
                     <h2>14. Force Majeure</h2>
                     <p>
-                        Quang Anh shall not be liable for any failure or delay in the performance of its obligations under these Terms arising from causes beyond its reasonable control, including but not limited to: acts of God, natural disasters, government actions, exchange or regulatory trading halts, telecommunications or internet outages, cyberattacks, failures of third-party data providers, power failures, or pandemic-related disruptions. In such events, Quang Anh will use commercially reasonable efforts to restore service as promptly as practicable.
+                        the Developer shall not be liable for any failure or delay in the performance of its obligations under these Terms arising from causes beyond its reasonable control, including but not limited to: acts of God, natural disasters, government actions, exchange or regulatory trading halts, telecommunications or internet outages, cyberattacks, failures of third-party data providers, power failures, or pandemic-related disruptions. In such events, the Developer will use commercially reasonable efforts to restore service as promptly as practicable.
                     </p>
                 </section>
 
@@ -225,14 +226,14 @@ export default function TermsPage() {
                 <section className={styles.section}>
                     <h2>16. Severability</h2>
                     <p>
-                        If any provision of these Terms is found by a court of competent jurisdiction to be invalid, illegal, or unenforceable, that provision shall be modified to the minimum extent necessary to make it enforceable, and the remaining provisions shall continue in full force and effect. The failure of Quang Anh to enforce any right or provision of these Terms shall not constitute a waiver of that right or provision.
+                        If any provision of these Terms is found by a court of competent jurisdiction to be invalid, illegal, or unenforceable, that provision shall be modified to the minimum extent necessary to make it enforceable, and the remaining provisions shall continue in full force and effect. The failure of the Developer to enforce any right or provision of these Terms shall not constitute a waiver of that right or provision.
                     </p>
                 </section>
 
                 <section className={styles.section}>
                     <h2>17. Entire Agreement</h2>
                     <p>
-                        These Terms, together with the Privacy Policy and Disclaimer, constitute the entire agreement between you and Quang Anh with respect to the Service and supersede all prior agreements, communications, and understandings, whether written or oral, relating to the subject matter hereof.
+                        These Terms, together with the Privacy Policy and Disclaimer, constitute the entire agreement between you and the Developer with respect to the Service and supersede all prior agreements, communications, and understandings, whether written or oral, relating to the subject matter hereof.
                     </p>
                 </section>
 

@@ -1,9 +1,9 @@
 import styles from './page.module.css';
 
 export const metadata = {
-    title: 'Chính Sách Quyền Riêng Tư | Quang Anh Stocks',
+    title: 'Chính Sách Quyền Riêng Tư | Phần Mềm Phân Tích Cổ Phiếu',
     description:
-        'Chính sách quyền riêng tư của nền tảng Quang Anh: cách chúng tôi thu thập, sử dụng và bảo vệ dữ liệu người dùng khi truy cập stock.quanganh.org.',
+        'Chính sách quyền riêng tư của phần mềm phân tích cổ phiếu: cách chúng tôi thu thập, sử dụng và bảo vệ dữ liệu người dùng khi truy cập stock.quanganh.org.',
     keywords: [
         'chính sách quyền riêng tư',
         'privacy policy quang anh',
@@ -11,9 +11,9 @@ export const metadata = {
     ],
     alternates: { canonical: '/privacy' },
     openGraph: {
-        title: 'Chính Sách Quyền Riêng Tư | Quang Anh Stocks',
+        title: 'Chính Sách Quyền Riêng Tư | Phần Mềm Phân Tích Cổ Phiếu',
         description:
-            'Tìm hiểu cách Quang Anh thu thập, sử dụng và bảo vệ dữ liệu người dùng.',
+            'Tìm hiểu cách phần mềm thu thập, sử dụng và bảo vệ dữ liệu người dùng.',
         url: '/privacy',
     },
 };
@@ -22,14 +22,15 @@ export default function PrivacyPage() {
     return (
         <main className={styles.container}>
             <header className={styles.pageHeader}>
-                <p className={styles.eyebrow}>PHÁP LÝ &amp; MINH BẠCH</p>
-                <h1 className={styles.title}>Chính sách <span>quyền riêng tư</span></h1>
+                <p className={styles.eyebrow}>LEGAL &amp; TRANSPARENCY</p>
+                <h1 className={styles.title}>Privacy <span>policy</span></h1>
                 <div className={styles.headerAccent} />
-                <p className={styles.intro}>Cách Quang Anh xử lý thông tin kỹ thuật, cài đặt trình duyệt và yêu cầu liên quan đến dữ liệu cá nhân.</p>
-                <div className={styles.lastUpdated}>Cập nhật lần cuối: 23/03/2026</div>
-                <nav className={styles.legalNav} aria-label="Tài liệu pháp lý">
-                    <a href="/disclaimer">Miễn trừ</a><a href="/terms">Điều khoản</a><a className={styles.activeNav} href="/privacy">Quyền riêng tư</a>
+                <p className={styles.intro}>How the Platform handles technical information, browser settings, and requests relating to personal data.</p>
+                <div className={styles.lastUpdated}>Last updated: March 23, 2026</div>
+                <nav className={styles.legalNav} aria-label="Legal documents">
+                    <a href="/disclaimer">Disclaimer</a><a href="/terms">Terms</a><a className={styles.activeNav} href="/privacy">Privacy</a>
                 </nav>
+                <details className={styles.vietnameseSummary}><summary>Tóm tắt tiếng Việt</summary><p>Phần mềm dùng các cài đặt trên trình duyệt để lưu tùy chọn như giao diện, ngôn ngữ và watchlist. Nếu bạn liên hệ trực tiếp, thông tin bạn gửi được dùng để phản hồi yêu cầu. Vui lòng xem bản tiếng Anh đầy đủ để biết phạm vi xử lý dữ liệu và quyền của bạn.</p></details>
             </header>
 
             <div className={styles.content}>
@@ -37,7 +38,7 @@ export default function PrivacyPage() {
                 <section className={styles.section}>
                     <h2>1. Introduction and Scope</h2>
                     <p>
-                        Quang Anh (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the stock analysis platform accessible at <strong>stock.quanganh.org</strong> (the &quot;Platform&quot;). This Privacy Policy describes how we collect, use, store, disclose, and protect information in connection with your access to and use of the Platform and all associated services, data feeds, valuation tools, and application programming interfaces (collectively, the &quot;Service&quot;).
+                        Quang Anh (the &quot;Developer,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) develops the stock analysis software accessible at <strong>stock.quanganh.org</strong> (the &quot;Platform&quot;). This Privacy Policy describes how we collect, use, store, disclose, and protect information in connection with your access to and use of the Platform and all associated services, data feeds, valuation tools, and application programming interfaces (collectively, the &quot;Service&quot;).
                     </p>
                     <p>
                         This policy applies to all visitors, registered users, and any other persons who access or use the Service (&quot;Users,&quot; &quot;you,&quot; or &quot;your&quot;). By accessing or using the Service, you acknowledge that you have read, understood, and agree to be bound by this Privacy Policy. If you do not agree with any part of this policy, you must discontinue use of the Service immediately.
@@ -62,7 +63,7 @@ export default function PrivacyPage() {
                 <section className={styles.section}>
                     <h2>3. Data Controller Information</h2>
                     <p>
-                        Quang Anh acts as the Data Controller for all Personal Data collected through the Platform. For questions, data access requests, or concerns regarding this policy, please contact:
+                        the Developer acts as the Data Controller for all Personal Data collected through the Platform. For questions, data access requests, or concerns regarding this policy, please contact:
                     </p>
                     <p>
                         <strong>Email:</strong> <a href="mailto:contact@quanganh.org" className={styles.link}>contact@quanganh.org</a><br />

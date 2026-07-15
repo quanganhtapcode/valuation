@@ -1,9 +1,9 @@
 import styles from './page.module.css';
 
 export const metadata = {
-    title: 'Tuyên Bố Miễn Trừ Trách Nhiệm | Quang Anh Stocks',
+    title: 'Tuyên Bố Miễn Trừ Trách Nhiệm | Phần Mềm Phân Tích Cổ Phiếu',
     description:
-        'Tuyên bố miễn trừ trách nhiệm của Quang Anh: dữ liệu và công cụ định giá chỉ mang tính tham khảo, không phải tư vấn đầu tư. Đầu tư chứng khoán có rủi ro.',
+        'Tuyên bố miễn trừ trách nhiệm của phần mềm phân tích cổ phiếu: dữ liệu và công cụ định giá chỉ mang tính tham khảo, không phải tư vấn đầu tư.',
     keywords: [
         'tuyên bố miễn trừ trách nhiệm',
         'disclaimer quang anh',
@@ -12,9 +12,9 @@ export const metadata = {
     ],
     alternates: { canonical: '/disclaimer' },
     openGraph: {
-        title: 'Tuyên Bố Miễn Trừ Trách Nhiệm | Quang Anh Stocks',
+        title: 'Tuyên Bố Miễn Trừ Trách Nhiệm | Phần Mềm Phân Tích Cổ Phiếu',
         description:
-            'Thông tin và công cụ trên Quang Anh chỉ mang tính tham khảo, không phải tư vấn đầu tư chuyên nghiệp.',
+            'Thông tin và công cụ trên phần mềm chỉ mang tính tham khảo, không phải tư vấn đầu tư chuyên nghiệp.',
         url: '/disclaimer',
     },
 };
@@ -23,14 +23,15 @@ export default function DisclaimerPage() {
     return (
         <main className={styles.container}>
             <header className={styles.pageHeader}>
-                <p className={styles.eyebrow}>PHÁP LÝ &amp; MINH BẠCH</p>
-                <h1 className={styles.title}>Tuyên bố <span>miễn trừ</span></h1>
+                <p className={styles.eyebrow}>LEGAL &amp; TRANSPARENCY</p>
+                <h1 className={styles.title}>Platform <span>disclaimer</span></h1>
                 <div className={styles.headerAccent} />
-                <p className={styles.intro}>Những giới hạn quan trọng khi sử dụng dữ liệu, công cụ định giá và phân tích trên Quang Anh.</p>
-                <div className={styles.lastUpdated}>Cập nhật lần cuối: 23/03/2026</div>
-                <nav className={styles.legalNav} aria-label="Tài liệu pháp lý">
-                    <a className={styles.activeNav} href="/disclaimer">Miễn trừ</a><a href="/terms">Điều khoản</a><a href="/privacy">Quyền riêng tư</a>
+                <p className={styles.intro}>Important limits when using market data, valuation tools, and analysis available through the Platform.</p>
+                <div className={styles.lastUpdated}>Last updated: March 23, 2026</div>
+                <nav className={styles.legalNav} aria-label="Legal documents">
+                    <a className={styles.activeNav} href="/disclaimer">Disclaimer</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a>
                 </nav>
+                <details className={styles.vietnameseSummary}><summary>Tóm tắt tiếng Việt</summary><p>Phần mềm chỉ phục vụ mục đích thông tin và nghiên cứu, không phải khuyến nghị mua, bán hay nắm giữ. Dữ liệu và kết quả định giá có thể có sai sót hoặc chậm trễ; bạn cần tự kiểm chứng thông tin và tự chịu trách nhiệm với mọi quyết định đầu tư.</p></details>
             </header>
 
             <div className={styles.content}>
@@ -41,7 +42,7 @@ export default function DisclaimerPage() {
                         THIS DISCLAIMER CONTAINS IMPORTANT LEGAL INFORMATION LIMITING THE LIABILITY OF QUANG ANH. BY ACCESSING OR USING THIS PLATFORM, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND ACCEPTED ALL TERMS OF THIS DISCLAIMER. IF YOU DO NOT ACCEPT THESE TERMS, YOU MUST CEASE USING THE SERVICE IMMEDIATELY.
                     </p>
                     <p>
-                        This Disclaimer applies to the Quang Anh stock analysis platform accessible at <strong>stock.quanganh.org</strong> (the &quot;Platform&quot;), all associated data feeds, valuation tools, screening features, news aggregation, and any content or services provided through the Platform (collectively, the &quot;Service&quot;). This Disclaimer should be read together with our <a href="/terms" className={styles.link}>Terms of Service</a> and <a href="/privacy" className={styles.link}>Privacy Policy</a>.
+                        This Disclaimer applies to the stock analysis software developed by Quang Anh (the &quot;Developer&quot;) and accessible at <strong>stock.quanganh.org</strong> (the &quot;Platform&quot;), all associated data feeds, valuation tools, screening features, news aggregation, and any content or services provided through the Platform (collectively, the &quot;Service&quot;). This Disclaimer should be read together with our <a href="/terms" className={styles.link}>Terms of Service</a> and <a href="/privacy" className={styles.link}>Privacy Policy</a>.
                     </p>
                 </section>
 
@@ -51,7 +52,7 @@ export default function DisclaimerPage() {
                         ALL INFORMATION, DATA, ANALYSIS, VALUATION OUTPUTS, CHARTS, SCREENING RESULTS, NEWS SUMMARIES, AND ANY OTHER CONTENT AVAILABLE THROUGH THE SERVICE ARE PROVIDED SOLELY FOR GENERAL INFORMATIONAL AND RESEARCH PURPOSES. NOTHING ON THIS PLATFORM CONSTITUTES, OR SHOULD BE CONSTRUED AS, INVESTMENT ADVICE, FINANCIAL ADVICE, TRADING ADVICE, LEGAL ADVICE, TAX ADVICE, OR ANY OTHER FORM OF PROFESSIONAL ADVISORY SERVICE.
                     </p>
                     <p>
-                        Quang Anh does not recommend or endorse the purchase, sale, or holding of any specific security, financial instrument, fund, or portfolio strategy. The display of any company&apos;s financial data, valuation estimate, or screening score is not a recommendation to transact in that company&apos;s securities. No content on this Platform should serve as the primary or sole basis for any investment decision.
+                        the Developer does not recommend or endorse the purchase, sale, or holding of any specific security, financial instrument, fund, or portfolio strategy. The display of any company&apos;s financial data, valuation estimate, or screening score is not a recommendation to transact in that company&apos;s securities. No content on this Platform should serve as the primary or sole basis for any investment decision.
                     </p>
                     <p>
                         Any decision to buy, sell, hold, or otherwise transact in any financial instrument based on information accessed through this Platform is made entirely at your own discretion, judgment, and risk. You are solely responsible for conducting your own independent due diligence and for the outcome of all investment decisions you make.
@@ -61,10 +62,10 @@ export default function DisclaimerPage() {
                 <section className={styles.section}>
                     <h2>3. Regulatory Status — Not a Licensed Financial Institution</h2>
                     <p>
-                        Quang Anh is a financial data technology platform and is not a licensed broker-dealer, investment adviser, financial planner, fund manager, or any other regulated financial institution under Vietnamese law or the laws of any other jurisdiction. Quang Anh is not registered with the State Securities Commission of Vietnam (SSC), the Ministry of Finance of Vietnam, or any equivalent regulatory body in any other country.
+                        the Developer is a financial data technology platform and is not a licensed broker-dealer, investment adviser, financial planner, fund manager, or any other regulated financial institution under Vietnamese law or the laws of any other jurisdiction. the Developer is not registered with the State Securities Commission of Vietnam (SSC), the Ministry of Finance of Vietnam, or any equivalent regulatory body in any other country.
                     </p>
                     <p>
-                        Nothing in the Service creates a fiduciary, advisory, broker-client, or any other professional relationship between Quang Anh and you. The information provided does not take into account your individual financial situation, investment objectives, risk tolerance, tax circumstances, time horizon, or any other personal circumstances relevant to an investment decision.
+                        Nothing in the Service creates a fiduciary, advisory, broker-client, or any other professional relationship between the Developer and you. The information provided does not take into account your individual financial situation, investment objectives, risk tolerance, tax circumstances, time horizon, or any other personal circumstances relevant to an investment decision.
                     </p>
                     <p>
                         We strongly recommend that you consult with a licensed and qualified financial advisor, securities broker, or investment professional registered with the SSC or a relevant competent authority before making any investment decision.
@@ -129,7 +130,7 @@ export default function DisclaimerPage() {
                 <section className={styles.section}>
                     <h2>7. Forward-Looking Statements</h2>
                     <p>
-                        Certain content on the Platform may contain forward-looking statements, estimates, projections, targets, or opinions about future events or conditions. Such statements are based on assumptions and involve known and unknown risks and uncertainties. Actual results may differ materially from any future results expressed or implied by forward-looking content. Words such as &quot;estimate,&quot; &quot;project,&quot; &quot;forecast,&quot; &quot;expect,&quot; &quot;may,&quot; &quot;could,&quot; or similar language identify forward-looking statements and should be interpreted with appropriate skepticism. Quang Anh undertakes no obligation to update or revise any forward-looking statements in response to new information, future events, or otherwise.
+                        Certain content on the Platform may contain forward-looking statements, estimates, projections, targets, or opinions about future events or conditions. Such statements are based on assumptions and involve known and unknown risks and uncertainties. Actual results may differ materially from any future results expressed or implied by forward-looking content. Words such as &quot;estimate,&quot; &quot;project,&quot; &quot;forecast,&quot; &quot;expect,&quot; &quot;may,&quot; &quot;could,&quot; or similar language identify forward-looking statements and should be interpreted with appropriate skepticism. the Developer undertakes no obligation to update or revise any forward-looking statements in response to new information, future events, or otherwise.
                     </p>
                 </section>
 
@@ -146,7 +147,7 @@ export default function DisclaimerPage() {
                 <section className={styles.section}>
                     <h2>9. Technology and Service Availability Risk</h2>
                     <p>
-                        The Platform is provided on a best-efforts basis. Quang Anh does not guarantee uninterrupted availability of the Service. Service disruptions may occur due to scheduled maintenance, server failures, cyberattacks, internet outages, data provider failures, or other technical events. Quang Anh shall not be liable for any loss or damage arising from your inability to access the Service or from delays, errors, or interruptions in data delivery during critical market periods, including but not limited to market opens, closes, auction periods, or periods of high volatility.
+                        The Platform is provided on a best-efforts basis. the Developer does not guarantee uninterrupted availability of the Service. Service disruptions may occur due to scheduled maintenance, server failures, cyberattacks, internet outages, data provider failures, or other technical events. the Developer shall not be liable for any loss or damage arising from your inability to access the Service or from delays, errors, or interruptions in data delivery during critical market periods, including but not limited to market opens, closes, auction periods, or periods of high volatility.
                     </p>
                     <p>
                         Users who require guaranteed, real-time data access for time-sensitive trading decisions should not rely on this Platform as their sole or primary data source and should subscribe to professional-grade market data services from licensed providers.
@@ -156,7 +157,7 @@ export default function DisclaimerPage() {
                 <section className={styles.section}>
                     <h2>10. Third-Party News and Information</h2>
                     <p>
-                        The Service aggregates news articles, company announcements, analyst commentary, and other information from third-party sources for informational convenience. Quang Anh does not independently verify, fact-check, or endorse any third-party content. Such content reflects the views of the original source authors and should not be attributed to Quang Anh. Quang Anh makes no representation regarding the accuracy, completeness, or timeliness of third-party news or analysis. Users should exercise their own judgment when evaluating any news item or external commentary displayed on the Platform.
+                        The Service aggregates news articles, company announcements, analyst commentary, and other information from third-party sources for informational convenience. the Developer does not independently verify, fact-check, or endorse any third-party content. Such content reflects the views of the original source authors and should not be attributed to the Developer. the Developer makes no representation regarding the accuracy, completeness, or timeliness of third-party news or analysis. Users should exercise their own judgment when evaluating any news item or external commentary displayed on the Platform.
                     </p>
                 </section>
 
@@ -168,7 +169,7 @@ export default function DisclaimerPage() {
                     <ul className={styles.list}>
                         <li>You use the Service and any information derived from it entirely at your own risk;</li>
                         <li>You have the knowledge, experience, and sophistication to evaluate the information provided and to make independent investment judgments;</li>
-                        <li>Quang Anh, its developers, contributors, and affiliates shall not be held responsible or liable — directly or indirectly — for any financial loss, trading loss, or any other harm incurred as a result of your use of or reliance on any information, data, tool, or content available through the Service;</li>
+                        <li>the Developer, its developers, contributors, and affiliates shall not be held responsible or liable — directly or indirectly — for any financial loss, trading loss, or any other harm incurred as a result of your use of or reliance on any information, data, tool, or content available through the Service;</li>
                         <li>You will independently verify any information material to your investment decisions and will seek professional financial advice appropriate to your specific circumstances before executing any transaction.</li>
                     </ul>
                 </section>

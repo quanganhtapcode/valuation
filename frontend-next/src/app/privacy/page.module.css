@@ -5,7 +5,7 @@
 }
 
 .pageHeader,
-.content { max-width: 980px; margin: 0 auto; }
+.content { max-width: 1200px; margin: 0 auto; }
 .pageHeader { margin-bottom: 28px; }
 .eyebrow { margin: 0 0 6px; color: var(--color-primary); font-size: 11px; font-weight: 800; letter-spacing: .12em; }
 .title { margin: 0; color: var(--color-text); font-size: clamp(30px, 3vw, 38px); font-weight: 700; letter-spacing: -.045em; line-height: 1.1; }
@@ -16,6 +16,9 @@
 .legalNav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .legalNav a { border: 1px solid var(--color-border); border-radius: 999px; padding: 6px 10px; color: var(--color-text-secondary); font-size: 12px; font-weight: 600; text-decoration: none; }
 .legalNav a:hover, .legalNav .activeNav { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
+.vietnameseSummary { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: color-mix(in srgb, var(--color-primary-light) 40%, var(--color-surface)); }
+.vietnameseSummary summary { cursor: pointer; color: var(--color-primary); font-size: 13px; font-weight: 700; }
+.vietnameseSummary p { margin: 8px 0 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.65; }
 .content { display: flex; flex-direction: column; gap: 14px; }
 .section { display: flex; flex-direction: column; gap: 12px; padding: 22px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
 .section h2 { margin: 0; color: var(--color-text); font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
