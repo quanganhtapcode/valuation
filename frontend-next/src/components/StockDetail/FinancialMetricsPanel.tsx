@@ -19,7 +19,6 @@ interface FinancialMetricsPanelProps {
     financials: FinancialData;
     price?: number;
     targetPrice?: number | null;
-    historicalData?: Array<{ time: string | number; high: number; low: number }>;
     companyDescription?: string;
     companyMeta?: string;
     isDescriptionExpanded?: boolean;
@@ -43,7 +42,6 @@ export default function FinancialMetricsPanel({
     financials,
     price,
     targetPrice,
-    historicalData = [],
     companyDescription,
     companyMeta,
     isDescriptionExpanded = false,
@@ -62,21 +60,6 @@ export default function FinancialMetricsPanel({
         : upside !== null && upside >= 0
             ? 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950/30 dark:border-amber-900'
             : 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900';
-    const latestTimestamp = historicalData.length
-        ? new Date(historicalData[historicalData.length - 1].time).getTime()
-        : 0;
-    const oneYearAgo = latestTimestamp - 365 * 24 * 60 * 60 * 1000;
-    const trailingYear = historicalData.filter(item => new Date(item.time).getTime() >= oneYearAgo);
-    const range52Week = trailingYear.length
-        ? {
-            high: Math.max(...trailingYear.map(item => item.high)),
-            low: Math.min(...trailingYear.map(item => item.low)),
-        }
-        : null;
-    const lastUpdated = historicalData.length ? new Date(historicalData[historicalData.length - 1].time) : null;
-    const lastUpdatedLabel = lastUpdated && !Number.isNaN(lastUpdated.getTime())
-        ? lastUpdated.toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN')
-        : '—';
     const groups = [
         {
             title: t.valuation,
@@ -108,42 +91,25 @@ export default function FinancialMetricsPanel({
     return (
         <section className={`${styles.section} ${styles.sectionMetrics} ${styles.metricsPanel}`} aria-labelledby="financial-metrics-title">
             <div className={styles.metricsPanelHeader}>
-                <div>
-                    <h3 id="financial-metrics-title" className={styles.sectionTitle}>{t.indicators}</h3>
-                </div>
-                <span className={styles.metricsPanelBadge}>TTM</span>
+                <h3 id="financial-metrics-title" className={styles.sectionTitle}>{t.indicators}</h3>
             </div>
-            {(targetPrice || recommendation || historicalData.length > 0) && (
+            {targetPrice && upside !== null && (
                 <div className={styles.indicatorHighlight}>
                     <div className={styles.indicatorHighlightTop}>
-                        <span>Đánh giá định giá</span>
+                        <span>Định giá tham khảo</span>
                         {recommendation && <span className={`${styles.recommendationBadge} ${recommendationClass}`}>{recommendation}</span>}
                     </div>
                     <dl>
-                        {targetPrice && (
-                            <div>
-                                <dt>Giá mục tiêu</dt>
-                                <dd>{formatCompact(targetPrice)}</dd>
-                            </div>
-                        )}
-                        {upside !== null && (
-                            <div>
-                                <dt>Mức sinh lời</dt>
-                                <dd className={upside >= 0 ? styles.positiveMetric : styles.negativeMetric}>
-                                    {upside >= 0 ? '+' : ''}{upside.toFixed(1)}%
-                                </dd>
-                            </div>
-                        )}
                         <div>
-                            <dt>Phiên giá gần nhất</dt>
-                            <dd>{lastUpdatedLabel}</dd>
+                            <dt>Giá mục tiêu</dt>
+                            <dd>{formatCompact(targetPrice)}</dd>
                         </div>
-                        {range52Week && (
-                            <div>
-                                <dt>Khoảng giá 52 tuần</dt>
-                                <dd>{formatCompact(range52Week.high)} / {formatCompact(range52Week.low)}</dd>
-                            </div>
-                        )}
+                        <div>
+                            <dt>Tiềm năng tăng/giảm</dt>
+                            <dd className={upside >= 0 ? styles.positiveMetric : styles.negativeMetric}>
+                                {upside >= 0 ? '+' : ''}{upside.toFixed(1)}%
+                            </dd>
+                        </div>
                     </dl>
                 </div>
             )}
@@ -172,9 +138,9 @@ export default function FinancialMetricsPanel({
                         <p>
                             {isDescriptionExpanded || companyDescription.length <= 220
                                 ? companyDescription
-                                : `${companyDescription.slice(0, 220)}…`}
+                                : `${companyDescription.slice(0, 150)}…`}
                         </p>
-                        {companyDescription.length > 220 && onDescriptionExpandedChange && (
+                        {companyDescription.length > 150 && onDescriptionExpandedChange && (
                             <button type="button" onClick={() => onDescriptionExpandedChange(!isDescriptionExpanded)}>
                                 {isDescriptionExpanded ? t.showLess : t.showMore}
                             </button>
