@@ -20,6 +20,10 @@ interface FinancialMetricsPanelProps {
     price?: number;
     targetPrice?: number | null;
     historicalData?: Array<{ time: string | number; high: number; low: number }>;
+    companyDescription?: string;
+    companyMeta?: string;
+    isDescriptionExpanded?: boolean;
+    onDescriptionExpandedChange?: (expanded: boolean) => void;
 }
 
 function formatRatio(value?: number, suffix = ''): string {
@@ -35,7 +39,16 @@ function formatCompact(value?: number): string {
     return value.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
 }
 
-export default function FinancialMetricsPanel({ financials, price, targetPrice, historicalData = [] }: FinancialMetricsPanelProps) {
+export default function FinancialMetricsPanel({
+    financials,
+    price,
+    targetPrice,
+    historicalData = [],
+    companyDescription,
+    companyMeta,
+    isDescriptionExpanded = false,
+    onDescriptionExpandedChange,
+}: FinancialMetricsPanelProps) {
     const { lang } = useLanguage();
     const t = translations[lang].detail;
     const upside = targetPrice && price && price > 0
@@ -97,7 +110,6 @@ export default function FinancialMetricsPanel({ financials, price, targetPrice, 
             <div className={styles.metricsPanelHeader}>
                 <div>
                     <h3 id="financial-metrics-title" className={styles.sectionTitle}>{t.indicators}</h3>
-                    <p className={styles.sectionSubtitle}>{t.ttmData}</p>
                 </div>
                 <span className={styles.metricsPanelBadge}>TTM</span>
             </div>
@@ -123,12 +135,12 @@ export default function FinancialMetricsPanel({ financials, price, targetPrice, 
                             </div>
                         )}
                         <div>
-                            <dt>Ngày cập nhật</dt>
+                            <dt>Phiên giá gần nhất</dt>
                             <dd>{lastUpdatedLabel}</dd>
                         </div>
                         {range52Week && (
                             <div>
-                                <dt>Cao / thấp 52 tuần</dt>
+                                <dt>Khoảng giá 52 tuần</dt>
                                 <dd>{formatCompact(range52Week.high)} / {formatCompact(range52Week.low)}</dd>
                             </div>
                         )}
@@ -149,6 +161,28 @@ export default function FinancialMetricsPanel({ financials, price, targetPrice, 
                         </dl>
                     </div>
                 ))}
+            </div>
+            <div className={styles.metricsProfile}>
+                <div className={styles.metricsProfileHeader}>
+                    <h4>{t.companyProfile}</h4>
+                    {companyMeta && <span>{companyMeta}</span>}
+                </div>
+                {companyDescription ? (
+                    <>
+                        <p>
+                            {isDescriptionExpanded || companyDescription.length <= 220
+                                ? companyDescription
+                                : `${companyDescription.slice(0, 220)}…`}
+                        </p>
+                        {companyDescription.length > 220 && onDescriptionExpandedChange && (
+                            <button type="button" onClick={() => onDescriptionExpandedChange(!isDescriptionExpanded)}>
+                                {isDescriptionExpanded ? t.showLess : t.showMore}
+                            </button>
+                        )}
+                    </>
+                ) : (
+                    <p className={styles.metricsProfileEmpty}>{t.profileUpdating}</p>
+                )}
             </div>
         </section>
     );

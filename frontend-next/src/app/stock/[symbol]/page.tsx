@@ -669,7 +669,7 @@ export default function StockDetailPage() {
                                     'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-blue-600 md:py-2.5',
                                     activeTab === tab.id
                                         ? 'border-blue-600 text-blue-700 dark:text-blue-400'
-                                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                        : 'border-transparent text-slate-500 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-blue-950/40 dark:hover:text-blue-300'
                                 )}
                                 aria-current={activeTab === tab.id ? 'page' : undefined}
                             >

@@ -307,6 +307,10 @@ export default function OverviewTab({
                         price={priceData?.price}
                         targetPrice={targetPrice}
                         historicalData={historicalData}
+                        companyDescription={stockInfo?.overview?.description}
+                        companyMeta={`${stockInfo?.exchange || '—'} · ${stockInfo?.sector || '—'}`}
+                        isDescriptionExpanded={isDescExpanded}
+                        onDescriptionExpandedChange={setIsDescExpanded}
                     />
                 )}
 
@@ -361,33 +365,6 @@ export default function OverviewTab({
                         </section>
                     );
                 })()}
-                <section className={`${styles.section} ${styles.sectionCompanyInfo}`}>
-                    <div className={styles.companyProfileHeader}>
-                        <h3 className={styles.sectionTitle}>{tDetail.companyProfile}</h3>
-                        <span>{stockInfo?.exchange} · {stockInfo?.sector}</span>
-                    </div>
-                    {stockInfo?.overview?.description ? (
-                        <>
-                            <p className={styles.companyDescription}>
-                                {isDescExpanded || stockInfo.overview.description.length <= 300
-                                    ? stockInfo.overview.description
-                                    : `${stockInfo.overview.description.slice(0, 300)}…`}
-                            </p>
-                            {stockInfo.overview.description.length > 300 && (
-                                <button
-                                    type="button"
-                                    onClick={() => setIsDescExpanded(!isDescExpanded)}
-                                    className={styles.profileToggle}
-                                >
-                                    {isDescExpanded ? tDetail.showLess : tDetail.showMore}
-                                </button>
-                            )}
-                        </>
-                    ) : (
-                        <p className={styles.companyEmpty}>{tDetail.profileUpdating}</p>
-                    )}
-                </section>
-
             </aside>
         </div>
     );
