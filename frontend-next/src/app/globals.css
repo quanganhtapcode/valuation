@@ -29,7 +29,7 @@
     --color-border-light: #f1f3f5;
 
     /* Typography */
-    --font-family-base: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+    --font-family-base: var(--font-manrope), 'Manrope', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
 
     /* Font Sizes */
     --font-size-xs: 11px;

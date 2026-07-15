@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
@@ -11,12 +11,12 @@ import { siteConfig } from "@/app/siteConfig";
 import { WatchlistProvider } from "@/lib/watchlistContext"
 import { LanguageProvider } from "@/lib/languageContext";
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin", "vietnamese"],
   weight: ['400', '500', '600', '700'],
   display: 'swap',
   preload: false,
-  variable: '--font-inter',
+  variable: '--font-manrope',
 });
 
 export const metadata: Metadata = {
@@ -143,7 +143,7 @@ export default function RootLayout({
 
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body className={`${inter.className} ${inter.variable} min-h-screen scroll-auto antialiased selection:bg-indigo-100 selection:text-indigo-700 dark:bg-gray-950`}>
+      <body className={`${manrope.className} ${manrope.variable} min-h-screen scroll-auto antialiased selection:bg-indigo-100 selection:text-indigo-700 dark:bg-gray-950`}>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
