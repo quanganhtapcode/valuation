@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { Card } from '@tremor/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -26,38 +25,6 @@ const INSTRUMENTS: { instId: string; label: string }[] = [
     { instId: 'SOL-USDT', label: 'SOL' },
     { instId: 'XRP-USDT', label: 'XRP' },
 ];
-
-type Direction = 'up' | 'unchanged' | 'down';
-
-function vietcapArrowUrls(direction: Direction): { light: string; dark: string } {
-    const base = 'https://trading.vietcap.com.vn/vietcap-priceboard/images';
-    if (direction === 'up') {
-        return {
-            light: `${base}/light/arrow-top-right.svg`,
-            dark: `${base}/dark/arrow-top-right.svg`,
-        };
-    }
-    if (direction === 'down') {
-        return {
-            light: `${base}/light/arrow-bottom-left.svg`,
-            dark: `${base}/dark/arrow-bottom-left.svg`,
-        };
-    }
-    return {
-        light: `${base}/light/unchanged.svg`,
-        dark: `${base}/dark/unchanged.svg`,
-    };
-}
-
-function TrendIcon({ direction, alt }: { direction: Direction; alt: string }) {
-    const icon = vietcapArrowUrls(direction);
-    return (
-        <span className="inline-flex items-center mr-0.5">
-            <Image src={icon.light} alt={alt} width={12} height={12} className="block dark:hidden size-3" unoptimized />
-            <Image src={icon.dark} alt={alt} width={12} height={12} className="hidden dark:block size-3" unoptimized />
-        </span>
-    );
-}
 
 function toNumber(value: unknown): number | null {
     const n = Number(value);
@@ -172,11 +139,11 @@ export default function CryptoPrices() {
     }, [subscribePayload]);
 
     return (
-        <Card className="mt-4 p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm rounded-2xl">
-            <div className="flex items-center justify-between gap-2 px-5 py-4">
+        <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-2xl">
+            <div className="flex items-center justify-between gap-2 px-5 py-5">
                 <div className="flex items-center gap-2">
-                    <span className="text-xl">🪙</span>
-                    <span className="text-base font-bold text-gray-900 dark:text-gray-100">Crypto (OKX)</span>
+                    <span className="text-2xl">🪙</span>
+                    <span className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Crypto (OKX)</span>
                 </div>
                 <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                     {status === 'connecting' ? '...' : status === 'disconnected' ? 'Reconnecting' : ''}
@@ -190,31 +157,20 @@ export default function CryptoPrices() {
                         const last = st?.last;
                         const pct = st?.changePct24h;
                         const isUp = (pct ?? 0) >= 0;
-                        const isDown = (pct ?? 0) < 0;
                         return (
                             <div
                                 key={it.instId}
-                                className="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-800/50 last:border-0"
+                                className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800/50 last:border-0"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                                        {it.label}
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-[13px] font-bold text-gray-700 dark:text-gray-200 truncate">
-                                            {it.label}/USDT
-                                        </span>
-                                        <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">{it.instId}</span>
-                                    </div>
-                                </div>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{it.label}/USDT</span>
 
-                                <div className="flex flex-col items-end gap-0.5 shrink-0">
-                                    <span className="text-[13px] font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
                                         {typeof last === 'number' ? formatPrice(it.label, last) : '—'}
                                     </span>
                                     <span
                                         className={
-                                            'inline-flex items-center text-[11px] font-bold tabular-nums ' +
+                                            'inline-flex items-center text-xs font-semibold tabular-nums ' +
                                             (pct == null
                                                 ? 'text-gray-500 dark:text-gray-400'
                                                 : isUp
@@ -225,13 +181,7 @@ export default function CryptoPrices() {
                                         {pct == null ? (
                                             ''
                                         ) : (
-                                            <>
-                                                <TrendIcon
-                                                    direction={isDown ? 'down' : pct === 0 ? 'unchanged' : 'up'}
-                                                    alt={isDown ? 'Giảm' : pct === 0 ? 'Đứng giá' : 'Tăng'}
-                                                />
-                                                {`${isUp ? '+' : ''}${pct.toFixed(2)}%`}
-                                            </>
+                                            <>{`${isUp ? '+' : ''}${pct.toFixed(2)}%`}</>
                                         )}
                                     </span>
                                 </div>

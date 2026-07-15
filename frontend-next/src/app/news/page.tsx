@@ -49,8 +49,9 @@ export default function NewsPage() {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h1 className={styles.title}>📰 Market News</h1>
-                <p className={styles.subtitle}>Latest updates from the Vietnam stock market</p>
+                <h1 className={styles.title}>Tin tức <span>thị trường</span></h1>
+                <div className={styles.headerAccent} />
+                <p className={styles.subtitle}>Cập nhật mới nhất từ thị trường chứng khoán Việt Nam.</p>
             </div>
 
             {isLoading && (

@@ -248,14 +248,14 @@ export default function ScreenerPage() {
 
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-100">
-      <div className="mx-auto max-w-[1500px] p-3 md:p-6 space-y-4">
+      <div className="mx-auto max-w-[1600px] p-4 md:p-6 space-y-4">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200/80 bg-white/90 px-4 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 md:px-6 md:py-5">
+        <div className="flex items-start justify-between gap-3 mb-5">
           <div>
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-blue-600 dark:text-blue-400">Research workspace</p>
-            <h1 className="text-2xl font-bold tracking-tight md:text-4xl">Stock Screener</h1>
-            <p className="mt-1 hidden text-xs text-slate-500 dark:text-slate-400 md:block">
+            <h1 className="text-3xl font-bold leading-tight tracking-tight md:text-4xl">Stock <span className="text-blue-600 dark:text-blue-400">Screener</span></h1>
+            <div className="mt-2 h-1 w-24 rounded bg-blue-500" />
+            <p className="mt-3 hidden text-sm text-slate-600 dark:text-slate-300 md:block">
               Screen the active HOSE, HNX, and UPCOM universe by valuation, quality, and growth.
             </p>
           </div>

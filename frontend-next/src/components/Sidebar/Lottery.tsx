@@ -36,12 +36,12 @@ export default function Lottery() {
     }, [region]);
 
     return (
-        <Card className="mt-4 p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm rounded-2xl">
+        <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4">
+            <div className="flex items-center justify-between px-5 py-5">
                 <div className="flex items-center gap-2">
-                    <span className="text-xl">🎰</span>
-                    <span className="text-base font-bold text-gray-900 dark:text-gray-100">Xổ Số</span>
+                    <span className="text-2xl">🎰</span>
+                    <span className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Xổ Số</span>
                 </div>
                 {data?.pubDate && (
                     <span className="text-[11px] text-gray-400 dark:text-gray-500 italic">{data.pubDate}</span>

@@ -29,11 +29,11 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
     const sourceLabel = source === 'BTMC' ? 'BTMC' : 'Phú Quý';
 
     return (
-        <Card className="mt-4 p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm rounded-2xl">
+        <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-2xl">
             {/* Header */}
-            <div className="flex items-center gap-2 px-5 py-4">
-                <span className="text-xl">🏆</span>
-                <span className="text-base font-bold text-gray-900 dark:text-gray-100">
+            <div className="flex items-center gap-2 px-5 py-5">
+                <span className="text-2xl">🏆</span>
+                <span className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
                     {t.goldSilver}
                 </span>
             </div>
@@ -51,7 +51,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                             const badgeText = isSilver ? 'Ag' : 'Au';
 
                             return (
-                                <div key={item.Id} className="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-800/50 last:border-0 group">
+                            <div key={item.Id} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800/50 last:border-0 group">
                                     {/* Left: Badge + Name */}
                                     <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${
@@ -62,7 +62,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                                             {badgeText}
                                         </div>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-[13px] font-bold text-gray-700 dark:text-gray-200 truncate">
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                                                 {item.TypeName}
                                             </span>
                                             <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">
@@ -75,13 +75,13 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                                     <div className="flex flex-col items-end gap-0.5 shrink-0">
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">{t.buy}:</span>
-                                            <span className="text-[13px] font-bold text-emerald-600 tabular-nums">
+                                            <span className="text-sm font-semibold text-emerald-600 tabular-nums">
                                                 {item.Buy}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">{t.sell}:</span>
-                                            <span className="text-[13px] font-bold text-rose-500/90 dark:text-rose-400 tabular-nums">
+                                            <span className="text-sm font-semibold text-rose-500/90 dark:text-rose-400 tabular-nums">
                                                 {item.Sell}
                                             </span>
                                         </div>

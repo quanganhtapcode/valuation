@@ -35,11 +35,11 @@ export default function FFWorldMarkets() {
     const loaded = ITEMS.filter(it => prices.has(it.channel));
 
     return (
-        <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm rounded-2xl">
-            <div className="flex items-center gap-2 px-5 py-4">
+        <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-2xl">
+            <div className="flex items-center gap-2 px-5 py-5">
                 <div className="flex items-center gap-2">
-                    <span className="text-xl">🌍</span>
-                    <span className="text-base font-bold text-gray-900 dark:text-gray-100">{t.worldMarkets}</span>
+                    <span className="text-2xl">🌍</span>
+                    <span className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">{t.worldMarkets}</span>
                 </div>
             </div>
 
@@ -61,15 +61,15 @@ export default function FFWorldMarkets() {
                             const up = snap.changePercent >= 0;
                             return (
                                 <div key={item.channel}
-                                    className="flex items-center justify-between py-2.5 border-b border-gray-50 dark:border-gray-800/50 last:border-0">
-                                    <span className="text-[12px] font-semibold text-gray-600 dark:text-gray-400">
+                                    className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800/50 last:border-0">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                         {item.label}
                                     </span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[12px] font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                                        <span className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
                                             {item.fmt(snap.price)}
                                         </span>
-                                        <span className={`text-[11px] font-bold tabular-nums ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                                        <span className={`text-xs font-semibold tabular-nums ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
                                             {up ? '+' : ''}{snap.changePercent.toFixed(2)}%
                                         </span>
                                     </div>
