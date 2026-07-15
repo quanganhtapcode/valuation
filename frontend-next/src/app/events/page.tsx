@@ -135,7 +135,7 @@ export default function EventsPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-            <div className="max-w-[1400px] mx-auto p-4 md:p-6">
+            <div className="max-w-[1600px] mx-auto p-4 md:p-6">
 
                 {/* Header */}
                 <div className="mb-6">
