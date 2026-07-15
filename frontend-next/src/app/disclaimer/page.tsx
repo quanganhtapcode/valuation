@@ -22,8 +22,16 @@ export const metadata = {
 export default function DisclaimerPage() {
     return (
         <main className={styles.container}>
-            <h1 className={styles.title}>Disclaimer</h1>
-            <div className={styles.lastUpdated}>Effective Date: March 23, 2026 &mdash; Please read this notice carefully before using the Service</div>
+            <header className={styles.pageHeader}>
+                <p className={styles.eyebrow}>PHÁP LÝ &amp; MINH BẠCH</p>
+                <h1 className={styles.title}>Tuyên bố <span>miễn trừ</span></h1>
+                <div className={styles.headerAccent} />
+                <p className={styles.intro}>Những giới hạn quan trọng khi sử dụng dữ liệu, công cụ định giá và phân tích trên Quang Anh.</p>
+                <div className={styles.lastUpdated}>Cập nhật lần cuối: 23/03/2026</div>
+                <nav className={styles.legalNav} aria-label="Tài liệu pháp lý">
+                    <a className={styles.activeNav} href="/disclaimer">Miễn trừ</a><a href="/terms">Điều khoản</a><a href="/privacy">Quyền riêng tư</a>
+                </nav>
+            </header>
 
             <div className={styles.content}>
 

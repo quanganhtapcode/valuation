@@ -21,8 +21,16 @@ export const metadata = {
 export default function TermsPage() {
     return (
         <main className={styles.container}>
-            <h1 className={styles.title}>Terms of Service</h1>
-            <div className={styles.lastUpdated}>Last updated: March 23, 2026 &mdash; Effective immediately upon publication</div>
+            <header className={styles.pageHeader}>
+                <p className={styles.eyebrow}>PHÁP LÝ &amp; MINH BẠCH</p>
+                <h1 className={styles.title}>Điều khoản <span>sử dụng</span></h1>
+                <div className={styles.headerAccent} />
+                <p className={styles.intro}>Quy định cách truy cập, sử dụng dữ liệu và các công cụ nghiên cứu trên nền tảng Quang Anh.</p>
+                <div className={styles.lastUpdated}>Cập nhật lần cuối: 23/03/2026</div>
+                <nav className={styles.legalNav} aria-label="Tài liệu pháp lý">
+                    <a href="/disclaimer">Miễn trừ</a><a className={styles.activeNav} href="/terms">Điều khoản</a><a href="/privacy">Quyền riêng tư</a>
+                </nav>
+            </header>
 
             <div className={styles.content}>
 

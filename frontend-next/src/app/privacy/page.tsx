@@ -21,8 +21,16 @@ export const metadata = {
 export default function PrivacyPage() {
     return (
         <main className={styles.container}>
-            <h1 className={styles.title}>Privacy Policy</h1>
-            <div className={styles.lastUpdated}>Last updated: March 23, 2026 &mdash; Effective immediately upon publication</div>
+            <header className={styles.pageHeader}>
+                <p className={styles.eyebrow}>PHÁP LÝ &amp; MINH BẠCH</p>
+                <h1 className={styles.title}>Chính sách <span>quyền riêng tư</span></h1>
+                <div className={styles.headerAccent} />
+                <p className={styles.intro}>Cách Quang Anh xử lý thông tin kỹ thuật, cài đặt trình duyệt và yêu cầu liên quan đến dữ liệu cá nhân.</p>
+                <div className={styles.lastUpdated}>Cập nhật lần cuối: 23/03/2026</div>
+                <nav className={styles.legalNav} aria-label="Tài liệu pháp lý">
+                    <a href="/disclaimer">Miễn trừ</a><a href="/terms">Điều khoản</a><a className={styles.activeNav} href="/privacy">Quyền riêng tư</a>
+                </nav>
+            </header>
 
             <div className={styles.content}>
 
