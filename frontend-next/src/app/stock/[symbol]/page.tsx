@@ -128,7 +128,6 @@ export default function StockDetailPage() {
     const [financialPeriod, setFinancialPeriod] = useState<'quarter' | 'year'>('quarter');
     const [rawOverviewData, setRawOverviewData] = useState<StockApiData | null>(null);
     const [news, setNews] = useState<any[]>([]);
-    const [epsHistory, setEpsHistory] = useState<Array<{ year: number; eps: number }>>([]);
 
     const handleTabChange = useCallback((nextTab: StockTabId) => {
         if (nextTab === activeTab) return;
@@ -292,27 +291,6 @@ export default function StockDetailPage() {
                             if (!controller.signal.aborted) console.error('[News API] Error:', err);
                         });
 
-                    fetch(`/api/stock/${symbol}/financial-report?type=income&period=year&limit=10`, { signal: controller.signal })
-                        .then(r => r.ok ? r.json() : null)
-                        .then(res => {
-                            const rows = res?.data || res;
-                            if (Array.isArray(rows) && rows.length > 0) {
-                                const epsHistory = rows
-                                    .filter((row: any) => row.isa23 !== null && row.isa23 !== undefined)
-                                    .map((row: any) => ({
-                                        year: row.year || row.year_report || 0,
-                                        eps: Number(row.isa23) || 0,
-                                    }))
-                                    .filter((item: any) => item.eps > 0)
-                                    .sort((a: any, b: any) => a.year - b.year);
-                                if (epsHistory.length > 0) {
-                                    setEpsHistory(epsHistory);
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            if (!controller.signal.aborted) console.error('[EPS API] Error:', err);
-                        });
                 }));
 
                 // PHASE 2: Apply real-time price when available
@@ -695,7 +673,6 @@ export default function StockDetailPage() {
                         historicalData={historicalData}
                         isLoading={isChartLoading}
                         news={news}
-                        epsHistory={epsHistory}
                         isBank={
                             (stockInfo as any)?.isbank === true ||
                             stockInfo?.sector === 'Ngân hàng' ||

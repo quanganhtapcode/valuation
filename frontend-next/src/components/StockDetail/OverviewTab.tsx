@@ -146,11 +146,6 @@ interface NewsItem {
     Symbol?: string;
 }
 
-interface EpsHistoryItem {
-    year: number;
-    eps: number;
-}
-
 interface OverviewTabProps {
     symbol: string;
     stockInfo: StockInfo | null;
@@ -162,7 +157,6 @@ interface OverviewTabProps {
     setIsDescExpanded: (v: boolean) => void;
     isLoading: boolean;
     news?: NewsItem[];
-    epsHistory?: EpsHistoryItem[];
     isBank?: boolean;
 }
 
@@ -177,12 +171,10 @@ export default function OverviewTab({
     setIsDescExpanded,
     isLoading,
     news = [],
-    epsHistory = [],
     isBank = false,
 }: OverviewTabProps) {
     const { lang } = useLanguage()
     const tOv = translations[lang].overview
-    const tDetail = translations[lang].detail
 
     const [aiData, setAiData] = useState<Awaited<ReturnType<typeof fetchAiAnalysis>> | null>(null);
     useEffect(() => {
@@ -314,79 +306,6 @@ export default function OverviewTab({
                     />
                 )}
 
-                {/* EPS History Section */}
-                {epsHistory && epsHistory.length >= 2 && (() => {
-                    const epsMaxVal = Math.max(...epsHistory.map(h => Math.abs(h.eps)), 1);
-                    const hasNegative = epsHistory.some(h => h.eps < 0);
-                    const barMax = Math.ceil(epsMaxVal / 1000) * 1000;
-                    const latestEps = epsHistory[epsHistory.length - 1];
-                    const previousEps = epsHistory[epsHistory.length - 2];
-                    const epsGrowth = previousEps.eps !== 0
-                        ? ((latestEps.eps - previousEps.eps) / Math.abs(previousEps.eps)) * 100
-                        : null;
-                    const recentEps = epsHistory.slice(-3);
-                    const averageEps = recentEps.reduce((total, item) => total + item.eps, 0) / recentEps.length;
-
-                    return (
-                        <section className={`${styles.section} ${styles.sectionEpsHistory}`}>
-                            <div className={styles.sectionHeader}>
-                                <div>
-                                    <h3 className={styles.sectionTitle}>{tDetail.epsHistory}</h3>
-                                    <p className={styles.sectionSubtitle}>Lợi nhuận trên mỗi cổ phiếu theo năm</p>
-                                </div>
-                            </div>
-                            <div className={styles.epsSummary}>
-                                <div>
-                                    <span>EPS {latestEps.year}</span>
-                                    <strong>{Math.round(latestEps.eps).toLocaleString('vi-VN')} ₫</strong>
-                                </div>
-                                <div>
-                                    <span>Tăng trưởng năm</span>
-                                    <strong className={epsGrowth === null ? '' : epsGrowth >= 0 ? styles.epsGrowthPositive : styles.epsGrowthNegative}>
-                                        {epsGrowth === null ? '—' : `${epsGrowth >= 0 ? '+' : ''}${epsGrowth.toFixed(1)}%`}
-                                    </strong>
-                                </div>
-                                <div>
-                                    <span>Bình quân 3 năm</span>
-                                    <strong>{Math.round(averageEps).toLocaleString('vi-VN')} ₫</strong>
-                                </div>
-                            </div>
-                            <div className={styles.epsChart}>
-                                {epsHistory.map((h, i) => {
-                                    const isPositive = h.eps >= 0;
-                                    const barHeight = hasNegative
-                                        ? (Math.abs(h.eps) / barMax) * 45
-                                        : (h.eps / barMax) * 100;
-                                    const clampedHeight = Math.max(barHeight, 4);
-
-                                    return (
-                                        <div key={i} className={styles.epsChartItem}>
-                                            <span className={styles.epsChartValue}>
-                                                {Math.round(h.eps).toLocaleString('vi-VN')}
-                                            </span>
-                                            <div className={styles.epsChartBarArea}>
-                                                <div
-                                                    className={`${styles.epsChartBar} ${isPositive ? styles.epsPositive : styles.epsNegative}`}
-                                                    style={{
-                                                        height: `${clampedHeight}%`,
-                                                    }}
-                                                    title={`${h.year}: ${Math.round(h.eps).toLocaleString('vi-VN')} ₫`}
-                                                />
-                                            </div>
-                                            <span className={styles.epsHistoryYear}>
-                                                {h.year}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className={styles.epsChartFooter}>
-                                <span>Cao nhất <strong>{Math.round(Math.max(...epsHistory.map(h => h.eps))).toLocaleString('vi-VN')} ₫</strong></span>
-                                <span>{epsHistory.length} năm dữ liệu</span>
-                            </div>
-                        </section>
-                    );
-                })()}
             </aside>
         </div>
     );

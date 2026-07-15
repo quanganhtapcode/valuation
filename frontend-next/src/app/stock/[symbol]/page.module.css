@@ -238,19 +238,14 @@
     grid-row: 2;
 }
 
-.sectionEpsHistory {
+.sectionBankLoan {
     grid-column: 1 / -1;
     grid-row: 3;
 }
 
-.sectionBankLoan {
-    grid-column: 1 / -1;
-    grid-row: 4;
-}
-
 .sectionCompanyInfo {
     grid-column: 1 / -1;
-    grid-row: 5;
+    grid-row: 4;
 }
 
 /* Section */
@@ -1430,10 +1425,7 @@
 .sectionNews {
     display: flex;
     flex-direction: column;
-    /* News is content-sized: stretching it to the AI panel made each grid row
-       absorb unused height and left cards with a large blank lower half. */
-    height: auto;
-    align-self: start;
+    height: 100%;
 }
 
 .sectionCompanyInfo {
@@ -1496,15 +1488,11 @@
         grid-template-columns: 1fr;
     }
 
-    .sectionEpsHistory {
+    .sectionBankLoan {
         order: 5;
     }
 
-    .sectionBankLoan {
-        order: 6;
-    }
-
     .sectionCompanyInfo {
-        order: 7;
+        order: 6;
     }
 }
