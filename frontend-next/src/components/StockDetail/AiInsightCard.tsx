@@ -72,13 +72,27 @@ function formatGeneratedAt(value?: string): string | null {
 // ── Component ────────────────────────────────────────────────────────────
 
 export default function AiInsightCard({ analysisJson, newsJson, quarter, generatedAt }: AiInsightCardProps) {
-    if (!analysisJson && !newsJson) return null;
-
     let analysis: CombinedAnalysis | null = null;
     let news: NewsThesis | null = null;
     try { if (analysisJson) analysis = JSON.parse(analysisJson); } catch {}
     try { if (newsJson) news = JSON.parse(newsJson); } catch {}
-    if (!analysis && !news) return null;
+
+    if (!analysis && !news) {
+        return (
+            <section className="flex h-full min-h-[260px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-labelledby="ai-insight-title">
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                    <span id="ai-insight-title" className="text-base font-semibold text-slate-800 dark:text-slate-100">Phân tích AI</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">Đang cập nhật</span>
+                </div>
+                <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-lg dark:bg-blue-950/40">✦</div>
+                    <h3 className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Phân tích đang được chuẩn bị</h3>
+                    <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500 dark:text-slate-400">Kết quả AI sẽ xuất hiện tại đây sau khi dữ liệu tài chính và tin tức của mã cổ phiếu được cập nhật.</p>
+                </div>
+                <p className="border-t border-slate-100 px-4 py-2 text-xs leading-relaxed text-slate-400 dark:border-slate-800 dark:text-slate-500">Nội dung mang tính tham khảo, không phải khuyến nghị đầu tư.</p>
+            </section>
+        );
+    }
 
     const tech = analysis?.technical;
     const hasBull = (news?.bull_case?.length ?? 0) > 0;

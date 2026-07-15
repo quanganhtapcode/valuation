@@ -846,20 +846,21 @@ function formatRatioHighlight(value: number, kind: RatioMetric['kind']): string 
     return kind === 'percent' ? fmtPct(value) : value.toFixed(value >= 10 ? 1 : 2);
 }
 
-function RatioSparkline({ values, positive }: { values: number[]; positive: boolean }) {
-    if (values.length < 2) return <div className="h-10" />;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1;
-    const points = values.map((value, index) => `${(index / (values.length - 1)) * 100},${34 - ((value - min) / range) * 26}`).join(' ');
-    const color = positive ? '#16a34a' : '#dc2626';
-    const lastY = 34 - ((values[values.length - 1] - min) / range) * 26;
+function RatioPeriodHistory({ history, kind }: { history: Array<{ value: number; label: string }>; kind: RatioMetric['kind'] }) {
+    const periods = history.slice(-4);
+    if (periods.length < 2) return null;
     return (
-        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="h-10 w-full overflow-visible" aria-hidden="true">
-            <path d="M0 36H100" stroke="currentColor" strokeOpacity="0.12" strokeWidth="1" />
-            <polyline points={points} fill="none" stroke={color} strokeWidth="2.4" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="100" cy={lastY} r="2.6" fill={color} vectorEffect="non-scaling-stroke" />
-        </svg>
+        <div className="mt-4 border-t border-gray-100 pt-3 dark:border-slate-800">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Các kỳ gần đây</p>
+            <div className="grid grid-cols-4 gap-1.5">
+                {periods.map((period, index) => (
+                    <div key={`${period.label}-${index}`} className="min-w-0 rounded-md bg-slate-50 px-1.5 py-1.5 text-center dark:bg-slate-800/70">
+                        <div className="truncate text-[10px] text-slate-400">{period.label}</div>
+                        <div className="mt-0.5 truncate text-[11px] font-semibold tabular-nums text-slate-700 dark:text-slate-200">{formatRatioHighlight(period.value, kind)}</div>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 
@@ -873,10 +874,13 @@ function RatioDashboard({
 }) {
     const sortedRows = [...rows].sort((a, b) => periodSortKey(a) - periodSortKey(b));
     const cards = RATIO_HIGHLIGHTS.map(metric => {
-        const values = sortedRows.map(row => getRatioValue(row, metric.keys)).filter((value): value is number => value !== null);
-        const current = values[values.length - 1];
-        const previous = values[values.length - 2];
-        return { ...metric, values: values.slice(-8), current, change: current !== undefined && previous !== undefined ? current - previous : null };
+        const history = sortedRows.flatMap(row => {
+            const value = getRatioValue(row, metric.keys);
+            return value === null ? [] : [{ value, label: renderPeriod(row).label }];
+        });
+        const current = history[history.length - 1]?.value;
+        const previous = history[history.length - 2]?.value;
+        return { ...metric, history, current, change: current !== undefined && previous !== undefined ? current - previous : null };
     }).filter(card => card.current !== undefined);
 
     if (cards.length === 0) return <SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} />;
@@ -900,7 +904,7 @@ function RatioDashboard({
                                 {card.change !== null && <span className={cx('rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums', isPositive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300')}>{isPositive ? '+' : ''}{formatRatioHighlight(card.change, card.kind)}</span>}
                             </div>
                             <div className="mt-3 flex items-end justify-between gap-4"><strong className="text-[22px] font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white">{formatRatioHighlight(card.current!, card.kind)}</strong><span className="pb-1 text-[10px] text-gray-400">Kỳ gần nhất</span></div>
-                            <div className="mt-2 text-gray-400 dark:text-slate-600"><RatioSparkline values={card.values} positive={isPositive} /></div>
+                            <RatioPeriodHistory history={card.history} kind={card.kind} />
                         </article>
                     );
                 })}
