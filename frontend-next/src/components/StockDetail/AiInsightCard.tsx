@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 // ── Types ────────────────────────────────────────────────────────────────
 
 interface CombinedAnalysis {
@@ -40,10 +42,20 @@ interface NewsThesis {
 }
 
 interface AiInsightCardProps {
+    symbol: string;
     analysisJson?: string | null;
     newsJson?: string | null;
     quarter?: string;
     generatedAt?: string;
+}
+
+interface LiveTechnicalSnapshot {
+    fetchedAt?: string;
+    rating?: string;
+    price?: number | null;
+    ema200?: number | null;
+    support?: number | null;
+    resistance?: number | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -69,9 +81,99 @@ function formatGeneratedAt(value?: string): string | null {
     }).format(date);
 }
 
+function technicalSignal(rating?: string): string {
+    const value = rating?.toUpperCase() || '';
+    if (value.includes('VERY_GOOD') || value.includes('GOOD') || value.includes('BUY')) return 'Tích cực';
+    if (value.includes('VERY_BAD') || value.includes('BAD') || value.includes('SELL')) return 'Tiêu cực';
+    return 'Trung tính';
+}
+
+function toLiveTechnicalSnapshot(payload: unknown): LiveTechnicalSnapshot | null {
+    if (!payload || typeof payload !== 'object') return null;
+    const response = payload as {
+        success?: boolean;
+        fetched_at_utc?: string;
+        data?: {
+            price?: number | null;
+            gaugeSummary?: { rating?: string };
+            movingAverages?: { name?: string; value?: number | null }[];
+            pivot?: { support1?: number | null; resistance1?: number | null };
+        };
+    };
+    if (!response.success || !response.data) return null;
+
+    const ema200 = response.data.movingAverages?.find((item) => item.name?.toLowerCase() === 'ema200')?.value;
+    return {
+        fetchedAt: response.fetched_at_utc,
+        rating: response.data.gaugeSummary?.rating,
+        price: response.data.price,
+        ema200,
+        support: response.data.pivot?.support1,
+        resistance: response.data.pivot?.resistance1,
+    };
+}
+
+function liveTrend(snapshot: LiveTechnicalSnapshot): string {
+    if (snapshot.price != null && snapshot.ema200 != null) {
+        return snapshot.price < snapshot.ema200
+            ? 'Giá đang dưới EMA200.'
+            : 'Giá đang trên EMA200.';
+    }
+    return 'Tổng hợp từ trung bình động và dao động.';
+}
+
+function LiveTechnicalSection({ snapshot }: { snapshot: LiveTechnicalSnapshot }) {
+    const updatedAt = formatGeneratedAt(snapshot.fetchedAt);
+    const signal = technicalSignal(snapshot.rating);
+
+    return (
+        <div className="space-y-1.5 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Tín hiệu kỹ thuật</p>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400">● Tự động cập nhật{updatedAt ? ` · ${updatedAt}` : ''}</span>
+            </div>
+            <p className={`text-sm font-semibold ${signalColor(signal)}`}>{signal}</p>
+            <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">{liveTrend(snapshot)}</p>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                {snapshot.support != null && (
+                    <p className="text-gray-500 dark:text-gray-400">Hỗ trợ: <strong className="text-emerald-600 dark:text-emerald-400">{snapshot.support.toLocaleString('vi-VN')}</strong></p>
+                )}
+                {snapshot.resistance != null && (
+                    <p className="text-gray-500 dark:text-gray-400">Kháng cự: <strong className="text-rose-500 dark:text-rose-400">{snapshot.resistance.toLocaleString('vi-VN')}</strong></p>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function AiInsightCard({ analysisJson, newsJson, quarter, generatedAt }: AiInsightCardProps) {
+export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter, generatedAt }: AiInsightCardProps) {
+    const [liveTechnical, setLiveTechnical] = useState<LiveTechnicalSnapshot | null>(null);
+
+    useEffect(() => {
+        if (!symbol) return;
+
+        const controller = new AbortController();
+        const loadTechnical = async () => {
+            try {
+                const response = await fetch(`/api/stock/${symbol}/technical/ONE_DAY`, { signal: controller.signal });
+                if (!response.ok) return;
+                const next = toLiveTechnicalSnapshot(await response.json());
+                if (next) setLiveTechnical(next);
+            } catch (error) {
+                if ((error as Error).name !== 'AbortError') setLiveTechnical(null);
+            }
+        };
+
+        void loadTechnical();
+        const refreshId = window.setInterval(loadTechnical, 60_000);
+        return () => {
+            controller.abort();
+            window.clearInterval(refreshId);
+        };
+    }, [symbol]);
+
     let analysis: CombinedAnalysis | null = null;
     let news: NewsThesis | null = null;
     try { if (analysisJson) analysis = JSON.parse(analysisJson); } catch {}
@@ -84,6 +186,7 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, generat
                     <span id="ai-insight-title" className="text-base font-semibold text-slate-800 dark:text-slate-100">Phân tích AI</span>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">Đang cập nhật</span>
                 </div>
+                {liveTechnical && <LiveTechnicalSection snapshot={liveTechnical} />}
                 <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-lg dark:bg-blue-950/40">✦</div>
                     <h3 className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Phân tích đang được chuẩn bị</h3>
@@ -94,7 +197,6 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, generat
         );
     }
 
-    const tech = analysis?.technical;
     const hasBull = (news?.bull_case?.length ?? 0) > 0;
     const hasBear = (news?.bear_case?.length ?? 0) > 0;
     const hasNews = hasBull || hasBear || (news?.key_events?.length ?? 0) > 0 || !!news?.watch_out;
@@ -121,43 +223,8 @@ export default function AiInsightCard({ analysisJson, newsJson, quarter, generat
 
             <div className="flex-1 divide-y divide-slate-100 dark:divide-slate-800">
 
-                {/* ── Zone 1: Current technical read ───────────────────── */}
-                {tech && (
-                    <div className="px-4 py-3 space-y-1.5">
-                        <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Tín hiệu kỹ thuật</p>
-                            {analysis?.timing && <span className="text-xs text-slate-400 dark:text-slate-500">{analysis.timing}</span>}
-                        </div>
-                        {tech.signal && (
-                            <p className={`text-sm font-semibold ${signalColor(tech.signal)}`}>
-                                {tech.signal}
-                            </p>
-                        )}
-                        {tech.trend && (
-                            <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-                                {tech.trend}
-                            </p>
-                        )}
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
-                            {tech.support != null && (
-                                <p className="text-gray-500 dark:text-gray-400">
-                                    Hỗ trợ:{' '}
-                                    <strong className="text-emerald-600 dark:text-emerald-400">
-                                        {tech.support.toLocaleString('vi-VN')}
-                                    </strong>
-                                </p>
-                            )}
-                            {tech.resistance != null && (
-                                <p className="text-gray-500 dark:text-gray-400">
-                                    Kháng cự:{' '}
-                                    <strong className="text-rose-500 dark:text-rose-400">
-                                        {tech.resistance.toLocaleString('vi-VN')}
-                                    </strong>
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                )}
+                {/* Live snapshot from the same source as the Technical tab; never generated by AI. */}
+                {liveTechnical && <LiveTechnicalSection snapshot={liveTechnical} />}
 
                 {/* ── Zone 2: News Thesis ──────────────────────────────── */}
                 {news && hasNews && (

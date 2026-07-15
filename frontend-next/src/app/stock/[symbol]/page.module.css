@@ -1430,7 +1430,10 @@
 .sectionNews {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    /* News is content-sized: stretching it to the AI panel made each grid row
+       absorb unused height and left cards with a large blank lower half. */
+    height: auto;
+    align-self: start;
 }
 
 .sectionCompanyInfo {
@@ -1452,7 +1455,8 @@
 }
 
 .sectionNews .newsGrid {
-    flex: 1;
+    flex: 0 0 auto;
+    align-content: start;
 }
 
 @media (max-width: 768px) {

@@ -294,6 +294,7 @@ export default function OverviewTab({
             <aside className={styles.rightColumn}>
                 <div className={styles.sectionAiInsight}>
                     <AiInsightCard
+                        symbol={_symbol}
                         analysisJson={aiData?.analysis_json}
                         newsJson={aiData?.news_json}
                         quarter={aiData?.quarter}
