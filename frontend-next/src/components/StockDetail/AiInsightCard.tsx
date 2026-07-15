@@ -122,6 +122,10 @@ function liveTrend(snapshot: LiveTechnicalSnapshot): string {
     return 'Tổng hợp từ trung bình động và dao động.';
 }
 
+function formatTechnicalLevel(value: number): string {
+    return (Math.round(value / 1_000) * 1_000).toLocaleString('vi-VN');
+}
+
 function LiveTechnicalSection({ snapshot }: { snapshot: LiveTechnicalSnapshot }) {
     const updatedAt = formatGeneratedAt(snapshot.fetchedAt);
     const signal = technicalSignal(snapshot.rating);
@@ -136,10 +140,10 @@ function LiveTechnicalSection({ snapshot }: { snapshot: LiveTechnicalSnapshot })
             <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">{liveTrend(snapshot)}</p>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                 {snapshot.support != null && (
-                    <p className="text-gray-500 dark:text-gray-400">Hỗ trợ: <strong className="text-emerald-600 dark:text-emerald-400">{snapshot.support.toLocaleString('vi-VN')}</strong></p>
+                    <p className="text-gray-500 dark:text-gray-400">Hỗ trợ: <strong className="text-emerald-600 dark:text-emerald-400">{formatTechnicalLevel(snapshot.support)}</strong></p>
                 )}
                 {snapshot.resistance != null && (
-                    <p className="text-gray-500 dark:text-gray-400">Kháng cự: <strong className="text-rose-500 dark:text-rose-400">{snapshot.resistance.toLocaleString('vi-VN')}</strong></p>
+                    <p className="text-gray-500 dark:text-gray-400">Kháng cự: <strong className="text-rose-500 dark:text-rose-400">{formatTechnicalLevel(snapshot.resistance)}</strong></p>
                 )}
             </div>
         </div>
