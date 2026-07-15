@@ -689,6 +689,7 @@ export default function StockDetailPage() {
                         stockInfo={stockInfo}
                         priceData={priceData}
                         financials={financials}
+                        targetPrice={targetPrice}
                         isDescExpanded={isDescExpanded}
                         setIsDescExpanded={setIsDescExpanded}
                         historicalData={historicalData}

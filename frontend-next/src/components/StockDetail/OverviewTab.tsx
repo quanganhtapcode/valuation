@@ -156,6 +156,7 @@ interface OverviewTabProps {
     stockInfo: StockInfo | null;
     priceData: PriceData | null;
     financials: FinancialData | null;
+    targetPrice?: number | null;
     historicalData: HistoricalData[];
     isDescExpanded: boolean;
     setIsDescExpanded: (v: boolean) => void;
@@ -165,30 +166,12 @@ interface OverviewTabProps {
     isBank?: boolean;
 }
 
-function formatValue(v: number, tOv: typeof translations.vi.overview): string {
-    if (!v) return '—';
-    if (v >= 1e9) return `${(v / 1e9).toFixed(1)} ${tOv.billion}`;
-    if (v >= 1e6) return `${(v / 1e6).toFixed(1)} ${tOv.million}`;
-    return v.toLocaleString(tOv.locale);
-}
-
-function formatVol(v: number): string {
-    if (!v) return '—';
-    if (v >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
-    if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
-    return v.toLocaleString('vi-VN');
-}
-
-function formatSessionPrice(v: number): string {
-    if (!v) return '—';
-    return v.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
 export default function OverviewTab({
     symbol: _symbol,
     stockInfo,
     priceData,
     financials,
+    targetPrice,
     historicalData,
     isDescExpanded,
     setIsDescExpanded,
@@ -206,14 +189,6 @@ export default function OverviewTab({
         fetchAiAnalysis(_symbol).then(d => setAiData(d.available ? d : null));
     }, [_symbol]);
 
-    const stats = [
-        { label: tOv.open,   value: formatSessionPrice(priceData?.open ?? 0),        color: undefined },
-        { label: tOv.high,   value: formatSessionPrice(priceData?.high ?? 0),        color: 'text-emerald-600 dark:text-emerald-400' },
-        { label: tOv.low,    value: formatSessionPrice(priceData?.low ?? 0),         color: 'text-red-500 dark:text-red-400' },
-        { label: tOv.volume, value: formatVol(priceData?.volume ?? 0),               color: undefined },
-        { label: tOv.value,  value: formatValue(priceData?.value ?? 0, tOv),         color: undefined },
-    ];
-
     return (
         <div className={styles.mainContent}>
             {/* Left Column */}
@@ -225,21 +200,6 @@ export default function OverviewTab({
                             {tOv.priceChart}
                         </h3>
                     </div>
-
-                    {/* Session snapshot */}
-                    {priceData && (priceData.open > 0 || priceData.volume > 0) && (
-                        <div className="mb-4 grid grid-cols-5 gap-0 border-y border-slate-100 text-center dark:border-slate-800">
-                            {stats.map((s, i) => (
-                                <div
-                                    key={s.label}
-                                    className={`min-w-0 px-1 py-2.5 ${i < stats.length - 1 ? 'border-r border-slate-100 dark:border-slate-800' : ''}`}
-                                >
-                                    <div className="mb-1 truncate text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{s.label}</div>
-                                    <div className={`truncate text-[12px] font-bold leading-tight tabular-nums ${s.color ?? 'text-slate-700 dark:text-slate-200'}`}>{s.value}</div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
 
                     <div>
                         <TradingViewChart
@@ -323,7 +283,7 @@ export default function OverviewTab({
 
                 {/* Bank loan breakdown — only for bank stocks */}
                 {isBank && (
-                    <section className={styles.section}>
+                    <section className={`${styles.section} ${styles.sectionBankLoan}`}>
                         <BankLoanBreakdown symbol={_symbol} />
                     </section>
                 )}
@@ -342,7 +302,12 @@ export default function OverviewTab({
                 </div>
 
                 {financials && (
-                    <FinancialMetricsPanel financials={financials} />
+                    <FinancialMetricsPanel
+                        financials={financials}
+                        price={priceData?.price}
+                        targetPrice={targetPrice}
+                        historicalData={historicalData}
+                    />
                 )}
 
                 {/* EPS History Section */}

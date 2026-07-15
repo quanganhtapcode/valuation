@@ -194,8 +194,9 @@
 
 .mainContent {
     display: grid;
-    grid-template-columns: minmax(0, 4fr) minmax(280px, 1fr);
-    gap: var(--space-16);
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 20px;
+    align-items: stretch;
     margin-top: 0;
 }
 
@@ -209,18 +210,47 @@
 }
 
 .leftColumn {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-20);
+    display: contents;
 }
 
 .rightColumn {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-20);
-    align-self: start;
-    position: sticky;
-    top: 80px;
+    display: contents;
+}
+
+.sectionChart {
+    grid-column: 1 / span 8;
+    grid-row: 1;
+}
+
+.sectionMetrics {
+    grid-column: 9 / span 2;
+    grid-row: 1;
+    height: 100%;
+}
+
+.sectionNews {
+    grid-column: 1 / span 5;
+    grid-row: 2;
+}
+
+.sectionAiInsight {
+    grid-column: 6 / span 5;
+    grid-row: 2;
+}
+
+.sectionEpsHistory {
+    grid-column: 1 / -1;
+    grid-row: 3;
+}
+
+.sectionBankLoan {
+    grid-column: 1 / -1;
+    grid-row: 4;
+}
+
+.sectionCompanyInfo {
+    grid-column: 1 / -1;
+    grid-row: 5;
 }
 
 /* Section */
@@ -293,6 +323,59 @@
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.06em;
+}
+
+.indicatorHighlight {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-primary-light) 45%, transparent);
+}
+
+.indicatorHighlightTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.recommendationBadge {
+    border: 1px solid;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.indicatorHighlight dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 12px 0 0;
+}
+
+.indicatorHighlight dt {
+    color: var(--color-text-secondary);
+    font-size: 11px;
+}
+
+.indicatorHighlight dd {
+    margin: 3px 0 0;
+    color: var(--color-text);
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.indicatorHighlight .positiveMetric {
+    color: var(--color-success);
+}
+
+.indicatorHighlight .negativeMetric {
+    color: var(--color-error);
 }
 
 .metricGroup h4 {
@@ -579,6 +662,35 @@
 
     .priceGrid {
         grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1200px) {
+    .mainContent {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sectionChart,
+    .sectionMetrics {
+        grid-column: 1 / -1;
+    }
+
+    .sectionChart {
+        grid-row: 1;
+    }
+
+    .sectionMetrics {
+        grid-row: 2;
+    }
+
+    .sectionNews {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    .sectionAiInsight {
+        grid-column: 2;
+        grid-row: 3;
     }
 }
 
@@ -1232,5 +1344,13 @@
 
     .sectionEpsHistory {
         order: 5;
+    }
+
+    .sectionBankLoan {
+        order: 6;
+    }
+
+    .sectionCompanyInfo {
+        order: 7;
     }
 }
