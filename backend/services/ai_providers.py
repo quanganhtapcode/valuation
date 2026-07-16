@@ -60,7 +60,11 @@ def _call_gemma_model(model: str, prompt: str) -> str:
     url = f"{_GEMINI_API_BASE}/{model}:generateContent?key={_api_key()}"
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": 1800, "temperature": 0.3},
+        "generationConfig": {
+            "maxOutputTokens": 2400,
+            "temperature": 0.3,
+            "responseMimeType": "application/json",
+        },
     }).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
@@ -86,8 +90,9 @@ def _call_openrouter_model(model: str, prompt: str) -> str:
             },
             {"role": "user", "content": prompt},
         ],
-        "max_tokens": 1800,
+        "max_tokens": 2400,
         "temperature": 0.3,
+        "response_format": {"type": "json_object"},
     }).encode()
     req = urllib.request.Request(_OPENROUTER_API_BASE, data=body, headers=headers)
     with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
