@@ -32,8 +32,6 @@ import {
 } from '@remixicon/react';
 import { ReportGenerator } from '@/lib/reportGenerator';
 import type { ValuationResult, StockApiData } from '@/lib/types';
-import AiValuationCard from './AiValuationCard';
-import { fetchAiAnalysis } from '@/lib/api';
 
 function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
@@ -234,11 +232,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         setAssumptions(defaultAssumptions);
     }, [symbol]); // eslint-disable-line
 
-    const [aiData, setAiData] = useState<Awaited<ReturnType<typeof fetchAiAnalysis>> | null>(null);
-    useEffect(() => {
-        fetchAiAnalysis(symbol).then(d => setAiData(d.available ? d : null));
-    }, [symbol]);
-
     const handleAssumptionChange = (key: string, value: string) => {
         setAssumptions(prev => ({ ...prev, [key]: parseFloat(value) || 0 }));
     };
@@ -400,16 +393,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
 
     return (
         <div className="space-y-6 pb-8">
-            {/* AI Valuation Summary */}
-            {aiData && (
-                <AiValuationCard
-                    analysisJson={aiData.analysis_json}
-                    analysisVi={aiData.analysis_vi}
-                    quarter={aiData.quarter}
-                    generatedAt={aiData.generated_at}
-                />
-            )}
-
             <div className="sm:flex sm:items-center sm:justify-between">
                 <div>
                     <Title className="font-bold text-gray-900 dark:text-gray-50">Valuation Models</Title>
