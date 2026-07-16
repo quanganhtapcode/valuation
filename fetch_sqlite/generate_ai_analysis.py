@@ -579,30 +579,29 @@ def save_analysis(
     combined_raw: str,
     model: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Parse combined JSON {valuation: ..., news_thesis: ...} and save to DB."""
+    """Parse and save a news-only AI thesis; valuation is never AI-generated."""
     import json as _json, re as _re
 
-    valuation_json = None
+    valuation_json = "{}"
     news_json = None
     summary = combined_raw[:200]  # fallback
+    news_part: dict[str, Any] | None = None
 
     text = _re.sub(r"```(?:json)?", "", combined_raw).strip().rstrip("`").strip()
     match = _re.search(r"\{.*\}", text, _re.DOTALL)
     if match:
         try:
             data = _json.loads(match.group())
-            val_part = data.get("valuation")
-            news_part = data.get("news_thesis")
-            if val_part:
-                valuation_json = _json.dumps(val_part, ensure_ascii=False)
-                summary = val_part.get("valuation_summary", summary)
-            if news_part:
+            candidate = data.get("news_thesis")
+            if isinstance(candidate, dict):
+                news_part = candidate
                 news_json = _json.dumps(news_part, ensure_ascii=False)
+                summary = str(news_part.get("summary") or summary)
         except _json.JSONDecodeError:
             pass
 
-    if not valuation_json or not news_json:
-        raise ValueError("AI response did not contain valid valuation/news_thesis JSON")
+    if not news_json or news_part is None:
+        raise ValueError("AI response did not contain valid news_thesis JSON")
 
     cache.execute(
         """
@@ -613,55 +612,42 @@ def save_analysis(
         (ticker, year, q, summary, valuation_json, news_json, model, datetime.now(timezone.utc).isoformat()),
     )
     cache.commit()
-    return val_part, news_part
-
-
-def _format_number(value: object, suffix: str = "") -> str | None:
-    """Format a numeric AI output for a compact, readable Telegram message."""
-    try:
-        return f"{float(value):,.0f}{suffix}"
-    except (TypeError, ValueError):
-        return None
+    return {}, news_part
 
 
 def build_telegram_message(
     ticker: str,
     name: str,
     quarter_label: str,
-    model: str,
-    valuation: dict[str, Any],
     news_thesis: dict[str, Any],
 ) -> str:
-    """Build the short result notification sent after a successful AI analysis."""
-    recommendation = str(valuation.get("recommendation") or "Theo dõi")
-    target_price = _format_number(valuation.get("target_price"), "đ")
-    upside = valuation.get("upside_pct")
-    timing = valuation.get("timing")
-    technical = valuation.get("technical") if isinstance(valuation.get("technical"), dict) else {}
-    trend = technical.get("trend") if isinstance(technical, dict) else None
-    news_summary = news_thesis.get("summary")
+    """Build a Telegram notification for AI news analysis only."""
+    sentiment = {
+        "bullish": "Tích cực",
+        "bearish": "Tiêu cực",
+        "mixed": "Trung lập",
+    }.get(str(news_thesis.get("overall_sentiment") or "mixed"), "Trung lập")
+    news_summary = str(news_thesis.get("summary") or "")
+    bullish = news_thesis.get("bull_case") or []
+    bearish = news_thesis.get("bear_case") or []
 
     lines = [
-        "🤖 Phân tích AI hoàn tất",
+        "📰 Phân tích tin tức AI hoàn tất",
         f"{ticker} — {name}",
         f"Kỳ dữ liệu: {quarter_label}",
-        f"Khuyến nghị: {recommendation}",
+        f"Tâm lý tin tức: {sentiment}",
     ]
-    if target_price:
-        target_line = f"Giá mục tiêu: {target_price}"
-        try:
-            target_line += f" ({float(upside):+.1f}%)"
-        except (TypeError, ValueError):
-            pass
-        lines.append(target_line)
-    if timing:
-        lines.append(f"Thời điểm: {timing}")
-    if trend:
-        lines.append(f"Kỹ thuật: {trend}")
     if news_summary:
         lines.append(f"Luận điểm: {news_summary}")
+    if isinstance(bullish, list) and bullish:
+        first_bull = bullish[0].get("point") if isinstance(bullish[0], dict) else None
+        if first_bull:
+            lines.append(f"Tích cực: {first_bull}")
+    if isinstance(bearish, list) and bearish:
+        first_bear = bearish[0].get("point") if isinstance(bearish[0], dict) else None
+        if first_bear:
+            lines.append(f"Rủi ro: {first_bear}")
     lines.extend([
-        f"Mô hình: {model}",
         f"Xem chi tiết: https://stock.quanganh.org/stock/{ticker}",
     ])
     return "\n".join(lines)
@@ -774,7 +760,9 @@ def run(
         market_ctx = fetch_market_context(scr, cmp_conn, ticker)
         tech = fetch_technical_summary(ticker)
         forecast_years = fetch_forecast_years(cache, ticker)
-        valuation_models = fetch_valuation_models(ticker)
+        # Valuation stays in the deterministic Valuation tab. AI receives only
+        # news and is never asked to calculate or interpret a target price.
+        valuation_models = None
 
         sector_row = scr.execute(
             "SELECT viSector FROM screening_data WHERE ticker=?", (ticker,)
@@ -825,8 +813,7 @@ def run(
                     if notify_telegram_results:
                         notify_telegram(
                             build_telegram_message(
-                                ticker, name, quarter_label, model_used,
-                                valuation, news_thesis,
+                                ticker, name, quarter_label, news_thesis,
                             )
                         )
                     time.sleep(RATE_LIMIT_DELAY)
