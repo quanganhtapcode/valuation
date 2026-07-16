@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sqlite3
 import subprocess
@@ -23,6 +24,7 @@ from typing import Any
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
@@ -100,12 +102,26 @@ def get_last_analysis(cache: sqlite3.Connection, ticker: str, year: int, q: int)
     return row[0] if row else None
 
 
-def count_new_news(news_conn: sqlite3.Connection, ticker: str, _since_iso: str = "") -> int:
-    """Count news items for ticker in the last 14 days (rolling window)."""
-    row = news_conn.execute(
-        "SELECT COUNT(*) FROM news_items WHERE ticker=? AND update_date >= date('now', '-14 days')",
-        (ticker,),
-    ).fetchone()
+def count_new_news(news_conn: sqlite3.Connection, ticker: str, since_iso: str = "") -> int:
+    """Count recent news that arrived after this ticker's last analysis.
+
+    The news source currently exposes dates rather than timestamps. Comparing
+    calendar dates prevents a stock with the same three headlines from being
+    re-analysed every day while still picking it up after genuinely newer news.
+    """
+    if since_iso:
+        row = news_conn.execute(
+            """SELECT COUNT(*) FROM news_items
+               WHERE ticker=?
+                 AND update_date >= date('now', '-14 days')
+                 AND date(update_date) > date(?)""",
+            (ticker, since_iso),
+        ).fetchone()
+    else:
+        row = news_conn.execute(
+            "SELECT COUNT(*) FROM news_items WHERE ticker=? AND update_date >= date('now', '-14 days')",
+            (ticker,),
+        ).fetchone()
     return int(row[0]) if row else 0
 
 
@@ -710,7 +726,7 @@ def run(
             "SELECT DISTINCT ticker FROM income_statement WHERE year_report=? AND quarter_report=?",
             (year, q),
         ).fetchall()
-        candidates = [r[0] for r in rows if r[0] in hose_hnx]
+        candidates = sorted(r[0] for r in rows if r[0] in hose_hnx)
 
     # Separate into new (never analyzed), refresh (news threshold), and regen (missing news_json)
     new_tickers = []
@@ -731,7 +747,7 @@ def run(
             elif news_conn and count_new_news(news_conn, t, last_at) >= NEWS_REFRESH_THRESHOLD:
                 refresh_tickers.append(t)
 
-    pending = new_tickers + refresh_tickers + regen_tickers
+    pending = sorted(new_tickers) + sorted(refresh_tickers) + sorted(regen_tickers)
     print(
         f"Pending: {len(new_tickers)} new + {len(refresh_tickers)} news-refresh "
         f"+ {len(regen_tickers)} regen-missing "
