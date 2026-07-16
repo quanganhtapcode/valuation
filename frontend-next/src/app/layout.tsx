@@ -136,7 +136,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="vi" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className={`${manrope.className} ${manrope.variable} min-h-screen scroll-auto antialiased selection:bg-indigo-100 selection:text-indigo-700 dark:bg-gray-950`}>
         <script
           type="application/ld+json"
