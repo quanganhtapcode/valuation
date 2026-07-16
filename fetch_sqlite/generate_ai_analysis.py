@@ -14,10 +14,12 @@ from __future__ import annotations
 import argparse
 import os
 import sqlite3
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
@@ -560,7 +562,7 @@ def save_analysis(
     q: int,
     combined_raw: str,
     model: str,
-) -> None:
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Parse combined JSON {valuation: ..., news_thesis: ...} and save to DB."""
     import json as _json, re as _re
 
@@ -595,9 +597,91 @@ def save_analysis(
         (ticker, year, q, summary, valuation_json, news_json, model, datetime.now(timezone.utc).isoformat()),
     )
     cache.commit()
+    return val_part, news_part
 
 
-def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_missing: bool = False) -> None:
+def _format_number(value: object, suffix: str = "") -> str | None:
+    """Format a numeric AI output for a compact, readable Telegram message."""
+    try:
+        return f"{float(value):,.0f}{suffix}"
+    except (TypeError, ValueError):
+        return None
+
+
+def build_telegram_message(
+    ticker: str,
+    name: str,
+    quarter_label: str,
+    model: str,
+    valuation: dict[str, Any],
+    news_thesis: dict[str, Any],
+) -> str:
+    """Build the short result notification sent after a successful AI analysis."""
+    recommendation = str(valuation.get("recommendation") or "Theo dõi")
+    target_price = _format_number(valuation.get("target_price"), "đ")
+    upside = valuation.get("upside_pct")
+    timing = valuation.get("timing")
+    technical = valuation.get("technical") if isinstance(valuation.get("technical"), dict) else {}
+    trend = technical.get("trend") if isinstance(technical, dict) else None
+    news_summary = news_thesis.get("summary")
+
+    lines = [
+        "🤖 Phân tích AI hoàn tất",
+        f"{ticker} — {name}",
+        f"Kỳ dữ liệu: {quarter_label}",
+        f"Khuyến nghị: {recommendation}",
+    ]
+    if target_price:
+        target_line = f"Giá mục tiêu: {target_price}"
+        try:
+            target_line += f" ({float(upside):+.1f}%)"
+        except (TypeError, ValueError):
+            pass
+        lines.append(target_line)
+    if timing:
+        lines.append(f"Thời điểm: {timing}")
+    if trend:
+        lines.append(f"Kỹ thuật: {trend}")
+    if news_summary:
+        lines.append(f"Luận điểm: {news_summary}")
+    lines.extend([
+        f"Mô hình: {model}",
+        f"Xem chi tiết: https://stock.quanganh.org/stock/{ticker}",
+    ])
+    return "\n".join(lines)
+
+
+def notify_telegram(message: str) -> None:
+    """Send through the existing Telegram sender without exposing credentials."""
+    sender = ROOT / "scripts" / "send_telegram_message.sh"
+    if not sender.is_file():
+        print("  [telegram] sender script not found; skipped")
+        return
+    try:
+        result = subprocess.run(
+            [str(sender), "--message", message],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        if result.returncode == 0:
+            print("  [telegram] AI result sent")
+        else:
+            detail = (result.stderr or result.stdout).strip()
+            print(f"  [telegram] notification failed: {detail or 'unknown error'}")
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"  [telegram] notification failed: {exc}")
+
+
+def run(
+    tickers_override: list[str] | None,
+    limit: int,
+    dry_run: bool,
+    regen_missing: bool = False,
+    notify_telegram_results: bool | None = None,
+) -> None:
     fin = sqlite3.connect(f"file:{FINANCIALS_DB}?mode=ro", uri=True)
     scr = sqlite3.connect(f"file:{SCREENING_DB}?mode=ro", uri=True)
     cmp = sqlite3.connect(f"file:{COMPANY_DB}?mode=ro", uri=True)
@@ -609,6 +693,12 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_mis
     year, q = detect_current_quarter(fin)
     quarter_label = f"Q{q}.{year}"
     print(f"Current quarter: {quarter_label}")
+
+    # A targeted run (for example, --ticker PNJ) is a deliberate request for
+    # one result, so notify by default. Batch refreshes stay quiet unless the
+    # caller explicitly opts in, preventing hundreds of Telegram messages.
+    if notify_telegram_results is None:
+        notify_telegram_results = bool(tickers_override)
 
     hose_hnx = get_hose_hnx_tickers(scr)
     names = get_company_names(cmp)
@@ -711,9 +801,18 @@ def run(tickers_override: list[str] | None, limit: int, dry_run: bool, regen_mis
             for attempt in range(2):
                 try:
                     combined_raw, model_used = generate(combined_prompt)
-                    save_analysis(cache, ticker, year, q, combined_raw, model_used)
+                    valuation, news_thesis = save_analysis(
+                        cache, ticker, year, q, combined_raw, model_used
+                    )
                     print(f"  [{ticker}] {name} [AI/{model_used}]: saved")
                     done_ai += 1
+                    if notify_telegram_results:
+                        notify_telegram(
+                            build_telegram_message(
+                                ticker, name, quarter_label, model_used,
+                                valuation, news_thesis,
+                            )
+                        )
                     time.sleep(RATE_LIMIT_DELAY)
                     ai_ok = True
                     break
@@ -789,5 +888,25 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--regen-missing", action="store_true",
                         help="Re-generate tickers that have analysis_vi but missing news_json (old format)")
+    notification_group = parser.add_mutually_exclusive_group()
+    notification_group.add_argument(
+        "--notify-telegram",
+        dest="notify_telegram",
+        action="store_true",
+        help="Send one Telegram result for every successful AI analysis",
+    )
+    notification_group.add_argument(
+        "--no-notify-telegram",
+        dest="notify_telegram",
+        action="store_false",
+        help="Do not send Telegram AI-result notifications",
+    )
+    parser.set_defaults(notify_telegram=None)
     args = parser.parse_args()
-    run(args.ticker, args.limit, args.dry_run, regen_missing=args.regen_missing)
+    run(
+        args.ticker,
+        args.limit,
+        args.dry_run,
+        regen_missing=args.regen_missing,
+        notify_telegram_results=args.notify_telegram,
+    )
