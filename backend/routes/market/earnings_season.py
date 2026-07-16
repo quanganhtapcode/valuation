@@ -55,6 +55,18 @@ def _load_company_names(company_db: str) -> dict[str, str]:
         return {}
 
 
+def _load_company_names_en(company_db: str) -> dict[str, str]:
+    try:
+        conn = sqlite3.connect(f"file:{company_db}?mode=ro", uri=True)
+        rows = conn.execute(
+            "SELECT ticker, COALESCE(en_short_name, en_organ_name, short_name, organ_name) FROM companies"
+        ).fetchall()
+        conn.close()
+        return {r[0]: r[1] for r in rows}
+    except Exception:
+        return {}
+
+
 def _load_hose_hnx_tickers(screener_db: str) -> dict[str, float]:
     """Return {ticker: marketCap} for HOSE+HNX only."""
     conn = sqlite3.connect(f"file:{screener_db}?mode=ro", uri=True)
@@ -189,11 +201,15 @@ def compute_earnings_releases(year: int | None = None, quarter: int | None = Non
             year, quarter = int(latest["year_report"]), int(latest["quarter_report"])
 
         names = _load_company_names(company_db_path())
+        names_en = _load_company_names_en(company_db_path())
+        previous_year, previous_quarter = (year - 1, 4) if quarter == 1 else (year, quarter - 1)
         rows = fin_conn.execute(
             """
             SELECT p.ticker, p.public_date,
                    cur.isa1 AS revenue, prev.isa1 AS revenue_previous,
-                   cur.isa22 AS net_income, prev.isa22 AS net_income_previous
+                   prev_q.isa1 AS revenue_previous_quarter,
+                   cur.isa22 AS net_income, prev.isa22 AS net_income_previous,
+                   prev_q.isa22 AS net_income_previous_quarter
             FROM statement_periods p
             JOIN income_statement cur
               ON cur.ticker = p.ticker
@@ -205,13 +221,18 @@ def compute_earnings_releases(year: int | None = None, quarter: int | None = Non
              AND prev.period_kind = 'QUARTER'
              AND prev.year_report = ? - 1
              AND prev.quarter_report = ?
+            LEFT JOIN income_statement prev_q
+              ON prev_q.ticker = p.ticker
+             AND prev_q.period_kind = 'QUARTER'
+             AND prev_q.year_report = ?
+             AND prev_q.quarter_report = ?
             WHERE p.section = 'INCOME_STATEMENT'
               AND p.period_kind = 'QUARTER'
               AND p.year_report = ?
               AND p.quarter_report = ?
             ORDER BY p.public_date DESC, p.ticker
             """,
-            (year, quarter, year, quarter),
+            (year, quarter, previous_year, previous_quarter, year, quarter),
         ).fetchall()
 
         def growth(current: Any, previous: Any) -> float | None:
@@ -227,11 +248,14 @@ def compute_earnings_releases(year: int | None = None, quarter: int | None = Non
                 {
                     "ticker": row["ticker"],
                     "name": names.get(row["ticker"], row["ticker"]),
+                    "name_en": names_en.get(row["ticker"], names.get(row["ticker"], row["ticker"])),
                     "public_date": row["public_date"],
                     "revenue": row["revenue"],
                     "revenue_yoy": growth(row["revenue"], row["revenue_previous"]),
+                    "revenue_qoq": growth(row["revenue"], row["revenue_previous_quarter"]),
                     "net_income": row["net_income"],
                     "net_income_yoy": growth(row["net_income"], row["net_income_previous"]),
+                    "net_income_qoq": growth(row["net_income"], row["net_income_previous_quarter"]),
                 }
                 for row in rows
             ],
