@@ -700,7 +700,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     ) : (
                         isVietnamese ? <> Chưa đủ tin để đưa vào mức giá tham khảo.</> : <> There is not enough news coverage to adjust the reference price.</>
                     )}
-                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Tin tức có thể điều chỉnh mức giá tham khảo tối đa ±10%; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.' : 'News can adjust the reference price by up to ±10%; intrinsic value still comes from cash flow, earnings forecasts and industry peers.'}</span>
+                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Hệ thống khuếch đại tín hiệu tin tức và có thể điều chỉnh mức giá tham khảo tối đa ±15%; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.' : 'The system amplifies the news signal and can adjust the reference price by up to ±15%; intrinsic value still comes from cash flow, earnings forecasts and industry peers.'}</span>
                 </Callout>
             )}
 
