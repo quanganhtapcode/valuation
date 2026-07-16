@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AreaChart, BarChart, Card } from '@tremor/react';
+import dynamic from 'next/dynamic';
 import { API } from '@/lib/api';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 import {
@@ -39,6 +39,15 @@ import {
     type VietnamSubTabId,
 } from './config';
 
+const AreaChart = dynamic(() => import('@tremor/react').then((module) => module.AreaChart), {
+    ssr: false,
+    loading: () => <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
+});
+const BarChart = dynamic(() => import('@tremor/react').then((module) => module.BarChart), {
+    ssr: false,
+    loading: () => <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
+});
+
 // ── Lazy section: only mount children when scrolled into view ─────────────────
 function LazySection({ children, className }: { children: React.ReactNode; className?: string }) {
     const ref  = useRef<HTMLDivElement>(null);
@@ -51,6 +60,22 @@ function LazySection({ children, className }: { children: React.ReactNode; class
         return () => obs.disconnect();
     }, []);
     return <div ref={ref} className={className}>{vis ? children : <div className="h-[260px] rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />}</div>;
+}
+
+// History is used by both summary cards and the expanded chart. Keeping one
+// in-memory request per symbol/range prevents duplicate API calls on first load.
+const historyRequestCache = new Map<string, Promise<PricePoint[]>>();
+
+function loadMacroHistory(symbol: string, days: number): Promise<PricePoint[]> {
+    const cacheKey = `${symbol}:${days}`;
+    const cached = historyRequestCache.get(cacheKey);
+    if (cached) return cached;
+
+    const request = fetch(API.MACRO_HISTORY(symbol, days))
+        .then((response) => response.ok ? response.json() : [])
+        .catch(() => [] as PricePoint[]);
+    historyRequestCache.set(cacheKey, request);
+    return request;
 }
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
@@ -67,6 +92,9 @@ function Spinner({ h = 'h-48' }: { h?: string }) {
             <div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-700 border-t-slate-600 dark:border-t-slate-300 rounded-full animate-spin" />
         </div>
     );
+}
+function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+    return <div className={`rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>{children}</div>;
 }
 function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
     return (
@@ -96,8 +124,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
     const load = useCallback(async (d: number) => {
         setLoading(true);
         try {
-            const res = await fetch(API.MACRO_HISTORY(item.symbol, d));
-            if (res.ok) setPoints(await res.json());
+            setPoints(await loadMacroHistory(item.symbol, d));
         } catch { /* ignore */ }
         finally { setLoading(false); }
     }, [item.symbol]);
@@ -125,7 +152,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
 
     return (
         <div className="mt-1 col-span-2 lg:col-span-4">
-            <Card className="p-5">
+            <Panel className="p-5">
                 <div className="flex items-start justify-between mb-4">
                     <div>
                         <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
@@ -170,7 +197,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                         colors={[up ? 'emerald' : 'rose']} valueFormatter={fmtY}
                         yAxisWidth={yAxisW} showLegend={false} showGradient autoMinValue
                         showAnimation={false} tickGap={60} className="h-48" />}
-            </Card>
+            </Panel>
         </div>
     );
 }
@@ -427,7 +454,7 @@ function DetailChartCard({
     const tremorColor = normalizeColor(color);
 
     return (
-        <Card className="p-5">
+        <Panel className="p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                     <p className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</p>
@@ -471,7 +498,7 @@ function DetailChartCard({
                     className="mt-4 h-56"
                 />
             )}
-        </Card>
+        </Panel>
     );
 }
 
@@ -481,8 +508,7 @@ function TVStatCard({ sym, selected, onClick }: { sym: string; selected: boolean
 
     useEffect(() => {
         let active = true;
-        fetch(API.MACRO_HISTORY(sym, cfg.defaultDays))
-            .then((r) => r.ok ? r.json() : [])
+        loadMacroHistory(sym, cfg.defaultDays)
             .then((data: PricePoint[]) => { if (active) setPoints(data); })
             .catch(() => { if (active) setPoints([]); });
         return () => { active = false; };
@@ -512,8 +538,7 @@ function TVDetailPanel({ sym }: { sym: string }) {
 
     useEffect(() => {
         let active = true;
-        fetch(API.MACRO_HISTORY(sym, cfg.defaultDays))
-            .then((r) => r.ok ? r.json() : [])
+        loadMacroHistory(sym, cfg.defaultDays)
             .then((data: PricePoint[]) => { if (active) setPoints(data); })
             .catch(() => { if (active) setPoints([]); });
         return () => { active = false; };
@@ -608,9 +633,7 @@ function GDPCompositionChart() {
         let active = true;
         Promise.all(
             GDP_SECTORS.map(({ sym }): Promise<PricePoint[]> =>
-                fetch(API.MACRO_HISTORY(sym, 1095))
-                    .then(r => r.ok ? r.json() : [])
-                    .catch(() => [])
+                loadMacroHistory(sym, 1095)
             )
         ).then(([services, industry, agriculture]) => {
             if (!active) return;
@@ -639,7 +662,7 @@ function GDPCompositionChart() {
     if (!chartData.length) return null;
 
     return (
-        <Card className="p-5">
+        <Panel className="p-5">
             <div className="mb-4">
                 <p className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
                     Cơ Cấu GDP theo Ngành
@@ -661,13 +684,46 @@ function GDPCompositionChart() {
                 tickGap={24}
                 className="mt-4 h-72"
             />
-        </Card>
+        </Panel>
     );
 }
 
-function VietnamMacroTab({ faData, faLoading }: { faData: FAData; faLoading: boolean }) {
+function VietnamMacroTab() {
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
     const [selected, setSelected] = useState<DetailSelection | null>({ kind: 'tv', key: 'ECONOMICS:VNGDPYY' });
+    const [faData, setFaData] = useState<FAData>({});
+    const [loadingTypes, setLoadingTypes] = useState<Set<string>>(new Set());
+    const loadedTypesRef = useRef(new Set<string>());
+    const activeFaTypes = VIETNAM_TAB_FA[activeSubTab];
+    const activeFaKey = activeFaTypes.join(',');
+
+    useEffect(() => {
+        const missingTypes = activeFaTypes.filter((type) => !loadedTypesRef.current.has(type));
+        if (!missingTypes.length) return;
+
+        let cancelled = false;
+        setLoadingTypes((current) => new Set([...current, ...missingTypes]));
+        fetch(API.MACRO_FIREANT(missingTypes.join(',')))
+            .then((response) => response.ok ? response.json() : {})
+            .then((data: FAData) => {
+                if (cancelled) return;
+                setFaData((current) => ({ ...current, ...data }));
+                missingTypes.forEach((type) => loadedTypesRef.current.add(type));
+            })
+            .catch(() => undefined)
+            .finally(() => {
+                if (cancelled) return;
+                setLoadingTypes((current) => {
+                    const next = new Set(current);
+                    missingTypes.forEach((type) => next.delete(type));
+                    return next;
+                });
+            });
+
+        return () => { cancelled = true; };
+    }, [activeFaKey, activeFaTypes]);
+
+    const faLoading = activeFaTypes.some((type) => loadingTypes.has(type));
 
     const selectTv = (sym: string, tab?: VietnamSubTabId) => {
         if (tab) setActiveSubTab(tab);
@@ -678,7 +734,7 @@ function VietnamMacroTab({ faData, faLoading }: { faData: FAData; faLoading: boo
         setSelected((prev) => prev?.kind === 'fa' && prev.key === ind.id ? null : { kind: 'fa', key: ind.id, type });
     };
 
-    const activeFaIndicators = VIETNAM_TAB_FA[activeSubTab].flatMap((type) => (faData[type] ?? []).map((ind) => ({ ind, type })));
+    const activeFaIndicators = activeFaTypes.flatMap((type) => (faData[type] ?? []).map((ind) => ({ ind, type })));
     const selectedFa = selected?.kind === 'fa'
         ? (faData[selected.type] ?? []).find((ind) => ind.id === selected.key) ?? null
         : null;
@@ -913,46 +969,44 @@ const TAB_LABELS: { id: TabId; label: string }[] = [
 
 export default function MacroPage() {
     const [activeTab, setActiveTab] = useState<TabId>('vietnam');
-    const [faData, setFaData]       = useState<FAData>({});
-    const [faLoading, setFaL]       = useState(true);
-
-    const loadFaData = useCallback(async () => {
-        try { const r = await fetch(API.MACRO_FIREANT()); if (r.ok) setFaData(await r.json()); }
-        catch { /* ignore */ } finally { setFaL(false); }
-    }, []);
-
-    useEffect(() => { loadFaData(); }, [loadFaData]);
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-            <div className="max-w-[1600px] mx-auto p-4 md:p-6 space-y-8">
+            <div className="max-w-[1600px] mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
 
                 {/* Header */}
-                <div>
-                    <h1 className="text-3xl md:text-4xl font-bold leading-tight tracking-tight">
-                        Kinh Tế <span className="text-blue-600 dark:text-blue-400">Vĩ Mô</span>
-                    </h1>
-                    <div className="w-28 h-1 bg-blue-500 rounded mt-2" />
-                    <p className="text-slate-600 dark:text-slate-300 mt-3 text-sm md:text-base max-w-3xl">
-                        Tổng hợp các chỉ số kinh tế vĩ mô Việt Nam và thế giới — dữ liệu từ FireAnt, Yahoo Finance và Forex Factory.
-                    </p>
-                </div>
+                <header className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:px-7 sm:py-7">
+                    <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl dark:bg-blue-500/15" />
+                    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="max-w-3xl">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">Market intelligence</p>
+                            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+                                Kinh tế <span className="text-blue-600 dark:text-blue-400">vĩ mô</span>
+                            </h1>
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                                Theo dõi các chỉ số Việt Nam và toàn cầu, với dữ liệu nguồn rõ ràng và biểu đồ chi tiết khi cần.
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400">
+                            FireAnt · TradingView · Yahoo Finance · Forex Factory
+                        </div>
+                    </div>
 
-                {/* Tab switcher */}
-                <div className="flex gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/60 w-fit">
-                    {TAB_LABELS.map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-150
-                                ${activeTab === tab.id
-                                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'}`}>
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                    <div className="relative mt-6 flex w-full gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/70 sm:w-fit">
+                        {TAB_LABELS.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                className={`flex-1 rounded-lg px-5 py-2 text-sm font-semibold transition-all duration-150 sm:flex-none
+                                    ${activeTab === tab.id
+                                        ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-400'
+                                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}`}>
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                </header>
 
                 {/* ── Vietnam Tab ── */}
-                {activeTab === 'vietnam' && <VietnamMacroTab faData={faData} faLoading={faLoading} />}
+                {activeTab === 'vietnam' && <VietnamMacroTab />}
 
                 {/* ── World Tab ── */}
                 {activeTab === 'world' && <WorldTab />}
