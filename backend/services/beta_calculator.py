@@ -237,6 +237,8 @@ def suggest_wacc(
         'beta': beta,
         'rf': RF_RATE,
         'erp': float(round(erp_used, 4)),
+        'debt_weight': float(round(debt_weight, 4)),
+        'cost_of_debt': float(round(cost_of_debt, 4)),
         'is_fallback': beta_result['is_fallback'],
         'beta_source': beta_result.get('index_used', 'fallback'),
         'note': beta_result.get('note', ''),

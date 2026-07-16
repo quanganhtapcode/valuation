@@ -32,6 +32,7 @@ import {
 } from '@remixicon/react';
 import { ReportGenerator } from '@/lib/reportGenerator';
 import type { ValuationResult, StockApiData } from '@/lib/types';
+import { useLanguage } from '@/lib/languageContext';
 
 function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
@@ -166,6 +167,8 @@ function SensitivityMatrix({ matrix, currentPrice }: {
 
 
 const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initialData, isBank, stockData }) => {
+    const { lang } = useLanguage();
+    const isVietnamese = lang === 'vi';
     const [loading, setLoading] = useState(false);
     const [exportLoading, setExportLoading] = useState(false);
     const [result, setResult] = useState<ValuationResult | null>(initialData || null);
@@ -421,19 +424,25 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         icb_cohort_count?: number;
     } | undefined;
     const newsOverlay = result?.news_overlay;
-    const businessTypeLabel: Record<string, string> = {
+    const businessTypeLabel: Record<string, string> = isVietnamese ? {
         technology: 'Công nghệ', bank: 'Ngân hàng', securities: 'Chứng khoán',
         real_estate: 'Bất động sản', utility: 'Tiện ích', cyclical: 'Ngành chu kỳ', general: 'Doanh nghiệp phổ thông',
+    } : {
+        technology: 'Technology', bank: 'Banking', securities: 'Securities',
+        real_estate: 'Real Estate', utility: 'Utilities', cyclical: 'Cyclical', general: 'General Business',
     };
-    const businessType = businessTypeLabel[valuationPolicy?.archetype || 'general'] || 'Doanh nghiệp phổ thông';
+    const businessType = businessTypeLabel[valuationPolicy?.archetype || 'general'] || businessTypeLabel.general;
     const industryPosition = valuationPolicy?.is_icb_leader
-        ? 'nhóm doanh nghiệp lớn nhất ngành'
-        : 'nhóm doanh nghiệp cùng ngành';
+        ? (isVietnamese ? 'nhóm doanh nghiệp lớn nhất ngành' : 'the largest companies in its industry')
+        : (isVietnamese ? 'nhóm doanh nghiệp cùng ngành' : 'its industry peer group');
     const newsTone = newsOverlay?.direction === 'positive'
-        ? 'Tích cực'
+        ? (isVietnamese ? 'Tích cực' : 'Positive')
         : newsOverlay?.direction === 'negative'
-            ? 'Hơi tiêu cực'
-            : 'Trung tính';
+            ? (isVietnamese ? 'Hơi tiêu cực' : 'Slightly negative')
+            : (isVietnamese ? 'Trung tính' : 'Neutral');
+    const growthSuggestion = result?.inputs?.growth_suggestion as {
+        used?: number; analyst_profit_growth?: number; historical_used?: number;
+    } | undefined;
 
     return (
         <div className="space-y-6 pb-8">
@@ -514,7 +523,14 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                                     <span className="font-semibold">Ke {(result.wacc_suggestion.ke * 100).toFixed(1)}%</span>
                                                 </div>
                                                 <div className="mt-0.5 text-[10px] text-blue-400 dark:text-blue-500">
-                                                    CAPM · nguồn {result.wacc_suggestion.beta_source === 'fireant' ? 'FireAnt' : result.wacc_suggestion.beta_source}
+                                                    {isVietnamese
+                                                        ? `Ke = Rf + β × ERP · Beta từ ${result.wacc_suggestion.beta_source === 'fireant' ? 'FireAnt' : result.wacc_suggestion.beta_source}`
+                                                        : `Ke = Rf + β × ERP · Beta from ${result.wacc_suggestion.beta_source === 'fireant' ? 'FireAnt' : result.wacc_suggestion.beta_source}`}
+                                                </div>
+                                                <div className="mt-0.5 text-[10px] text-blue-400 dark:text-blue-500">
+                                                    {isVietnamese
+                                                        ? `Rf 4.5% và ERP 9.0% là giả định thị trường Việt Nam của hệ thống${result.wacc_suggestion.debt_weight ? ` · WACC phản ánh ${(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% nợ sau thuế` : ''}`
+                                                        : `Rf 4.5% and ERP 9.0% are the system's Vietnam market assumptions${result.wacc_suggestion.debt_weight ? ` · WACC includes ${(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% after-tax debt` : ''}`}
                                                 </div>
                                             </div>
                                         )}
@@ -565,6 +581,15 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                             />
                                         </div>
                                     </div>
+                                    {growthSuggestion?.analyst_profit_growth !== undefined && growthSuggestion?.historical_used !== undefined && (
+                                        <div className="rounded-md bg-blue-50 px-2.5 py-2 text-[10px] text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                                            {isVietnamese ? (
+                                                <>Tăng trưởng tự động: 60% forecast lợi nhuận ({(growthSuggestion.analyst_profit_growth * 100).toFixed(2)}%) + 40% CAGR EPS lịch sử ({(growthSuggestion.historical_used * 100).toFixed(2)}%) = <strong>{(Number(growthSuggestion.used || 0) * 100).toFixed(2)}%</strong>.</>
+                                            ) : (
+                                                <>Automatic growth: 60% analyst profit forecast ({(growthSuggestion.analyst_profit_growth * 100).toFixed(2)}%) + 40% historical EPS CAGR ({(growthSuggestion.historical_used * 100).toFixed(2)}%) = <strong>{(Number(growthSuggestion.used || 0) * 100).toFixed(2)}%</strong>.</>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -653,31 +678,32 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             </Grid>
 
             {valuationPolicy && (
-                <Callout title="Cách hệ thống định giá" color="blue" className="text-sm">
-                    FPT được xếp vào nhóm <strong>{businessType}</strong> và thuộc <strong>{industryPosition}</strong>
+                <Callout title={isVietnamese ? 'Cách hệ thống định giá' : 'How the valuation is selected'} color="blue" className="text-sm">
+                    {isVietnamese ? <><strong>{symbol}</strong> được xếp vào nhóm <strong>{businessType}</strong> và thuộc <strong>{industryPosition}</strong></> : <><strong>{symbol}</strong> is classified as <strong>{businessType}</strong> and is among <strong>{industryPosition}</strong></>}
                     {valuationPolicy.icb_rank && valuationPolicy.icb_cohort_count
-                        ? <> (quy mô <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong> trong ngành)</>
+                        ? isVietnamese
+                            ? <> (quy mô <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong> trong ngành)</>
+                            : <> (size rank <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong> in its industry)</>
                         : null}
-                    <span className="block mt-1 text-xs opacity-80">Thông tin này giúp chọn mô hình và doanh nghiệp so sánh phù hợp; quy mô lớn không tự động làm giá mục tiêu cao hơn.</span>
+                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Thông tin này giúp chọn mô hình và doanh nghiệp so sánh phù hợp; quy mô lớn không tự động làm giá mục tiêu cao hơn.' : 'This selects the appropriate valuation models and peer group; large size does not automatically add a premium to the target price.'}</span>
                 </Callout>
             )}
 
             {newsOverlay?.available && (
                 <Callout
-                    title="Tác động từ tin tức gần đây"
+                    title={isVietnamese ? 'Tác động từ tin tức gần đây' : 'Effect of recent news'}
                     color={newsOverlay.direction === 'positive' ? 'emerald' : newsOverlay.direction === 'negative' ? 'rose' : 'blue'}
                     className="text-sm"
                 >
-                    Tín hiệu tin tức: <strong>{newsTone}</strong> ({newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10), dựa trên <strong>{newsOverlay.article_count}</strong> tin trong 21 ngày.
+                    {isVietnamese ? <>Tín hiệu tin tức: <strong>{newsTone}</strong> ({newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10), dựa trên <strong>{newsOverlay.article_count}</strong> tin trong 21 ngày.</> : <>News signal: <strong>{newsTone}</strong> ({newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10), based on <strong>{newsOverlay.article_count}</strong> articles over the last 21 days.</>}
                     {newsOverlay.applicable ? (
                         <>
-                            {' '}Nếu phản ánh nhẹ tâm lý này, mức giá tham khảo thay đổi <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>
-                            {newsOverlay.context_target ? <> thành <strong>{fmt(newsOverlay.context_target)}</strong>.</> : null}
+                            {isVietnamese ? <> Nếu phản ánh nhẹ tâm lý này, mức giá tham khảo thay đổi <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>{newsOverlay.context_target ? <> thành <strong>{fmt(newsOverlay.context_target)}</strong>.</> : null}</> : <> If this short-term sentiment is lightly reflected, the reference price changes by <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>{newsOverlay.context_target ? <> to <strong>{fmt(newsOverlay.context_target)}</strong>.</> : null}</>}
                         </>
                     ) : (
-                        <> Chưa đủ tin để đưa vào mức giá tham khảo.</>
+                        isVietnamese ? <> Chưa đủ tin để đưa vào mức giá tham khảo.</> : <> There is not enough news coverage to adjust the reference price.</>
                     )}
-                    <span className="block mt-1 text-xs opacity-80">Tin tức chỉ là tín hiệu ngắn hạn; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.</span>
+                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Tin tức chỉ là tín hiệu ngắn hạn; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.' : 'News is a short-term signal only; intrinsic value still comes from cash flow, earnings forecasts and industry peers.'}</span>
                 </Callout>
             )}
 

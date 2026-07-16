@@ -409,6 +409,8 @@ export interface WaccSuggestion {
     beta: number;
     rf: number;
     erp: number;
+    debt_weight?: number;
+    cost_of_debt?: number;
     is_fallback: boolean;
     beta_source: string;
     note?: string;
