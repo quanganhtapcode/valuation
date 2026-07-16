@@ -144,28 +144,57 @@ def build_combined_prompt(
         news_block = "\n".join(lines)
 
     schema = """{
+  "valuation": {
+    "valuation_summary": "2-3 câu đánh giá định giá so với lịch sử và ngành",
+    "pe_assessment": "rẻ|hợp lý|đắt",
+    "pb_assessment": "rẻ|hợp lý|đắt",
+    "model_consensus": "1 câu nhận xét hội tụ các mô hình",
+    "target_price": <số nguyên>,
+    "target_rationale": "1-2 câu giải thích target price",
+    "recommendation": "Mua|Tích lũy|Theo dõi|Giảm tỷ trọng",
+    "upside_pct": <số thực>,
+    "timing": "Ngay bây giờ|Chờ pullback|Chờ xác nhận",
+    "technical": {
+      "trend": "Mô tả xu hướng ngắn",
+      "support": <số nguyên hoặc null>,
+      "resistance": <số nguyên hoặc null>,
+      "signal": "Tích cực|Trung tính|Tiêu cực"
+    },
+    "valuation_table": {
+      "pe_ttm": <số thực hoặc null>, "pe_2yr_avg": <số thực hoặc null>,
+      "pe_5yr_avg": <số thực hoặc null>, "pe_sector": <số thực hoặc null>,
+      "pb_ttm": <số thực hoặc null>, "pb_2yr_avg": <số thực hoặc null>,
+      "pb_5yr_avg": <số thực hoặc null>, "pb_sector": <số thực hoặc null>,
+      "pe_commentary": "1 câu", "pb_commentary": "1 câu"
+    }
+  },
   "news_thesis": {
     "overall_sentiment": "bullish|mixed|bearish",
     "summary": "1 câu tổng hợp tình hình",
     "bull_case": [{"point": "...", "news_ids": []}],
     "bear_case": [{"point": "...", "news_ids": []}],
     "key_events": ["sự kiện 1", "sự kiện 2"],
-    "watch_out": "1 câu điều cần theo dõi, dựa trên tin tức"
+    "watch_out": "1 câu điều cần theo dõi"
   }
 }"""
 
     return f"""Bạn là chuyên gia phân tích chứng khoán Việt Nam. Phân tích {name} ({ticker}), ngành {sector}.
 
-{news_block}
+{fin_line}
+{val_block}{models_block}{forecast_block}{tech_block}{broker_block}{news_block}
 
 Trả về JSON hợp lệ theo đúng cấu trúc sau, không thêm bất kỳ text nào ngoài JSON:
 {schema}
+
+Yêu cầu valuation:
+- target_price: tổng hợp các mô hình (FCFE/FCFF/PE/PB/Graham), ưu tiên mô hình hội tụ, loại outlier
+- recommendation dựa trên upside và kỹ thuật; timing: "Ngay bây giờ" nếu hấp dẫn + kỹ thuật tốt
+- pe_assessment/pb_assessment: so TTM vs lịch sử và ngành
 
 Yêu cầu news_thesis:
 - bull_case 2-3 điểm mạnh nhất kèm news_ids; bear_case 2-3 rủi ro kèm news_ids
 - key_events: 2-3 sự kiện/catalyst quan trọng; watch_out: 1 câu theo dõi tiếp
 - Nếu không có tin tức: overall_sentiment="mixed", bull_case=[], bear_case=[], key_events=[], watch_out="Chờ cập nhật thêm tin tức"
-- Chỉ dùng tin tức được cung cấp. Tuyệt đối không tạo giá mục tiêu, khuyến nghị mua/bán/giữ, P/E, P/B, mô hình định giá hoặc tín hiệu kỹ thuật.
 
 Toàn bộ bằng tiếng Việt, chuyên nghiệp"""
 
