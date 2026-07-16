@@ -511,29 +511,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                                 onValueChange={(v) => handleAssumptionChange('wacc', v)}
                                             />
                                         </div>
-                                        {result?.wacc_suggestion && !result.wacc_suggestion.is_fallback && (
-                                            <div className="mt-1.5 rounded-md bg-blue-50 px-2.5 py-1.5 dark:bg-blue-950/40">
-                                                <div className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400">
-                                                    <span className="font-semibold">β {result.wacc_suggestion.beta}</span>
-                                                    <span className="text-blue-400 dark:text-blue-500">·</span>
-                                                    <span>Rf {(result.wacc_suggestion.rf * 100).toFixed(1)}%</span>
-                                                    <span className="text-blue-400 dark:text-blue-500">+</span>
-                                                    <span>ERP {(result.wacc_suggestion.erp * 100).toFixed(1)}%</span>
-                                                    <span className="text-blue-400 dark:text-blue-500">→</span>
-                                                    <span className="font-semibold">Ke {(result.wacc_suggestion.ke * 100).toFixed(1)}%</span>
-                                                </div>
-                                                <div className="mt-0.5 text-[10px] text-blue-400 dark:text-blue-500">
-                                                    {isVietnamese
-                                                        ? `Ke = Rf + β × ERP · Beta từ ${result.wacc_suggestion.beta_source === 'fireant' ? 'FireAnt' : result.wacc_suggestion.beta_source}`
-                                                        : `Ke = Rf + β × ERP · Beta from ${result.wacc_suggestion.beta_source === 'fireant' ? 'FireAnt' : result.wacc_suggestion.beta_source}`}
-                                                </div>
-                                                <div className="mt-0.5 text-[10px] text-blue-400 dark:text-blue-500">
-                                                    {isVietnamese
-                                                        ? `Rf 4.5% và ERP 9.0% là giả định thị trường Việt Nam của hệ thống${result.wacc_suggestion.debt_weight ? ` · WACC phản ánh ${(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% nợ sau thuế` : ''}`
-                                                        : `Rf 4.5% and ERP 9.0% are the system's Vietnam market assumptions${result.wacc_suggestion.debt_weight ? ` · WACC includes ${(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% after-tax debt` : ''}`}
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                     <div>
                                         <label className="text-sm text-gray-600 dark:text-gray-400">Required Return %</label>
@@ -689,6 +666,21 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                 </Callout>
             )}
 
+            {result?.wacc_suggestion && !result.wacc_suggestion.is_fallback && (
+                <Callout title={isVietnamese ? 'Giả định lãi suất chiết khấu' : 'Discount-rate assumptions'} color="blue" className="text-sm">
+                    <strong>Ke {(result.wacc_suggestion.ke * 100).toFixed(2)}%</strong>
+                    {' = '}Rf {(result.wacc_suggestion.rf * 100).toFixed(1)}% + β {result.wacc_suggestion.beta.toFixed(2)} × ERP {(result.wacc_suggestion.erp * 100).toFixed(1)}%.
+                    {result.wacc_suggestion.debt_weight ? (
+                        <span className="block mt-1">
+                            {isVietnamese
+                                ? <>WACC {(result.wacc_suggestion.wacc * 100).toFixed(2)}% kết hợp {((1 - result.wacc_suggestion.debt_weight) * 100).toFixed(1)}% vốn chủ và {(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% nợ sau thuế.</>
+                                : <>WACC {(result.wacc_suggestion.wacc * 100).toFixed(2)}% combines {((1 - result.wacc_suggestion.debt_weight) * 100).toFixed(1)}% equity and {(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% after-tax debt.</>}
+                        </span>
+                    ) : null}
+                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Rf và ERP là giả định thị trường Việt Nam của hệ thống.' : 'Rf and ERP are the system\'s Vietnam market assumptions.'}</span>
+                </Callout>
+            )}
+
             {newsOverlay?.available && (
                 <Callout
                     title={isVietnamese ? 'Tác động từ tin tức gần đây' : 'Effect of recent news'}
@@ -703,7 +695,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     ) : (
                         isVietnamese ? <> Chưa đủ tin để đưa vào mức giá tham khảo.</> : <> There is not enough news coverage to adjust the reference price.</>
                     )}
-                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Tin tức chỉ là tín hiệu ngắn hạn; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.' : 'News is a short-term signal only; intrinsic value still comes from cash flow, earnings forecasts and industry peers.'}</span>
+                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Tin tức có thể điều chỉnh mức giá tham khảo tối đa ±5%; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.' : 'News can adjust the reference price by up to ±5%; intrinsic value still comes from cash flow, earnings forecasts and industry peers.'}</span>
                 </Callout>
             )}
 

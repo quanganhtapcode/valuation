@@ -249,14 +249,14 @@ def summarize_symbol_news_signal(
     *,
     window_days: int = 21,
     half_life_days: float = 7.0,
-    max_adjustment_pct: float = 0.03,
+    max_adjustment_pct: float = 0.05,
     now: dt.datetime | None = None,
 ) -> dict[str, Any]:
     """Build a bounded, time-decayed news catalyst/risk overlay.
 
     VCI's score is a 0-10 sentiment score, so 5 is neutral. This intentionally
     does *not* create an intrinsic value: it is a separately disclosed context
-    overlay capped at +/-3% and needs at least two recent articles. Fundamental
+    overlay capped at +/-5% and needs at least two recent articles. Fundamental
     DCF, earnings forecasts and peer multiples remain the primary valuation.
     """
     now = now or dt.datetime.now(tz=dt.timezone.utc)
