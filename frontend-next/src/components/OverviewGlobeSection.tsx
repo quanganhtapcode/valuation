@@ -1,23 +1,37 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import createGlobe from 'cobe';
 
 export default function OverviewGlobeSection() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const [isNearViewport, setIsNearViewport] = useState(false);
 
     useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => setIsNearViewport(entry.isIntersecting),
+            { rootMargin: '250px 0px' },
+        );
+        observer.observe(canvas);
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!isNearViewport || !canvas) return;
         let phi = 4.7;
 
-        const globe = createGlobe(canvasRef.current as HTMLCanvasElement, {
-            devicePixelRatio: 2,
-            width: 1200 * 2,
-            height: 1200 * 2,
+        const globe = createGlobe(canvas, {
+            devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+            width: 1200,
+            height: 1200,
             phi: 0,
             theta: -0.3,
             dark: 1,
             diffuse: 1.2,
-            mapSamples: 25000,
+            mapSamples: 10000,
             mapBrightness: 13,
             mapBaseBrightness: 0.05,
             baseColor: [0.3, 0.3, 0.3],
@@ -33,7 +47,7 @@ export default function OverviewGlobeSection() {
         return () => {
             globe.destroy();
         };
-    }, []);
+    }, [isNearViewport]);
 
     const features = [
         {

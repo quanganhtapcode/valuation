@@ -1,46 +1,54 @@
 "use client"
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import createGlobe from 'cobe';
 
 function GlobeCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [isNearViewport, setIsNearViewport] = useState(false);
 
     useEffect(() => {
-        let phi = 4;
-        let globe: ReturnType<typeof createGlobe>;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => setIsNearViewport(entry.isIntersecting),
+            { rootMargin: '250px 0px' },
+        );
+        observer.observe(canvas);
+        return () => observer.disconnect();
+    }, []);
 
-        if (canvasRef.current) {
-            globe = createGlobe(canvasRef.current, {
-                devicePixelRatio: 2,
-                width: 800 * 2,
-                height: 800 * 2,
-                phi: 0,
-                theta: -0.3,
-                dark: 0,
-                diffuse: 1.2,
-                mapSamples: 30000,
-                mapBrightness: 13,
-                mapBaseBrightness: 0.01,
-                baseColor: [1, 1, 1],
-                glowColor: [1, 1, 1],
-                markerColor: [100, 100, 100],
-                markers: [
-                    { location: [14.0583, 108.2772], size: 0.03 } // Vietnam center approx
-                ],
-                onRender: (state) => {
-                    state.phi = phi;
-                    phi += 0.0005;
-                },
-            });
-        }
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!isNearViewport || !canvas) return;
+        let phi = 4;
+        const globe = createGlobe(canvas, {
+            devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+            width: 800,
+            height: 800,
+            phi: 0,
+            theta: -0.3,
+            dark: 0,
+            diffuse: 1.2,
+            mapSamples: 12000,
+            mapBrightness: 13,
+            mapBaseBrightness: 0.01,
+            baseColor: [1, 1, 1],
+            glowColor: [1, 1, 1],
+            markerColor: [100, 100, 100],
+            markers: [
+                { location: [14.0583, 108.2772], size: 0.03 } // Vietnam center approx
+            ],
+            onRender: (state) => {
+                state.phi = phi;
+                phi += 0.0005;
+            },
+        });
 
         return () => {
-            if (globe) {
-                globe.destroy();
-            }
+            globe.destroy();
         };
-    }, []);
+    }, [isNearViewport]);
 
     return (
         <canvas

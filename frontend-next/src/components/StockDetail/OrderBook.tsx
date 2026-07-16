@@ -92,12 +92,11 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
             ) : (
                 <>
                     {/* ── Column labels ──────────────────────────────────── */}
-                    <div className="grid grid-cols-[1fr_auto_12px_auto_1fr] items-center px-2 py-1.5 bg-slate-50 dark:bg-slate-800/60 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 select-none">
-                        <span className="text-right pr-1.5">KL mua</span>
-                        <span className="text-right">Giá mua</span>
-                        <span />
-                        <span className="text-left">Giá bán</span>
-                        <span className="text-left pl-1.5">KL bán</span>
+                    <div className="grid grid-cols-4 items-center bg-slate-50 dark:bg-slate-800/60 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 select-none">
+                        <span className="px-3 py-1.5 text-right">KL mua</span>
+                        <span className="border-l border-slate-100 px-3 py-1.5 text-right dark:border-slate-800">Giá mua</span>
+                        <span className="border-l border-slate-100 px-3 py-1.5 text-left dark:border-slate-800">Giá bán</span>
+                        <span className="px-3 py-1.5 text-left">KL bán</span>
                     </div>
 
                     {/* ── Rows ───────────────────────────────────────────── */}
@@ -112,10 +111,10 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
                         return (
                             <div
                                 key={i}
-                                className="grid grid-cols-[1fr_auto_12px_auto_1fr] items-center border-t border-slate-50 dark:border-slate-800/70 group"
+                                className="grid grid-cols-4 items-center border-t border-slate-50 dark:border-slate-800/70 group"
                             >
                                 {/* Bid volume — depth bar fills from right */}
-                                <div className="relative overflow-hidden py-[9px] pr-1.5 text-right">
+                                <div className="relative overflow-hidden px-3 py-[9px] text-right">
                                     {bidPct > 0 && (
                                         <span
                                             className="absolute right-0 top-0 bottom-0 bg-emerald-500/[0.09] dark:bg-emerald-400/[0.12]"
@@ -128,26 +127,21 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
                                 </div>
 
                                 {/* Bid price */}
-                                <div className="py-[9px] px-2">
+                                <div className="border-l border-slate-50 px-3 py-[9px] text-right dark:border-slate-800/70">
                                     <span className={`text-[13px] font-bold tabular-nums ${PRICE_COLOR[bidLevel]}`}>
                                         {fmtPrice(bid.price)}
                                     </span>
                                 </div>
 
-                                {/* Center divider */}
-                                <div className="flex items-center justify-center h-full">
-                                    <span className="w-px h-4 bg-slate-200 dark:bg-slate-700 rounded-full" />
-                                </div>
-
                                 {/* Ask price */}
-                                <div className="py-[9px] px-2">
+                                <div className="border-l border-slate-100 px-3 py-[9px] dark:border-slate-800">
                                     <span className={`text-[13px] font-bold tabular-nums ${PRICE_COLOR[askLevel]}`}>
                                         {fmtPrice(ask.price)}
                                     </span>
                                 </div>
 
                                 {/* Ask volume — depth bar fills from left */}
-                                <div className="relative overflow-hidden py-[9px] pl-1.5 text-left">
+                                <div className="relative overflow-hidden px-3 py-[9px] text-left">
                                     {askPct > 0 && (
                                         <span
                                             className="absolute left-0 top-0 bottom-0 bg-red-500/[0.09] dark:bg-red-400/[0.12]"
@@ -163,18 +157,17 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
                     })}
 
                     {/* ── Totals row ─────────────────────────────────────── */}
-                    <div className="grid grid-cols-[1fr_auto_12px_auto_1fr] items-center px-2 py-1.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
-                        <span className="text-right pr-1.5 text-[11px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    <div className="grid grid-cols-4 items-center border-t border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40">
+                        <span className="px-3 py-1.5 text-right text-[11px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
                             {fmtVol(totalBid)}
                         </span>
-                        <span className="text-right text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-2">
+                        <span className="border-l border-slate-100 px-3 py-1.5 text-right text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:text-slate-500">
                             Tổng
                         </span>
-                        <span />
-                        <span className="text-left text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-2">
+                        <span className="border-l border-slate-100 px-3 py-1.5 text-left text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:text-slate-500">
                             Tổng
                         </span>
-                        <span className="text-left pl-1.5 text-[11px] font-semibold tabular-nums text-red-500 dark:text-red-400">
+                        <span className="px-3 py-1.5 text-left text-[11px] font-semibold tabular-nums text-red-500 dark:text-red-400">
                             {fmtVol(totalAsk)}
                         </span>
                     </div>
