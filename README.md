@@ -13,7 +13,7 @@ trong `fetch_sqlite/`.
 | Domain | Host | Vai trò |
 |---|---|---|
 | `stock.quanganh.org` | Vercel | Next.js frontend |
-| `api.quanganh.org` | VPS `203.55.176.10` | nginx gateway tới Flask/Gunicorn |
+| `api.quanganh.org` | Production server | nginx gateway tới Flask/Gunicorn |
 
 Luồng request:
 
