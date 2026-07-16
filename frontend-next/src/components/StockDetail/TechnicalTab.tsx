@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { formatNumber } from '@/lib/api';
 import { useLanguage } from '@/lib/languageContext';
+import { fetchCurrentPrice } from '@/lib/stockApi';
 
 type TechnicalTimeframe = 'ONE_HOUR' | 'ONE_DAY' | 'ONE_WEEK';
 
@@ -301,6 +302,7 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
     const { lang } = useLanguage();
     const [activeFrame, setActiveFrame] = useState<TechnicalTimeframe>('ONE_DAY');
     const [snapshots, setSnapshots] = useState<SnapshotState>({});
+    const [livePrice, setLivePrice] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -350,6 +352,17 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
         };
     }, [symbol, lang]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const loadLivePrice = async () => {
+            const quote = await fetchCurrentPrice(symbol);
+            if (!cancelled && quote?.price != null && quote.price > 0) setLivePrice(quote.price);
+        };
+        void loadLivePrice();
+        const timer = window.setInterval(loadLivePrice, 60_000);
+        return () => { cancelled = true; window.clearInterval(timer); };
+    }, [symbol]);
+
     const current = snapshots[activeFrame];
     const data = current?.data;
     const movingAverages = data?.movingAverages || [];
@@ -365,14 +378,13 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
         <div className="space-y-5">
             {/* Header */}
             <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Phân tích kỹ thuật' : 'Technical analysis'}</h3>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                            {lang === 'vi' ? 'Tín hiệu tổng hợp theo dao động, trung bình động và vùng hỗ trợ/kháng cự.' : 'Combined signals from oscillators, moving averages, and support/resistance levels.'}
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
+                <div>
+                    <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Phân tích kỹ thuật' : 'Technical analysis'}</h3>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {lang === 'vi' ? 'Tín hiệu tổng hợp theo dao động, trung bình động và vùng hỗ trợ/kháng cự.' : 'Combined signals from oscillators, moving averages, and support/resistance levels.'}
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:justify-end">
                         {TIMEFRAMES.map((frame) => {
                             const isActive = frame === activeFrame;
                             const snapshot = snapshots[frame];
@@ -396,7 +408,6 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
                                 </button>
                             );
                         })}
-                    </div>
                 </div>
             </div>
 
@@ -426,7 +437,7 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'Giá hiện tại' : 'Current price'}</p>
-                            <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-100">{valueText(data.price)}</p>
+                            <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-100">{valueText(data.price && data.price > 0 ? data.price : livePrice)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'Cập nhật' : 'Updated'}</p>

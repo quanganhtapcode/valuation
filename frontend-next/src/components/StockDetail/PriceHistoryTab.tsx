@@ -111,7 +111,7 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
     return (
         <div className="space-y-6 pb-8" style={{ fontFamily: 'Inter, sans-serif' }}>
 
-            <div className="flex w-full flex-wrap items-center justify-end gap-3">
+            <div className="flex w-full flex-wrap items-center justify-end gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
                 {/* Toolbar */}
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-0">

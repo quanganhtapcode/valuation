@@ -53,10 +53,10 @@ export default function NewsPage() {
 
     return (
         <div className={styles.container}>
-            <div className={styles.header}>
-                <h1 className={styles.title}>{copy.title} <span>{copy.accent}</span></h1>
-                <div className={styles.headerAccent} />
-                <p className={styles.subtitle}>{copy.subtitle}</p>
+            <div className="mb-6">
+                <h1 className="text-3xl font-bold leading-tight tracking-tight md:text-4xl">{copy.title} <span className="text-blue-600 dark:text-blue-400">{copy.accent}</span></h1>
+                <div className="mt-2 h-1 w-24 rounded bg-blue-500" />
+                <p className="mt-3 max-w-2xl text-sm text-slate-600 dark:text-slate-300">{copy.subtitle}</p>
             </div>
 
             {isLoading && (
