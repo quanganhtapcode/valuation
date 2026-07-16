@@ -151,7 +151,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
     const rangeLabel = RANGE_OPTIONS.find((o) => o.days === days)?.label ?? '';
 
     return (
-        <div className="mt-1 col-span-2 lg:col-span-4">
+        <div>
             <Panel className="p-5">
                 <div className="flex items-start justify-between mb-4">
                     <div>
@@ -274,14 +274,18 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
     const selectedItem = items.find((i) => i.symbol === selected) ?? null;
     const toggle = (sym: string) => setSelected((prev) => (prev === sym ? null : sym));
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {items.map((item) => (
-                <RateCard key={item.symbol} item={item} isVnd={isVnd}
-                    selected={selected === item.symbol} onClick={() => toggle(item.symbol)} />
-            ))}
+        <div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {items.map((item) => (
+                    <RateCard key={item.symbol} item={item} isVnd={isVnd}
+                        selected={selected === item.symbol} onClick={() => toggle(item.symbol)} />
+                ))}
+            </div>
             {selectedItem && (
-                <HistoryChart key={selectedItem.symbol} item={selectedItem}
-                    isVnd={isVnd} onClose={() => setSelected(null)} />
+                <div className="mt-4">
+                    <HistoryChart key={selectedItem.symbol} item={selectedItem}
+                        isVnd={isVnd} onClose={() => setSelected(null)} />
+                </div>
             )}
         </div>
     );
@@ -688,9 +692,26 @@ function GDPCompositionChart() {
     );
 }
 
+function GDPCompositionCard({ selected, onClick }: { selected: boolean; onClick: () => void }) {
+    return (
+        <CompactStatCard
+            title="Cơ Cấu GDP theo Ngành"
+            source="TradingView / GSO"
+            unit="5 năm"
+            valueText="3 khu vực"
+            updatedAt="Theo quý"
+            comparisonText="Xem cơ cấu GDP"
+            selected={selected}
+            tone="flat"
+            onClick={onClick}
+        />
+    );
+}
+
 function VietnamMacroTab() {
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
     const [selected, setSelected] = useState<DetailSelection | null>(null);
+    const [showGdpComposition, setShowGdpComposition] = useState(false);
     const [faData, setFaData] = useState<FAData>({});
     const [loadingTypes, setLoadingTypes] = useState<Set<string>>(new Set());
     const loadedTypesRef = useRef(new Set<string>());
@@ -727,11 +748,18 @@ function VietnamMacroTab() {
 
     const selectTv = (sym: string, tab?: VietnamSubTabId) => {
         if (tab) setActiveSubTab(tab);
+        setShowGdpComposition(false);
         setSelected((prev) => prev?.kind === 'tv' && prev.key === sym ? null : { kind: 'tv', key: sym });
     };
 
     const selectFa = (ind: FAIndicator, type: string) => {
+        setShowGdpComposition(false);
         setSelected((prev) => prev?.kind === 'fa' && prev.key === ind.id ? null : { kind: 'fa', key: ind.id, type });
+    };
+
+    const selectGdpComposition = () => {
+        setSelected(null);
+        setShowGdpComposition((open) => !open);
     };
 
     const activeFaIndicators = activeFaTypes.flatMap((type) => (faData[type] ?? []).map((ind) => ({ ind, type })));
@@ -773,7 +801,11 @@ function VietnamMacroTab() {
                     {VIETNAM_SUBTABS.map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveSubTab(tab.id)}
+                            onClick={() => {
+                                setActiveSubTab(tab.id);
+                                setSelected(null);
+                                setShowGdpComposition(false);
+                            }}
                             className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                                 activeSubTab === tab.id
                                     ? 'bg-blue-600 text-white'
@@ -785,13 +817,13 @@ function VietnamMacroTab() {
                     ))}
                 </div>
 
-                {activeSubTab === 'growth' && (
-                    <LazySection className="mb-4">
-                        <GDPCompositionChart />
-                    </LazySection>
-                )}
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {activeSubTab === 'growth' && (
+                        <GDPCompositionCard
+                            selected={showGdpComposition}
+                            onClick={selectGdpComposition}
+                        />
+                    )}
                     {VIETNAM_TAB_TV[activeSubTab].map((sym) => (
                         <TVStatCard
                             key={sym}
@@ -814,6 +846,12 @@ function VietnamMacroTab() {
                         Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`fa-skeleton-${i}`} />)
                     )}
                 </div>
+
+                {activeSubTab === 'growth' && showGdpComposition && (
+                    <LazySection className="mt-4">
+                        <GDPCompositionChart />
+                    </LazySection>
+                )}
 
                 {selected?.kind === 'tv' && !isKeyStatSelected && (
                     <div className="mt-4">
@@ -980,30 +1018,22 @@ export default function MacroPage() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
             <div className="max-w-[1600px] mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
 
-                {/* Header */}
-                <header className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:px-7 sm:py-7">
-                    <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl dark:bg-blue-500/15" />
-                    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="max-w-3xl">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">Market intelligence</p>
-                            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-                                Kinh tế <span className="text-blue-600 dark:text-blue-400">vĩ mô</span>
-                            </h1>
-                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                                Theo dõi các chỉ số Việt Nam và toàn cầu, với dữ liệu nguồn rõ ràng và biểu đồ chi tiết khi cần.
-                            </p>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400">
-                            FireAnt · TradingView · Yahoo Finance · Forex Factory
-                        </div>
-                    </div>
+                {/* Header — follows the shared page heading style used by Events and Foreign. */}
+                <header className="mb-6">
+                    <h1 className="text-3xl md:text-4xl font-bold leading-tight tracking-tight">
+                        Kinh tế <span className="text-blue-600 dark:text-blue-400">vĩ mô</span>
+                    </h1>
+                    <div className="mt-2 h-1 w-24 rounded bg-blue-500" />
+                    <p className="mt-3 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
+                        Theo dõi các chỉ số Việt Nam và toàn cầu, với nguồn dữ liệu rõ ràng và biểu đồ mở theo nhu cầu.
+                    </p>
 
-                    <div className="relative mt-6 flex w-full gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/70 sm:w-fit">
+                    <div className="mt-5 flex w-full gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:w-fit">
                         {TAB_LABELS.map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                                 className={`flex-1 rounded-lg px-5 py-2 text-sm font-semibold transition-all duration-150 sm:flex-none
                                     ${activeTab === tab.id
-                                        ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-400'
+                                        ? 'bg-blue-600 text-white shadow-sm dark:bg-blue-600 dark:text-white'
                                         : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}`}>
                                 {tab.label}
                             </button>
