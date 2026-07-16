@@ -27,7 +27,6 @@ import {
     RiBarChartLine,
     RiBookOpenLine,
     RiScales3Line,
-    RiErrorWarningFill,
     RiFileZipLine,
 } from '@remixicon/react';
 import { ReportGenerator } from '@/lib/reportGenerator';
@@ -825,16 +824,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                 </Card>
             )}
 
-            {isBank && (
-                <Callout
-                    title="Bank Valuation Notice"
-                    icon={RiErrorWarningFill}
-                    color="amber"
-                    className="mt-6"
-                >
-                    For the Banking sector, we strongly recommend prioritizing P/E and P/B Comparables. Traditional cash flow models like FCFE, FCFF, or the Graham formula often fail to accurately reflect value due to the unique capital structures and asset characteristics of financial institutions compared to industrial firms.
-                </Callout>
-            )}
         </div>
     );
 };
