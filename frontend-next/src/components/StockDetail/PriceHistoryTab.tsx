@@ -112,22 +112,7 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
     return (
         <div className="space-y-6 pb-8" style={{ fontFamily: 'Inter, sans-serif' }}>
 
-            {/* ── OHLC Candlestick Chart (Vietcap gap-adjusted source) ── */}
-            <div className="bg-white dark:bg-gray-950 rounded-xl border border-tremor-border dark:border-dark-tremor-border p-4">
-                <TradingViewChart
-                    data={allPriceData.map(d => ({
-                        time: (d as any).time || (d as any).date || '',
-                        open: (d as any).open || 0,
-                        high: (d as any).high || 0,
-                        low: (d as any).low || 0,
-                        close: (d as any).close || 0,
-                        volume: (d as any).volume || 0,
-                    }))}
-                    isLoading={isLoading}
-                />
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
                 {/* Title */}
                 <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
                     Lịch sử giá
@@ -171,6 +156,21 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
                         <span className="sm:hidden">CSV</span>
                     </button>
                 </div>
+            </div>
+
+            {/* ── OHLC Candlestick Chart (Vietcap gap-adjusted source) ── */}
+            <div className="bg-white dark:bg-gray-950 rounded-xl border border-tremor-border dark:border-dark-tremor-border p-4">
+                <TradingViewChart
+                    data={allPriceData.map(d => ({
+                        time: (d as any).time || (d as any).date || '',
+                        open: (d as any).open || 0,
+                        high: (d as any).high || 0,
+                        low: (d as any).low || 0,
+                        close: (d as any).close || 0,
+                        volume: (d as any).volume || 0,
+                    }))}
+                    isLoading={isLoading}
+                />
             </div>
 
             {/* Data table */}

@@ -1,8 +1,11 @@
 .container {
-    max-width: 1440px;
+    /* Keep the stock workspace aligned with the market Overview canvas. */
+    max-width: var(--max-width);
     margin: 0 auto;
-    padding: var(--space-24);
+    padding: 16px var(--space-24) 40px;
+    width: 100%;
     overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .tabContainer {

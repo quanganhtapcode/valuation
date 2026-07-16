@@ -635,7 +635,7 @@ export default function StockDetailPage() {
                             { id: 'holders', label: t.stock.tabs.holders },
                             { id: 'priceHistory', label: t.stock.tabs.priceHistory },
                             { id: 'news', label: t.stock.tabs.news },
-                            { id: 'analysis', label: t.stock.tabs.analysis },
+                            { id: 'analysis', label: 'Peers' },
                             { id: 'technical', label: t.stock.tabs.technical },
                             { id: 'valuation', label: t.stock.tabs.valuation },
                         ].map(tab => (
@@ -699,7 +699,7 @@ export default function StockDetailPage() {
                 {/* Holders Tab - Lazy & Persistent */}
                 {visitedTabs.has('holders') && (
                     <div className={activeTab === 'holders' ? 'block' : 'hidden'}>
-                        <div className="mb-4 flex items-center justify-between gap-4">
+                        <div className="mb-4 flex w-full items-center justify-between gap-4">
                             <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
                                 Holders
                             </h3>
@@ -721,11 +721,6 @@ export default function StockDetailPage() {
                 {/* News Tab - Lazy & Persistent */}
                 {visitedTabs.has('news') && (
                     <div className={activeTab === 'news' ? 'block' : 'hidden'}>
-                        <div className="mb-4 flex items-center justify-between gap-4">
-                            <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
-                                News
-                            </h3>
-                        </div>
                         <VciNewsFeed symbol={symbol} />
                     </div>
                 )}
@@ -744,17 +739,16 @@ export default function StockDetailPage() {
 
                 {/* Analysis Tab - Lazy & Persistent */}
                 {visitedTabs.has('analysis') && (
-                    <div className={activeTab === 'analysis' ? 'space-y-4' : 'hidden'}>
-                        <div className="flex items-center justify-between gap-4">
+                    <div className={activeTab === 'analysis' ? 'w-full space-y-4' : 'hidden'}>
+                        <div className="flex w-full items-center justify-between gap-4">
                             <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
-                                Analysis
+                                Peers
                             </h3>
                         </div>
                         <AnalysisTab
                             symbol={symbol}
                             sector={stockInfo?.sector || 'Unknown'}
                             initialPeers={null}
-                            initialHistory={null}
                             isLoading={false}
                         />
                     </div>

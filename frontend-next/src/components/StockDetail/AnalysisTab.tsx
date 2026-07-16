@@ -4,8 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
     Card,
-    Title,
-    Text,
     Table,
     TableHead,
     TableRow,
@@ -13,7 +11,6 @@ import {
     TableBody,
     TableCell,
 } from '@tremor/react';
-import { LineChart } from '@tremor/react';
 import { cx } from '@/lib/utils';
 import BankingPeerTable from './BankingPeerTable';
 
@@ -33,13 +30,11 @@ interface AnalysisTabProps {
     symbol: string;
     sector: string;
     initialPeers?: any;
-    initialHistory?: any;
     isLoading?: boolean;
 }
 
 type MetricKey = 'marketCap' | 'pe' | 'pb' | 'roe' | 'roa' | 'evEbitda';
 type MetricTone = 'best' | 'worst' | 'neutral';
-type ValuationHistoryRow = { period: string; 'P/E': number | null; 'P/B': number | null };
 
 const PERCENT_METRICS = new Set<MetricKey>(['roe', 'roa']);
 const METRIC_DIRECTION: Record<MetricKey, 'higher' | 'lower'> = {
@@ -53,23 +48,6 @@ function toNumberOrNull(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-function toValuationHistoryRows(rows: any[]): ValuationHistoryRow[] {
-    return rows
-        .map((r) => {
-            const period = String(r?.period ?? r?.date ?? r?.tradingDate ?? r?.trading_date ?? '').slice(0, 10);
-            return {
-                period,
-                'P/E': toNumberOrNull(r?.pe ?? r?.['P/E'] ?? r?.PE),
-                'P/B': toNumberOrNull(r?.pb ?? r?.['P/B'] ?? r?.PB),
-            };
-        })
-        .filter((r) => r.period && (r['P/E'] !== null || r['P/B'] !== null));
-}
-
-function formatValuationMetric(value: unknown): string {
-    const parsed = toNumberOrNull(value);
-    return parsed === null ? '-' : parsed.toFixed(2);
-}
 
 function normalizeMetricValue(key: MetricKey, value: unknown): number | null {
     const parsed = toNumberOrNull(value);
@@ -118,44 +96,15 @@ function metricToneClass(tone: MetricTone): string {
     return 'text-tremor-content-strong dark:text-dark-tremor-content-strong';
 }
 
-/** Convert API response (new array-of-objects or legacy parallel-arrays) to chart rows. */
-function topeHistory(res: any): ValuationHistoryRow[] {
-    if (Array.isArray(res?.data)) {
-        return toValuationHistoryRows(res.data as any[]);
-    }
-    if (Array.isArray(res?.records)) {
-        return toValuationHistoryRows(res.records);
-    }
-    const d = res?.data ?? res;
-    if (Array.isArray(d?.years)) {
-        return (d.years as string[])
-            .map((p: string, i: number) => ({
-                period: p,
-                'P/E': toNumberOrNull(d.pe_ratio_data?.[i]),
-                'P/B': toNumberOrNull(d.pb_ratio_data?.[i]),
-            }))
-            .filter((r: any) => r['P/E'] !== null || r['P/B'] !== null);
-    }
-    return [];
-}
-
 // ── component ─────────────────────────────────────────────────────────────────
 
-const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: AnalysisTabProps) => {
+const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) => {
     const [peers, setPeers] = useState<Peer[]>([]);
-    const [peHistory, setPeHistory] = useState<ValuationHistoryRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [medianPe, setMedianPe] = useState<number | null>(null);
     const [industryName, setIndustryName] = useState<string>('');
     const [rawPeersRes, setRawPeersRes] = useState<any>(null);
     const fetchedSymbolRef = useRef<string>('');
-
-    // Populate from initialHistory prop when it arrives
-    useEffect(() => {
-        if (initialHistory && peHistory.length === 0) {
-            queueMicrotask(() => setPeHistory(topeHistory(initialHistory)));
-        }
-    }, [initialHistory]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Main fetch: runs when symbol changes, uses VCI data source for peers
     useEffect(() => {
@@ -170,12 +119,8 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
 
         const peersPromise = fetch(`/api/stock/peers-vci/${symbol}`).then(r => r.json());
 
-        const historyPromise = (initialHistory == null)
-            ? fetch(`/api/stock/${symbol}/ratio-daily-history?limit=250`).then(r => r.json())
-            : Promise.resolve(null);
-
-        Promise.all([peersPromise, historyPromise])
-            .then(([peersRes, historyRes]) => {
+        peersPromise
+            .then((peersRes) => {
                 if (cancelled) return;
                 if (peersRes?.success) {
                     setRawPeersRes(peersRes);
@@ -183,15 +128,12 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
                     setMedianPe(toNumberOrNull(peersRes.medianPe));
                     if (peersRes.industry) setIndustryName(peersRes.industry);
                 }
-                if (historyRes?.success) {
-                    setPeHistory(topeHistory(historyRes));
-                }
             })
             .catch(err => console.error('AnalysisTab fetch error:', err))
             .finally(() => { if (!cancelled) setLoading(false); });
 
         return () => { cancelled = true; };
-    }, [symbol, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [symbol, isLoading]);
 
     const metricExtremes = useMemo(() => {
         const metricKeys: MetricKey[] = ['marketCap', 'pe', 'pb', 'roe', 'roa', 'evEbitda'];
@@ -209,8 +151,6 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
     }, [peers]);
 
     const displayIndustry = industryName || sector || 'Unknown';
-    const latestValuation = [...peHistory].reverse().find(row => row['P/E'] !== null || row['P/B'] !== null);
-
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
@@ -221,44 +161,7 @@ const AnalysisTab = ({ symbol, sector, initialHistory, isLoading = false }: Anal
     }
 
     return (
-        <div className="space-y-8">
-            {/* Historical valuation */}
-            <Card className="p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                    <div>
-                        <Title>Valuation History</Title>
-                        <Text>Historical P/E and P/B ratios over time</Text>
-                    </div>
-                    {peHistory.length > 0 && (
-                        <div className="flex gap-4">
-                            <div className="text-right">
-                                <Text className="text-xs uppercase font-semibold text-tremor-content-subtle">Current P/E</Text>
-                                <Title className="text-blue-600">{formatValuationMetric(latestValuation?.['P/E'])}</Title>
-                            </div>
-                            <div className="text-right">
-                                <Text className="text-xs uppercase font-semibold text-tremor-content-subtle">Current P/B</Text>
-                                <Title className="text-violet-600">{formatValuationMetric(latestValuation?.['P/B'])}</Title>
-                            </div>
-                        </div>
-                    )}
-                </div>
-                <div className="h-80">
-                    <LineChart
-                        className="h-full"
-                        data={peHistory}
-                        index="period"
-                        categories={['P/E', 'P/B']}
-                        colors={['blue', 'violet']}
-                        valueFormatter={(number: number) => number.toFixed(2)}
-                        showAnimation={false}
-                        showLegend={true}
-                        showTooltip={true}
-                        autoMinValue={true}
-                        yAxisWidth={40}
-                    />
-                </div>
-            </Card>
-
+        <div className="space-y-6">
             {/* Peer comparison */}
             {industryName === 'Ngân hàng' ? (
                 <BankingPeerTable

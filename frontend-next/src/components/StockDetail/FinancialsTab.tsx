@@ -6,6 +6,7 @@ import { cx } from '@/lib/utils';
 import { useLanguage } from "@/lib/languageContext"
 import { translations } from "@/lib/translations"
 import { getFieldCodes } from "@/lib/fieldCodesCache"
+import ValuationHistoryChart from './ValuationHistoryChart'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1212,7 +1213,11 @@ export default function FinancialsTab({
     return (
         <div className="space-y-3">
             {/* ── Perplexity-style toolbar ─────────────────────────────── */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                    {lang === 'vi' ? 'Tài chính' : 'Financials'}
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
                 {/* Report type pill dropdown */}
                 <PillDropdown label={activeTabLabel}>
                     {TABS.map(tab => (
@@ -1256,6 +1261,7 @@ export default function FinancialsTab({
                         </svg>
                     </button>
                 )}
+                </div>
             </div>
 
             {/* ── Content Area ────────────────────────────────────────────── */}
@@ -1311,12 +1317,15 @@ export default function FinancialsTab({
 
                         {/* Ratios */}
                         {activeTab === 'ratios' && (
-                            <RatioDashboard
-                                rows={reportData.ratios}
-                                getRowLabel={rowLabel}
-                                getSectionTitle={sectionTitle}
-                                divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
-                            />
+                            <div className="space-y-5 py-4">
+                                <ValuationHistoryChart symbol={symbol} lang={lang} />
+                                <RatioDashboard
+                                    rows={reportData.ratios}
+                                    getRowLabel={rowLabel}
+                                    getSectionTitle={sectionTitle}
+                                    divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                />
+                            </div>
                         )}
 
                         {/* Notes (Thuyết minh) */}

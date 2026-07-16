@@ -1,18 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/lib/languageContext';
 
 type FeedTab = 'news' | 'dividend' | 'insider' | 'agm' | 'other';
 
 // ── Tab config ────────────────────────────────────────────────────────────────
 
-const TABS: { id: FeedTab; label: string }[] = [
-  { id: 'news',     label: 'Tin tức' },
-  { id: 'dividend', label: 'Cổ tức' },
-  { id: 'insider',  label: 'Giao dịch NB' },
-  { id: 'agm',      label: 'Đại hội CĐ' },
-  { id: 'other',    label: 'Sự kiện khác' },
-];
+const TAB_LABELS: Record<'vi' | 'en', Record<FeedTab, string>> = {
+  vi: { news: 'Tin tức', dividend: 'Cổ tức', insider: 'Giao dịch NB', agm: 'Đại hội CĐ', other: 'Sự kiện khác' },
+  en: { news: 'News', dividend: 'Dividends', insider: 'Insider trades', agm: 'Shareholder meetings', other: 'Other events' },
+};
 
 // ── Event metadata ────────────────────────────────────────────────────────────
 
@@ -34,22 +32,22 @@ const EVENT_META: Record<string, { label: string; color: string; dot: string }> 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtRelative(iso: string | null | undefined): string {
+function fmtRelative(iso: string | null | undefined, lang: 'vi' | 'en'): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso.slice(0, 10);
   const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
-  if (diff === 0) return 'Hôm nay';
-  if (diff === 1) return 'Hôm qua';
-  if (diff < 7)  return `${diff} ngày trước`;
-  return d.toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: diff > 300 ? 'numeric' : undefined });
+  if (diff === 0) return lang === 'vi' ? 'Hôm nay' : 'Today';
+  if (diff === 1) return lang === 'vi' ? 'Hôm qua' : 'Yesterday';
+  if (diff < 7) return lang === 'vi' ? `${diff} ngày trước` : `${diff} days ago`;
+  return d.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short', year: diff > 300 ? 'numeric' : undefined });
 }
 
-function fmtFull(iso: string | null | undefined): string {
+function fmtFull(iso: string | null | undefined, lang: 'vi' | 'en'): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso.slice(0, 10);
-  return d.toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ── Icons (SVG — no emojis) ───────────────────────────────────────────────────
@@ -73,7 +71,7 @@ function IcoNewspaper() {
 
 // ── Sentiment badge ───────────────────────────────────────────────────────────
 
-function SentimentBadge({ score, label }: { score?: number; label?: string }) {
+function SentimentBadge({ score, label, lang }: { score?: number; label?: string; lang: 'vi' | 'en' }) {
   const raw = label?.toLowerCase() ?? '';
   const isPos = raw.includes('pos') || (score !== undefined && score > 0.15);
   const isNeg = raw.includes('neg') || (score !== undefined && score < -0.15);
@@ -85,14 +83,14 @@ function SentimentBadge({ score, label }: { score?: number; label?: string }) {
               'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
     }`}>
       <span className={`w-1.5 h-1.5 rounded-full ${isPos ? 'bg-emerald-500' : isNeg ? 'bg-red-500' : 'bg-slate-400'}`} />
-      {isPos ? 'Tích cực' : isNeg ? 'Tiêu cực' : 'Trung lập'}
+      {isPos ? (lang === 'vi' ? 'Tích cực' : 'Positive') : isNeg ? (lang === 'vi' ? 'Tiêu cực' : 'Negative') : (lang === 'vi' ? 'Trung lập' : 'Neutral')}
     </span>
   );
 }
 
 // ── NewsCard ──────────────────────────────────────────────────────────────────
 
-function NewsCard({ item }: { item: any }) {
+function NewsCard({ item, lang }: { item: any; lang: 'vi' | 'en' }) {
   const title    = item.newsTitle ?? item.title ?? '';
   const date     = item.publicDate ?? item.publishDate ?? item.PublishDate;
   const img      = item.newsImageUrl ?? item.newsSmallImageUrl;
@@ -125,8 +123,8 @@ function NewsCard({ item }: { item: any }) {
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5">{source}</span>
-          {date && <span className="text-[11px] text-slate-400 dark:text-slate-500">{fmtRelative(date)}</span>}
-          <SentimentBadge score={score} label={sentiment} />
+          {date && <span className="text-[11px] text-slate-400 dark:text-slate-500">{fmtRelative(date, lang)}</span>}
+          <SentimentBadge score={score} label={sentiment} lang={lang} />
           {url && <span className="ml-auto text-slate-300 dark:text-slate-600 group-hover:text-blue-400 transition-colors"><IcoExternal /></span>}
         </div>
       </div>
@@ -136,11 +134,11 @@ function NewsCard({ item }: { item: any }) {
 
 // ── EventCard ─────────────────────────────────────────────────────────────────
 
-function EventCard({ item }: { item: any }) {
+function EventCard({ item, lang }: { item: any; lang: 'vi' | 'en' }) {
   const code  = item.eventCode ?? '';
   const meta  = EVENT_META[code] ?? { label: code || 'Sự kiện', color: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800', dot: 'bg-slate-400' };
   const title = item.eventTitleVi ?? item.eventTitleEn ?? item.eventNameVi ?? item.eventNameEn ?? '';
-  const date1 = fmtFull(item.displayDate1 ?? item.publicDate);
+  const date1 = fmtFull(item.displayDate1 ?? item.publicDate, lang);
   const action = item.actionTypeEn ?? item.actionTypeVi;
   const value  = item.valuePerShare;
   const ratio  = item.exerciseRatio;
@@ -205,7 +203,7 @@ function Skeleton() {
 
 // ── Empty / Error ─────────────────────────────────────────────────────────────
 
-function EmptyState({ label }: { label: string }) {
+function EmptyState({ label, lang }: { label: string; lang: 'vi' | 'en' }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
@@ -213,13 +211,13 @@ function EmptyState({ label }: { label: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
         </svg>
       </div>
-      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Không có {label.toLowerCase()}</p>
-      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Chưa có dữ liệu cho mục này.</p>
+      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{lang === 'vi' ? `Không có ${label.toLowerCase()}` : `No ${label.toLowerCase()} available`}</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{lang === 'vi' ? 'Chưa có dữ liệu cho mục này.' : 'There is no data for this section yet.'}</p>
     </div>
   );
 }
 
-function ErrorState({ message }: { message: string }) {
+function ErrorState({ message, lang }: { message: string; lang: 'vi' | 'en' }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-3">
@@ -227,7 +225,7 @@ function ErrorState({ message }: { message: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
         </svg>
       </div>
-      <p className="text-sm font-medium text-red-600 dark:text-red-400">Không tải được dữ liệu</p>
+      <p className="text-sm font-medium text-red-600 dark:text-red-400">{lang === 'vi' ? 'Không tải được dữ liệu' : 'Unable to load data'}</p>
       <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{message}</p>
     </div>
   );
@@ -236,6 +234,7 @@ function ErrorState({ message }: { message: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function VciNewsFeed({ symbol }: { symbol: string }) {
+  const { lang } = useLanguage();
   const [activeTab, setActiveTab] = useState<FeedTab>('news');
   const [data,    setData]    = useState<Partial<Record<FeedTab, any[]>>>({});
   const [loading, setLoading] = useState<Partial<Record<FeedTab, boolean>>>({});
@@ -263,7 +262,7 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
   const items   = data[activeTab];
   const isLoad  = loading[activeTab];
   const err     = errors[activeTab];
-  const tabMeta = TABS.find(t => t.id === activeTab)!;
+  const tabLabel = TAB_LABELS[lang][activeTab];
   const count   = items?.length;
 
   return (
@@ -272,9 +271,9 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
         <div>
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Tin tức & Sự kiện</h3>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{lang === 'vi' ? 'Tin tức & Sự kiện' : 'News & Events'}</h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            {isLoad ? 'Đang tải…' : count !== undefined ? `${count} ${tabMeta.label.toLowerCase()}` : tabMeta.label}
+            {isLoad ? (lang === 'vi' ? 'Đang tải…' : 'Loading…') : count !== undefined ? `${count} ${tabLabel.toLowerCase()}` : tabLabel}
           </p>
         </div>
         <span className="rounded-full bg-blue-50 dark:bg-blue-900/30 px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">
@@ -284,19 +283,19 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
 
       {/* Tab bar */}
       <div className="flex gap-1 px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 overflow-x-auto">
-        {TABS.map(tab => (
-          <button key={tab.id} onClick={() => handleTab(tab.id)}
+        {(Object.keys(TAB_LABELS[lang]) as FeedTab[]).map(tab => (
+          <button key={tab} onClick={() => handleTab(tab)}
             className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors border ${
               activeTab === tab.id
                 ? 'border-blue-500 bg-blue-600 text-white'
                 : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400'
             }`}>
-            {tab.label}
-            {data[tab.id] !== undefined && (
+            {TAB_LABELS[lang][tab]}
+            {data[tab] !== undefined && (
               <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] ${
                 activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
               }`}>
-                {data[tab.id]!.length}
+                {data[tab]!.length}
               </span>
             )}
           </button>
@@ -306,12 +305,12 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
       {/* Content — no inner scroll, let the page scroll */}
       <div className="p-4 space-y-3">
         {isLoad && <Skeleton />}
-        {!isLoad && err     && <ErrorState message={err} />}
-        {!isLoad && !err && items !== undefined && items.length === 0 && <EmptyState label={tabMeta.label} />}
+        {!isLoad && err     && <ErrorState message={err} lang={lang} />}
+        {!isLoad && !err && items !== undefined && items.length === 0 && <EmptyState label={tabLabel} lang={lang} />}
         {!isLoad && !err && items?.length ? (
           activeTab === 'news'
-            ? items.map((item, i) => <NewsCard key={item.id ?? i} item={item} />)
-            : items.map((item, i) => <EventCard key={item.id ?? i} item={item} />)
+            ? items.map((item, i) => <NewsCard key={item.id ?? i} item={item} lang={lang} />)
+            : items.map((item, i) => <EventCard key={item.id ?? i} item={item} lang={lang} />)
         ) : null}
       </div>
     </div>
