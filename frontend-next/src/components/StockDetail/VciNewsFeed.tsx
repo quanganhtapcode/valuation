@@ -266,14 +266,13 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
   const count   = items?.length;
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+    <div>
+      {/* Shared stock-detail header */}
+      <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{lang === 'vi' ? 'Tin tức & Sự kiện' : 'News & Events'}</h3>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            {isLoad ? (lang === 'vi' ? 'Đang tải…' : 'Loading…') : count !== undefined ? `${count} ${tabLabel.toLowerCase()}` : tabLabel}
+          <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Tin tức & Sự kiện' : 'News & Events'}</h3>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            {isLoad ? (lang === 'vi' ? 'Đang tải…' : 'Loading…') : count !== undefined ? `${count} ${tabLabel.toLowerCase()}` : (lang === 'vi' ? 'Tin tức và sự kiện của doanh nghiệp' : 'Company news and events')}
           </p>
         </div>
         <span className="rounded-full bg-blue-50 dark:bg-blue-900/30 px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">
@@ -282,11 +281,11 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 overflow-x-auto">
+      <div className="mt-4 flex gap-1 overflow-x-auto border-b border-slate-100 pb-3 dark:border-slate-800">
         {(Object.keys(TAB_LABELS[lang]) as FeedTab[]).map(tab => (
           <button key={tab} onClick={() => handleTab(tab)}
             className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors border ${
-              activeTab === tab.id
+              activeTab === tab
                 ? 'border-blue-500 bg-blue-600 text-white'
                 : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400'
             }`}>
@@ -303,7 +302,7 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
       </div>
 
       {/* Content — no inner scroll, let the page scroll */}
-      <div className="p-4 space-y-3">
+      <div className="pt-4 space-y-3">
         {isLoad && <Skeleton />}
         {!isLoad && err     && <ErrorState message={err} lang={lang} />}
         {!isLoad && !err && items !== undefined && items.length === 0 && <EmptyState label={tabLabel} lang={lang} />}

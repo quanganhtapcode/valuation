@@ -45,13 +45,9 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
-      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
-    ],
-    shortcut: ["/favicon.ico"],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    icon: [{ url: "/quanganh-logo.svg", type: "image/svg+xml", sizes: "any" }],
+    shortcut: ["/quanganh-logo.svg"],
+    apple: [{ url: "/quanganh-logo.svg", sizes: "any", type: "image/svg+xml" }],
   },
   openGraph: {
     title: "Phân Tích Cổ Phiếu Việt Nam | VNINDEX, VN30 – Quang Anh",
@@ -127,9 +123,7 @@ export default function RootLayout({
     "url": siteConfig.url,
     "logo": {
       "@type": "ImageObject",
-      "url": `${siteConfig.url}/android-chrome-512x512.png`,
-      "width": 512,
-      "height": 512,
+      "url": `${siteConfig.url}/quanganh-logo.svg`,
     },
     "contactPoint": {
       "@type": "ContactPoint",

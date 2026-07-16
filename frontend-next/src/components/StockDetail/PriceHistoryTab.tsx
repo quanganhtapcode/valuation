@@ -4,6 +4,7 @@ import React, { useEffect, useState, useTransition } from 'react';
 import { fetchPriceHistory } from '@/lib/stockApi';
 import { formatNumber } from '@/lib/api';
 import type { PriceData } from '@/lib/types';
+import { useLanguage } from '@/lib/languageContext';
 
 interface PriceHistoryTabProps {
     symbol: string;
@@ -13,6 +14,7 @@ interface PriceHistoryTabProps {
 type PeriodType = '1M' | '6M' | '1Y' | '3Y' | '5Y';
 
 function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
+    const { lang } = useLanguage();
     const [allPriceData, setAllPriceData] = useState<PriceData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [period, setPeriod] = useState<PeriodType>('1Y'); // visual (instant)
@@ -109,11 +111,17 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
     ];
 
     return (
-        <div className="space-y-6 pb-8" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <div className="space-y-5 pb-8">
 
-            <div className="flex w-full flex-wrap items-center justify-end gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
+            <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Dữ liệu giá' : 'Price data'}</h3>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {lang === 'vi' ? 'Lịch sử giá giao dịch theo ngày.' : 'Daily trading price history.'}
+                    </p>
+                </div>
                 {/* Toolbar */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <div className="flex items-center gap-0">
                         {periodButtons.map((item, index) => (
                             <button
