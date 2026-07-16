@@ -690,7 +690,7 @@ function GDPCompositionChart() {
 
 function VietnamMacroTab() {
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
-    const [selected, setSelected] = useState<DetailSelection | null>({ kind: 'tv', key: 'ECONOMICS:VNGDPYY' });
+    const [selected, setSelected] = useState<DetailSelection | null>(null);
     const [faData, setFaData] = useState<FAData>({});
     const [loadingTypes, setLoadingTypes] = useState<Set<string>>(new Set());
     const loadedTypesRef = useRef(new Set<string>());
@@ -738,6 +738,7 @@ function VietnamMacroTab() {
     const selectedFa = selected?.kind === 'fa'
         ? (faData[selected.type] ?? []).find((ind) => ind.id === selected.key) ?? null
         : null;
+    const isKeyStatSelected = selected?.kind === 'tv' && KEY_STATS.some(({ sym }) => sym === selected.key);
 
     return (
         <div className="space-y-8">
@@ -756,19 +757,12 @@ function VietnamMacroTab() {
                         />
                     ))}
                 </div>
+                {isKeyStatSelected && selected?.kind === 'tv' && (
+                    <div className="mt-4">
+                        <TVDetailPanel key={selected.key} sym={selected.key} />
+                    </div>
+                )}
             </section>
-
-            {selected?.kind === 'tv' && (
-                <LazySection>
-                    <TVDetailPanel key={selected.key} sym={selected.key} />
-                </LazySection>
-            )}
-
-            {selectedFa && selected?.kind === 'fa' && (
-                <LazySection>
-                    <FADetailPanel ind={selectedFa} color={FA_COLORS[selected.type] ?? 'blue'} />
-                </LazySection>
-            )}
 
             <section className="space-y-4">
                 <SectionHeader
@@ -820,6 +814,18 @@ function VietnamMacroTab() {
                         Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`fa-skeleton-${i}`} />)
                     )}
                 </div>
+
+                {selected?.kind === 'tv' && !isKeyStatSelected && (
+                    <div className="mt-4">
+                        <TVDetailPanel key={selected.key} sym={selected.key} />
+                    </div>
+                )}
+
+                {selectedFa && selected?.kind === 'fa' && (
+                    <div className="mt-4">
+                        <FADetailPanel ind={selectedFa} color={FA_COLORS[selected.type] ?? 'blue'} />
+                    </div>
+                )}
             </section>
         </div>
     );
