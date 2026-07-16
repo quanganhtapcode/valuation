@@ -2,6 +2,7 @@ import sqlite3
 import threading
 import time
 import logging
+from datetime import datetime
 from typing import Dict, Any, Optional
 from backend.db_path import resolve_vci_screening_db_path, resolve_vci_stats_financial_db_path, resolve_vci_company_db_path, resolve_valuation_cache_db_path
 from backend.data_sources.financial_repository import FinancialRepository
@@ -12,9 +13,13 @@ from backend.services.vci_financial_adapter import (
     load_latest_financial_components as vci_load_financial_components,
     load_ttm_eps as vci_load_ttm_eps,
     load_ttm_financial_components as vci_load_ttm_financial_components,
+    load_latest_balance_sheet_components as vci_load_balance_sheet_components,
     load_eps_cagr as vci_load_eps_cagr,
 )
 from backend.services.beta_calculator import suggest_wacc as _suggest_wacc
+from backend.services.valuation_policy import build_valuation_policy, sector_archetype, suggest_growth
+from backend.services.valuation_policy import build_valuation_policy, market_cap_tier
+from backend.services.vci_news_sqlite import default_news_db_path, summarize_symbol_news_signal
 from backend.services.valuation_math import (
     _build_default_scenarios,
     _build_quality_score,
@@ -42,7 +47,7 @@ class ValuationService:
 class _IndustryCacheEntry:
     __slots__ = ('created_at', 'rows')
 
-    def __init__(self, created_at: float, rows: list[tuple[str, float, float]]):
+    def __init__(self, created_at: float, rows: list[tuple[str, float, float, float]]):
         self.created_at = created_at
         self.rows = rows
 
@@ -152,7 +157,7 @@ def _load_symbol_overview_from_vci(symbol: str) -> dict | None:
 
 
 class ScreeningIndustryComparablesCache:
-    """Cache of (symbol, pe, pb) tuples for an ICB industry group.
+    """Cache of (symbol, pe, pb, market_cap) tuples for an ICB industry group.
 
     Peers are identified via vci_screening.icbCodeLv2 and their PE/PB come
     from vci_stats_financial.stats_financial (updated daily, ~1500 stocks).
@@ -166,7 +171,7 @@ class ScreeningIndustryComparablesCache:
         self._lock = threading.Lock()
         self._cache: dict[str, _IndustryCacheEntry] = {}
 
-    def get_rows(self, screening_db_path: str, icb_code_lv2: str) -> list[tuple[str, float, float]]:
+    def get_rows(self, screening_db_path: str, icb_code_lv2: str) -> list[tuple[str, float, float, float]]:
         icb_code_lv2 = str(icb_code_lv2)
         now = time.time()
         entry = self._cache.get(icb_code_lv2)
@@ -179,14 +184,14 @@ class ScreeningIndustryComparablesCache:
                 return entry.rows
 
             sf_path = resolve_vci_stats_financial_db_path()
-            rows: list[tuple[str, float, float]] = []
+            rows: list[tuple[str, float, float, float]] = []
             conn = sqlite3.connect(screening_db_path)
             conn.row_factory = sqlite3.Row
             try:
                 conn.execute(f"ATTACH DATABASE '{sf_path}' AS sf")
                 cur = conn.execute(
                     """
-                    SELECT s.ticker, sf.pe, sf.pb
+                    SELECT s.ticker, sf.pe, sf.pb, s.marketCap
                     FROM screening_data s
                     JOIN sf.stats_financial sf ON UPPER(sf.ticker) = UPPER(s.ticker)
                     WHERE s.icbCodeLv2 = ?
@@ -199,6 +204,7 @@ class ScreeningIndustryComparablesCache:
                         str(r['ticker']).upper(),
                         _to_float(r['pe']),
                         _to_float(r['pb']),
+                        _to_float(r['marketCap']),
                     ))
             except Exception:
                 rows = []
@@ -214,6 +220,47 @@ class ScreeningIndustryComparablesCache:
 
 
 _screening_industry_cache = ScreeningIndustryComparablesCache(ttl_seconds=3600)
+
+
+def _load_vci_forecast_inputs(symbol: str) -> dict:
+    """Load the nearest VCI analyst forecast from the valuation cache.
+
+    Forecast P/E and P/B are implied market multiples at publication, so they
+    are retained as an audit check rather than used as a target multiple. EPS
+    and ROE are the analyst forecast inputs that can drive fair value.
+    """
+    symbol = str(symbol or '').upper().strip()
+    empty = {'selected': None, 'years': [], 'fetched_at': None, 'source': 'missing'}
+    if not symbol:
+        return empty
+    try:
+        conn = sqlite3.connect(f"file:{resolve_valuation_cache_db_path()}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT year, is_forecast, revenue_growth, profit_growth, pe, pb,
+                      roe, eps, dividend_yield, fetched_at
+               FROM vci_financial_data_years
+               WHERE UPPER(ticker) = ? ORDER BY year ASC""",
+            (symbol,),
+        ).fetchall()
+        conn.close()
+    except (sqlite3.Error, OSError):
+        return empty
+
+    years = []
+    for row in rows:
+        record = dict(row)
+        record['is_forecast'] = bool(record.get('is_forecast'))
+        years.append(record)
+    current_year = datetime.now().year
+    future = [row for row in years if row['is_forecast'] and int(row['year']) >= current_year]
+    selected = future[0] if future else next((row for row in reversed(years) if row['is_forecast']), None)
+    return {
+        'selected': selected,
+        'years': years,
+        'fetched_at': (selected or {}).get('fetched_at'),
+        'source': 'sqlite.valuation_cache.vci_financial_data_years' if years else 'missing',
+    }
 
 
 
@@ -518,8 +565,13 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
     # TTM financial components (4-quarter sum when available)
     if has_vci_financial_db():
         financial_components = vci_load_ttm_financial_components(symbol)
+        balance_sheet_components = vci_load_balance_sheet_components(symbol)
     else:
         financial_components = _load_latest_financial_components(symbol)
+        balance_sheet_components = {
+            'cash': 0.0, 'short_term_debt': 0.0, 'long_term_debt': 0.0,
+            'total_debt': 0.0, 'net_debt': 0.0, 'source': 'missing',
+        }
     net_income_ttm = float(financial_components.get('net_income') or 0.0)
     net_income_source = financial_components.get('source', 'missing')
     # If BCTC has no net income, fall back to EPS × shares
@@ -528,7 +580,9 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
         net_income_source = 'derived: eps_ttm * shares_outstanding'
     implied_price_rw = (market_cap_raw / outstanding_share) if outstanding_share > 0 else 0.0
     eps_history_yearly = _load_eps_history_yearly(symbol, limit=10)
-    eps_cagr = vci_load_eps_cagr(symbol, years=5) if has_vci_financial_db() else {'cagr': None, 'n_years': 0}
+    eps_cagr_3y = vci_load_eps_cagr(symbol, years=3) if has_vci_financial_db() else {'cagr': None, 'n_years': 0}
+    eps_cagr_5y = vci_load_eps_cagr(symbol, years=5) if has_vci_financial_db() else {'cagr': None, 'n_years': 0}
+    analyst_forecast = _load_vci_forecast_inputs(symbol)
 
     return {
         'success': True,
@@ -545,12 +599,16 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
         'bvps': float(bvps),
         'bvps_source': bvps_source,
         'implied_price_rw': float(implied_price_rw),
+        'market_cap': float(market_cap_raw),
         'shares_outstanding': float(outstanding_share),
         'net_income_ttm': float(net_income_ttm),
         'net_income_source': net_income_source,
         'cashflow_components': financial_components,
+        'balance_sheet_components': balance_sheet_components,
         'eps_history_yearly': eps_history_yearly,
-        'eps_growth_suggestion': eps_cagr,
+        'eps_growth_3y': eps_cagr_3y,
+        'eps_growth_suggestion': eps_cagr_5y,
+        'analyst_forecast': analyst_forecast,
         'screening_roe': float(sf_roe),
         'sf_pe': float(sf_pe),
         'sf_pb': float(sf_pb),
@@ -583,34 +641,61 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     fcfe_base_per_share = (net_income_ttm / shares_outstanding) if shares_outstanding > 0 else 0.0
 
     is_bank = bool(inputs.get('is_bank', False))
+    analyst_forecast = inputs.get('analyst_forecast') or {}
+    selected_forecast = analyst_forecast.get('selected') or {}
+    forecast_eps = _to_float(selected_forecast.get('eps'))
+    forecast_roe_pct = _to_float(selected_forecast.get('roe'))
+    forecast_profit_growth_pct = _to_float(selected_forecast.get('profit_growth'))
 
     # Assumptions
     projection_years = int(_to_float(request_data.get('projectionYears'), 5))
     projection_years = max(1, min(projection_years, 20))
 
-    # Growth: user override → EPS CAGR (floored at terminal growth) → 8% default
-    # Floor prevents DCF from projecting permanent decline for cyclical stocks whose
-    # historical CAGR spans a peak-to-trough cycle (e.g. shipping/steel post-boom).
-    eps_cagr_data = inputs.get('eps_growth_suggestion') or {}
-    eps_cagr_val = eps_cagr_data.get('cagr')
+    # Growth: user override → sector-aware blend of EPS CAGR 3Y/5Y. The
+    # suggestion is a transparent guardrail, not a substitute for an analyst
+    # forecast or a segment forecast.
     terminal_growth = _to_float(request_data.get('terminalGrowth'), 3.0) / 100.0
-    if eps_cagr_val is not None:
-        cagr_floored = max(float(eps_cagr_val), terminal_growth)
-        default_growth_pct = round(cagr_floored * 100, 1)
-    else:
-        default_growth_pct = 8.0
-    growth = _to_float(request_data.get('revenueGrowth'), default_growth_pct) / 100.0
-    required_return = _to_float(request_data.get('requiredReturn'), 12.0) / 100.0
-
-    # WACC: user override → auto from Beta → 10.5% default
+    preliminary_archetype = sector_archetype(
+        inputs.get('industry'), inputs.get('industry_screening_name'), is_bank=is_bank,
+    )
+    growth_suggestion = suggest_growth(
+        preliminary_archetype,
+        (inputs.get('eps_growth_3y') or {}).get('cagr'),
+        (inputs.get('eps_growth_suggestion') or {}).get('cagr'),
+        terminal_growth,
+    )
+    # A contemporaneous analyst profit forecast is more relevant than a
+    # trailing CAGR for the first DCF year. Keep historical growth as a 40%
+    # stabiliser and apply the sector-specific floor/ceiling already set by
+    # the policy, so a single forecast cannot dominate the terminal model.
+    if -20.0 <= forecast_profit_growth_pct <= 50.0:
+        historical_growth = float(growth_suggestion['used'])
+        analyst_growth = forecast_profit_growth_pct / 100.0
+        blended_growth = 0.60 * analyst_growth + 0.40 * historical_growth
+        growth_suggestion = {
+            **growth_suggestion,
+            'historical_used': historical_growth,
+            'analyst_profit_growth': analyst_growth,
+            'used': max(growth_suggestion['floor'], min(growth_suggestion['ceiling'], blended_growth)),
+            'source': '60% vci_analyst_profit_growth + 40% historical_eps_cagr',
+        }
+    default_growth_pct = round(growth_suggestion['used'] * 100, 1)
+    growth_override_pct = _to_float(request_data.get('revenueGrowth'), 0.0)
+    growth = (growth_override_pct if growth_override_pct != 0 else default_growth_pct) / 100.0
+    # Capital costs: user overrides are accepted, otherwise derive Ke/WACC from
+    # CAPM and the company's reported capital structure.
+    balance_sheet_components = inputs.get('balance_sheet_components') or {}
+    total_debt = max(0.0, _to_float(balance_sheet_components.get('total_debt')))
+    market_cap = max(0.0, _to_float(inputs.get('market_cap')))
+    debt_weight = total_debt / (total_debt + market_cap) if (total_debt + market_cap) > 0 else 0.0
     wacc_from_request = _to_float(request_data.get('wacc'), 0.0) / 100.0
-    if wacc_from_request > 0:
-        wacc = wacc_from_request
-        wacc_suggestion = None
-    else:
-        wacc_suggestion = _suggest_wacc(symbol, is_bank=is_bank)
-        wacc = wacc_suggestion['wacc']
     tax_rate = _to_float(request_data.get('taxRate'), 20.0) / 100.0
+    wacc_suggestion = _suggest_wacc(
+        symbol, is_bank=is_bank, tax_rate=tax_rate, debt_weight=debt_weight,
+    )
+    wacc = wacc_from_request if wacc_from_request > 0 else wacc_suggestion['wacc']
+    required_return_from_request = _to_float(request_data.get('requiredReturn'), 0.0) / 100.0
+    required_return = required_return_from_request if required_return_from_request > 0 else wacc_suggestion['ke']
 
     # Industry comparables: VCI screening industry peers (cached) → valuation_datamart fallback.
     screening_db_path = resolve_vci_screening_db_path()
@@ -619,7 +704,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     screening_name = inputs.get('industry_screening_name')
     datamart_row = _load_valuation_datamart_row(db_path, inputs['symbol'])
 
-    rows: list[tuple[str, float, float]] = []
+    rows: list[tuple[str, float, float, float]] = []
     comparables_source = 'sqlite.vci_screening (icbCodeLv2 cohort; symbol excluded)'
     comparables_group = {'type': 'vci_screening.icbCodeLv2', 'key': industry}
 
@@ -640,9 +725,34 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         except Exception:
             rows = []
 
+    market_cap = max(0.0, _to_float(inputs.get('market_cap')))
+    valuation_policy = build_valuation_policy(
+        industry=industry,
+        screening_industry_name=effective_screening_name,
+        market_cap=market_cap,
+        cohort_market_caps=[mcap for _sym, _pe, _pb, mcap in rows],
+        is_bank=is_bank,
+    )
+
+    # ICB is the primary peer definition. Market-cap matching is relative to
+    # the company, not an absolute market-wide tier: a VND10tn firm can be a
+    # sector leader in one ICB cohort and a small player in another.
+    eligible_rows = [row for row in rows if row[0] != inputs['symbol'] and row[3] > 0]
+    strict_size_rows = [row for row in eligible_rows if market_cap > 0 and (market_cap / 3.0) <= row[3] <= (market_cap * 3.0)]
+    expanded_size_rows = [row for row in eligible_rows if market_cap > 0 and (market_cap / 10.0) <= row[3] <= (market_cap * 10.0)]
+    if len(strict_size_rows) >= 5:
+        comparable_rows = strict_size_rows
+        peer_cohort_used = 'same_icb_market_cap_0.33x_to_3x'
+    elif len(expanded_size_rows) >= 5:
+        comparable_rows = expanded_size_rows
+        peer_cohort_used = 'same_icb_market_cap_0.10x_to_10x'
+    else:
+        comparable_rows = eligible_rows
+        peer_cohort_used = 'same_icb_full_cohort_fallback'
+
     # PE/PB should use their own valid samples independently.
-    pe_values_all = [pe for sym, pe, _pb in rows if sym != inputs['symbol'] and 0 < pe <= 80]
-    pb_values_all = [pb for sym, _pe, pb in rows if sym != inputs['symbol'] and 0 < pb <= 20]
+    pe_values_all = [pe for _sym, pe, _pb, _mcap in comparable_rows if 0 < pe <= 80]
+    pb_values_all = [pb for _sym, _pe, pb, _mcap in comparable_rows if 0 < pb <= 20]
 
     industry_median_pe = _median(pe_values_all)
     industry_median_pb = _median(pb_values_all)
@@ -664,26 +774,67 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             industry_median_pb = float(dm_pb)
             pb_sample_size = dm_pb_count
 
-    # Blend company's own PE/PB (50%) with industry median (50%) so market leaders
-    # aren't pulled down by weak peers. Fall back to pure industry median if no own multiple.
+    # Use a peer multiple as the default.  Including the company's current
+    # multiple anchors the fair value to today's market price and becomes
+    # circular when EPS/BVPS are derived from price ÷ multiple.
     company_pe = _to_float((inputs.get('sf_pe') or 0.0))
     company_pb = _to_float((inputs.get('sf_pb') or 0.0))
+    pe_used = float(industry_median_pe) if industry_median_pe is not None else company_pe
+    pb_used = float(industry_median_pb) if industry_median_pb is not None else company_pb
+    archetype = valuation_policy['archetype']
 
-    if industry_median_pe is not None and company_pe > 0:
-        pe_used = float(0.5 * company_pe + 0.5 * industry_median_pe)
-    elif company_pe > 0:
-        pe_used = float(company_pe)
+    # Sustainable-growth justified P/E is an ROE-based quality adjustment,
+    # not a blanket leader premium: P/E = payout × (1+g) / (Ke-g), where
+    # payout is implied by g / ROE. It is only used for businesses whose ROE
+    # and earnings are meaningful; cyclicals and property retain peer anchors.
+    roe_pct_used = forecast_roe_pct if forecast_roe_pct > 0 else _to_float(inputs.get('screening_roe'))
+    roe_decimal = roe_pct_used / 100.0
+    roe_source = 'vci_analyst_forecast_roe' if forecast_roe_pct > 0 else 'vci_stats_financial.roe_ttm'
+    justified_pe_fundamental = 0.0
+    if archetype in {'technology', 'general', 'utility'} and roe_decimal > growth and required_return > growth:
+        payout_ratio = max(0.0, min(1.0, 1.0 - (growth / roe_decimal)))
+        justified_pe_fundamental = payout_ratio * (1.0 + growth) / (required_return - growth)
+        justified_pe_fundamental = max(0.0, min(justified_pe_fundamental, 40.0))
+    if justified_pe_fundamental > 0 and pe_used > 0:
+        pe_used = 0.60 * justified_pe_fundamental + 0.40 * pe_used
+        pe_method = '60% justified_pe_roe_growth + 40% icb_peer_median'
+    elif justified_pe_fundamental > 0:
+        pe_used = justified_pe_fundamental
+        pe_method = 'justified_pe_roe_growth'
     else:
-        pe_used = float(industry_median_pe) if industry_median_pe is not None else 15.0
+        pe_method = 'icb_peer_median'
 
-    if industry_median_pb is not None and company_pb > 0:
-        pb_used = float(0.5 * company_pb + 0.5 * industry_median_pb)
-    elif company_pb > 0:
-        pb_used = float(company_pb)
+    # Operating businesses are valued on next-twelve-month earnings when the
+    # model has a growth forecast. Property/cyclical earnings remain trailing
+    # because their reported EPS is often lumpy or non-normalized.
+    use_forward_eps = archetype in {'technology', 'general', 'bank', 'securities', 'utility'}
+    if use_forward_eps and forecast_eps > 0:
+        eps_for_pe = float(forecast_eps)
+        pe_metric_label = f"vci_analyst_eps_{int(selected_forecast.get('year') or 0)}f"
+    elif use_forward_eps and eps > 0:
+        eps_for_pe = float(eps * (1.0 + growth))
+        pe_metric_label = 'eps_ntm_proxy'
     else:
-        pb_used = float(industry_median_pb) if industry_median_pb is not None else 1.5
+        eps_for_pe = float(eps)
+        pe_metric_label = 'eps_ttm'
+    justified_pe = float(eps_for_pe * pe_used) if eps_for_pe > 0 else 0.0
 
-    justified_pe = float(eps * pe_used) if eps > 0 else 0.0
+    # For banks and securities, a sustainable ROE / cost-of-equity P/B is a
+    # better anchor than blindly applying an ICB median. Blend it with peers
+    # only when both are available. P/B = (ROE - g) / (Ke - g).
+    stable_growth = min(terminal_growth, max(0.0, required_return - 0.01))
+    justified_pb_fundamental = 0.0
+    if archetype in {'bank', 'securities'} and roe_decimal > stable_growth and required_return > stable_growth:
+        justified_pb_fundamental = (roe_decimal - stable_growth) / (required_return - stable_growth)
+        justified_pb_fundamental = max(0.0, min(justified_pb_fundamental, 8.0))
+    if justified_pb_fundamental > 0 and pb_used > 0:
+        pb_used = 0.60 * justified_pb_fundamental + 0.40 * pb_used
+        pb_method = '60% justified_pb_roe + 40% icb_peer_median'
+    elif justified_pb_fundamental > 0:
+        pb_used = justified_pb_fundamental
+        pb_method = 'justified_pb_roe'
+    else:
+        pb_method = 'icb_peer_median'
     justified_pb = float(bvps * pb_used) if bvps > 0 else 0.0
 
     graham = 0.0
@@ -703,6 +854,8 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
                 screening_peers = []
 
         peers_detailed = _merge_peer_details(screening_peers, [])
+        selected_symbols = {str(sym).upper() for sym, _pe, _pb, _mcap in comparable_rows if str(sym).upper() != inputs['symbol']}
+        peers_detailed = [p for p in peers_detailed if str(p.get('symbol') or '').upper() in selected_symbols]
 
         pe_peers = [
             {'symbol': str(p['symbol']).upper(), 'pe': float(_to_float(p.get('pe')))}
@@ -739,13 +892,24 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         terminal_growth_rate=float(terminal_growth),
         years=int(projection_years),
     )
-    fcff_value, fcff_details = _dcf_per_share(
+    fcff_enterprise_value, fcff_details = _dcf_per_share(
         base_cashflow_per_share=float(fcff_base_per_share),
         annual_growth=float(growth),
         discount_rate=float(wacc),
         terminal_growth_rate=float(terminal_growth),
         years=int(projection_years),
     )
+    net_debt = _to_float(balance_sheet_components.get('net_debt'))
+    net_debt_per_share = (net_debt / shares_outstanding) if shares_outstanding > 0 else 0.0
+    # FCFF discounts cash flows available to both debt and equity holders. The
+    # DCF result is therefore EV/share, not the equity value shown to users.
+    fcff_value = max(0.0, fcff_enterprise_value - net_debt_per_share)
+    fcff_details.update({
+        'enterprise_value_per_share': float(fcff_enterprise_value),
+        'net_debt': float(net_debt),
+        'net_debt_per_share': float(net_debt_per_share),
+        'equity_value_per_share': float(fcff_value),
+    })
 
     valuations = {
         'fcfe': float(fcfe_value),
@@ -755,32 +919,22 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         'graham': float(graham),
     }
 
-    # Weighted average — bank model uses different weights
-    weights = request_data.get('modelWeights', {}) or {}
+    # Use the sector policy unless the user explicitly chose a custom model
+    # mix in the interface. This prevents an incidental default UI blend from
+    # overriding a bank, property, or technology valuation policy.
+    weights = request_data.get('modelWeights', {}) if request_data.get('useCustomWeights') else {}
     if not any(_to_float(w) > 0 for w in weights.values()):
-        if is_bank:
-            weights = {
-                'fcfe': 15,
-                'fcff': 0,
-                'justified_pe': 25,
-                'justified_pb': 40,
-                'graham': 20,
-            }
-        else:
-            weights = {
-                'fcfe': 20,
-                'fcff': 20,
-                'justified_pe': 25,
-                'justified_pb': 25,
-                'graham': 10,
-            }
+        weights = valuation_policy['model_weights'].copy()
 
     weighted_avg = _compute_weighted_average(valuations, weights)
     valuations['weighted_average'] = float(weighted_avg)
+    news_overlay = summarize_symbol_news_signal(default_news_db_path(), inputs['symbol'])
+    news_context_target = float(weighted_avg * (1.0 + _to_float(news_overlay.get('adjustment_pct')))) if weighted_avg > 0 else 0.0
 
     scenarios = _build_default_scenarios(
         fcfe_base_per_share=float(fcfe_base_per_share),
         fcff_base_per_share=float(fcff_base_per_share),
+        net_debt_per_share=float(net_debt_per_share),
         eps=float(eps),
         bvps=float(bvps),
         pe_used=float(pe_used),
@@ -848,10 +1002,14 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             'current_price': float(current_price),
             'current_price_source': inputs['current_price_source'],
             'target_price': float(target_price) if target_price is not None else None,
+            'news_context_target': float(news_context_target),
         },
         'comparables': {
             'industry': industry,
             'group': comparables_group,
+            'peer_cohort_used': peer_cohort_used,
+            'market_cap_tier': valuation_policy['market_cap_tier'],
+            'icb_size_bucket': valuation_policy['icb_size_bucket'],
             'pe_ttm': {
                 **pe_summary,
                 'used': float(pe_used),
@@ -905,6 +1063,10 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
                 'capex_net': float(capex_net_base),
                 'base_cashflow_total': float(fcff_base_total),
                 'base_cashflow_per_share': float(fcff_base_per_share),
+                'enterprise_value_per_share': float(fcff_enterprise_value),
+                'net_debt': float(net_debt),
+                'net_debt_per_share': float(net_debt_per_share),
+                'equity_value_per_share': float(fcff_value),
                 'inputs': {
                     'projection_years': int(projection_years),
                     'growth': float(growth),
@@ -916,15 +1078,23 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             },
             'justified_pe': {
                 'eps_ttm': float(eps),
+                'eps_metric_used': float(eps_for_pe),
+                'eps_metric_label': pe_metric_label,
                 'eps_source': inputs['eps_source'],
+                'roe_used_pct': float(roe_pct_used),
+                'roe_source': roe_source,
                 'pe_used': float(pe_used),
-                'formula': 'eps_ttm * pe_used',
+                'fundamental_pe': float(justified_pe_fundamental),
+                'method': pe_method,
+                'formula': f'{pe_metric_label} * pe_used',
                 'result': float(justified_pe),
             },
             'justified_pb': {
                 'bvps': float(bvps),
                 'bvps_source': inputs['bvps_source'],
                 'pb_used': float(pb_used),
+                'fundamental_pb': float(justified_pb_fundamental),
+                'method': pb_method,
                 'formula': 'bvps * pb_used',
                 'result': float(justified_pb),
             },
@@ -940,6 +1110,10 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             'shares_outstanding': 'sqlite.ratio_wide.outstanding_share',
             'net_income_ttm': inputs.get('net_income_source', 'missing'),
             'cashflow_components': (cashflow_components.get('source') or 'missing'),
+            'balance_sheet_components': (balance_sheet_components.get('source') or 'missing'),
+            'valuation_policy': valuation_policy,
+            'analyst_forecast': analyst_forecast,
+            'news_overlay': news_overlay,
         },
     }
 
@@ -974,6 +1148,11 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         'fcff_details': fcff_details,
         'scenarios': scenarios,
         'quality': quality,
+        'news_overlay': {
+            **news_overlay,
+            'fundamental_target': float(weighted_avg),
+            'context_target': float(news_context_target),
+        },
         'wacc_suggestion': wacc_suggestion,
         'inputs': {
             'current_price': float(current_price),
@@ -984,6 +1163,8 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             'industry': industry,
             'industry_median_pe_ttm_used': float(pe_used),
             'industry_median_pb_used': float(pb_used),
+            'pe_method': pe_method,
+            'pb_method': pb_method,
             'industry_pe_sample_size': int(pe_sample_size),
             'industry_pb_sample_size': int(pb_sample_size),
             'sf_pe': float(inputs.get('sf_pe') or 0.0),
@@ -993,9 +1174,21 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             'fcfe_base_per_share': float(fcfe_base_per_share),
             'fcff_base_per_share': float(fcff_base_per_share),
             'cashflow_components': cashflow_components,
+            'balance_sheet_components': balance_sheet_components,
+            'capital_structure': {
+                'market_cap': float(market_cap),
+                'total_debt': float(total_debt),
+                'debt_weight': float(debt_weight),
+            },
+            'valuation_policy': valuation_policy,
             'eps_ttm_current': float(eps),
             'eps_history_yearly': inputs.get('eps_history_yearly', []),
+            'eps_growth_3y': inputs.get('eps_growth_3y'),
             'eps_growth_suggestion': inputs.get('eps_growth_suggestion'),
+            'growth_suggestion': growth_suggestion,
+            'analyst_forecast': analyst_forecast,
+            'forecast_eps_used_for_pe': float(forecast_eps) if forecast_eps > 0 else None,
+            'forecast_roe_used': float(forecast_roe_pct) if forecast_roe_pct > 0 else None,
             'growth_used': float(round(growth * 100, 2)),
             'wacc_used': float(round(wacc * 100, 2)),
             'model_weights': weights,
@@ -1013,12 +1206,17 @@ def calculate_sensitivity(symbol: str, request_data: dict) -> dict:
     if not inputs.get('success'):
         return inputs
 
-    eps = float(inputs.get('eps_ttm') or 0.0)
-    if eps <= 0:
+    cashflow_components = inputs.get('cashflow_components') or {}
+    shares = float(inputs.get('shares_outstanding') or 0.0)
+    operating_cf = _to_float(cashflow_components.get('operating_cf'))
+    capex = _to_float(cashflow_components.get('capex_net'))
+    interest_after_tax = abs(_to_float(cashflow_components.get('financial_expense'))) * (1.0 - _to_float(request_data.get('taxRate'), 20.0) / 100.0)
+    fcff_per_share = ((operating_cf - capex + interest_after_tax) / shares) if shares > 0 else 0.0
+    if fcff_per_share <= 0:
         return {
             'success': False,
             'symbol': str(symbol).upper(),
-            'error': 'EPS not available for sensitivity calculation',
+            'error': 'FCFF cash flow is not available for sensitivity calculation',
         }
 
     is_bank = bool(inputs.get('is_bank', False))
@@ -1048,13 +1246,15 @@ def calculate_sensitivity(symbol: str, request_data: dict) -> dict:
             growth = max(-0.20, min(0.35, growth_pct / 100.0))
             tg = max(0.0, min(0.10, terminal_growth))
             val, _details = _dcf_per_share(
-                base_cashflow_per_share=float(eps),
+                base_cashflow_per_share=float(fcff_per_share),
                 annual_growth=float(growth),
                 discount_rate=float(wacc),
                 terminal_growth_rate=float(tg),
                 years=int(projection_years),
             )
-            row.append(float(round(_to_float(val), 4)))
+            net_debt = _to_float((inputs.get('balance_sheet_components') or {}).get('net_debt'))
+            net_debt_per_share = net_debt / shares if shares > 0 else 0.0
+            row.append(float(round(max(0.0, _to_float(val) - net_debt_per_share), 4)))
         matrix.append(row)
 
     return {
@@ -1063,7 +1263,8 @@ def calculate_sensitivity(symbol: str, request_data: dict) -> dict:
         'wacc_axis': wacc_axis,
         'growth_axis': growth_axis,
         'matrix': matrix,
-        'eps_used': float(eps),
+        'eps_used': float(inputs.get('eps_ttm') or 0.0),
+        'fcff_per_share_used': float(fcff_per_share),
         'base_wacc': round(base_wacc * 100.0, 2),
         'base_growth': round(base_growth * 100.0, 2),
         'terminal_growth': round(terminal_growth * 100.0, 2),

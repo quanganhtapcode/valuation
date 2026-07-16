@@ -801,11 +801,12 @@ def listen_mode() -> int:
                             bot_token=bot_token,
                             chat_id=chat_id,
                         )
-                        # Collect VCI analyst forecasts (PE/PB forward) reusing same token
+                        # Collect forecasts for every VCI-screened ticker (HSX, HNX and
+                        # UPCoM), reusing the same bearer token as the Excel refresh.
                         try:
                             send_telegram_message(
                                 bot_token, chat_id,
-                                "📊 Bắt đầu thu thập dữ liệu forecast PE/PB (~685 mã)...",
+                                "📊 Bắt đầu thu thập forecast EPS/ROE/P-E/P-B cho toàn bộ cổ phiếu (~1.550 mã)...",
                             )
                             from fetch_sqlite.fetch_vci_financial_data import run as run_forecast
                             run_forecast(tickers_override=None, limit=0, dry_run=False, bearer=tkn)

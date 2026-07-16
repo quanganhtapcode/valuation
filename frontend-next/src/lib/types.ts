@@ -439,6 +439,19 @@ export interface ValuationResult {
         max_points: number;
         checks: Array<{ name: string; passed: boolean; points: number; max_points: number; detail: string }>;
     } | null;
+    news_overlay?: {
+        available: boolean;
+        applicable: boolean;
+        article_count: number;
+        effective_article_count: number;
+        weighted_score?: number;
+        direction?: 'positive' | 'neutral' | 'negative' | string;
+        adjustment_pct: number;
+        max_adjustment_pct?: number;
+        fundamental_target?: number;
+        context_target?: number;
+        reason?: string;
+    };
     inputs?: {
         current_price?: number;
         eps_ttm?: number;

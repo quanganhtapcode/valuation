@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import os
 import sqlite3
 from typing import Any, Optional
@@ -240,3 +241,88 @@ def query_news_for_symbol(
         except Exception:
             continue
     return result
+
+
+def summarize_symbol_news_signal(
+    db_path: str,
+    symbol: str,
+    *,
+    window_days: int = 21,
+    half_life_days: float = 7.0,
+    max_adjustment_pct: float = 0.03,
+    now: dt.datetime | None = None,
+) -> dict[str, Any]:
+    """Build a bounded, time-decayed news catalyst/risk overlay.
+
+    VCI's score is a 0-10 sentiment score, so 5 is neutral. This intentionally
+    does *not* create an intrinsic value: it is a separately disclosed context
+    overlay capped at +/-3% and needs at least two recent articles. Fundamental
+    DCF, earnings forecasts and peer multiples remain the primary valuation.
+    """
+    now = now or dt.datetime.now(tz=dt.timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=dt.timezone.utc)
+    window_days = max(1, int(window_days))
+    half_life_days = max(1.0, float(half_life_days))
+    max_adjustment_pct = max(0.0, min(0.05, float(max_adjustment_pct)))
+
+    def parse_date(value: Any) -> dt.datetime | None:
+        if not value:
+            return None
+        try:
+            parsed = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            return parsed.replace(tzinfo=dt.timezone.utc) if parsed.tzinfo is None else parsed.astimezone(dt.timezone.utc)
+        except (TypeError, ValueError):
+            return None
+
+    prepared: list[dict[str, Any]] = []
+    for item in query_news_for_symbol(db_path, symbol, limit=30):
+        published_at = parse_date(item.get("publish_date") or item.get("PublishDate"))
+        try:
+            score = float(item.get("score") if item.get("score") is not None else item.get("Score"))
+        except (TypeError, ValueError):
+            continue
+        if published_at is None or not 0.0 <= score <= 10.0:
+            continue
+        age_days = max(0.0, (now - published_at).total_seconds() / 86400.0)
+        if age_days > window_days:
+            continue
+        prepared.append({
+            "score": score,
+            "age_days": age_days,
+            "weight": math.exp(-age_days / half_life_days),
+            "item": compact_news_item(item),
+        })
+
+    if not prepared:
+        return {
+            "available": False, "applicable": False, "reason": "no_scored_news_in_window",
+            "article_count": 0, "effective_article_count": 0.0, "adjustment_pct": 0.0,
+            "window_days": window_days, "half_life_days": half_life_days, "items": [],
+        }
+
+    total_weight = sum(row["weight"] for row in prepared)
+    weighted_score = sum(row["score"] * row["weight"] for row in prepared) / total_weight
+    effective_count = (total_weight ** 2) / sum(row["weight"] ** 2 for row in prepared)
+    sentiment = max(-1.0, min(1.0, (weighted_score - 5.0) / 5.0))
+    applicable = len(prepared) >= 2 and effective_count >= 1.5
+    confidence = min(1.0, effective_count / 5.0) if applicable else 0.0
+    adjustment_pct = sentiment * max_adjustment_pct * confidence if applicable else 0.0
+    adjustment_pct = max(-max_adjustment_pct, min(max_adjustment_pct, adjustment_pct))
+    direction = "positive" if sentiment >= 0.10 else "negative" if sentiment <= -0.10 else "neutral"
+    return {
+        "available": True,
+        "applicable": applicable,
+        "reason": "time_decayed_vci_news_score" if applicable else "insufficient_recent_news_coverage",
+        "article_count": len(prepared),
+        "effective_article_count": round(effective_count, 2),
+        "weighted_score": round(weighted_score, 2),
+        "sentiment": round(sentiment, 4),
+        "direction": direction,
+        "confidence": round(confidence, 4),
+        "adjustment_pct": round(adjustment_pct, 5),
+        "max_adjustment_pct": max_adjustment_pct,
+        "window_days": window_days,
+        "half_life_days": half_life_days,
+        "items": [row["item"] for row in prepared[:8]],
+    }

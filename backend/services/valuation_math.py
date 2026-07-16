@@ -148,7 +148,6 @@ def _build_quality_score(inputs: dict, pe_count: int, pb_count: int, ps_count: i
     add_check('shares_outstanding_available', shares_ok, 10, 'sqlite.ratio_wide.outstanding_share')
     add_check('pe_peer_sample_ge_10', int(pe_count) >= 10, 15, f'count={int(pe_count)}')
     add_check('pb_peer_sample_ge_10', int(pb_count) >= 10, 15, f'count={int(pb_count)}')
-    add_check('ps_peer_sample_ge_10', int(ps_count) >= 10, 15, f'count={int(ps_count)}')
     add_check('screening_industry_group_available', screening_group_ok, 10, str(inputs.get('industry_screening_key') or ''))
 
     total_points = int(sum(int(c.get('points', 0)) for c in checks))
@@ -168,6 +167,7 @@ def _calc_scenario(
     name: str,
     fcfe_base_per_share: float,
     fcff_base_per_share: float,
+    net_debt_per_share: float,
     eps: float,
     bvps: float,
     pe_used: float,
@@ -189,13 +189,14 @@ def _calc_scenario(
         terminal_growth_rate=float(terminal_growth),
         years=int(projection_years),
     )
-    fcff_value, _ = _dcf_per_share(
+    fcff_enterprise_value, _ = _dcf_per_share(
         base_cashflow_per_share=float(fcff_base_per_share),
         annual_growth=float(growth),
         discount_rate=float(wacc),
         terminal_growth_rate=float(terminal_growth),
         years=int(projection_years),
     )
+    fcff_value = max(0.0, fcff_enterprise_value - net_debt_per_share)
 
     vals = {
         'fcfe': float(fcfe_value),
@@ -228,6 +229,7 @@ def _calc_scenario(
 def _build_default_scenarios(
     fcfe_base_per_share: float,
     fcff_base_per_share: float,
+    net_debt_per_share: float,
     eps: float,
     bvps: float,
     pe_used: float,
@@ -245,6 +247,7 @@ def _build_default_scenarios(
         name='base',
         fcfe_base_per_share=fcfe_base_per_share,
         fcff_base_per_share=fcff_base_per_share,
+        net_debt_per_share=net_debt_per_share,
         eps=eps,
         bvps=bvps,
         pe_used=pe_used,
@@ -264,6 +267,7 @@ def _build_default_scenarios(
         name='bull',
         fcfe_base_per_share=fcfe_base_per_share,
         fcff_base_per_share=fcff_base_per_share,
+        net_debt_per_share=net_debt_per_share,
         eps=eps,
         bvps=bvps,
         pe_used=pe_used,
@@ -283,6 +287,7 @@ def _build_default_scenarios(
         name='bear',
         fcfe_base_per_share=fcfe_base_per_share,
         fcff_base_per_share=fcff_base_per_share,
+        net_debt_per_share=net_debt_per_share,
         eps=eps,
         bvps=bvps,
         pe_used=pe_used,

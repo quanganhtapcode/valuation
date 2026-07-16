@@ -165,7 +165,8 @@ const I = {
     wFCFE: 57, wFCFF: 58, wPE: 59, wPB: 60, wGraham: 61, wPS: 62,
 };
 
-const PROJ_YEARS = 10;
+// Keep the downloadable model aligned with the platform DCF horizon.
+const PROJ_YEARS = 5;
 
 // ─── Main class ───────────────────────────────────────────────────────────────
 export class ReportGenerator {
@@ -285,6 +286,8 @@ export class ReportGenerator {
             const wsComp    = wb.addWorksheet('Comparables',      noGrid);
             const wsAssump  = wb.addWorksheet('Assumptions',      noGrid);
             const wsPeers   = wb.addWorksheet('Sector Peers',     noGrid);
+            const wsDrivers = wb.addWorksheet('Forecast Drivers', noGrid);
+            const wsAudit   = wb.addWorksheet('Model Audit',      noGrid);
 
             // Build financial statement sheets and collect coord registry
             const coordReg: CoordRegistry = {};
@@ -311,6 +314,8 @@ export class ReportGenerator {
 
             // Sector peers
             this.createSectorPeersSheet(wsPeers, valuationResults);
+            this.createForecastDriversSheet(wsDrivers, historical, valuationResults, symbol);
+            this.createModelAuditSheet(wsAudit, valuationResults, symbol);
 
             // Sheet order is already set by worksheet creation order above
 
@@ -971,11 +976,11 @@ export class ReportGenerator {
             ? toNumber(a.wacc, 0) / 100
             : (toNumber(a.WACC, 0) > 0 ? toNumber(a.WACC, 0) / 100 : ke);
 
-        setAssumption(I.growthHigh,    'High-Growth Rate (g₁)',        growthHigh,    '0.00%', 'Applied to Years 1–10');
+        setAssumption(I.growthHigh,    'High-Growth Rate (g₁)',        growthHigh,    '0.00%', `Applied to Years 1–${PROJ_YEARS}`);
         setAssumption(I.growthTerminal,'Terminal Growth Rate (gₙ)',     growthTerm,    '0.00%', 'Gordon Growth, perpetuity');
         setAssumption(I.ke,            'Cost of Equity — Ke',          ke,            '0.00%', 'Discount rate for FCFE');
         setAssumption(I.wacc,          'WACC',                         wacc,          '0.00%', 'Discount rate for FCFF');
-        setAssumption(I.dcfYears,      'Projection Years',             PROJ_YEARS,    '0',     'Fixed at 10 years');
+        setAssumption(I.dcfYears,      'Projection Years',             PROJ_YEARS,    '0',     'Matches the platform DCF horizon');
 
         // ── Comparable Multiples ──────────────────────────────────────────
         sectionHeader(sheet, 24, '  COMPARABLE VALUATION MULTIPLES', 5);
@@ -1009,44 +1014,46 @@ export class ReportGenerator {
         // ── FCFE Inputs (seeded from latest historical CF) ────────────────
         sectionHeader(sheet, 30, '  FCFE RAW INPUTS (from latest financial statements)', 5);
         sheet.mergeCells('A31:E31');
-        sheet.getCell('A31').value = 'Base FCFE = Net Income + D&A − ΔWorking Capital − CapEx + Net Borrowing';
+        sheet.getCell('A31').value = 'Base FCFE = Operating Cash Flow − CapEx + Net Borrowing';
         sheet.getCell('A31').font  = { italic: true, color: { argb: '475569' }, size: 9 };
 
-        // Use latest year from historical if available, else fallback to legacy rows
+        // The backend valuation uses TTM cash-flow components.  Use the exact
+        // audited inputs returned by that calculation so workbook formulas and
+        // the platform result reconcile; statements remain available on their
+        // own sheets for due diligence and presentation.
+        const calculation = ((valuationResults?.['export'] as Record<string, unknown>)?.['calculation'] ?? {}) as Record<string, Record<string, unknown>>;
+        const fcfeCalc = calculation['dcf_fcfe'] ?? {};
+        const fcffCalc = calculation['dcf_fcff'] ?? {};
+
+        // Use latest year from historical only as a fallback when a legacy API
+        // response does not include calculation detail.
         const latestCF    = historical.cashflow.length > 0
             ? historical.cashflow[historical.cashflow.length - 1]
             : (cashflowRow ?? {});
-        const latestIncome = historical.income.length > 0
-            ? historical.income[historical.income.length - 1]
-            : (incomeRow ?? {});
-
-        const fcfeNetIncome = toNumber(latestIncome['isa22'] ?? latestIncome['isa20'], 0);
-        const fcfeDepr      = toNumber(latestCF['cfa2'], 0);
-        const fcfeCapex     = Math.abs(toNumber(latestCF['cfa19'], 0));
-        const fcfeNB        = toNumber(latestCF['cfa29'], 0) + toNumber(latestCF['cfa30'], 0);
+        const fcfeNetIncome = toNumber(fcfeCalc['operating_cf'], toNumber(latestCF['cfa18'], 0));
+        const fcfeDepr      = 0;
+        const fcfeCapex     = toNumber(fcffCalc['capex_net'], Math.abs(toNumber(latestCF['cfa19'], 0)));
+        const fcfeNB        = toNumber(fcfeCalc['net_borrowing'], toNumber(latestCF['cfa29'], 0) + toNumber(latestCF['cfa30'], 0));
         const cfaPeriodLabel = latestCF['year'] ? `Year ${latestCF['year']}` : '';
 
-        set(I.fcfe_netIncome,     'Net Income (Bn VND)',                    fcfeNetIncome / 1e9, '#,##0.00', cfaPeriodLabel);
-        set(I.fcfe_depreciation,  'Depreciation & Amortisation (Bn VND)',   fcfeDepr / 1e9,      '#,##0.00');
-        set(I.fcfe_workingCapital,'ΔWorking Capital Investment (Bn VND)',   0,                   '#,##0.00');
+        set(I.fcfe_netIncome,     'Operating Cash Flow / CFO (Bn VND)',     fcfeNetIncome / 1e9, '#,##0.00', cfaPeriodLabel);
+        set(I.fcfe_depreciation,  'Additional D&A adjustment (Bn VND)',     fcfeDepr / 1e9,      '#,##0.00', 'Already included in CFO');
+        set(I.fcfe_workingCapital,'Additional ΔWorking Capital (Bn VND)',    0,                   '#,##0.00', 'Already included in CFO');
         set(I.fcfe_capex,         'Capital Expenditure / CapEx (Bn VND)',    fcfeCapex / 1e9,     '#,##0.00');
         set(I.fcfe_netBorrowing,  'Net Borrowing (Bn VND)',                  fcfeNB / 1e9,        '#,##0.00');
 
         // ── FCFF Inputs ───────────────────────────────────────────────────
         sectionHeader(sheet, 40, '  FCFF RAW INPUTS (from latest financial statements)', 5);
         sheet.mergeCells('A41:E41');
-        sheet.getCell('A41').value = 'Base FCFF = Net Income + Interest×(1−t) + D&A − ΔWorking Capital − CapEx';
+        sheet.getCell('A41').value = 'Base FCFF = Operating Cash Flow − CapEx + Interest × (1 − Tax)';
         sheet.getCell('A41').font  = { italic: true, color: { argb: '475569' }, size: 9 };
 
-        const taxRatePercent   = toNumber(assumptions?.taxRate, 20);
-        const taxRate          = Math.max(0, Math.min(1, taxRatePercent / 100));
-        const fcffInterestExp  = Math.abs(toNumber(cashflowRow?.['interest_expense_paid'], 0));
-        const fcffInterestAT   = fcffInterestExp * (1 - taxRate);
+        const fcffInterestAT   = toNumber(fcffCalc['interest_after_tax'], 0);
 
-        set(I.fcff_netIncome,      'Net Income (Bn VND)',                   fcfeNetIncome / 1e9,  '#,##0.00');
+        set(I.fcff_netIncome,      'Operating Cash Flow / CFO (Bn VND)',   fcfeNetIncome / 1e9,  '#,##0.00');
         set(I.fcff_interestAfterTax,'Interest × (1 − Tax) (Bn VND)',       fcffInterestAT / 1e9, '#,##0.00');
-        set(I.fcff_depreciation,   'Depreciation & Amortisation (Bn VND)', fcfeDepr / 1e9,       '#,##0.00');
-        set(I.fcff_workingCapital, 'ΔWorking Capital (Bn VND)',             0,                    '#,##0.00');
+        set(I.fcff_depreciation,   'Additional D&A adjustment (Bn VND)',   0,                    '#,##0.00', 'Already included in CFO');
+        set(I.fcff_workingCapital, 'Additional ΔWorking Capital (Bn VND)',  0,                    '#,##0.00', 'Already included in CFO');
         set(I.fcff_capex,          'Capital Expenditure / CapEx (Bn VND)',  fcfeCapex / 1e9,      '#,##0.00');
 
         // ── Graham ────────────────────────────────────────────────────────
@@ -1205,7 +1212,7 @@ export class ReportGenerator {
         r++;
 
         const growthHighRow = r;
-        sheet.getCell(r, 1).value = 'High-Growth Rate (g₁) — Years 1–10';
+        sheet.getCell(r, 1).value = `High-Growth Rate (g₁) — Years 1–${PROJ_YEARS}`;
         const ghCell = sheet.getCell(r, 2);
         ghCell.value  = { formula: `=Assumptions!B${I.growthHigh}` };
         ghCell.numFmt = '0.00%';
@@ -1223,7 +1230,7 @@ export class ReportGenerator {
         r += 2;
 
         // STEP 3: Projection Table
-        sectionHeader(sheet, r, '  STEP 3: 10-YEAR CASH FLOW PROJECTIONS', 6);
+        sectionHeader(sheet, r, `  STEP 3: ${PROJ_YEARS}-YEAR CASH FLOW PROJECTIONS`, 6);
         r++;
 
         ['Year', `Projected ${type} (VND)`, 'Formula Note', 'Discount Factor', 'PV of Cash Flow (VND)', 'Cumulative PV'].forEach((h, ci) => {
@@ -1312,7 +1319,7 @@ export class ReportGenerator {
         r++;
 
         const sumPVRow = r;
-        sheet.getCell(r, 1).value = 'Sum of PV (Cash Flows, Years 1–10)';
+        sheet.getCell(r, 1).value = `Sum of PV (Cash Flows, Years 1–${PROJ_YEARS})`;
         const sumPVCell = sheet.getCell(r, 2);
         sumPVCell.value  = { formula: `=SUM(E${projDataStart}:E${projDataEnd})` };
         sumPVCell.numFmt = '#,##0';
@@ -1332,12 +1339,14 @@ export class ReportGenerator {
         r++;
 
         const intrinsicRow = r;
-        sheet.getCell(r, 1).value = `★  INTRINSIC VALUE — ${type} (VND per share)`;
+        sheet.getCell(r, 1).value = isFCFE
+            ? '★  INTRINSIC EQUITY VALUE — FCFE (VND per share)'
+            : 'Enterprise Value — FCFF (VND per share)';
         sheet.getCell(r, 1).font  = { bold: true, size: 12, color: { argb: ACCENT } };
         const intrinsicCell = sheet.getCell(r, 2);
         const intrinsicCached = isFCFE
             ? (valuationResults?.['valuations'] as Record<string, unknown>)?.['fcfe'] ?? detailsData?.['shareValue']
-            : (valuationResults?.['valuations'] as Record<string, unknown>)?.['fcff'] ?? detailsData?.['shareValue'];
+            : detailsData?.['enterprise_value_per_share'];
         intrinsicCell.value = intrinsicCached != null
             ? toNumber(intrinsicCached)
             : { formula: `=B${sumPVRow}+B${pvTvRefRow}` };
@@ -1346,6 +1355,32 @@ export class ReportGenerator {
         intrinsicCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
         applyBorders(intrinsicCell, 'medium');
         r++;
+
+        // FCFF is an enterprise-value model.  Reconcile it to equity value
+        // before showing an investable per-share result.
+        if (!isFCFE) {
+            const netDebtRow = r;
+            sheet.getCell(r, 1).value = 'Less: Net Debt / (Add: Net Cash) per Share';
+            const netDebtCell = sheet.getCell(r, 2);
+            const netDebtPerShare = toNumber(detailsData?.['net_debt_per_share'], 0);
+            netDebtCell.value = netDebtPerShare;
+            netDebtCell.numFmt = '#,##0';
+            applyBorders(netDebtCell);
+            r++;
+
+            sheet.getCell(r, 1).value = '★  INTRINSIC EQUITY VALUE — FCFF (VND per share)';
+            sheet.getCell(r, 1).font = { bold: true, size: 12, color: { argb: ACCENT } };
+            const equityCell = sheet.getCell(r, 2);
+            const equityCached = toNumber((valuationResults?.['valuations'] as Record<string, unknown>)?.['fcff'], 0);
+            equityCell.value = equityCached > 0
+                ? { formula: `=MAX(0,B${intrinsicRow}-B${netDebtRow})`, result: equityCached }
+                : { formula: `=MAX(0,B${intrinsicRow}-B${netDebtRow})` };
+            equityCell.numFmt = '#,##0';
+            equityCell.font = { bold: true, size: 13, color: { argb: ACCENT } };
+            equityCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+            applyBorders(equityCell, 'medium');
+            r++;
+        }
 
         sheet.getCell(r, 1).value = 'Current Price (VND)';
         const cpCell = sheet.getCell(r, 2);
@@ -1512,6 +1547,107 @@ export class ReportGenerator {
     // ═══════════════════════════════════════════════════════════════════════
     // SUMMARY SHEET
     // ═══════════════════════════════════════════════════════════════════════
+    private createForecastDriversSheet(
+        sheet: ExcelJS.Worksheet,
+        historical: HistoricalData,
+        valuationResults: Record<string, unknown>,
+        symbol: string,
+    ) {
+        sheet.mergeCells('A1:G1');
+        const title = sheet.getCell('A1');
+        title.value = `FORECAST DRIVERS — ${symbol}`;
+        title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+        title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
+        title.alignment = { horizontal: 'center' };
+
+        sheet.mergeCells('A2:G2');
+        sheet.getCell('A2').value = 'Editable forecast drivers. This schedule is the audit bridge between historical statements and the DCF assumptions.';
+        sheet.getCell('A2').font = { italic: true, color: { argb: '64748B' }, size: 9 };
+
+        const latestIncome = historical.income[historical.income.length - 1] ?? {};
+        const latestCF = historical.cashflow[historical.cashflow.length - 1] ?? {};
+        const latestRevenue = toNumber(latestIncome.isa1, 0);
+        const latestEbit = toNumber(latestIncome.isa11, 0);
+        const latestCapex = Math.abs(toNumber(latestCF.cfa19, 0));
+        const inputGrowth = toNumber((valuationResults.inputs as Record<string, unknown> | undefined)?.growth_used, 8) / 100;
+        const baseMargin = latestRevenue > 0 ? latestEbit / latestRevenue : 0;
+        const baseCapexRatio = latestRevenue > 0 ? latestCapex / latestRevenue : 0;
+
+        sectionHeader(sheet, 4, '  OPERATING DRIVERS', 7);
+        ['Driver', 'Historical', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5'].forEach((h, i) => {
+            const c = sheet.getCell(5, i + 1); c.value = h; c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } }; applyBorders(c);
+        });
+        const drivers: Array<[string, number, string]> = [
+            ['Revenue (VND)', latestRevenue, '#,##0'],
+            ['Revenue growth', 0, '0.00%'],
+            ['EBIT margin', baseMargin, '0.00%'],
+            ['Capex / Revenue', baseCapexRatio, '0.00%'],
+        ];
+        drivers.forEach(([label, historicalValue, format], index) => {
+            const r = 6 + index;
+            sheet.getCell(r, 1).value = label;
+            sheet.getCell(r, 2).value = historicalValue;
+            sheet.getCell(r, 2).numFmt = format;
+            for (let c = 3; c <= 7; c++) {
+                const cell = sheet.getCell(r, c);
+                if (index === 0) cell.value = { formula: c === 3 ? `=B6*(1+C7)` : `=${colLetter(c - 1)}6*(1+${colLetter(c)}7)` };
+                if (index === 1) cell.value = inputGrowth;
+                if (index === 2) cell.value = baseMargin;
+                if (index === 3) cell.value = baseCapexRatio;
+                cell.numFmt = format;
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INPUT_YLW } };
+                applyBorders(cell);
+            }
+        });
+        sheet.mergeCells('A12:G12');
+        sheet.getCell('A12').value = 'Next phase: sector templates replace these generic drivers with segment revenue, volume, pricing, capacity, working-capital, debt and share-count schedules.';
+        sheet.getCell('A12').font = { italic: true, color: { argb: '64748B' }, size: 9 };
+        sheet.getColumn(1).width = 30;
+        for (let c = 2; c <= 7; c++) sheet.getColumn(c).width = 16;
+    }
+
+    private createModelAuditSheet(sheet: ExcelJS.Worksheet, valuationResults: Record<string, unknown>, symbol: string) {
+        sheet.mergeCells('A1:C1');
+        const title = sheet.getCell('A1');
+        title.value = `MODEL POLICY & AUDIT TRAIL — ${symbol}`;
+        title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+        title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
+        title.alignment = { horizontal: 'center' };
+        const inputs = (valuationResults.inputs ?? {}) as Record<string, unknown>;
+        const policy = (inputs.valuation_policy ?? {}) as Record<string, unknown>;
+        const exportData = (valuationResults.export ?? {}) as Record<string, unknown>;
+        const comparables = (exportData.comparables ?? {}) as Record<string, unknown>;
+        sectionHeader(sheet, 4, '  VALUATION POLICY', 3);
+        const rows: Array<[string, unknown, string]> = [
+            ['Policy version', policy.version, 'Valuation-engine rules'],
+            ['ICB archetype', policy.archetype, 'Determines primary valuation methods'],
+            ['ICB-relative size bucket', policy.icb_size_bucket, 'Relative standing inside the ICB cohort'],
+            ['Market-cap tier', policy.market_cap_tier, 'Market-wide context only; not used as a hard peer filter'],
+            ['ICB rank', policy.icb_rank, 'Ranked by market cap inside ICB cohort'],
+            ['ICB market-cap percentile', policy.icb_market_cap_percentile, 'Leadership is a peer-selection signal, not an automatic premium'],
+            ['Peer cohort used', comparables.peer_cohort_used, 'Same ICB, using a relative market-cap range when sample is viable'],
+            ['Comparable source', comparables.source, 'Source of P/E and P/B'],
+            ['Cash-flow source', ((exportData.inputs_sources ?? {}) as Record<string, unknown>).cashflow_components, 'Base DCF input'],
+            ['Balance-sheet source', ((exportData.inputs_sources ?? {}) as Record<string, unknown>).balance_sheet_components, 'Net debt / cash bridge'],
+        ];
+        rows.forEach(([label, value, note], i) => {
+            const r = 5 + i;
+            sheet.getCell(r, 1).value = label;
+            sheet.getCell(r, 2).value = value as ExcelJS.CellValue;
+            sheet.getCell(r, 3).value = note;
+            applyBorders(sheet.getCell(r, 1)); applyBorders(sheet.getCell(r, 2)); applyBorders(sheet.getCell(r, 3));
+        });
+        sectionHeader(sheet, 16, '  MODEL WEIGHTS', 3);
+        const weights = (inputs.model_weights ?? {}) as Record<string, unknown>;
+        Object.entries(weights).forEach(([model, weight], i) => {
+            sheet.getCell(17 + i, 1).value = model;
+            sheet.getCell(17 + i, 2).value = Number(weight) / 100;
+            sheet.getCell(17 + i, 2).numFmt = '0.0%';
+            sheet.getCell(17 + i, 3).value = 'Policy weight; can be overridden by the user';
+        });
+        sheet.getColumn(1).width = 32; sheet.getColumn(2).width = 26; sheet.getColumn(3).width = 55;
+    }
+
     private createSummarySheet(
         sheet: ExcelJS.Worksheet,
         stockData: Record<string, unknown>,
@@ -1711,9 +1847,8 @@ export class ReportGenerator {
 
     /**
      * Mirrors row counters in buildDCFSheet to find intrinsicRow without writing cells.
-     * FCFE and FCFF have different number of component rows (5 vs 5, same), result = 42.
+     * FCFF has two extra EV-to-equity bridge rows.
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private computeDCFIntrinsicRow(_type: 'FCFE' | 'FCFF'): number {
         let r = 5;
         r += 1;           // component header
@@ -1728,7 +1863,7 @@ export class ReportGenerator {
         r += 2;           // growthTermRow + blank → step3 sectionHeader
         r += 1;           // after sectionHeader
         r += 1;           // projection header row
-        r += PROJ_YEARS;  // 10 projection rows
+        r += PROJ_YEARS;
         r += 1;           // blank before step4
         r += 1;           // after step4 sectionHeader
         r += 1;           // tvRow
@@ -1738,8 +1873,8 @@ export class ReportGenerator {
         r += 1;           // sumPVRow
         r += 1;           // pvTvRefRow
         r += 1;           // divider
-        // intrinsicRow = r
-        return r;         // 42
+        // intrinsicRow = r; FCFF then adds net debt and equity-value rows.
+        return _type === 'FCFF' ? r + 2 : r;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

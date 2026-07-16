@@ -420,12 +420,63 @@ def load_ttm_financial_components(symbol: str) -> dict:
         return load_latest_financial_components(symbol)
 
 
+def load_latest_balance_sheet_components(symbol: str) -> dict:
+    """Load the latest reported cash and interest-bearing debt for an EV bridge.
+
+    A DCF based on FCFF produces enterprise value, so the valuation service must
+    deduct net debt before presenting a value per share.  This deliberately uses
+    the latest balance-sheet snapshot rather than summing balance-sheet rows.
+    """
+    symbol = symbol.upper()
+    db_path = _get_db_path()
+    if not db_path:
+        return {'cash': 0.0, 'short_term_debt': 0.0, 'long_term_debt': 0.0,
+                'total_debt': 0.0, 'net_debt': 0.0, 'source': 'missing'}
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """
+            SELECT year_report, quarter_report, bsa2, bsa5, bsa56, bsa71
+            FROM balance_sheet
+            WHERE ticker = ?
+            ORDER BY year_report DESC, quarter_report DESC
+            LIMIT 1
+            """,
+            (symbol,),
+        ).fetchone()
+        conn.close()
+        if not row:
+            return {'cash': 0.0, 'short_term_debt': 0.0, 'long_term_debt': 0.0,
+                    'total_debt': 0.0, 'net_debt': 0.0, 'source': 'missing'}
+        cash = max(0.0, float(row['bsa2'] or 0.0)) + max(0.0, float(row['bsa5'] or 0.0))
+        short_term_debt = max(0.0, float(row['bsa56'] or 0.0))
+        long_term_debt = max(0.0, float(row['bsa71'] or 0.0))
+        total_debt = short_term_debt + long_term_debt
+        return {
+            'cash': cash,
+            'short_term_debt': short_term_debt,
+            'long_term_debt': long_term_debt,
+            'total_debt': total_debt,
+            'net_debt': total_debt - cash,
+            'period_year': row['year_report'],
+            'period_quarter': row['quarter_report'],
+            'source': 'vci_fs.balance_sheet (latest reported period)',
+        }
+    except Exception as exc:
+        logger.debug("Latest balance-sheet components failed for %s: %s", symbol, exc)
+        return {'cash': 0.0, 'short_term_debt': 0.0, 'long_term_debt': 0.0,
+                'total_debt': 0.0, 'net_debt': 0.0, 'source': 'missing'}
+
+
 def load_eps_cagr(symbol: str, years: int = 5) -> dict:
     """EPS growth CAGR from annual history.
 
     Returns {'cagr': float|None, 'n_years': int, 'eps_start': float, 'eps_end': float}
     """
-    history = load_eps_history_yearly(symbol, limit=years + 2)
+    # `years` is the intended CAGR span; request exactly years + one annual
+    # observations rather than silently extending the window.
+    history = load_eps_history_yearly(symbol, limit=years + 1)
     if len(history) < 2:
         return {'cagr': None, 'n_years': 0, 'eps_start': None, 'eps_end': None, 'years_used': []}
     eps_start = history[0]['eps']

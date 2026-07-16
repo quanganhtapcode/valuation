@@ -348,16 +348,22 @@ def upsert(conn: sqlite3.Connection, header: dict, year_rows: list[dict]) -> Non
 # ── Main ──────────────────────────────────────────────────────────────────
 
 def get_tickers(override: list[str] | None) -> list[str]:
+    """Return the full listed universe available in VCI screening.
+
+    Forecast data is useful beyond HSX/HNX: UPCoM valuation also needs the
+    same analyst EPS, ROE and forward-multiple inputs.  Keep a supplied
+    ticker override exact, otherwise include every non-empty screening ticker.
+    """
     scr_path = resolve_vci_screening_db_path()
     conn = sqlite3.connect(f"file:{scr_path}?mode=ro", uri=True)
     if override:
         rows = conn.execute(
-            f"SELECT ticker FROM screening_data WHERE ticker IN ({','.join('?'*len(override))}) AND exchange IN ('HSX','HNX')",
+            f"SELECT ticker FROM screening_data WHERE ticker IN ({','.join('?'*len(override))})",
             override,
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT ticker FROM screening_data WHERE exchange IN ('HSX','HNX') ORDER BY ticker"
+            "SELECT ticker FROM screening_data WHERE ticker IS NOT NULL AND TRIM(ticker) != '' ORDER BY ticker"
         ).fetchall()
     conn.close()
     return [r[0] for r in rows]

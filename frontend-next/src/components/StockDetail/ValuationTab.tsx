@@ -50,12 +50,12 @@ type ModelKey = 'fcfe' | 'fcff' | 'justified_pe' | 'justified_pb' | 'graham';
 const MODEL_META: Record<ModelKey, { nameVi: string; formula: string; tremorColor: 'blue' | 'indigo' | 'violet' | 'purple' | 'emerald' }> = {
     fcfe: {
         nameVi: 'Dòng tiền vốn chủ',
-        formula: 'NI + D&A + Net Borrowing − ΔWC − CapEx',
+        formula: 'CFO − CapEx + Net Borrowing',
         tremorColor: 'blue',
     },
     fcff: {
         nameVi: 'Dòng tiền toàn DN',
-        formula: 'NI + D&A + Interest×(1−t) − ΔWC − CapEx',
+        formula: 'CFO − CapEx + Interest×(1−t), then EV − Net Debt',
         tremorColor: 'indigo',
     },
     justified_pe: {
@@ -171,12 +171,13 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     const [result, setResult] = useState<ValuationResult | null>(initialData || null);
     const [manualPrice, setManualPrice] = useState<number>(currentPrice || 0);
     const [userEditedPrice, setUserEditedPrice] = useState<boolean>(false);
+    const [userCustomizedModels, setUserCustomizedModels] = useState(false);
 
     const defaultAssumptions = {
-        revenueGrowth: 8,
+        revenueGrowth: 0,
         terminalGrowth: 3,
         wacc: 0,
-        requiredReturn: 12,
+        requiredReturn: 0,
         taxRate: 20,
         projectionYears: 5,
     };
@@ -193,14 +194,15 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
 
     const [models, setModels] = useState(initModels);
 
-    const normalizeEnabledModelWeights = useCallback((prevModels: typeof models, valuations?: ValuationResult['valuations']) => {
+    const normalizeEnabledModelWeights = useCallback((prevModels: typeof models, valuations?: ValuationResult['valuations'], policyWeights?: Record<string, unknown>) => {
         const modelKeys = Object.keys(prevModels) as Array<keyof typeof prevModels>;
         const nextModels = { ...prevModels };
 
         modelKeys.forEach((key) => {
             const current = prevModels[key];
             const valuationValue = Number(valuations?.[key] ?? 0);
-            if (valuationValue <= 0) {
+            const policyExcludesModel = policyWeights !== undefined && Number(policyWeights[key] || 0) <= 0;
+            if (valuationValue <= 0 || policyExcludesModel) {
                 nextModels[key] = { ...current, enabled: false, weight: 0 };
             } else {
                 nextModels[key] = { ...current };
@@ -208,11 +210,16 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         });
 
         const enabledKeys = modelKeys.filter((key) => nextModels[key].enabled);
+        const policyTotal = enabledKeys.reduce((sum, key) => sum + Number(policyWeights?.[key] || 0), 0);
         const equalWeight = enabledKeys.length > 0 ? 100 / enabledKeys.length : 0;
 
         modelKeys.forEach((key) => {
             const m = nextModels[key];
-            nextModels[key] = { ...m, weight: m.enabled ? equalWeight : 0 };
+            const policyWeight = Number(policyWeights?.[key] || 0);
+            nextModels[key] = {
+                ...m,
+                weight: m.enabled ? (policyTotal > 0 ? (policyWeight * 100 / policyTotal) : equalWeight) : 0,
+            };
         });
 
         return nextModels;
@@ -237,6 +244,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     };
 
     const toggleModel = (key: string) => {
+        setUserCustomizedModels(true);
         setModels(prev => {
             const targetModel = prev[key as keyof typeof models];
             const newModels = {
@@ -280,7 +288,13 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             }
 
             const generator = new ReportGenerator();
-            await generator.exportReport(stockData || result.metrics || result, result, assumptions, getModelWeights(), symbol);
+            await generator.exportReport(
+                (stockData || result.metrics || result) as unknown as Record<string, unknown>,
+                result as unknown as Record<string, unknown>,
+                assumptions,
+                getModelWeights(),
+                symbol,
+            );
         } catch (error) {
             console.error('Export error:', error);
             alert('Lỗi xuất báo cáo: ' + (error as any).message);
@@ -294,7 +308,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         try {
             const data = await calculateValuation(symbol, {
                 ...assumptions,
-                modelWeights: getModelWeights(),
+                ...(userCustomizedModels ? { modelWeights: getModelWeights(), useCustomWeights: true } : {}),
                 currentPrice: manualPrice,
                 includeComparableLists: true,
                 comparableListLimit: 30,
@@ -302,11 +316,18 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             });
             if (data && data.success) {
                 setResult(data);
-                setModels(prev => normalizeEnabledModelWeights(prev, data.valuations));
+                setModels(prev => normalizeEnabledModelWeights(
+                    prev,
+                    data.valuations,
+                    data.inputs?.model_weights as Record<string, unknown> | undefined,
+                ));
                 setAssumptions(prev => ({
                     ...prev,
                     wacc: prev.wacc === 0 && data.inputs?.wacc_used ? data.inputs.wacc_used : prev.wacc,
-                    revenueGrowth: prev.revenueGrowth === 8 && data.inputs?.growth_used ? data.inputs.growth_used : prev.revenueGrowth,
+                    requiredReturn: prev.requiredReturn === 0 && data.wacc_suggestion?.ke
+                        ? data.wacc_suggestion.ke * 100
+                        : prev.requiredReturn,
+                    revenueGrowth: prev.revenueGrowth === 0 && data.inputs?.growth_used ? data.inputs.growth_used : prev.revenueGrowth,
                 }));
             }
         } catch (error) {
@@ -386,10 +407,20 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         setAssumptions(defaultAssumptions);
         setManualPrice(Math.round(currentPrice * 100) / 100 || 0);
         setUserEditedPrice(false);
+        setUserCustomizedModels(false);
         setModels(initModels());
     };
 
     const sensitivity = (result as any)?.sensitivity_analysis as { row_headers: number[]; col_headers: number[]; values: number[][] } | undefined;
+    const valuationPolicy = result?.inputs?.valuation_policy as {
+        archetype?: string;
+        market_cap_tier?: string;
+        icb_size_bucket?: string;
+        is_icb_leader?: boolean;
+        icb_rank?: number | null;
+        icb_cohort_count?: number;
+    } | undefined;
+    const newsOverlay = result?.news_overlay;
 
     return (
         <div className="space-y-6 pb-8">
@@ -409,7 +440,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                         loading={exportLoading}
                         className="flex-1 sm:flex-none"
                     >
-                        Full Report
+                        Excel Model
                     </Button>
                     <Button onClick={handleCalculate} loading={loading} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 border-none text-white font-semibold">
                         Analyze
@@ -607,6 +638,37 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     </div>
                 </Col>
             </Grid>
+
+            {valuationPolicy && (
+                <Callout title="Valuation Policy" color="blue" className="text-sm">
+                    ICB archetype: <strong>{valuationPolicy.archetype || 'general'}</strong>
+                    {' · '}ICB-relative size: <strong>{valuationPolicy.icb_size_bucket || 'unknown'}</strong>
+                    {valuationPolicy.icb_rank && valuationPolicy.icb_cohort_count
+                        ? <> · ICB market-cap rank: <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong></>
+                        : null}
+                    {valuationPolicy.is_icb_leader ? ' · Leader status refines peer selection; it does not add an automatic valuation premium.' : ''}
+                </Callout>
+            )}
+
+            {newsOverlay?.available && (
+                <Callout
+                    title="News catalyst / risk overlay"
+                    color={newsOverlay.direction === 'positive' ? 'emerald' : newsOverlay.direction === 'negative' ? 'rose' : 'blue'}
+                    className="text-sm"
+                >
+                    VCI news score: <strong>{newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10</strong>
+                    {' · '}<strong>{newsOverlay.article_count}</strong> tin trong 21 ngày
+                    {newsOverlay.applicable ? (
+                        <>
+                            {' · '}context overlay <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>
+                            {newsOverlay.context_target ? <> · context price <strong>{fmt(newsOverlay.context_target)}</strong></> : null}
+                        </>
+                    ) : (
+                        <> · Chưa đủ coverage để điều chỉnh giá</>
+                    )}
+                    <span className="block mt-1 text-xs opacity-80">Overlay bị giới hạn ±3%; intrinsic value phía trên vẫn chỉ dựa trên DCF, forecast và peer valuation.</span>
+                </Callout>
+            )}
 
             {result?.valuations && (
                 <Card>
