@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from .deps import cache_func
 from .paths import company_db_path, financials_db_path, screener_db_path
@@ -162,7 +162,98 @@ def compute_earnings_season() -> dict[str, Any]:
         fin_conn.close()
 
 
+def compute_earnings_releases(year: int | None = None, quarter: int | None = None) -> dict[str, Any]:
+    """Return companies that have published an income statement for a quarter.
+
+    `public_date` comes from Vietcap's statement metadata, so it is the
+    disclosure date rather than the time our importer happened to run.
+    """
+    fin_conn = sqlite3.connect(f"file:{financials_db_path()}?mode=ro", uri=True)
+    fin_conn.row_factory = sqlite3.Row
+    try:
+        if year is None or quarter is None:
+            latest = fin_conn.execute(
+                """
+                SELECT year_report, quarter_report
+                FROM statement_periods
+                WHERE section = 'INCOME_STATEMENT'
+                  AND period_kind = 'QUARTER'
+                  AND quarter_report BETWEEN 1 AND 4
+                GROUP BY year_report, quarter_report
+                ORDER BY year_report DESC, quarter_report DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            if latest is None:
+                return {"quarter": None, "releases": [], "updated_at": datetime.now(timezone.utc).isoformat()}
+            year, quarter = int(latest["year_report"]), int(latest["quarter_report"])
+
+        names = _load_company_names(company_db_path())
+        rows = fin_conn.execute(
+            """
+            SELECT p.ticker, p.public_date,
+                   cur.isa1 AS revenue, prev.isa1 AS revenue_previous,
+                   cur.isa22 AS net_income, prev.isa22 AS net_income_previous
+            FROM statement_periods p
+            JOIN income_statement cur
+              ON cur.ticker = p.ticker
+             AND cur.period_kind = p.period_kind
+             AND cur.year_report = p.year_report
+             AND cur.quarter_report = p.quarter_report
+            LEFT JOIN income_statement prev
+              ON prev.ticker = p.ticker
+             AND prev.period_kind = 'QUARTER'
+             AND prev.year_report = ? - 1
+             AND prev.quarter_report = ?
+            WHERE p.section = 'INCOME_STATEMENT'
+              AND p.period_kind = 'QUARTER'
+              AND p.year_report = ?
+              AND p.quarter_report = ?
+            ORDER BY p.public_date DESC, p.ticker
+            """,
+            (year, quarter, year, quarter),
+        ).fetchall()
+
+        def growth(current: Any, previous: Any) -> float | None:
+            if current is None or previous is None or previous == 0:
+                return None
+            return round((float(current) - float(previous)) / abs(float(previous)) * 100, 1)
+
+        return {
+            "quarter": f"Q{quarter}.{year}",
+            "year": year,
+            "q": quarter,
+            "releases": [
+                {
+                    "ticker": row["ticker"],
+                    "name": names.get(row["ticker"], row["ticker"]),
+                    "public_date": row["public_date"],
+                    "revenue": row["revenue"],
+                    "revenue_yoy": growth(row["revenue"], row["revenue_previous"]),
+                    "net_income": row["net_income"],
+                    "net_income_yoy": growth(row["net_income"], row["net_income_previous"]),
+                }
+                for row in rows
+            ],
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+    finally:
+        fin_conn.close()
+
+
 def register(market_bp: Blueprint) -> None:
+    @market_bp.route("/earnings-releases")
+    def api_earnings_releases():
+        try:
+            year = request.args.get("year", type=int)
+            quarter = request.args.get("quarter", type=int)
+            if (year is None) != (quarter is None) or (quarter is not None and quarter not in (1, 2, 3, 4)):
+                return jsonify({"error": "Provide both year and quarter (1-4), or neither."}), 400
+            return jsonify(compute_earnings_releases(year, quarter))
+        except Exception as e:
+            logger.error("Earnings releases error: %s", e)
+            return jsonify({"error": str(e)}), 500
+
     @market_bp.route("/earnings-season")
     def api_earnings_season():
         cache_key = "earnings_season_v1"
