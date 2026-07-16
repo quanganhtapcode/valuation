@@ -33,6 +33,7 @@ interface WatchItem {
 interface TickerEntry {
     symbol: string;
     name: string;
+    en_name?: string;
     exchange: string;
 }
 
@@ -72,9 +73,13 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
         const td = await getTickerData();
         return symbols.map(sym => {
             const t = td?.tickers?.find((t: TickerEntry) => t.symbol.toUpperCase() === sym);
-            return { symbol: sym, name: t?.name || sym, exchange: t?.exchange || '' };
+            return {
+                symbol: sym,
+                name: (lang === 'en' ? t?.en_name : t?.name) || t?.name || sym,
+                exchange: t?.exchange || '',
+            };
         });
-    }, []);
+    }, [lang]);
 
     useEffect(() => {
         if (!modalOpen) return;
@@ -140,7 +145,11 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
 
     const q = searchQuery.trim().toUpperCase();
     const searchResults = q.length >= 1
-        ? allTickers.filter(t => t.symbol.toUpperCase().includes(q) || t.name.toUpperCase().includes(q)).slice(0, 8)
+        ? allTickers.filter(t =>
+            t.symbol.toUpperCase().includes(q)
+            || t.name.toUpperCase().includes(q)
+            || (t.en_name || '').toUpperCase().includes(q),
+        ).slice(0, 8)
         : [];
 
     const closeModal = () => { setModalOpen(false); setSearchQuery(''); };
@@ -235,7 +244,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                                 <StockLogo symbol={sym} />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{sym}</div>
-                                                    <div className="text-xs text-tremor-content dark:text-dark-tremor-content truncate">{t.name}</div>
+                                                    <div className="text-xs text-tremor-content dark:text-dark-tremor-content truncate">{(lang === 'en' ? t.en_name : t.name) || t.name}</div>
                                                 </div>
                                                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${inList ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-tremor-background-muted dark:bg-dark-tremor-background-muted text-tremor-content dark:text-dark-tremor-content'}`}>
                                                     {inList ? t.added : t.add}
