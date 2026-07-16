@@ -421,6 +421,19 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         icb_cohort_count?: number;
     } | undefined;
     const newsOverlay = result?.news_overlay;
+    const businessTypeLabel: Record<string, string> = {
+        technology: 'Công nghệ', bank: 'Ngân hàng', securities: 'Chứng khoán',
+        real_estate: 'Bất động sản', utility: 'Tiện ích', cyclical: 'Ngành chu kỳ', general: 'Doanh nghiệp phổ thông',
+    };
+    const businessType = businessTypeLabel[valuationPolicy?.archetype || 'general'] || 'Doanh nghiệp phổ thông';
+    const industryPosition = valuationPolicy?.is_icb_leader
+        ? 'nhóm doanh nghiệp lớn nhất ngành'
+        : 'nhóm doanh nghiệp cùng ngành';
+    const newsTone = newsOverlay?.direction === 'positive'
+        ? 'Tích cực'
+        : newsOverlay?.direction === 'negative'
+            ? 'Hơi tiêu cực'
+            : 'Trung tính';
 
     return (
         <div className="space-y-6 pb-8">
@@ -640,33 +653,31 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             </Grid>
 
             {valuationPolicy && (
-                <Callout title="Valuation Policy" color="blue" className="text-sm">
-                    ICB archetype: <strong>{valuationPolicy.archetype || 'general'}</strong>
-                    {' · '}ICB-relative size: <strong>{valuationPolicy.icb_size_bucket || 'unknown'}</strong>
+                <Callout title="Cách hệ thống định giá" color="blue" className="text-sm">
+                    FPT được xếp vào nhóm <strong>{businessType}</strong> và thuộc <strong>{industryPosition}</strong>
                     {valuationPolicy.icb_rank && valuationPolicy.icb_cohort_count
-                        ? <> · ICB market-cap rank: <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong></>
+                        ? <> (quy mô <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong> trong ngành)</>
                         : null}
-                    {valuationPolicy.is_icb_leader ? ' · Leader status refines peer selection; it does not add an automatic valuation premium.' : ''}
+                    <span className="block mt-1 text-xs opacity-80">Thông tin này giúp chọn mô hình và doanh nghiệp so sánh phù hợp; quy mô lớn không tự động làm giá mục tiêu cao hơn.</span>
                 </Callout>
             )}
 
             {newsOverlay?.available && (
                 <Callout
-                    title="News catalyst / risk overlay"
+                    title="Tác động từ tin tức gần đây"
                     color={newsOverlay.direction === 'positive' ? 'emerald' : newsOverlay.direction === 'negative' ? 'rose' : 'blue'}
                     className="text-sm"
                 >
-                    VCI news score: <strong>{newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10</strong>
-                    {' · '}<strong>{newsOverlay.article_count}</strong> tin trong 21 ngày
+                    Tín hiệu tin tức: <strong>{newsTone}</strong> ({newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10), dựa trên <strong>{newsOverlay.article_count}</strong> tin trong 21 ngày.
                     {newsOverlay.applicable ? (
                         <>
-                            {' · '}context overlay <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>
-                            {newsOverlay.context_target ? <> · context price <strong>{fmt(newsOverlay.context_target)}</strong></> : null}
+                            {' '}Nếu phản ánh nhẹ tâm lý này, mức giá tham khảo thay đổi <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>
+                            {newsOverlay.context_target ? <> thành <strong>{fmt(newsOverlay.context_target)}</strong>.</> : null}
                         </>
                     ) : (
-                        <> · Chưa đủ coverage để điều chỉnh giá</>
+                        <> Chưa đủ tin để đưa vào mức giá tham khảo.</>
                     )}
-                    <span className="block mt-1 text-xs opacity-80">Overlay bị giới hạn ±3%; intrinsic value phía trên vẫn chỉ dựa trên DCF, forecast và peer valuation.</span>
+                    <span className="block mt-1 text-xs opacity-80">Tin tức chỉ là tín hiệu ngắn hạn; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.</span>
                 </Callout>
             )}
 
