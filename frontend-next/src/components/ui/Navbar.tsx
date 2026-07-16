@@ -13,10 +13,10 @@ import {
     RiFilterLine,
     RiGlobalLine,
     RiLineChartLine,
-    RiMenuLine,
     RiMore2Line,
     RiPieChartLine,
     RiSearchLine,
+    RiSideBarLine,
 } from "@remixicon/react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
@@ -47,6 +47,7 @@ const HEADER_ROW_H = 56;
 const NAV_MARGIN_H = 48;  // my-6 top + bottom
 const GROUP_BTN_H = 48;
 const SUB_ITEM_H = 44;
+const MOBILE_SETTINGS_H = 92;
 
 export function Navbar() {
     const { lang } = useLanguage()
@@ -102,7 +103,7 @@ export function Navbar() {
         NAV_GROUPS.forEach(g => {
             if (mobileExpanded === g.id) h += g.items.length * SUB_ITEM_H + 4;
         });
-        return h + 8; // small buffer
+        return h + MOBILE_SETTINGS_H + 8; // controls + small buffer
     }, [mobileExpanded, NAV_GROUPS]);
 
     // Close everything on navigation
@@ -444,23 +445,29 @@ export function Navbar() {
                         </div>
                     </div>
 
-                    {/* Mobile: Search + Hamburger */}
+                    {/* Mobile: Search + navigation panel */}
                     <div className="flex gap-x-2 md:hidden">
-                        <Button onClick={toggleSearch} variant="ghost" className="aspect-square p-2">
-                            <RiSearchLine className="size-5" />
+                        <Button
+                            onClick={toggleSearch}
+                            variant="ghost"
+                            className="aspect-square p-2 text-gray-700 dark:text-gray-200"
+                            aria-label="Search stocks"
+                        >
+                            <RiSearchLine className="size-6" />
                         </Button>
                         <Button
                             onClick={() => { setOpen(!open); if (!open) { setSearchOpen(false); setMobileExpanded(null); } }}
-                            variant="light"
-                            className="aspect-square p-2"
+                            variant="ghost"
+                            className="aspect-square p-2 text-gray-700 dark:text-gray-200"
+                            aria-label={open ? "Close navigation" : "Open navigation and settings"}
                         >
-                            {open ? <RiCloseLine aria-hidden="true" className="size-5" /> : <RiMenuLine aria-hidden="true" className="size-5" />}
+                            {open ? <RiCloseLine aria-hidden="true" className="size-6" /> : <RiSideBarLine aria-hidden="true" className="size-6" />}
                         </Button>
                     </div>
                 </div>
 
                 {/* Mobile Menu */}
-                <nav className={cx("my-6 flex ease-in-out will-change-transform md:hidden", open ? "" : "hidden")}>
+                <nav className={cx("my-6 flex flex-col ease-in-out will-change-transform md:hidden", open ? "" : "hidden")}>
                     <ul className="w-full space-y-1 font-medium">
                         {NAV_GROUPS.map((group) => (
                             <li key={group.id}>
@@ -498,6 +505,20 @@ export function Navbar() {
                             </li>
                         ))}
                     </ul>
+                    <div className="mt-4 flex items-center justify-between border-t border-gray-100 px-3 pt-4 dark:border-gray-800">
+                        <div>
+                            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Language</p>
+                            <p className="mt-0.5 text-[11px] text-gray-400">Ngôn ngữ</p>
+                        </div>
+                        <LanguageSwitch />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between px-3">
+                        <div>
+                            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Appearance</p>
+                            <p className="mt-0.5 text-[11px] text-gray-400">Giao diện</p>
+                        </div>
+                        <ThemeSwitch />
+                    </div>
                 </nav>
 
                 {/* Mobile Search Overlay */}
