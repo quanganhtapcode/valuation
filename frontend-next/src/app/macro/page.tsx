@@ -67,6 +67,28 @@ function LazySection({ children, className }: { children: React.ReactNode; class
 // in-memory request per symbol/range prevents duplicate API calls on first load.
 const historyRequestCache = new Map<string, Promise<PricePoint[]>>();
 
+const MACRO_LABELS_EN: Record<string, string> = {
+    'ECONOMICS:VNINBR': 'Overnight interbank rate', 'ECONOMICS:VNINTR': 'Policy interest rate', 'ECONOMICS:VNDIR': 'Deposit interest rate',
+    'ECONOMICS:VNGDPYY': 'GDP growth (YoY)', 'ECONOMICS:VNGDPCP': 'Real GDP (quarterly)', 'ECONOMICS:VNGDPS': 'GDP – services',
+    'ECONOMICS:VNGDPMAN': 'GDP – industry', 'ECONOMICS:VNGDPA': 'GDP – agriculture', 'ECONOMICS:VNGDPPC': 'GDP per capita',
+    'ECONOMICS:VNGNP': 'GNP', 'ECONOMICS:VNGFCF': 'Fixed asset investment', 'ECONOMICS:VNIRYY': 'Inflation (YoY)',
+    'ECONOMICS:VNCPI': 'Consumer price index (CPI)', 'ECONOMICS:VNFI': 'Food inflation', 'ECONOMICS:VNCIR': 'Core inflation',
+    'ECONOMICS:VNGASP': 'Fuel price', 'ECONOMICS:VNFER': 'Foreign exchange reserves', 'ECONOMICS:VNM2': 'Money supply M2',
+    'ECONOMICS:VNEXP': 'Exports', 'ECONOMICS:VNIMP': 'Imports', 'ECONOMICS:VNBOT': 'Trade balance',
+    'ECONOMICS:VNFDI': 'Foreign direct investment (FDI)', 'ECONOMICS:VNUR': 'Unemployment rate', 'ECONOMICS:VNWAG': 'Average wage',
+    'ECONOMICS:VNMW': 'Minimum wage', 'ECONOMICS:VNPOP': 'Population', 'ECONOMICS:VNIPYY': 'Industrial production (YoY)',
+    'ECONOMICS:VNRSYY': 'Retail sales (YoY)',
+};
+
+function macroLabel(symbol: string, vietnamese: string, lang: 'vi' | 'en') {
+    return lang === 'en' ? (MACRO_LABELS_EN[symbol] ?? vietnamese) : vietnamese;
+}
+
+function macroUnit(unit: string, lang: 'vi' | 'en') {
+    if (lang === 'vi') return unit;
+    return unit.replaceAll('nghìn tỷ', 'trillion').replaceAll('tỷ', 'bil').replaceAll('triệu', 'million').replaceAll('người', 'people').replaceAll('năm', 'year').replaceAll('tháng', 'month').replaceAll('₫', 'VND');
+}
+
 function loadMacroHistory(symbol: string, days: number): Promise<PricePoint[]> {
     const cacheKey = `${symbol}:${days}`;
     const cached = historyRequestCache.get(cacheKey);
@@ -508,6 +530,7 @@ function DetailChartCard({
 }
 
 function TVStatCard({ sym, selected, onClick }: { sym: string; selected: boolean; onClick: () => void }) {
+    const { lang } = useLanguage();
     const cfg = TV_CONFIGS[sym];
     const [points, setPoints] = useState<PricePoint[] | null>(null);
 
@@ -524,9 +547,9 @@ function TVStatCard({ sym, selected, onClick }: { sym: string; selected: boolean
 
     return (
         <CompactStatCard
-            title={cfg.titleVN}
+            title={macroLabel(sym, cfg.titleVN, lang)}
             source={summary.sourceLabel}
-            unit={cfg.unitLabel}
+            unit={macroUnit(cfg.unitLabel, lang)}
             valueText={summary.latest !== null ? cfg.fmt(summary.latest) : 'N/A'}
             updatedAt={summary.updatedAt ?? 'N/A'}
             comparisonText={summary.comparisonText}
@@ -538,6 +561,7 @@ function TVStatCard({ sym, selected, onClick }: { sym: string; selected: boolean
 }
 
 function TVDetailPanel({ sym }: { sym: string }) {
+    const { lang } = useLanguage();
     const cfg = TV_CONFIGS[sym];
     const [points, setPoints] = useState<PricePoint[] | null>(null);
 
@@ -558,20 +582,20 @@ function TVDetailPanel({ sym }: { sym: string }) {
         if (cfg.freq === 'annual') label = y;
         else if (cfg.freq === 'daily') label = `${d}/${m}`;
         else label = `${m}/${y.slice(2)}`;
-        return { 'Kỳ': label, [cfg.titleVN]: p.close };
+        return { 'Kỳ': label, [macroLabel(sym, cfg.titleVN, lang)]: p.close };
     });
 
     return (
         <DetailChartCard
-            title={cfg.titleVN}
+            title={macroLabel(sym, cfg.titleVN, lang)}
             subtitle={cfg.source}
             latestText={summary.latest !== null ? cfg.fmt(summary.latest) : 'N/A'}
             updatedAt={summary.updatedAt ?? 'N/A'}
             comparisonText={summary.comparisonText}
             color={cfg.color}
-            unit={cfg.unitLabel}
+            unit={macroUnit(cfg.unitLabel, lang)}
             chartData={chartData}
-            chartKey={cfg.titleVN}
+            chartKey={macroLabel(sym, cfg.titleVN, lang)}
             valueFormatter={cfg.fmt}
             barChart={cfg.barChart}
         />
@@ -666,6 +690,13 @@ function GDPCompositionChart() {
 
     if (loading) return <SkeletonChart />;
     if (!chartData.length) return null;
+    const gdpCategories = lang === 'vi' ? ['Dịch vụ', 'Công nghiệp', 'Nông nghiệp'] : ['Services', 'Industry', 'Agriculture'];
+    const displayedChartData = lang === 'vi' ? chartData : chartData.map((row) => ({
+        Kỳ: row['Kỳ'],
+        Services: row['Dịch vụ'],
+        Industry: row['Công nghiệp'],
+        Agriculture: row['Nông nghiệp'],
+    }));
 
     return (
         <Panel className="p-5">
@@ -678,11 +709,11 @@ function GDPCompositionChart() {
                 </p>
             </div>
             <BarChart
-                data={chartData}
+                data={displayedChartData}
                 index="Kỳ"
-                categories={['Dịch vụ', 'Công nghiệp', 'Nông nghiệp']}
+                categories={gdpCategories}
                 colors={['cyan', 'orange', 'lime']}
-                valueFormatter={(v) => `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} nghìn tỷ`}
+                valueFormatter={(v) => `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${lang === 'vi' ? 'nghìn tỷ' : 'trillion VND'}`}
                 stack={true}
                 yAxisWidth={72}
                 showLegend={true}

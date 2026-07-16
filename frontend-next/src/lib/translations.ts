@@ -275,7 +275,7 @@ export const translations = {
                 ratios: "Ratios",
             },
             units: {
-                billions: "Billion VND",
+                billions: "bil VND",
                 trillions: "Trillion VND",
             },
             sections: {

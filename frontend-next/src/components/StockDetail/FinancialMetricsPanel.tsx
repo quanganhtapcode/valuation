@@ -34,7 +34,7 @@ function formatRatio(value?: number, suffix = ''): string {
 function formatCompact(value: number | undefined, lang: 'vi' | 'en'): string {
     if (!value) return '—';
     if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)} ${lang === 'vi' ? 'nghìn tỷ VND' : 'trillion VND'}`;
-    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} ${lang === 'vi' ? 'tỷ VND' : 'billion VND'}`;
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} ${lang === 'vi' ? 'tỷ VND' : 'bil VND'}`;
     return value.toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-US', { maximumFractionDigits: 0 });
 }
 
