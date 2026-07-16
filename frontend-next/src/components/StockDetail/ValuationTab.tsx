@@ -435,11 +435,16 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     const industryPosition = valuationPolicy?.is_icb_leader
         ? (isVietnamese ? 'nhóm doanh nghiệp lớn nhất ngành' : 'the largest companies in its industry')
         : (isVietnamese ? 'nhóm doanh nghiệp cùng ngành' : 'its industry peer group');
-    const newsTone = newsOverlay?.direction === 'positive'
+    const newsScore = Number(newsOverlay?.weighted_score ?? 5);
+    const newsTone = newsScore >= 7.5
         ? (isVietnamese ? 'Tích cực' : 'Positive')
-        : newsOverlay?.direction === 'negative'
-            ? (isVietnamese ? 'Hơi tiêu cực' : 'Slightly negative')
-            : (isVietnamese ? 'Trung tính' : 'Neutral');
+        : newsScore >= 5.5
+            ? (isVietnamese ? 'Hơi tích cực' : 'Slightly positive')
+            : newsScore > 4.5
+                ? (isVietnamese ? 'Trung tính' : 'Neutral')
+                : newsScore > 2.5
+                    ? (isVietnamese ? 'Tiêu cực' : 'Negative')
+                    : (isVietnamese ? 'Rất tiêu cực' : 'Strongly negative');
     const growthSuggestion = result?.inputs?.growth_suggestion as {
         used?: number; analyst_profit_growth?: number; historical_used?: number;
     } | undefined;
@@ -695,7 +700,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     ) : (
                         isVietnamese ? <> Chưa đủ tin để đưa vào mức giá tham khảo.</> : <> There is not enough news coverage to adjust the reference price.</>
                     )}
-                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Tin tức có thể điều chỉnh mức giá tham khảo tối đa ±5%; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.' : 'News can adjust the reference price by up to ±5%; intrinsic value still comes from cash flow, earnings forecasts and industry peers.'}</span>
+                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Tin tức có thể điều chỉnh mức giá tham khảo tối đa ±10%; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.' : 'News can adjust the reference price by up to ±10%; intrinsic value still comes from cash flow, earnings forecasts and industry peers.'}</span>
                 </Callout>
             )}
 
