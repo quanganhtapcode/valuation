@@ -4,8 +4,13 @@ import { useState, useEffect } from 'react';
 import { NewsItem, formatRelativeTime } from '@/lib/api';
 import styles from './page.module.css';
 import { siteConfig } from '@/app/siteConfig';
+import { useLanguage } from '@/lib/languageContext';
 
 export default function NewsPage() {
+    const { lang } = useLanguage();
+    const copy = lang === 'vi'
+        ? { title: 'Tin tức', accent: 'thị trường', subtitle: 'Cập nhật mới nhất từ thị trường chứng khoán Việt Nam.', loading: 'Đang tải tin tức…', failed: 'Không thể tải tin tức', previous: 'Trang trước', next: 'Trang sau', noMore: 'Không còn trang nào', empty: 'Không tìm thấy tin tức' }
+        : { title: 'Market', accent: 'news', subtitle: 'The latest updates from the Vietnamese stock market.', loading: 'Loading news…', failed: 'Unable to load news', previous: 'Previous', next: 'Next', noMore: 'No more pages', empty: 'No news found' };
     const [news, setNews] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -24,13 +29,13 @@ export default function NewsPage() {
                 setNews(newsArray);
             } catch (err) {
                 console.error('Error loading news:', err);
-                setError('Failed to load news');
+                setError(lang === 'vi' ? 'Không thể tải tin tức' : 'Unable to load news');
             } finally {
                 setIsLoading(false);
             }
         }
         loadNews();
-    }, [page]);
+    }, [page, lang]);
 
     const goToPage = (p: number) => {
         const next = Math.max(1, p);
@@ -49,15 +54,15 @@ export default function NewsPage() {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h1 className={styles.title}>Tin tức <span>thị trường</span></h1>
+                <h1 className={styles.title}>{copy.title} <span>{copy.accent}</span></h1>
                 <div className={styles.headerAccent} />
-                <p className={styles.subtitle}>Cập nhật mới nhất từ thị trường chứng khoán Việt Nam.</p>
+                <p className={styles.subtitle}>{copy.subtitle}</p>
             </div>
 
             {isLoading && (
                 <div className={styles.loading}>
                     <div className="spinner" />
-                    <span>Loading news...</span>
+                    <span>{copy.loading}</span>
                 </div>
             )}
 
@@ -75,7 +80,7 @@ export default function NewsPage() {
                         const link = item.url || item.Link || item.NewsUrl || '#';
                         const url = link.startsWith('http') ? link : `https://cafef.vn${link}`;
                         const img = item.image_url || item.ImageThumb || item.Avatar || '';
-                        const time = formatRelativeTime(item.publish_date || item.PostDate || item.PublishDate, 'vi-VN');
+                        const time = formatRelativeTime(item.publish_date || item.PostDate || item.PublishDate, lang === 'vi' ? 'vi-VN' : 'en-US');
                         const symbol = item.symbol || item.Symbol || '';
                         const change = item.ChangePrice || 0;
                         const isUp = change >= 0;
@@ -151,7 +156,7 @@ export default function NewsPage() {
                         onClick={() => goToPage(page - 1)}
                         disabled={page <= 1 || isLoading}
                     >
-                        Prev
+                        {copy.previous}
                     </button>
 
                     {pageButtons.map((p) => (
@@ -169,9 +174,9 @@ export default function NewsPage() {
                         className={styles.pageButton}
                         onClick={() => goToPage(page + 1)}
                         disabled={isLoading || news.length < pageSize}
-                        title={news.length < pageSize ? 'No more pages' : ''}
+                        title={news.length < pageSize ? copy.noMore : ''}
                     >
-                        Next
+                        {copy.next}
                     </button>
                 </div>
                 </>
@@ -179,7 +184,7 @@ export default function NewsPage() {
 
             {!isLoading && news.length === 0 && !error && (
                 <div className={styles.empty}>
-                    <span>No news found</span>
+                    <span>{copy.empty}</span>
                 </div>
             )}
         </div>

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { API } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
+import { useLanguage } from '@/lib/languageContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,20 +34,20 @@ function fromInputValue(s: string): string {
     return s.replace(/-/g, ''); // → YYYYMMDD
 }
 
-function fmtDate(iso: string | null): string {
+function fmtDate(iso: string | null, locale: string): string {
     if (!iso) return '—';
     const d = new Date(iso);
-    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 // ── Category config ───────────────────────────────────────────────────────────
 
-const CATEGORIES: { id: Category; label: string; color: string; bg: string }[] = [
-    { id: 'ALL',                    label: 'Tất cả',          color: 'text-slate-700 dark:text-slate-200',   bg: 'bg-slate-100 dark:bg-slate-700' },
-    { id: 'DIVIDEND',               label: 'Cổ tức',          color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { id: 'SHAREHOLDER_MEETING',    label: 'Đại hội CĐ',      color: 'text-blue-700 dark:text-blue-300',      bg: 'bg-blue-50 dark:bg-blue-900/30' },
-    { id: 'MAJOR_SHAREHOLDER_TRADING', label: 'Giao dịch nội bộ', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50 dark:bg-amber-900/30' },
-    { id: 'OTHER',                  label: 'Khác',            color: 'text-slate-600 dark:text-slate-300',    bg: 'bg-slate-50 dark:bg-slate-800' },
+const CATEGORIES: Array<{ id: Category; vi: string; en: string; color: string; bg: string }> = [
+    { id: 'ALL',                    vi: 'Tất cả', en: 'All', color: 'text-slate-700 dark:text-slate-200', bg: 'bg-slate-100 dark:bg-slate-700' },
+    { id: 'DIVIDEND',               vi: 'Cổ tức', en: 'Dividends', color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
+    { id: 'SHAREHOLDER_MEETING',    vi: 'Đại hội CĐ', en: 'Shareholder meetings', color: 'text-blue-700 dark:text-blue-300', bg: 'bg-blue-50 dark:bg-blue-900/30' },
+    { id: 'MAJOR_SHAREHOLDER_TRADING', vi: 'Giao dịch nội bộ', en: 'Insider trading', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50 dark:bg-amber-900/30' },
+    { id: 'OTHER',                  vi: 'Khác', en: 'Other', color: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-50 dark:bg-slate-800' },
 ];
 
 function catConfig(cat: EventItem['category']) {
@@ -55,11 +56,11 @@ function catConfig(cat: EventItem['category']) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function CategoryBadge({ cat }: { cat: EventItem['category'] }) {
+function CategoryBadge({ cat, lang }: { cat: EventItem['category']; lang: 'vi' | 'en' }) {
     const cfg = catConfig(cat);
     return (
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.color} ${cfg.bg}`}>
-            {cfg.label}
+            {cfg[lang]}
         </span>
     );
 }
@@ -95,6 +96,10 @@ function StockLogo({ ticker }: { ticker: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function EventsPage() {
+    const { lang } = useLanguage();
+    const copy = lang === 'vi'
+        ? { title: 'Lịch', accent: 'Sự Kiện', subtitle: 'Sự kiện doanh nghiệp niêm yết: cổ tức, đại hội cổ đông, giao dịch nội bộ và các sự kiện khác.', download: 'Tải Excel', count: 'sự kiện', ticker: 'Mã CP', event: 'Sự kiện', type: 'Loại', exDate: 'Ngày GD KHQ', date: 'Ngày thực hiện', failed: 'Không thể tải dữ liệu. Vui lòng thử lại.', empty: 'Không có sự kiện', source: 'Nguồn: Vietcap IQ · Dữ liệu cập nhật mỗi 15 phút' }
+        : { title: 'Corporate', accent: 'Events', subtitle: 'Listed-company events including dividends, shareholder meetings, insider trades, and more.', download: 'Download Excel', count: 'events', ticker: 'Ticker', event: 'Event', type: 'Type', exDate: 'Ex-right date', date: 'Event date', failed: 'Unable to load data. Please try again.', empty: 'No events', source: 'Source: Vietcap IQ · Data refreshes every 15 minutes' };
     const today = new Date();
     const [dateInput, setDateInput] = useState(toInputValue(today));
     const [category, setCategory]   = useState<Category>('ALL');
@@ -140,11 +145,11 @@ export default function EventsPage() {
                 {/* Header */}
                 <div className="mb-6">
                     <h1 className="text-3xl md:text-4xl font-bold leading-tight tracking-tight">
-                        Lịch <span className="text-blue-600 dark:text-blue-400">Sự Kiện</span>
+                        {copy.title} <span className="text-blue-600 dark:text-blue-400">{copy.accent}</span>
                     </h1>
                     <div className="w-24 h-1 bg-blue-500 rounded mt-2" />
                     <p className="text-slate-600 dark:text-slate-300 mt-3 text-sm max-w-2xl">
-                        Sự kiện doanh nghiệp niêm yết: cổ tức, đại hội cổ đông, giao dịch nội bộ và các sự kiện khác.
+                        {copy.subtitle}
                     </p>
                 </div>
 
@@ -163,10 +168,10 @@ export default function EventsPage() {
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                             <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                        Tải Excel
+                        {copy.download}
                     </button>
                     <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">
-                        {!loading && `${events.length} sự kiện`}
+                        {!loading && `${events.length} ${copy.count}`}
                     </span>
                 </div>
 
@@ -182,7 +187,7 @@ export default function EventsPage() {
                                     : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-blue-400'
                             }`}
                         >
-                            {cat.label}
+                            {cat[lang]}
                             {counts[cat.id] !== undefined && (
                                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
                                     category === cat.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
@@ -200,11 +205,11 @@ export default function EventsPage() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-28">Mã CP</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Sự kiện</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden sm:table-cell">Loại</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden md:table-cell">Ngày GD KHQ</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden lg:table-cell">Ngày thực hiện</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-28">{copy.ticker}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{copy.event}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden sm:table-cell">{copy.type}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden md:table-cell">{copy.exDate}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden lg:table-cell">{copy.date}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -213,13 +218,13 @@ export default function EventsPage() {
                                 ) : error ? (
                                     <tr>
                                         <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-                                            Không thể tải dữ liệu. Vui lòng thử lại.
+                                            {copy.failed}
                                         </td>
                                     </tr>
                                 ) : filtered.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-                                            Không có sự kiện {category !== 'ALL' ? `"${catConfig(category as EventItem['category']).label}"` : ''} trong ngày này.
+                                            {copy.empty} {category !== 'ALL' ? `"${catConfig(category as EventItem['category'])[lang]}"` : ''} {lang === 'vi' ? 'trong ngày này.' : 'on this date.'}
                                         </td>
                                     </tr>
                                 ) : (
@@ -246,20 +251,20 @@ export default function EventsPage() {
                                                 </p>
                                                 {/* Show category badge inline on mobile */}
                                                 <span className="sm:hidden mt-1 inline-block">
-                                                    <CategoryBadge cat={event.category} />
+                                                    <CategoryBadge cat={event.category} lang={lang} />
                                                 </span>
                                             </td>
                                             {/* Category */}
                                             <td className="px-4 py-3 hidden sm:table-cell">
-                                                <CategoryBadge cat={event.category} />
+                                                <CategoryBadge cat={event.category} lang={lang} />
                                             </td>
                                             {/* Ex-right date */}
                                             <td className="px-4 py-3 text-slate-500 dark:text-slate-400 tabular-nums hidden md:table-cell">
-                                                {fmtDate(event.exrightDate)}
+                                                {fmtDate(event.exrightDate, lang === 'vi' ? 'vi-VN' : 'en-US')}
                                             </td>
                                             {/* Exercise/display date */}
                                             <td className="px-4 py-3 text-slate-500 dark:text-slate-400 tabular-nums hidden lg:table-cell">
-                                                {fmtDate(event.displayDate1)}
+                                                {fmtDate(event.displayDate1, lang === 'vi' ? 'vi-VN' : 'en-US')}
                                             </td>
                                         </tr>
                                     ))
@@ -272,7 +277,7 @@ export default function EventsPage() {
                 {/* Footer note */}
                 {!loading && events.length > 0 && (
                     <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-                        Nguồn: Vietcap IQ · Dữ liệu cập nhật mỗi 15 phút
+                        {copy.source}
                     </p>
                 )}
             </div>

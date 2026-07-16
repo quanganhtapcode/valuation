@@ -10,6 +10,7 @@ import {
   ScreenerItem,
   ScreenerSortKey,
 } from '@/lib/api';
+import { useLanguage } from '@/lib/languageContext';
 
 const PAGE_SIZE = 50;
 
@@ -61,6 +62,11 @@ function isActive(value: SliderRange, range: { min: number; max: number }) {
 
 type RangePreset = { label: string; min: number; max: number };
 
+function translatePreset(label: string, lang: 'vi' | 'en') {
+  if (lang === 'vi') return label;
+  return ({ 'Tất cả': 'All', 'Âm': 'Negative' } as Record<string, string>)[label] ?? label;
+}
+
 function QuickRangeFilter({
   label, range, value, onChange, presets, valueFormatter,
 }: {
@@ -71,33 +77,35 @@ function QuickRangeFilter({
   presets: RangePreset[];
   valueFormatter?: (n: number) => string;
 }) {
+  const { lang } = useLanguage();
   const [advanced, setAdvanced] = useState(false);
   const format = valueFormatter ?? String;
   const selectedPreset = presets.find((preset) => preset.min === value.min && preset.max === value.max)?.label;
   const isCustom = !selectedPreset;
+  const copy = lang === 'en' ? { custom: 'Custom', from: 'From', to: 'To', filtering: 'Filtering' } : { custom: 'Tùy chỉnh', from: 'Từ', to: 'Đến', filtering: 'Đang lọc' };
 
   return (
     <section className={`rounded-xl border p-3 ${isActive(value, range) ? 'border-blue-300 bg-blue-50/40 dark:border-blue-800 dark:bg-blue-950/20' : 'border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/50'}`}>
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{label}</h3>
-        {isActive(value, range) && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">{selectedPreset || 'Tùy chỉnh'}</span>}
+        {isActive(value, range) && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">{selectedPreset ? translatePreset(selectedPreset, lang) : copy.custom}</span>}
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {presets.map((preset) => {
           const active = preset.min === value.min && preset.max === value.max;
-          return <button key={preset.label} type="button" onClick={() => onChange({ min: preset.min, max: preset.max })} className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:border-blue-300 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700'}`}>{preset.label}</button>;
+          return <button key={preset.label} type="button" onClick={() => onChange({ min: preset.min, max: preset.max })} className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:border-blue-300 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700'}`}>{translatePreset(preset.label, lang)}</button>;
         })}
-        <button type="button" onClick={() => setAdvanced((open) => !open)} className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${advanced || isCustom ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'}`}>Tùy chỉnh</button>
+        <button type="button" onClick={() => setAdvanced((open) => !open)} className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${advanced || isCustom ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'}`}>{copy.custom}</button>
       </div>
       {advanced && (
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
-          {(['min', 'max'] as const).map((side) => <label key={side} className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{side === 'min' ? 'Từ' : 'Đến'}
+          {(['min', 'max'] as const).map((side) => <label key={side} className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{side === 'min' ? copy.from : copy.to}
             <input type="number" min={range.min} max={range.max} step={range.step} value={value[side]} onChange={(event) => {
               const next = Number(event.target.value);
               onChange(side === 'min' ? { min: Math.min(next, value.max), max: value.max } : { min: value.min, max: Math.max(next, value.min) });
             }} className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium tabular-nums text-slate-700 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
           </label>)}
-          <p className="col-span-2 text-[10px] text-slate-400">Đang lọc: {format(value.min)} – {format(value.max)}</p>
+          <p className="col-span-2 text-[10px] text-slate-400">{copy.filtering}: {format(value.min)} – {format(value.max)}</p>
         </div>
       )}
     </section>
@@ -105,6 +113,8 @@ function QuickRangeFilter({
 }
 
 export default function ScreenerPage() {
+  const { lang } = useLanguage();
+  const vi = lang === 'vi';
   const [items, setItems]                     = useState<ScreenerItem[]>([]);
   const [total, setTotal]                     = useState(0);
   const [page, setPage]                       = useState(1);
@@ -258,9 +268,9 @@ export default function ScreenerPage() {
   }, [loading, error, total]);
 
   const TABS: Array<{ id: FilterTab; label: string }> = [
-    { id: 'valuation', label: 'Định giá' },
-    { id: 'quality',   label: 'Chất lượng' },
-    { id: 'growth',    label: 'Tăng trưởng' },
+    { id: 'valuation', label: vi ? 'Định giá' : 'Valuation' },
+    { id: 'quality',   label: vi ? 'Chất lượng' : 'Quality' },
+    { id: 'growth',    label: vi ? 'Tăng trưởng' : 'Growth' },
   ];
 
   return (
@@ -306,7 +316,7 @@ export default function ScreenerPage() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2" />
               </svg>
-              Filters
+              {vi ? 'Bộ lọc' : 'Filters'}
               {totalActiveFilters > 0 && (
                 <span className="rounded-full bg-blue-600 text-white text-xs px-1.5 py-0.5 leading-none">{totalActiveFilters}</span>
               )}
@@ -321,10 +331,10 @@ export default function ScreenerPage() {
           <div className="relative z-10 flex flex-col gap-3 border-b border-slate-200 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Ngành</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">ICB cấp 2</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{vi ? 'Ngành' : 'Industry'}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{vi ? 'ICB cấp 2' : 'ICB level 2'}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Lọc theo ngành chi tiết; ICB cấp 1 chỉ dùng để phân nhóm.</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{vi ? 'Lọc theo ngành chi tiết; ICB cấp 1 chỉ dùng để phân nhóm.' : 'Filters use detailed ICB level 2 industries; level 1 is used only for grouping.'}</p>
               </div>
               <div className="relative w-full md:w-[330px]">
                 <button
@@ -333,7 +343,7 @@ export default function ScreenerPage() {
                   className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                   aria-expanded={sectorOpen}
                 >
-                  <span className="truncate">{selectedSector || 'Tất cả ngành'}</span>
+                  <span className="truncate">{selectedSector || (vi ? 'Tất cả ngành' : 'All industries')}</span>
                   <span className="ml-3 text-slate-400">⌄</span>
                 </button>
                 {sectorOpen && (
@@ -343,12 +353,12 @@ export default function ScreenerPage() {
                         autoFocus
                         value={sectorQuery}
                         onChange={(event) => setSectorQuery(event.target.value)}
-                        placeholder="Tìm ngành ICB cấp 2…"
+                        placeholder={vi ? 'Tìm ngành ICB cấp 2…' : 'Search ICB level 2 industries…'}
                         className="w-full rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:text-slate-100"
                       />
                     </div>
                     <div className="max-h-72 overflow-y-auto p-1.5">
-                      <button type="button" onClick={() => { setSelectedSector(''); setSectorOpen(false); setSectorQuery(''); setPage(1); }} className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-blue-950/40 dark:hover:text-blue-300">Tất cả ngành</button>
+                      <button type="button" onClick={() => { setSelectedSector(''); setSectorOpen(false); setSectorQuery(''); setPage(1); }} className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-blue-950/40 dark:hover:text-blue-300">{vi ? 'Tất cả ngành' : 'All industries'}</button>
                       {sectorGroups.map(([group, sectors]) => (
                         <div key={group} className="py-1">
                           <p className="px-2.5 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{group}</p>
@@ -359,12 +369,12 @@ export default function ScreenerPage() {
                           ))}
                         </div>
                       ))}
-                      {sectorGroups.length === 0 && <p className="px-3 py-5 text-center text-sm text-slate-400">Không tìm thấy ngành phù hợp.</p>}
+                      {sectorGroups.length === 0 && <p className="px-3 py-5 text-center text-sm text-slate-400">{vi ? 'Không tìm thấy ngành phù hợp.' : 'No matching industries found.'}</p>}
                     </div>
                   </div>
                 )}
               </div>
-              {selectedSector && <button onClick={() => { setSelectedSector(''); setPage(1); }} className="absolute bottom-2 right-5 text-xs font-medium text-slate-400 hover:text-rose-500 dark:hover:text-rose-400">Xóa ngành đã chọn</button>}
+              {selectedSector && <button onClick={() => { setSelectedSector(''); setPage(1); }} className="absolute bottom-2 right-5 text-xs font-medium text-slate-400 hover:text-rose-500 dark:hover:text-rose-400">{vi ? 'Xóa ngành đã chọn' : 'Clear industry'}</button>}
             </div>
           )}
 
@@ -397,7 +407,7 @@ export default function ScreenerPage() {
                 onClick={resetAll}
                 className="ml-auto mr-3 my-2 text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors self-center"
               >
-                Xóa bộ lọc
+                {vi ? 'Xóa bộ lọc' : 'Clear filters'}
               </button>
             )}
           </div>

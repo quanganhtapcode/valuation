@@ -70,7 +70,7 @@ export default function ValuationHistoryChart({ symbol, lang }: { symbol: string
                 )}
             </div>
             {rows.length ? (
-                <LineChart className="h-72" data={rows} index="period" categories={['P/E', 'P/B']} colors={['blue', 'violet']} valueFormatter={(value: number) => value.toFixed(2)} showAnimation={false} showLegend showTooltip autoMinValue yAxisWidth={40} />
+                <LineChart className="h-72" data={rows} index="period" categories={['P/E', 'P/B']} colors={['blue', 'violet']} valueFormatter={(value: number) => value.toFixed(2)} showAnimation={false} showLegend showTooltip autoMinValue yAxisWidth={40} tickGap={96} />
             ) : <div className="flex h-40 items-center justify-center text-sm text-slate-500 dark:text-slate-400">{text.empty}</div>}
         </Card>
     );

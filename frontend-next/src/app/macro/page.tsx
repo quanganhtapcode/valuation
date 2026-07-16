@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { API } from '@/lib/api';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
+import { useLanguage } from '@/lib/languageContext';
 import {
     FA_COLORS,
     FF_ALL_INDEX_CHANNELS,
@@ -630,6 +631,7 @@ function dateToQuarter(date: string): string {
 }
 
 function GDPCompositionChart() {
+    const { lang } = useLanguage();
     const [chartData, setChartData] = useState<Record<string, string | number>[]>([]);
     const [loading, setLoading]     = useState(true);
 
@@ -669,10 +671,10 @@ function GDPCompositionChart() {
         <Panel className="p-5">
             <div className="mb-4">
                 <p className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                    Cơ Cấu GDP theo Ngành
+                    {lang === 'vi' ? 'Cơ Cấu GDP theo Ngành' : 'GDP composition by sector'}
                 </p>
                 <p className="mt-1 text-xs text-tremor-content dark:text-dark-tremor-content">
-                    TradingView / GSO · nghìn tỷ ₫ · 5 năm gần nhất
+                    TradingView / GSO · {lang === 'vi' ? 'nghìn tỷ ₫ · 5 năm gần nhất' : 'VND trillion · last 5 years'}
                 </p>
             </div>
             <BarChart
@@ -693,14 +695,15 @@ function GDPCompositionChart() {
 }
 
 function GDPCompositionCard({ selected, onClick }: { selected: boolean; onClick: () => void }) {
+    const { lang } = useLanguage();
     return (
         <CompactStatCard
-            title="Cơ Cấu GDP theo Ngành"
+            title={lang === 'vi' ? 'Cơ Cấu GDP theo Ngành' : 'GDP composition by sector'}
             source="TradingView / GSO"
-            unit="5 năm"
-            valueText="3 khu vực"
-            updatedAt="Theo quý"
-            comparisonText="Xem cơ cấu GDP"
+            unit={lang === 'vi' ? '5 năm' : '5 years'}
+            valueText={lang === 'vi' ? '3 khu vực' : '3 sectors'}
+            updatedAt={lang === 'vi' ? 'Theo quý' : 'Quarterly'}
+            comparisonText={lang === 'vi' ? 'Xem cơ cấu GDP' : 'View GDP composition'}
             selected={selected}
             tone="flat"
             onClick={onClick}
@@ -709,6 +712,7 @@ function GDPCompositionCard({ selected, onClick }: { selected: boolean; onClick:
 }
 
 function VietnamMacroTab() {
+    const { lang } = useLanguage();
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
     const [selected, setSelected] = useState<DetailSelection | null>(null);
     const [showGdpComposition, setShowGdpComposition] = useState(false);
@@ -772,8 +776,8 @@ function VietnamMacroTab() {
         <div className="space-y-8">
             <section>
                 <SectionHeader
-                    title="Key Stats Việt Nam"
-                    subtitle="Tóm tắt nhanh các chỉ số chính. Chọn một card để xem lịch sử và chi tiết."
+                    title={lang === 'vi' ? 'Key Stats Việt Nam' : 'Vietnam key statistics'}
+                    subtitle={lang === 'vi' ? 'Tóm tắt nhanh các chỉ số chính. Chọn một card để xem lịch sử và chi tiết.' : 'A quick view of the main indicators. Select a card to see its history and detail.'}
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     {KEY_STATS.map(({ sym, tab }) => (
@@ -794,7 +798,7 @@ function VietnamMacroTab() {
 
             <section className="space-y-4">
                 <SectionHeader
-                    title="Bộ Chỉ Số Việt Nam"
+                    title={lang === 'vi' ? 'Bộ Chỉ Số Việt Nam' : 'Vietnam indicators'}
                     subtitle={VIETNAM_SUBTABS.find((tab) => tab.id === activeSubTab)?.subtitle ?? ''}
                 />
                 <div className="flex flex-wrap gap-2">
@@ -872,6 +876,7 @@ function VietnamMacroTab() {
 // ── World Tab — isolated component so WS subs don't affect Vietnam tab ────────
 
 function WorldTab() {
+    const { lang } = useLanguage();
     const [rates, setRates]         = useState<RatesData | null>(null);
     const [ratesLoading, setRL]     = useState(true);
     const [ffForex, setFfForex]     = useState<Map<string, FFPrice>>(new Map());
@@ -923,17 +928,17 @@ function WorldTab() {
 
             {/* VND Exchange Rates */}
             <section>
-                <SectionHeader title="Tỷ Giá Hối Đoái VND" subtitle="VND so với các đồng tiền chính" />
+                <SectionHeader title={lang === 'vi' ? 'Tỷ Giá Hối Đoái VND' : 'VND exchange rates'} subtitle={lang === 'vi' ? 'VND so với các đồng tiền chính' : 'VND against major currencies'} />
                 {ratesLoading
                     ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
                     : fxRates.length === 0
-                    ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu tỷ giá.</p>
+                    ? <p className="text-sm text-slate-500 py-6">{lang === 'vi' ? 'Không lấy được dữ liệu tỷ giá.' : 'Exchange-rate data is unavailable.'}</p>
                     : <CardGrid items={fxRates} isVnd={true} />}
             </section>
 
             {/* Forex */}
             <section>
-                <SectionHeader title="Ngoại Hối Quốc Tế" subtitle="Các cặp tiền tệ chính" />
+                <SectionHeader title={lang === 'vi' ? 'Ngoại Hối Quốc Tế' : 'Global foreign exchange'} subtitle={lang === 'vi' ? 'Các cặp tiền tệ chính' : 'Major currency pairs'} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
                     {FF_FOREX_CHANNELS.map(def => (
                         <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
@@ -945,8 +950,8 @@ function WorldTab() {
             <section>
                 <div className="flex items-center gap-3 mb-4">
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Á - Thái Bình Dương</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tokyo 7:00–13:30 · Sydney 7:00–13:00 (giờ VN)</p>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{lang === 'vi' ? 'Châu Á - Thái Bình Dương' : 'Asia-Pacific'}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tokyo 7:00–13:30 · Sydney 7:00–13:00 {lang === 'vi' ? '(giờ VN)' : '(Vietnam time)'}</p>
                     </div>
                     <SessionBadge open={sess.asia} tz="07:00–13:30" />
                 </div>
@@ -961,8 +966,8 @@ function WorldTab() {
             <section>
                 <div className="flex items-center gap-3 mb-4">
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Âu</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Frankfurt/London 14:00–22:30 (giờ VN)</p>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{lang === 'vi' ? 'Châu Âu' : 'Europe'}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Frankfurt/London 14:00–22:30 {lang === 'vi' ? '(giờ VN)' : '(Vietnam time)'}</p>
                     </div>
                     <SessionBadge open={sess.europe} tz="14:00–22:30" />
                 </div>
@@ -977,8 +982,8 @@ function WorldTab() {
             <section>
                 <div className="flex items-center gap-3 mb-4">
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Châu Mỹ</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">NYSE/NASDAQ 20:30–03:00 (giờ VN)</p>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{lang === 'vi' ? 'Châu Mỹ' : 'Americas'}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">NYSE/NASDAQ 20:30–03:00 {lang === 'vi' ? '(giờ VN)' : '(Vietnam time)'}</p>
                     </div>
                     <SessionBadge open={sess.americas} tz="20:30–03:00" />
                 </div>
@@ -991,11 +996,11 @@ function WorldTab() {
 
             {/* Commodities */}
             <section>
-                <SectionHeader title="Hàng Hóa Quốc Tế" subtitle="Live: Forex Factory · lịch sử: Yahoo Finance" />
+                <SectionHeader title={lang === 'vi' ? 'Hàng Hóa Quốc Tế' : 'Global commodities'} subtitle={lang === 'vi' ? 'Live: Forex Factory · lịch sử: Yahoo Finance' : 'Live: Forex Factory · history: Yahoo Finance'} />
                 {ratesLoading
                     ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
                     : commodities.length === 0
-                    ? <p className="text-sm text-slate-500 py-6">Không lấy được dữ liệu hàng hóa.</p>
+                    ? <p className="text-sm text-slate-500 py-6">{lang === 'vi' ? 'Không lấy được dữ liệu hàng hóa.' : 'Commodity data is unavailable.'}</p>
                     : <CardGrid items={commodities} isVnd={false} />}
             </section>
         </div>
@@ -1006,13 +1011,12 @@ function WorldTab() {
 
 type TabId = 'vietnam' | 'world';
 
-const TAB_LABELS: { id: TabId; label: string }[] = [
-    { id: 'vietnam',  label: 'Việt Nam' },
-    { id: 'world',    label: 'Thế Giới' },
-];
-
 export default function MacroPage() {
+    const { lang } = useLanguage();
     const [activeTab, setActiveTab] = useState<TabId>('vietnam');
+    const tabs: Array<{ id: TabId; label: string }> = lang === 'vi'
+        ? [{ id: 'vietnam', label: 'Việt Nam' }, { id: 'world', label: 'Thế Giới' }]
+        : [{ id: 'vietnam', label: 'Vietnam' }, { id: 'world', label: 'Global' }];
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -1021,15 +1025,15 @@ export default function MacroPage() {
                 {/* Header — follows the shared page heading style used by Events and Foreign. */}
                 <header className="mb-6">
                     <h1 className="text-3xl md:text-4xl font-bold leading-tight tracking-tight">
-                        Kinh tế <span className="text-blue-600 dark:text-blue-400">vĩ mô</span>
+                        {lang === 'vi' ? 'Kinh tế' : 'Macro'} <span className="text-blue-600 dark:text-blue-400">{lang === 'vi' ? 'vĩ mô' : 'economy'}</span>
                     </h1>
                     <div className="mt-2 h-1 w-24 rounded bg-blue-500" />
                     <p className="mt-3 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-                        Theo dõi các chỉ số Việt Nam và toàn cầu, với nguồn dữ liệu rõ ràng và biểu đồ mở theo nhu cầu.
+                        {lang === 'vi' ? 'Theo dõi các chỉ số Việt Nam và toàn cầu, với nguồn dữ liệu rõ ràng và biểu đồ mở theo nhu cầu.' : 'Track Vietnamese and global indicators with clear sources and charts that open only when needed.'}
                     </p>
 
                     <div className="mt-5 flex w-full gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:w-fit">
-                        {TAB_LABELS.map(tab => (
+                        {tabs.map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                                 className={`flex-1 rounded-lg px-5 py-2 text-sm font-semibold transition-all duration-150 sm:flex-none
                                     ${activeTab === tab.id

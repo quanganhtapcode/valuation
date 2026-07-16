@@ -216,7 +216,7 @@ export default function OverviewTab({
                     <section className={`${styles.section} ${styles.sectionNews}`}>
                         <div className={styles.sectionHeader}>
                             <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                Tin tức
+                                {lang === 'vi' ? 'Tin tức' : 'News'}
                             </h3>
                         </div>
                         <div className={styles.newsGrid}>

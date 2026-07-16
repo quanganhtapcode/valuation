@@ -18,6 +18,7 @@ import {
     ForeignVolumePoint,
 } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
+import { useLanguage } from '@/lib/languageContext';
 
 const REFRESH_MS = 60_000;
 
@@ -69,10 +70,10 @@ function toCumulative(points: ForeignVolumePoint[]) {
     });
 }
 
-const TIME_TABS: { name: string; filter: (t: string) => boolean }[] = [
-    { name: 'Sáng', filter: (t) => t >= '09:00' && t <= '11:35' },
-    { name: 'Chiều', filter: (t) => t >= '13:00' },
-    { name: 'Cả ngày', filter: () => true },
+const TIME_TABS = [
+    { vi: 'Sáng', en: 'Morning', filter: (t: string) => t >= '09:00' && t <= '11:35' },
+    { vi: 'Chiều', en: 'Afternoon', filter: (t: string) => t >= '13:00' },
+    { vi: 'Cả ngày', en: 'Full day', filter: () => true },
 ];
 
 function CumulativeNetChart({
@@ -81,13 +82,16 @@ function CumulativeNetChart({
     data,
     unit,
     isLoading,
+    lang,
 }: {
     title: string;
     value: number;
     data: Array<{ time: string; value: number }>;
     unit: 'volume' | 'value';
     isLoading: boolean;
+    lang: 'vi' | 'en';
 }) {
+    const copy = lang === 'vi' ? { cumulative: 'Lũy kế trong phiên', session: '09:00 – 15:00', empty: 'Không có dữ liệu phiên' } : { cumulative: 'Session cumulative', session: '09:00 – 15:00', empty: 'No session data available' };
     const negative = value < 0;
     const color = negative ? 'rose' : 'emerald';
     const yFormatter = unit === 'volume' ? fmtVolume : fmtBillion;
@@ -98,7 +102,7 @@ function CumulativeNetChart({
         <Card className="p-0">
             <div className="p-6">
                 <p className="text-tremor-default text-tremor-content dark:text-dark-tremor-content">
-                    Lũy kế trong phiên
+                    {copy.cumulative}
                 </p>
                 <p className="mt-1 text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
                     {title}
@@ -107,7 +111,7 @@ function CumulativeNetChart({
                     {negative ? '-' : '+'}{unit === 'volume' ? fmtMillionVi(Math.abs(value)) : fmtBillionVi(Math.abs(value))}
                 </p>
                 <p className="mt-0.5 text-tremor-default text-tremor-content dark:text-dark-tremor-content">
-                    09:00 – 15:00
+                    {copy.session}
                 </p>
             </div>
 
@@ -117,7 +121,7 @@ function CumulativeNetChart({
                 </div>
             ) : data.length === 0 ? (
                 <div className="h-72 flex items-center justify-center text-tremor-content dark:text-dark-tremor-content text-sm">
-                    Không có dữ liệu phiên
+                    {copy.empty}
                 </div>
             ) : (
                 <TabGroup defaultIndex={2}>
@@ -127,7 +131,7 @@ function CumulativeNetChart({
                                 key={tab.name}
                                 className="font-medium hover:border-tremor-content-subtle dark:hover:border-dark-tremor-content-subtle dark:hover:text-dark-tremor-content"
                             >
-                                {tab.name}
+                                {tab[lang]}
                             </Tab>
                         ))}
                     </TabList>
@@ -174,12 +178,14 @@ function TopBarChart({
     items,
     color,
     isLoading,
+    lang,
 }: {
     title: string;
     subtitle: string;
     items: ForeignNetItem[];
     color: 'emerald' | 'rose';
     isLoading: boolean;
+    lang: 'vi' | 'en';
 }) {
     const data = items.slice(0, 10).map((item) => ({
         name: item.Symbol,
@@ -220,7 +226,7 @@ function TopBarChart({
                 </div>
             ) : data.length === 0 ? (
                 <p className="py-10 text-center text-sm text-tremor-content dark:text-dark-tremor-content">
-                    Không có dữ liệu
+                    {lang === 'vi' ? 'Không có dữ liệu' : 'No data available'}
                 </p>
             ) : (
                 <BarList
@@ -237,32 +243,37 @@ function TopStocksPanel({
     buyList,
     sellList,
     isLoading,
+    lang,
 }: {
     buyList: ForeignNetItem[];
     sellList: ForeignNetItem[];
     isLoading: boolean;
+    lang: 'vi' | 'en';
 }) {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <TopBarChart
-                title="Top Mua ròng"
-                subtitle="Khối ngoại mua ròng nhiều nhất hôm nay (tỷ VNĐ)"
+                title={lang === 'vi' ? 'Top Mua ròng' : 'Top net buys'}
+                subtitle={lang === 'vi' ? 'Khối ngoại mua ròng nhiều nhất hôm nay (tỷ VNĐ)' : 'Largest foreign net buys today (VND bn)'}
                 items={buyList}
                 color="emerald"
                 isLoading={isLoading}
+                lang={lang}
             />
             <TopBarChart
-                title="Top Bán ròng"
-                subtitle="Khối ngoại bán ròng nhiều nhất hôm nay (tỷ VNĐ)"
+                title={lang === 'vi' ? 'Top Bán ròng' : 'Top net sells'}
+                subtitle={lang === 'vi' ? 'Khối ngoại bán ròng nhiều nhất hôm nay (tỷ VNĐ)' : 'Largest foreign net sells today (VND bn)'}
                 items={sellList}
                 color="rose"
                 isLoading={isLoading}
+                lang={lang}
             />
         </div>
     );
 }
 
 export default function ForeignPage() {
+    const { lang } = useLanguage();
     const [buyList, setBuyList] = useState<ForeignNetItem[]>([]);
     const [sellList, setSellList] = useState<ForeignNetItem[]>([]);
     const [points, setPoints] = useState<ForeignVolumePoint[]>([]);
@@ -312,34 +323,35 @@ export default function ForeignPage() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-5">
                     <div>
                         <h1 className="text-3xl md:text-4xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
-                            Nước Ngoài <span className="text-emerald-600 dark:text-emerald-400">Tự Doanh</span>
+                            {lang === 'vi' ? 'Nước Ngoài' : 'Foreign'} <span className="text-emerald-600 dark:text-emerald-400">{lang === 'vi' ? 'Tự Doanh' : 'Trading'}</span>
                         </h1>
                         <div className="w-32 h-1 bg-emerald-500 rounded mt-2" />
                         <p className="text-slate-600 dark:text-slate-300 mt-3 text-sm md:text-base max-w-4xl">
-                            Biểu đồ thể hiện các cổ phiếu (bao gồm các quỹ ETF) được nước ngoài giao dịch nhiều nhất theo
-                            Khối lượng, Giá trị và Mua/Bán ròng.
+                            {lang === 'vi' ? 'Biểu đồ thể hiện các cổ phiếu (bao gồm các quỹ ETF) được nước ngoài giao dịch nhiều nhất theo Khối lượng, Giá trị và Mua/Bán ròng.' : 'Track the most actively traded stocks and ETFs by foreign investors, including volume, value, and net buying or selling.'}
                         </p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <CumulativeNetChart
-                            title="KLGD ròng tích lũy (CP)"
+                            title={lang === 'vi' ? 'KLGD ròng tích lũy (CP)' : 'Cumulative net volume (shares)'}
                             value={latestVolume}
                             data={volumeData}
                             unit="volume"
                             isLoading={chartLoading}
+                            lang={lang}
                         />
                         <CumulativeNetChart
-                            title="GTGD ròng tích lũy (VNĐ)"
+                            title={lang === 'vi' ? 'GTGD ròng tích lũy (VNĐ)' : 'Cumulative net value (VND)'}
                             value={latestValue}
                             data={valueData}
                             unit="value"
                             isLoading={chartLoading}
+                            lang={lang}
                         />
                 </div>
 
-                <TopStocksPanel buyList={buyList} sellList={sellList} isLoading={netLoading} />
+                <TopStocksPanel buyList={buyList} sellList={sellList} isLoading={netLoading} lang={lang} />
             </div>
         </div>
     );

@@ -639,10 +639,12 @@ function SettingsPopover({
     displayUnit,
     setDisplayUnit,
     units,
+    title,
 }: {
     displayUnit: DisplayUnit;
     setDisplayUnit: (u: DisplayUnit) => void;
     units: { id: DisplayUnit; label: string; divisor: number }[];
+    title: string;
 }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -667,7 +669,7 @@ function SettingsPopover({
             </button>
             {open && (
                 <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg py-3 px-4">
-                    <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">Đơn vị hiển thị</p>
+                    <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">{title}</p>
                     <div className="space-y-1">
                         {units.map(unit => (
                             <label key={unit.id} className="flex items-center gap-2 cursor-pointer py-0.5">
@@ -847,12 +849,12 @@ function formatRatioHighlight(value: number, kind: RatioMetric['kind']): string 
     return kind === 'percent' ? fmtPct(value) : value.toFixed(value >= 10 ? 1 : 2);
 }
 
-function RatioPeriodHistory({ history, kind }: { history: Array<{ value: number; label: string }>; kind: RatioMetric['kind'] }) {
+function RatioPeriodHistory({ history, kind, recentLabel }: { history: Array<{ value: number; label: string }>; kind: RatioMetric['kind']; recentLabel: string }) {
     const periods = history.slice(-4);
     if (periods.length < 2) return null;
     return (
         <div className="mt-4 border-t border-gray-100 pt-3 dark:border-slate-800">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Các kỳ gần đây</p>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{recentLabel}</p>
             <div className="grid grid-cols-4 gap-1.5">
                 {periods.map((period, index) => (
                     <div key={`${period.label}-${index}`} className="min-w-0 rounded-md bg-slate-50 px-1.5 py-1.5 text-center dark:bg-slate-800/70">
@@ -866,13 +868,25 @@ function RatioPeriodHistory({ history, kind }: { history: Array<{ value: number;
 }
 
 function RatioDashboard({
-    rows, getRowLabel, getSectionTitle, divisor,
+    rows, getRowLabel, getSectionTitle, divisor, lang,
 }: {
     rows: any[];
     getRowLabel: (key: string, fallback: string) => string;
     getSectionTitle: (rawTitle: string) => string;
     divisor?: number;
+    lang: 'vi' | 'en';
 }) {
+    const copy = lang === 'vi'
+        ? { title: 'Bức tranh tài chính', subtitle: 'Xu hướng các tỷ lệ trọng yếu trong tối đa 8 kỳ gần nhất.', badge: 'Tỷ lệ tài chính', latest: 'Kỳ gần nhất', recent: 'Các kỳ gần đây', show: 'Xem bảng số liệu đầy đủ', hide: 'Ẩn bảng số liệu đầy đủ' }
+        : { title: 'Financial snapshot', subtitle: 'Key ratio trends across up to the eight most recent periods.', badge: 'Financial ratios', latest: 'Latest period', recent: 'Recent periods', show: 'View full data table', hide: 'Hide full data table' };
+    const ratioText: Record<string, { label: string; description: string }> = lang === 'vi' ? {} : {
+        ROE: { label: 'ROE', description: 'Return generated from shareholders’ equity' },
+        'Biên lợi nhuận ròng': { label: 'Net profit margin', description: 'Profit retained from revenue' },
+        'P/E': { label: 'P/E', description: 'Market price relative to earnings' },
+        'P/B': { label: 'P/B', description: 'Market price relative to book value' },
+        'Nợ / vốn chủ': { label: 'Debt / equity', description: 'Degree of financial leverage' },
+        'Thanh toán hiện hành': { label: 'Current ratio', description: 'Capacity to meet short-term obligations' },
+    };
     const sortedRows = [...rows].sort((a, b) => periodSortKey(a) - periodSortKey(b));
     const cards = RATIO_HIGHLIGHTS.map(metric => {
         const history = sortedRows.flatMap(row => {
@@ -881,7 +895,7 @@ function RatioDashboard({
         });
         const current = history[history.length - 1]?.value;
         const previous = history[history.length - 2]?.value;
-        return { ...metric, history, current, change: current !== undefined && previous !== undefined ? current - previous : null };
+        return { ...metric, ...(ratioText[metric.label] ?? {}), history, current, change: current !== undefined && previous !== undefined ? current - previous : null };
     }).filter(card => card.current !== undefined);
 
     if (cards.length === 0) return <SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} />;
@@ -890,10 +904,10 @@ function RatioDashboard({
         <div className="py-4">
             <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
-                    <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">Bức tranh tài chính</h3>
-                    <p className="mt-1 text-[12px] text-gray-500 dark:text-slate-400">Xu hướng các tỷ lệ trọng yếu trong tối đa 8 kỳ gần nhất.</p>
+                    <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">{copy.title}</h3>
+                    <p className="mt-1 text-[12px] text-gray-500 dark:text-slate-400">{copy.subtitle}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">Tỷ lệ tài chính</span>
+                <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">{copy.badge}</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {cards.map(card => {
@@ -904,14 +918,14 @@ function RatioDashboard({
                                 <div><h4 className="text-[13px] font-semibold text-gray-800 dark:text-slate-100">{card.label}</h4><p className="mt-0.5 text-[11px] leading-4 text-gray-500 dark:text-slate-400">{card.description}</p></div>
                                 {card.change !== null && <span className={cx('rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums', isPositive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300')}>{isPositive ? '+' : ''}{formatRatioHighlight(card.change, card.kind)}</span>}
                             </div>
-                            <div className="mt-3 flex items-end justify-between gap-4"><strong className="text-[22px] font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white">{formatRatioHighlight(card.current!, card.kind)}</strong><span className="pb-1 text-[10px] text-gray-400">Kỳ gần nhất</span></div>
-                            <RatioPeriodHistory history={card.history} kind={card.kind} />
+                            <div className="mt-3 flex items-end justify-between gap-4"><strong className="text-[22px] font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white">{formatRatioHighlight(card.current!, card.kind)}</strong><span className="pb-1 text-[10px] text-gray-400">{copy.latest}</span></div>
+                            <RatioPeriodHistory history={card.history} kind={card.kind} recentLabel={copy.recent} />
                         </article>
                     );
                 })}
             </div>
             <details className="group mt-5 border-t border-gray-100 pt-4 dark:border-slate-800">
-                <summary className="cursor-pointer list-none text-[13px] font-medium text-blue-700 hover:text-blue-800 dark:text-blue-400"><span className="group-open:hidden">Xem bảng số liệu đầy đủ</span><span className="hidden group-open:inline">Ẩn bảng số liệu đầy đủ</span></summary>
+                <summary className="cursor-pointer list-none text-[13px] font-medium text-blue-700 hover:text-blue-800 dark:text-blue-400"><span className="group-open:hidden">{copy.show}</span><span className="hidden group-open:inline">{copy.hide}</span></summary>
                 <div className="mt-3 -mx-4"><SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} /></div>
             </details>
         </div>
@@ -1092,7 +1106,7 @@ export default function FinancialsTab({
         { id: 'balance',   label: tFin.tabs.balance },
         { id: 'cashflow',  label: tFin.tabs.cashflow },
         { id: 'ratios',    label: tFin.tabs.ratios },
-        { id: 'notes',     label: 'Thuyết minh' },
+        { id: 'notes',     label: lang === 'vi' ? 'Thuyết minh' : 'Notes' },
     ]
 
     const DISPLAY_UNITS: { id: DisplayUnit; label: string; divisor: number }[] = [
@@ -1208,7 +1222,7 @@ export default function FinancialsTab({
 
     const isBank = isBankStock(symbol, overviewData);
     const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Key Stats';
-    const periodLabel = displayMode === 'annual' ? 'Năm' : 'Quý';
+    const periodLabel = displayMode === 'annual' ? (lang === 'vi' ? 'Năm' : 'Year') : (lang === 'vi' ? 'Quý' : 'Quarter');
 
     return (
         <div className="space-y-3">
@@ -1233,7 +1247,7 @@ export default function FinancialsTab({
 
                 {/* Period pill dropdown */}
                 <PillDropdown label={periodLabel}>
-                    {([['annual', 'Năm'], ['quarterly', 'Quý']] as [DisplayMode, string][]).map(([m, lbl]) => (
+                    {([['annual', lang === 'vi' ? 'Năm' : 'Year'], ['quarterly', lang === 'vi' ? 'Quý' : 'Quarter']] as [DisplayMode, string][]).map(([m, lbl]) => (
                         <PillDropdownItem
                             key={m}
                             active={displayMode === m}
@@ -1245,13 +1259,13 @@ export default function FinancialsTab({
                 </PillDropdown>
 
                 {/* Settings (units) */}
-                <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} />
+                <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={lang === 'vi' ? 'Đơn vị hiển thị' : 'Display unit'} />
 
                 {/* Download */}
                 {onDownloadExcel && (
                     <button
                         onClick={onDownloadExcel}
-                        title="Tải Excel"
+                        title={lang === 'vi' ? 'Tải Excel' : 'Download Excel'}
                         className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1324,6 +1338,7 @@ export default function FinancialsTab({
                                     getRowLabel={rowLabel}
                                     getSectionTitle={sectionTitle}
                                     divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                    lang={lang}
                                 />
                             </div>
                         )}

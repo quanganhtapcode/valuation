@@ -112,8 +112,8 @@ export const translations = {
                 ratios: "Chỉ số tài chính",
             },
             units: {
-                billions: "Tỷ",
-                trillions: "Nghìn tỷ",
+                billions: "Tỷ đồng (VND)",
+                trillions: "Nghìn tỷ đồng (VND)",
             },
             sections: {
                 incomeStatement: "Báo cáo kết quả kinh doanh",
@@ -275,8 +275,8 @@ export const translations = {
                 ratios: "Ratios",
             },
             units: {
-                billions: "B VND",
-                trillions: "T VND",
+                billions: "Billion VND",
+                trillions: "Trillion VND",
             },
             sections: {
                 incomeStatement: "Income Statement",
