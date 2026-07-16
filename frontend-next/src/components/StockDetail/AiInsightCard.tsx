@@ -203,7 +203,10 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter,
 
     const hasBull = (news?.bull_case?.length ?? 0) > 0;
     const hasBear = (news?.bear_case?.length ?? 0) > 0;
-    const hasNews = hasBull || hasBear || (news?.key_events?.length ?? 0) > 0 || !!news?.watch_out;
+    // A rule-based analysis deliberately stores an empty-news sentinel with only
+    // a generic summary/watch-out. It is not a real news thesis and should not
+    // be presented as one.
+    const hasNews = hasBull || hasBear || (news?.key_events?.length ?? 0) > 0;
     const badge = sentimentBadge(news?.overall_sentiment);
     const generatedLabel = formatGeneratedAt(generatedAt);
 
