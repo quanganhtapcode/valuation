@@ -1,9 +1,6 @@
 "use client"
 import { RiArrowRightUpLine } from "@remixicon/react"
 import Link from "next/link"
-import { DatabaseLogo } from "@/components/DatabaseLogo"
-import ThemeSwitch from "@/components/ThemeSwitch"
-import LanguageSwitch from "@/components/LanguageSwitch"
 import { useLanguage } from "@/lib/languageContext"
 import { translations } from "@/lib/translations"
 
@@ -32,21 +29,8 @@ export default function Footer() {
 
     return (
         <footer id="footer">
-            <div className="mx-auto max-w-6xl px-3 pb-8 pt-16 sm:pt-24 lg:pt-32">
-                <div className="xl:grid xl:grid-cols-3 xl:gap-20">
-                    <div className="space-y-8">
-                        <DatabaseLogo className="w-32 sm:w-40" />
-                        <p className="text-sm leading-6 text-gray-600 dark:text-gray-400">
-                            {t.description}
-                        </p>
-                        <div className="flex items-center gap-3">
-                            <LanguageSwitch />
-                            <ThemeSwitch />
-                        </div>
-                        <div></div>
-                    </div>
-                    <div className="mt-16 grid grid-cols-1 gap-14 sm:gap-8 md:grid-cols-2 xl:col-span-2 xl:mt-0">
-                        <div className="grid grid-cols-2 gap-8">
+            <div className="mx-auto max-w-6xl px-3 pb-8 pt-12 sm:pt-16">
+                <div className="grid grid-cols-2 gap-10 sm:grid-cols-4 sm:gap-8">
                             <div>
                                 <h3 className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50">
                                     {t.product}
@@ -78,8 +62,8 @@ export default function Footer() {
                                         </li>
                                     ))}
                                 </ul>
-                            </div>
-                            <div>
+                    </div>
+                    <div>
                                 <h3 className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50">
                                     {t.resources}
                                 </h3>
@@ -110,10 +94,8 @@ export default function Footer() {
                                         </li>
                                     ))}
                                 </ul>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-8">
-                            <div>
+                    </div>
+                    <div>
                                 <h3 className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50">
                                     {t.company}
                                 </h3>
@@ -144,8 +126,8 @@ export default function Footer() {
                                         </li>
                                     ))}
                                 </ul>
-                            </div>
-                            <div>
+                    </div>
+                    <div>
                                 <h3 className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50">
                                     {t.legal}
                                 </h3>
@@ -176,11 +158,9 @@ export default function Footer() {
                                         </li>
                                     ))}
                                 </ul>
-                            </div>
-                        </div>
                     </div>
                 </div>
-                <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 sm:mt-20 sm:flex-row lg:mt-24 dark:border-gray-800">
+                <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 sm:mt-16 sm:flex-row dark:border-gray-800">
                     <p className="text-sm leading-5 text-gray-500 dark:text-gray-400">
                         &copy; {new Date().getFullYear()} Quang Anh. {t.allRightsReserved}
                     </p>

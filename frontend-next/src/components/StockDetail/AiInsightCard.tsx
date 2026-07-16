@@ -46,11 +46,9 @@ interface AiInsightCardProps {
     analysisJson?: string | null;
     newsJson?: string | null;
     quarter?: string;
-    generatedAt?: string;
 }
 
 interface LiveTechnicalSnapshot {
-    fetchedAt?: string;
     rating?: string;
     price?: number | null;
     ema200?: number | null;
@@ -70,15 +68,6 @@ function sentimentBadge(s: string | undefined) {
     if (s === 'bullish') return { label: 'Tích cực', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' };
     if (s === 'bearish') return { label: 'Tiêu cực', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' };
     return { label: 'Trung lập', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' };
-}
-
-function formatGeneratedAt(value?: string): string | null {
-    if (!value) return null;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return new Intl.DateTimeFormat('vi-VN', {
-        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    }).format(date);
 }
 
 function technicalSignal(rating?: string): string {
@@ -104,7 +93,6 @@ function toLiveTechnicalSnapshot(payload: unknown): LiveTechnicalSnapshot | null
 
     const ema200 = response.data.movingAverages?.find((item) => item.name?.toLowerCase() === 'ema200')?.value;
     return {
-        fetchedAt: response.fetched_at_utc,
         rating: response.data.gaugeSummary?.rating,
         price: response.data.price,
         ema200,
@@ -127,14 +115,12 @@ function formatTechnicalLevel(value: number): string {
 }
 
 function LiveTechnicalSection({ snapshot }: { snapshot: LiveTechnicalSnapshot }) {
-    const updatedAt = formatGeneratedAt(snapshot.fetchedAt);
     const signal = technicalSignal(snapshot.rating);
 
     return (
         <div className="space-y-1.5 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Tín hiệu kỹ thuật</p>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400">● Tự động cập nhật{updatedAt ? ` · ${updatedAt}` : ''}</span>
             </div>
             <p className={`text-sm font-semibold ${signalColor(signal)}`}>{signal}</p>
             <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">{liveTrend(snapshot)}</p>
@@ -152,7 +138,7 @@ function LiveTechnicalSection({ snapshot }: { snapshot: LiveTechnicalSnapshot })
 
 // ── Component ────────────────────────────────────────────────────────────
 
-export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter, generatedAt }: AiInsightCardProps) {
+export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter }: AiInsightCardProps) {
     const [liveTechnical, setLiveTechnical] = useState<LiveTechnicalSnapshot | null>(null);
 
     useEffect(() => {
@@ -208,7 +194,6 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter,
     // be presented as one.
     const hasNews = hasBull || hasBear || (news?.key_events?.length ?? 0) > 0;
     const badge = sentimentBadge(news?.overall_sentiment);
-    const generatedLabel = formatGeneratedAt(generatedAt);
 
     return (
         <section className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-labelledby="ai-insight-title">
@@ -225,7 +210,6 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter,
                         </span>
                     )}
                 </div>
-                {generatedLabel && <span className="text-xs text-slate-400 dark:text-slate-500">Cập nhật {generatedLabel}</span>}
             </div>
 
             <div className="flex-1 divide-y divide-slate-100 dark:divide-slate-800">
