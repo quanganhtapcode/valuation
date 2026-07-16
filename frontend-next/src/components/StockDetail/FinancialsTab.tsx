@@ -698,15 +698,17 @@ function SectionedTable({
     getRowLabel,
     getSectionTitle,
     divisor,
+    lang = 'vi',
 }: {
     sections: { title: string; rows: { key: string; label: string; isTotal?: boolean; isGrandTotal?: boolean; isPct?: boolean; isMultiple?: boolean; indent?: boolean }[]; isPctSection?: boolean }[];
     rows: any[];
     getRowLabel?: (key: string, fallback: string) => string;
     getSectionTitle?: (rawTitle: string) => string;
     divisor?: number;
+    lang?: 'vi' | 'en';
 }) {
     if (!rows || rows.length === 0) {
-        return <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu</div>;
+        return <div className="text-center py-8 text-gray-400 text-sm">{lang === 'vi' ? 'Không có dữ liệu' : 'No data available'}</div>;
     }
 
     const sortedRows = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
@@ -734,7 +736,7 @@ function SectionedTable({
                 <thead>
                     <tr className="border-b border-gray-100 dark:border-slate-800">
                         <th className="sticky left-0 bg-white dark:bg-[#111827] z-10 text-left py-2.5 px-4 font-medium text-gray-500 dark:text-slate-400 whitespace-nowrap min-w-[180px] text-[12px]">
-                            Chỉ tiêu
+                            {lang === 'vi' ? 'Chỉ tiêu' : 'Metric'}
                         </th>
                         {displayRows.map((row, i) => {
                             const { label, isForecast } = renderPeriod(row);
@@ -743,7 +745,7 @@ function SectionedTable({
                                     <span className="inline-flex items-center gap-1">
                                         {label}
                                         {isForecast && (
-                                            <span className="text-gray-400 cursor-help" title="Dự báo">
+                                            <span className="text-gray-400 cursor-help" title={lang === 'vi' ? 'Dự báo' : 'Forecast'}>
                                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                     <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
                                                 </svg>
@@ -898,7 +900,7 @@ function RatioDashboard({
         return { ...metric, ...(ratioText[metric.label] ?? {}), history, current, change: current !== undefined && previous !== undefined ? current - previous : null };
     }).filter(card => card.current !== undefined);
 
-    if (cards.length === 0) return <SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} />;
+    if (cards.length === 0) return <SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} lang={lang} />;
 
     return (
         <div className="py-4">
@@ -926,7 +928,7 @@ function RatioDashboard({
             </div>
             <details className="group mt-5 border-t border-gray-100 pt-4 dark:border-slate-800">
                 <summary className="cursor-pointer list-none text-[13px] font-medium text-blue-700 hover:text-blue-800 dark:text-blue-400"><span className="group-open:hidden">{copy.show}</span><span className="hidden group-open:inline">{copy.hide}</span></summary>
-                <div className="mt-3 -mx-4"><SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} /></div>
+                <div className="mt-3 -mx-4"><SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} lang={lang} /></div>
             </details>
         </div>
     );
@@ -1167,6 +1169,24 @@ export default function FinancialsTab({
         return key ? tFin.sections[key] : rawTitle
     }
 
+    const notesSectionTitle = (rawTitle: string): string => {
+        if (lang === 'vi') return rawTitle
+        const labels: Record<string, string> = {
+            'Hàng tồn kho': 'Inventories',
+            'Cơ cấu doanh thu': 'Revenue breakdown',
+            'Chi phí sản xuất theo yếu tố': 'Cost of goods manufactured by factors',
+            'Doanh thu tài chính': 'Financial income',
+            'Chi phí tài chính': 'Financial expenses',
+            'Vay dài hạn': 'Long-term borrowings',
+            'Phân loại cho vay theo chất lượng nợ': 'Loan classification by credit quality',
+            'Phân loại cho vay theo kỳ hạn': 'Loan classification by tenor',
+            'Phân loại tiền gửi khách hàng': 'Customer deposit classification',
+            'Thu nhập lãi': 'Interest income',
+            'Chi phí lãi': 'Interest expense',
+        }
+        return labels[rawTitle] ?? rawTitle
+    }
+
     // Keep parent period in sync when user changes mode
     const setDisplayMode = (m: DisplayMode) => {
         setDisplayModeState(m);
@@ -1304,6 +1324,7 @@ export default function FinancialsTab({
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                lang={lang}
                             />
                         )}
 
@@ -1315,6 +1336,7 @@ export default function FinancialsTab({
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                lang={lang}
                             />
                         )}
 
@@ -1326,6 +1348,7 @@ export default function FinancialsTab({
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                lang={lang}
                             />
                         )}
 
@@ -1348,8 +1371,10 @@ export default function FinancialsTab({
                             <SectionedTable
                                 sections={isBank ? BANK_NOTES_SECTIONS : NORMAL_NOTES_SECTIONS}
                                 rows={reportData.notes}
-                                getSectionTitle={s => s}
+                                getRowLabel={rowLabel}
+                                getSectionTitle={notesSectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                lang={lang}
                             />
                         )}
                     </>

@@ -47,30 +47,40 @@ interface ValuationTabProps {
 
 type ModelKey = 'fcfe' | 'fcff' | 'justified_pe' | 'justified_pb' | 'graham';
 
-const MODEL_META: Record<ModelKey, { nameVi: string; formula: string; tremorColor: 'blue' | 'indigo' | 'violet' | 'purple' | 'emerald' }> = {
+const MODEL_META: Record<ModelKey, { nameVi: string; nameEn: string; formulaVi: string; formulaEn: string; tremorColor: 'blue' | 'indigo' | 'violet' | 'purple' | 'emerald' }> = {
     fcfe: {
         nameVi: 'Dòng tiền vốn chủ',
-        formula: 'CFO − CapEx + Net Borrowing',
+        nameEn: 'Free Cash Flow to Equity',
+        formulaVi: 'CFO − CapEx + Vay ròng',
+        formulaEn: 'CFO − CapEx + Net Borrowing',
         tremorColor: 'blue',
     },
     fcff: {
         nameVi: 'Dòng tiền toàn DN',
-        formula: 'CFO − CapEx + Interest×(1−t), then EV − Net Debt',
+        nameEn: 'Free Cash Flow to Firm',
+        formulaVi: 'CFO − CapEx + Lãi vay×(1−t), sau đó EV − Nợ ròng',
+        formulaEn: 'CFO − CapEx + Interest×(1−t), then EV − Net Debt',
         tremorColor: 'indigo',
     },
     justified_pe: {
         nameVi: 'So sánh P/E ngành',
-        formula: 'EPS × Median P/E ngành',
+        nameEn: 'Industry P/E comparison',
+        formulaVi: 'EPS × P/E trung vị ngành',
+        formulaEn: 'EPS × Industry median P/E',
         tremorColor: 'violet',
     },
     justified_pb: {
         nameVi: 'So sánh P/B ngành',
-        formula: 'BVPS × Median P/B ngành',
+        nameEn: 'Industry P/B comparison',
+        formulaVi: 'BVPS × P/B trung vị ngành',
+        formulaEn: 'BVPS × Industry median P/B',
         tremorColor: 'purple',
     },
     graham: {
         nameVi: 'Công thức Graham',
-        formula: '√(22.5 × EPS × BVPS)',
+        nameEn: 'Graham formula',
+        formulaVi: '√(22.5 × EPS × BVPS)',
+        formulaEn: '√(22.5 × EPS × BVPS)',
         tremorColor: 'emerald',
     },
 };
@@ -497,7 +507,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                     </div>
                                     {result?.target_price && (
                                         <div>
-                                            <label className="text-sm text-gray-600 dark:text-gray-400">Giá mục tiêu VCI</label>
+                                            <label className="text-sm text-gray-600 dark:text-gray-400">{isVietnamese ? 'Giá mục tiêu VCI' : 'VCI target price'}</label>
                                             <div className="mt-1 flex items-center justify-between rounded-tremor-default border border-tremor-border bg-tremor-background-subtle px-3 py-2 dark:border-dark-tremor-border dark:bg-dark-tremor-background-subtle">
                                                 <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
                                                     {result.target_price.toLocaleString('vi-VN')}
@@ -705,18 +715,18 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
 
             {result?.valuations && (
                 <Card>
-                    <Title className="mb-0.5">Kết quả từng mô hình</Title>
-                    <Text className="mb-4">Nhấn vào card ở trên để bật/tắt mô hình · trọng số phân bổ đều</Text>
+                    <Title className="mb-0.5">{isVietnamese ? 'Kết quả từng mô hình' : 'Model results'}</Title>
+                    <Text className="mb-4">{isVietnamese ? 'Nhấn vào card ở trên để bật/tắt mô hình · trọng số phân bổ đều' : 'Select a card above to enable or disable a model · weights are allocated evenly'}</Text>
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableHeaderCell>Mô hình</TableHeaderCell>
-                                    <TableHeaderCell>Công thức</TableHeaderCell>
-                                    <TableHeaderCell className="text-right">Giá trị</TableHeaderCell>
+                                    <TableHeaderCell>{isVietnamese ? 'Mô hình' : 'Model'}</TableHeaderCell>
+                                    <TableHeaderCell>{isVietnamese ? 'Công thức' : 'Formula'}</TableHeaderCell>
+                                    <TableHeaderCell className="text-right">{isVietnamese ? 'Giá trị' : 'Value'}</TableHeaderCell>
                                     <TableHeaderCell className="text-right">Upside</TableHeaderCell>
-                                    <TableHeaderCell className="text-right">Trọng số</TableHeaderCell>
-                                    <TableHeaderCell className="text-center">Trạng thái</TableHeaderCell>
+                                    <TableHeaderCell className="text-right">{isVietnamese ? 'Trọng số' : 'Weight'}</TableHeaderCell>
+                                    <TableHeaderCell className="text-center">{isVietnamese ? 'Trạng thái' : 'Status'}</TableHeaderCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -732,12 +742,12 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${DOT_CLASS[key]} ${(!m.enabled || val <= 0) ? 'opacity-30' : ''}`} />
                                                     <div>
                                                         <Text className="font-semibold">{m.name}</Text>
-                                                        <Text className="text-xs">{meta.nameVi}</Text>
+                                                        <Text className="text-xs">{isVietnamese ? meta.nameVi : meta.nameEn}</Text>
                                                     </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <code className="text-xs text-tremor-content-subtle">{meta.formula}</code>
+                                                <code className="text-xs text-tremor-content-subtle">{isVietnamese ? meta.formulaVi : meta.formulaEn}</code>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <Text className="font-mono font-semibold">{val > 0 ? fmt(val) : '—'}</Text>
@@ -752,7 +762,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge color={m.enabled && val > 0 ? 'emerald' : m.enabled ? 'amber' : 'gray'} size="xs">
-                                                    {m.enabled && val > 0 ? 'Bật' : !m.enabled ? 'Tắt' : 'Thiếu dữ liệu'}
+                                                    {m.enabled && val > 0 ? (isVietnamese ? 'Bật' : 'On') : !m.enabled ? (isVietnamese ? 'Tắt' : 'Off') : (isVietnamese ? 'Thiếu dữ liệu' : 'No data')}
                                                 </Badge>
                                             </TableCell>
                                         </TableRow>
@@ -760,7 +770,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                 })}
                                 <TableRow className="bg-tremor-background-subtle font-bold">
                                     <TableCell colSpan={2}>
-                                        <Text className="font-bold">Bình quân gia quyền</Text>
+                                        <Text className="font-bold">{isVietnamese ? 'Bình quân gia quyền' : 'Weighted average'}</Text>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Text className="font-mono font-black text-blue-600">{fmt(weightedAvg)}</Text>

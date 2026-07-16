@@ -1,5 +1,7 @@
 'use client';
 
+import { useLanguage } from '@/lib/languageContext';
+
 interface OrderBookEntry {
     price: number;
     volume: number;
@@ -47,6 +49,16 @@ const PRICE_COLOR: Record<PriceLevel, string> = {
 };
 
 export default function OrderBook({ orderbook, refPrice, ceiling, floor }: OrderBookProps) {
+    const { lang } = useLanguage();
+    const copy = lang === 'vi' ? {
+        title: 'Sổ lệnh', live: 'Trực tiếp', empty: 'Chưa có dữ liệu sổ lệnh',
+        bidVolume: 'KL mua', bidPrice: 'Giá mua', askPrice: 'Giá bán', askVolume: 'KL bán',
+        total: 'Tổng', spread: 'Chênh lệch',
+    } : {
+        title: 'Order book', live: 'Live', empty: 'No order book data',
+        bidVolume: 'Bid volume', bidPrice: 'Bid price', askPrice: 'Ask price', askVolume: 'Ask volume',
+        total: 'Total', spread: 'Spread',
+    };
     const bids = [...(orderbook?.bid ?? [])].slice(0, 3);
     const asks = [...(orderbook?.ask ?? [])].slice(0, 3);
 
@@ -75,28 +87,28 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
             {/* ── Header ─────────────────────────────────────────── */}
             <div className="flex items-center justify-between px-3.5 py-2 border-b border-slate-100 dark:border-slate-800">
                 <span id="order-book-title" className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 select-none">
-                    Sổ lệnh
+                    {copy.title}
                 </span>
                 {hasData && (
                     <span className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-500 dark:text-emerald-400">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 motion-reduce:animate-none animate-pulse" />
-                        Trực tiếp
+                        {copy.live}
                     </span>
                 )}
             </div>
 
             {!hasData ? (
                 <div className="py-8 text-center text-[12px] text-slate-300 dark:text-slate-600 select-none">
-                    Chưa có dữ liệu sổ lệnh
+                    {copy.empty}
                 </div>
             ) : (
                 <>
                     {/* ── Column labels ──────────────────────────────────── */}
                     <div className="grid grid-cols-4 items-center bg-slate-50 dark:bg-slate-800/60 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 select-none">
-                        <span className="px-3 py-1.5 text-right">KL mua</span>
-                        <span className="border-l border-slate-100 px-3 py-1.5 text-right dark:border-slate-800">Giá mua</span>
-                        <span className="border-l border-slate-100 px-3 py-1.5 text-left dark:border-slate-800">Giá bán</span>
-                        <span className="px-3 py-1.5 text-left">KL bán</span>
+                        <span className="px-3 py-1.5 text-right">{copy.bidVolume}</span>
+                        <span className="border-l border-slate-100 px-3 py-1.5 text-right dark:border-slate-800">{copy.bidPrice}</span>
+                        <span className="border-l border-slate-100 px-3 py-1.5 text-left dark:border-slate-800">{copy.askPrice}</span>
+                        <span className="px-3 py-1.5 text-left">{copy.askVolume}</span>
                     </div>
 
                     {/* ── Rows ───────────────────────────────────────────── */}
@@ -162,10 +174,10 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
                             {fmtVol(totalBid)}
                         </span>
                         <span className="border-l border-slate-100 px-3 py-1.5 text-right text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                            Tổng
+                            {copy.total}
                         </span>
                         <span className="border-l border-slate-100 px-3 py-1.5 text-left text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                            Tổng
+                            {copy.total}
                         </span>
                         <span className="px-3 py-1.5 text-left text-[11px] font-semibold tabular-nums text-red-500 dark:text-red-400">
                             {fmtVol(totalAsk)}
@@ -196,7 +208,7 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
                         {/* Spread */}
                         {spread > 0 && (
                             <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500">
-                                <span>Chênh lệch</span>
+                                <span>{copy.spread}</span>
                                 <span className="font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
                                     {fmtPrice(spread)}
                                 </span>

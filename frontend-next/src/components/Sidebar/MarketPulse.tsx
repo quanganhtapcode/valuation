@@ -1,13 +1,15 @@
 'use client';
 
 import Image from 'next/image';
-import { memo, useState, useCallback } from 'react'; // useCallback used by MarketList
+import { memo, useState, useCallback, useEffect } from 'react';
 import {
     Card,
 } from '@tremor/react';
 import Link from 'next/link';
 import { TopMoverItem } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
+import { useLanguage } from '@/lib/languageContext';
+import { getTickerData } from '@/lib/tickerCache';
 
 interface MarketPulseProps {
     gainers: TopMoverItem[];
@@ -71,6 +73,24 @@ function MarketPulse({
     losers,
     isLoading
 }: MarketPulseProps) {
+    const { lang } = useLanguage();
+    const [englishNames, setEnglishNames] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (lang !== 'en') return;
+        let active = true;
+        getTickerData().then((data) => {
+            if (!active || !data?.tickers) return;
+            const names = Object.fromEntries(
+                data.tickers
+                    .filter((ticker: { symbol?: string; en_name?: string }) => ticker.symbol && ticker.en_name)
+                    .map((ticker: { symbol: string; en_name: string }) => [ticker.symbol, ticker.en_name]),
+            );
+            setEnglishNames(names);
+        });
+        return () => { active = false; };
+    }, [lang]);
+
     return (
         <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-xl">
             {/* Content Area */}
@@ -82,6 +102,7 @@ function MarketPulse({
                     label2="Losers"
                     type="movers"
                     isLoading={isLoading}
+                    companyNames={lang === 'en' ? englishNames : undefined}
                 />
             </div>
         </Card>
@@ -103,6 +124,7 @@ function MarketList({
     label2,
     type,
     isLoading,
+    companyNames,
 }: {
     items1: TopMoverItem[],
     items2: TopMoverItem[],
@@ -110,6 +132,7 @@ function MarketList({
     label2: string,
     type: 'movers' | 'foreign',
     isLoading?: boolean,
+    companyNames?: Record<string, string>,
 }) {
     const [subTab, setSubTab] = useState(0); // 0 or 1
     const items = subTab === 0 ? items1 : items2;
@@ -187,8 +210,8 @@ function MarketList({
                                             </span>
                                         </div>
                                         <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong truncate w-full" title={item.CompanyName}>
-                                                {item.CompanyName}
+                                            <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong truncate w-full" title={companyNames?.[item.Symbol] || item.CompanyName}>
+                                                {companyNames?.[item.Symbol] || item.CompanyName}
                                             </span>
                                             <div className="flex items-center gap-1.5 text-xs text-tremor-content-subtle">
                                                 <span className="font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">{item.Symbol}</span>
