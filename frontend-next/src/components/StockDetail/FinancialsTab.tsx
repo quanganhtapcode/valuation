@@ -564,6 +564,22 @@ const BANK_NOTES_SECTIONS = [
     },
 ];
 
+// VCI's field-code dataset does not include English labels for the detailed
+// disclosure fields used in the Notes tab (noc* / nob*).
+const NOTE_LABELS_EN: Record<string, string> = {
+    noc17: 'Raw materials and supplies', noc18: 'Tools and instruments', noc19: 'Work in progress', noc20: 'Finished goods', noc21: 'Merchandise', noc15: 'Total inventories',
+    noc103: 'Sales of goods', noc104: 'Service revenue', noc105: 'Construction contract revenue', noc102: 'Total revenue',
+    noc141: 'Raw materials and supplies expense', noc142: 'Labour costs', noc143: 'Depreciation expense', noc144: 'External services', noc145: 'Other cash expenses', noc140: 'Total costs',
+    noc123: 'Interest income from deposits and loans', noc125: 'Dividends and profit distributions', noc126: 'Gain on sale of foreign currency', noc127: 'Realised foreign exchange gains', noc122: 'Total financial income',
+    noc132: 'Interest expense on borrowings', noc136: 'Realised foreign exchange losses', noc131: 'Total financial expenses',
+    noc94: 'Bank borrowings', noc95: 'Other borrowings', noc96: 'Bonds issued', noc97: 'Finance lease liabilities', noc93: 'Total long-term borrowings',
+    nob40: 'Standard loans (Group 1)', nob41: 'Special-mention loans (Group 2)', nob42: 'Substandard loans (Group 3)', nob43: 'Doubtful loans (Group 4)', nob44: 'Loss loans (Group 5)', nob39: 'Total outstanding loans',
+    nob46: 'Short-term loans', nob47: 'Medium-term loans', nob48: 'Long-term loans', nob45: 'Total outstanding loans',
+    nob66: 'Demand deposits (CASA)', nob67: 'Term deposits', nob68: 'Savings deposits', nob65: 'Total customer deposits',
+    nob88: 'Interest income from customer loans', nob89: 'Interest income from deposits', nob90: 'Interest income from debt securities', nob87: 'Total interest income',
+    nob96: 'Interest expense on deposits', nob97: 'Interest expense on borrowings', nob98: 'Interest expense on bonds', nob95: 'Total interest expense',
+};
+
 // ── Pill Dropdown Component ───────────────────────────────────────────────────
 
 function PillDropdown({
@@ -1123,6 +1139,7 @@ export default function FinancialsTab({
     }, [])
 
     const rowLabel = (key: string, fallback: string): string => {
+        if (lang === 'en' && NOTE_LABELS_EN[key]) return NOTE_LABELS_EN[key]
         const entry = fieldMap[key]
         if (!entry) return fallback
         return lang === "vi" ? entry.vi : entry.en
