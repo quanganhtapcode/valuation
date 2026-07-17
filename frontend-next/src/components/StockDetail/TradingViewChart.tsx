@@ -469,7 +469,10 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
                 {/* OHLCV overlay — only visible while hovering/touching the chart */}
                 <OHLCVOverlay bar={hoveredBar} />
 
-                <div ref={chartContainerRef} className="w-full rounded-lg" style={{ height: '400px' }} />
+                <div
+                    ref={chartContainerRef}
+                    className="h-[320px] w-full rounded-lg sm:h-[400px]"
+                />
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 px-1 pt-3 dark:border-slate-800">
