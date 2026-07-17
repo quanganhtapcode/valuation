@@ -239,7 +239,7 @@ export function Navbar() {
             )}
             style={open ? { height: `${mobileOpenHeight}px` } : undefined}
         >
-            <div className="my-auto w-full max-w-[1600px]">
+            <div className={cx("w-full max-w-[1600px]", !open && "my-auto")}>
                 <div className="flex items-center justify-between gap-4">
                     {/* Logo */}
                     <div className="flex-shrink-0">
