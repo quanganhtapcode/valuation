@@ -239,13 +239,13 @@ export function Navbar() {
             )}
             style={open ? { height: `${mobileOpenHeight}px` } : undefined}
         >
-            <div className="w-full max-w-[1600px] md:my-auto">
+            <div className="my-auto w-full max-w-[1600px]">
                 <div className="flex items-center justify-between gap-4">
                     {/* Logo */}
                     <div className="flex-shrink-0">
                         <Link href={siteConfig.baseLinks.overview}>
                             <span className="sr-only">Overview</span>
-                            <DatabaseLogo className="size-7 md:size-8" />
+                            <DatabaseLogo className="size-9 md:size-10" />
                         </Link>
                     </div>
 
