@@ -107,26 +107,50 @@ def _fallback_takeaways(
 ) -> dict[str, Any]:
     up = [m for m in movers if m.get("direction") == "up"][:3]
     down = [m for m in movers if m.get("direction") == "down"][:2]
-    summary: list[str] = []
+    market_summary_vi: list[str] = []
+    market_summary: list[str] = []
     if up:
-        summary.append("Nhóm tăng mạnh hôm nay nổi bật: " + ", ".join(
+        market_summary_vi.append("Nhóm tăng mạnh trong phiên: " + ", ".join(
+            f"{m['symbol']} +{m['change_pct']:.2f}%" for m in up
+        ) + ".")
+        market_summary.append("Largest gains today: " + ", ".join(
             f"{m['symbol']} +{m['change_pct']:.2f}%" for m in up
         ) + ".")
     if down:
-        summary.append("Chiều giảm đáng chú ý: " + ", ".join(
+        market_summary_vi.append("Nhóm giảm mạnh trong phiên: " + ", ".join(
             f"{m['symbol']} {m['change_pct']:.2f}%" for m in down
         ) + ".")
+        market_summary.append("Largest declines today: " + ", ".join(
+            f"{m['symbol']} {m['change_pct']:.2f}%" for m in down
+        ) + ".")
+
+    news_summary_vi: list[str] = []
+    news_summary: list[str] = []
     for item in recent_news[:3]:
-        title = item.get("title")
+        title = str(item.get("title") or "").strip()
         if title:
             symbol = str(item.get("symbol") or "").upper()
-            prefix = f"{symbol}: " if symbol else "Tin đáng chú ý: "
-            summary.append(f"{prefix}{title}")
-            if len(summary) >= 4:
-                break
+            source = str(item.get("source") or "").strip()
+            prefix = f"{symbol}: " if symbol else ""
+            suffix = f" — {source}" if source else ""
+            news_summary_vi.append(f"{prefix}{title}{suffix}")
+            # The upstream coverage is Vietnamese. Keep its original title instead
+            # of inventing an English translation in deterministic mode.
+            news_summary.append(f"{prefix}{title}{suffix}")
+
+    flat_vi = (market_summary_vi + news_summary_vi)[:5]
+    flat_en = (market_summary + news_summary)[:5]
     return {
-        "headline": "Biến động thị trường trong ngày",
-        "summary": summary[:4],
+        "headline": "Vietnam market moves today",
+        "headline_vi": "Biến động thị trường trong ngày",
+        "market_summary": market_summary,
+        "market_summary_vi": market_summary_vi,
+        "news_summary": news_summary,
+        "news_summary_vi": news_summary_vi,
+        # Keep the combined fields for API consumers that have not adopted the
+        # separated market/news presentation yet.
+        "summary_vi": flat_vi,
+        "summary": flat_en or ["No material market move was detected in the latest update."],
         "watchlist": [],
         "movers": movers,
         "recent_news": recent_news,
@@ -143,14 +167,17 @@ def _build_prompt(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]
         "recent_news_24h": recent_news,
     }
     return (
-        "Tom tat tin va bien dong noi bat trong 24 gio gan nhat cho nha dau tu chung khoan Viet Nam.\n"
+        "Summarize notable Vietnam-stock news and market moves from the past 24 hours.\n"
         "Dua CHI tren JSON dau vao. Uu tien ma co phieu xuat hien trong tin noi bat, "
         "hoac co bien dong gia lon; co the chon ma khong nam trong danh sach movers neu tin dang chu y. "
-        "Neu tin va bien dong khong lien he ro rang, chi neu tung su kien, khong khang dinh quan he nhan qua. "
-        "Khong khuyen nghi mua ban. Viet tieng Viet co dau, trung lap.\n\n"
-        "Tra ve JSON hop le dung schema:\n"
-        "{\"headline\":\"string toi da 90 ky tu\",\"summary\":[\"3-5 bullet, moi bullet toi da 170 ky tu\"],"
-        "\"watchlist\":[{\"symbol\":\"AAA\",\"takeaway\":\"string toi da 140 ky tu, neu co thi nhac tieu de tin\","
+        "When news and price moves are not clearly related, state each fact separately and do not imply causation. "
+        "Do not make buy/sell recommendations. Write neutral, plain language.\n\n"
+        "Return valid JSON only, using this exact bilingual schema. headline, summary, and takeaway must be English; "
+        "the *_vi fields must be their Vietnamese equivalents:\n"
+        "{\"headline\":\"English string, max 90 characters\",\"headline_vi\":\"Vietnamese string, max 90 characters\","
+        "\"market_summary\":[\"1-2 English bullets about the largest price moves\"],\"market_summary_vi\":[\"matching Vietnamese bullets\"],"
+        "\"news_summary\":[\"2-3 English bullets that summarize the provided news only\"],\"news_summary_vi\":[\"matching Vietnamese bullets\"],"
+        "\"watchlist\":[{\"symbol\":\"AAA\",\"takeaway\":\"English string, max 140 characters\",\"takeaway_vi\":\"Vietnamese equivalent\","
         "\"direction\":\"up|down|neutral\"}]}\n\n"
         f"INPUT_JSON:\n{json.dumps(payload, ensure_ascii=False)}"
     )
@@ -164,13 +191,29 @@ def compute_ai_takeaways() -> dict[str, Any]:
     try:
         text, model = generate_openrouter(_build_prompt(movers, recent_news))
         parsed = _extract_json_object(text)
-        summary = [str(item).strip() for item in parsed.get("summary", []) if str(item).strip()]
+        def bullets(key: str) -> list[str]:
+            return [str(item).strip() for item in parsed.get(key, []) if str(item).strip()]
+
+        market_summary = bullets("market_summary")
+        market_summary_vi = bullets("market_summary_vi")
+        news_summary = bullets("news_summary")
+        news_summary_vi = bullets("news_summary_vi")
+        # Compatibility with snapshots generated before the separated schema.
+        summary = bullets("summary") or (market_summary + news_summary)
+        summary_vi = bullets("summary_vi") or (market_summary_vi + news_summary_vi)
         if not summary:
             raise ValueError("AI response did not include summary bullets")
-        watchlist = parsed.get("watchlist") if isinstance(parsed.get("watchlist"), list) else []
+        raw_watchlist = parsed.get("watchlist") if isinstance(parsed.get("watchlist"), list) else []
+        watchlist = [item for item in raw_watchlist if isinstance(item, dict)]
         return {
-            "headline": str(parsed.get("headline") or "Biến động thị trường trong ngày").strip()[:120],
+            "headline": str(parsed.get("headline") or "Vietnam market moves today").strip()[:120],
+            "headline_vi": str(parsed.get("headline_vi") or "Biến động thị trường trong ngày").strip()[:120],
             "summary": summary[:5],
+            "summary_vi": summary_vi[:5],
+            "market_summary": market_summary[:2],
+            "market_summary_vi": market_summary_vi[:2],
+            "news_summary": news_summary[:3],
+            "news_summary_vi": news_summary_vi[:3],
             "watchlist": watchlist[:5],
             "movers": movers,
             "recent_news": recent_news,

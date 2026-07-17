@@ -59,7 +59,7 @@ STATS_FINANCIAL_DB = os.environ.get(
     str(ROOT / "fetch_sqlite" / "vci_stats_financial.sqlite"),
 )
 
-HOSE_HNX_EXCHANGES = ("HSX", "HNX")
+LISTED_EXCHANGES = ("HSX", "HNX", "UPCOM")
 RATE_LIMIT_DELAY = 4.0  # seconds between API calls — respects ~15 RPM limit
 NEWS_REFRESH_THRESHOLD = 3  # re-analyze if this many new news items since last analysis
 
@@ -81,9 +81,9 @@ def detect_current_quarter(fin: sqlite3.Connection) -> tuple[int, int]:
     return int(row[0]), int(row[1])
 
 
-def get_hose_hnx_tickers(scr: sqlite3.Connection) -> set[str]:
+def get_listed_tickers(scr: sqlite3.Connection) -> set[str]:
     rows = scr.execute(
-        "SELECT ticker FROM screening_data WHERE exchange IN ('HSX','HNX')"
+        "SELECT ticker FROM screening_data WHERE exchange IN ('HSX', 'HNX', 'UPCOM')"
     ).fetchall()
     return {r[0] for r in rows}
 
@@ -593,6 +593,13 @@ def save_analysis(
         try:
             data = _json.loads(match.group())
             candidate = data.get("news_thesis")
+            # Some providers correctly return the requested thesis fields at
+            # the root level instead of nesting them under "news_thesis".
+            # Both forms are valid for this news-only analysis payload.
+            if not isinstance(candidate, dict) and isinstance(data, dict) and any(
+                key in data for key in ("overall_sentiment", "bull_case", "bear_case", "key_events", "watch_out")
+            ):
+                candidate = data
             if isinstance(candidate, dict):
                 news_part = candidate
                 news_json = _json.dumps(news_part, ensure_ascii=False)
@@ -702,17 +709,17 @@ def run(
     if notify_telegram_results is None:
         notify_telegram_results = bool(tickers_override)
 
-    hose_hnx = get_hose_hnx_tickers(scr)
+    listed_tickers = get_listed_tickers(scr)
     names = get_company_names(cmp)
 
     if tickers_override:
-        candidates = [t for t in tickers_override if t in hose_hnx]
+        candidates = [t for t in tickers_override if t in listed_tickers]
     else:
         rows = fin.execute(
             "SELECT DISTINCT ticker FROM income_statement WHERE year_report=? AND quarter_report=?",
             (year, q),
         ).fetchall()
-        candidates = sorted(r[0] for r in rows if r[0] in hose_hnx)
+        candidates = sorted(r[0] for r in rows if r[0] in listed_tickers)
 
     # Separate into new (never analyzed), refresh (news threshold), and regen (missing news_json)
     new_tickers = []

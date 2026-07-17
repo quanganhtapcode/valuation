@@ -743,13 +743,20 @@ export interface MarketTakeawayMover {
 export interface MarketTakeawayWatchItem {
     symbol: string;
     takeaway: string;
+    takeaway_vi?: string;
     direction: 'up' | 'down' | 'neutral';
 }
 
 export interface MarketTakeawaysData {
     available: boolean;
     headline: string;
+    headline_vi?: string;
     summary: string[];
+    summary_vi?: string[];
+    market_summary?: string[];
+    market_summary_vi?: string[];
+    news_summary?: string[];
+    news_summary_vi?: string[];
     watchlist?: MarketTakeawayWatchItem[];
     movers: MarketTakeawayMover[];
     recent_news?: MarketTakeawayNews[];
