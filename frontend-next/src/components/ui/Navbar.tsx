@@ -245,7 +245,7 @@ export function Navbar() {
                     <div className="flex-shrink-0">
                         <Link href={siteConfig.baseLinks.overview}>
                             <span className="sr-only">Overview</span>
-                            <DatabaseLogo className="w-24 md:w-28" />
+                            <DatabaseLogo className="size-7 md:size-8" />
                         </Link>
                     </div>
 
