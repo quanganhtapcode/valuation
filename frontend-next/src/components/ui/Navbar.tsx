@@ -16,7 +16,6 @@ import {
     RiMore2Line,
     RiPieChartLine,
     RiSearchLine,
-    RiSideBarLine,
 } from "@remixicon/react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
@@ -49,6 +48,14 @@ const GROUP_BTN_H = 48;
 const SUB_ITEM_H = 44;
 const MOBILE_SETTINGS_H = 92;
 
+function ChatGPTSidebarIcon({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden="true">
+            <path d="M6.835 4c-.451.004-.82.012-1.137.038-.386.032-.659.085-.876.162l-.2.086c-.44.224-.807.564-1.063.982l-.103.184c-.126.247-.206.562-.248 1.076-.043.523-.043 1.19-.043 2.135v2.664c0 .944 0 1.612.043 2.135.042.515.122.829.248 1.076l.103.184c.256.418.624.758 1.063.982l.2.086c.217.077.49.13.876.162.316.026.685.034 1.136.038zm11.33 7.327c0 .922 0 1.654-.048 2.243-.043.522-.125.977-.305 1.395l-.082.177a4 4 0 0 1-1.473 1.593l-.276.155c-.465.237-.974.338-1.57.387-.59.048-1.322.048-2.244.048H7.833c-.922 0-1.654 0-2.243-.048-.522-.042-.977-.126-1.395-.305l-.176-.082a4 4 0 0 1-1.594-1.473l-.154-.275c-.238-.466-.34-.975-.388-1.572-.048-.589-.048-1.32-.048-2.243V8.663c0-.922 0-1.654.048-2.243.049-.597.15-1.106.388-1.571l.154-.276a4 4 0 0 1 1.594-1.472l.176-.083c.418-.18.873-.263 1.395-.305.589-.048 1.32-.048 2.243-.048h4.334c.922 0 1.654 0 2.243.048.597.049 1.106.15 1.571.388l.276.154a4 4 0 0 1 1.473 1.594l.082.176c.18.418.262.873.305 1.395.048.589.048 1.32.048 2.243zm-10 4.668h4.002c.944 0 1.612 0 2.135-.043.514-.042.829-.122 1.076-.248l.184-.103c.418-.256.758-.624.982-1.063l.086-.2c.077-.217.13-.49.162-.876.043-.523.043-1.19.043-2.135V8.663c0-.944 0-1.612-.043-2.135-.032-.386-.085-.659-.162-.876l-.086-.2a2.67 2.67 0 0 0-.982-1.063l-.184-.103c-.247-.126-.562-.206-1.076-.248-.523-.043-1.19-.043-2.135-.043H8.164L8.165 4z" />
+        </svg>
+    )
+}
+
 export function Navbar() {
     const { lang } = useLanguage()
     const t = translations[lang].nav
@@ -77,7 +84,6 @@ export function Navbar() {
 
     const scrolled = useScroll(15)
     const [open, setOpen] = React.useState(false)
-    const [mobileExpanded, setMobileExpanded] = useState<string | null>(null)
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
     const [settingsOpen, setSettingsOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false);
@@ -97,21 +103,18 @@ export function Navbar() {
     const router = useRouter();
     const pathname = usePathname();
 
-    // Compute mobile menu height dynamically to avoid oversized blur
+    // Compute mobile menu height dynamically so every mobile link is visible on open.
     const mobileOpenHeight = useMemo(() => {
-        let h = HEADER_ROW_H + NAV_MARGIN_H + NAV_GROUPS.length * GROUP_BTN_H + (NAV_GROUPS.length - 1) * 4;
-        NAV_GROUPS.forEach(g => {
-            if (mobileExpanded === g.id) h += g.items.length * SUB_ITEM_H + 4;
-        });
+        const itemHeight = NAV_GROUPS.reduce((total, group) => total + group.items.length * SUB_ITEM_H + 8, 0);
+        const h = HEADER_ROW_H + NAV_MARGIN_H + NAV_GROUPS.length * GROUP_BTN_H + itemHeight + (NAV_GROUPS.length - 1) * 4;
         return h + MOBILE_SETTINGS_H + 8; // controls + small buffer
-    }, [mobileExpanded, NAV_GROUPS]);
+    }, [NAV_GROUPS]);
 
     // Close everything on navigation
     useEffect(() => {
         setSearchOpen(false);
         setSearchQuery('');
         setOpen(false);
-        setMobileExpanded(null);
         setActiveDropdown(null);
         setSettingsOpen(false);
     }, [pathname]);
@@ -122,7 +125,7 @@ export function Navbar() {
 
     useEffect(() => {
         const mq = window.matchMedia("(min-width: 768px)")
-        const handle = () => { setOpen(false); setSearchOpen(false); setMobileExpanded(null); }
+        const handle = () => { setOpen(false); setSearchOpen(false); }
         mq.addEventListener("change", handle)
         handle()
         return () => mq.removeEventListener("change", handle)
@@ -450,18 +453,18 @@ export function Navbar() {
                         <Button
                             onClick={toggleSearch}
                             variant="ghost"
-                            className="aspect-square p-2 text-gray-700 dark:text-gray-200"
+                            className="aspect-square p-1.5 text-gray-700 dark:text-gray-200"
                             aria-label="Search stocks"
                         >
-                            <RiSearchLine className="size-6" />
+                            <RiSearchLine className="size-5" />
                         </Button>
                         <Button
-                            onClick={() => { setOpen(!open); if (!open) { setSearchOpen(false); setMobileExpanded(null); } }}
+                            onClick={() => { setOpen(!open); if (!open) setSearchOpen(false); }}
                             variant="ghost"
-                            className="aspect-square p-2 text-gray-700 dark:text-gray-200"
+                            className="aspect-square p-1.5 text-gray-700 dark:text-gray-200"
                             aria-label={open ? "Close navigation" : "Open navigation and settings"}
                         >
-                            {open ? <RiCloseLine aria-hidden="true" className="size-6" /> : <RiSideBarLine aria-hidden="true" className="size-6" />}
+                            {open ? <RiCloseLine aria-hidden="true" className="size-5" /> : <ChatGPTSidebarIcon className="size-5" />}
                         </Button>
                     </div>
                 </div>
@@ -471,37 +474,31 @@ export function Navbar() {
                     <ul className="w-full space-y-1 font-medium">
                         {NAV_GROUPS.map((group) => (
                             <li key={group.id}>
-                                <button
-                                    className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-base font-semibold text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                    onClick={() => setMobileExpanded(prev => prev === group.id ? null : group.id)}
-                                >
+                                <p className="px-3 py-2.5 text-base font-semibold text-gray-900 dark:text-gray-50">
                                     {group.label}
-                                    <RiArrowDownSLine className={cx("size-5 transition-transform duration-200", mobileExpanded === group.id ? "rotate-180" : "")} />
-                                </button>
-                                {mobileExpanded === group.id && (
-                                    <ul className="mt-1 ml-2 space-y-0.5 border-l-2 border-gray-100 dark:border-gray-800 pl-3">
-                                        {group.items.map((item) => {
-                                            const Icon = item.icon;
-                                            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-                                            return (
-                                                <li key={item.href} onClick={() => setOpen(false)}>
-                                                    <Link
-                                                        href={item.href}
-                                                        className={cx(
-                                                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                                                            isActive
-                                                                ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-                                                                : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                                        )}
-                                                    >
-                                                        <Icon className="size-4 shrink-0" />
-                                                        {item.label}
-                                                    </Link>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
+                                </p>
+                                <ul className="mt-1 ml-2 space-y-0.5 border-l-2 border-gray-100 dark:border-gray-800 pl-3">
+                                    {group.items.map((item) => {
+                                        const Icon = item.icon;
+                                        const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                                        return (
+                                            <li key={item.href} onClick={() => setOpen(false)}>
+                                                <Link
+                                                    href={item.href}
+                                                    className={cx(
+                                                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                                                        isActive
+                                                            ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                                                            : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                    )}
+                                                >
+                                                    <Icon className="size-4 shrink-0" />
+                                                    {item.label}
+                                                </Link>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
                             </li>
                         ))}
                     </ul>
@@ -532,7 +529,7 @@ export function Navbar() {
                                     type="text"
                                     autoFocus
                                     className={cx(
-                                        "w-full rounded-md border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm outline-none transition-all placeholder:text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-400",
+                                        "w-full rounded-md border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-base outline-none transition-all placeholder:text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-400 md:text-sm",
                                         focusInput
                                     )}
                                     placeholder={t.searchPlaceholder}
