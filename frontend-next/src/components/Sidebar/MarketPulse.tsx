@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { memo, useState, useCallback, useEffect } from 'react';
 import {
     Card,
@@ -36,38 +35,6 @@ function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
     return true;
 }
 
-type Direction = 'up' | 'unchanged' | 'down';
-
-function vietcapArrowUrls(direction: Direction): { light: string; dark: string } {
-    const base = 'https://trading.vietcap.com.vn/vietcap-priceboard/images';
-    if (direction === 'up') {
-        return {
-            light: `${base}/light/arrow-top-right.svg`,
-            dark: `${base}/dark/arrow-top-right.svg`,
-        };
-    }
-    if (direction === 'down') {
-        return {
-            light: `${base}/light/arrow-bottom-left.svg`,
-            dark: `${base}/dark/arrow-bottom-left.svg`,
-        };
-    }
-    return {
-        light: `${base}/light/unchanged.svg`,
-        dark: `${base}/dark/unchanged.svg`,
-    };
-}
-
-function TrendIcon({ direction, alt }: { direction: Direction; alt: string }) {
-    const icon = vietcapArrowUrls(direction);
-    return (
-        <span className="inline-flex items-center">
-            <Image src={icon.light} alt={alt} width={14} height={14} className="block dark:hidden size-3.5" unoptimized />
-            <Image src={icon.dark} alt={alt} width={14} height={14} className="hidden dark:block size-3.5" unoptimized />
-        </span>
-    );
-}
-
 function MarketPulse({
     gainers,
     losers,
@@ -98,8 +65,8 @@ function MarketPulse({
                 <MarketList
                     items1={gainers}
                     items2={losers}
-                    label1="Gainers"
-                    label2="Losers"
+                    label1={lang === 'en' ? 'Gainers' : 'Tăng giá'}
+                    label2={lang === 'en' ? 'Losers' : 'Giảm giá'}
                     type="movers"
                     isLoading={isLoading}
                     companyNames={lang === 'en' ? englishNames : undefined}
@@ -143,28 +110,26 @@ function MarketList({
 
     return (
         <div className="flex flex-col">
-            {/* Sub-tabs (Pills) */}
-            <div className="bg-gray-50 dark:bg-gray-800/50 px-3 py-2 border-b border-gray-100 dark:border-gray-800">
-                <div className="flex p-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <button
-                        onClick={() => handleSubTabChange(0)}
-                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${subTab === 0
-                            ? 'bg-white dark:bg-gray-800 text-tremor-content-strong dark:text-dark-tremor-content-strong shadow-sm'
-                            : 'text-tremor-content-subtle hover:text-tremor-content'
-                            }`}
-                    >
-                        {label1}
-                    </button>
-                    <button
-                        onClick={() => handleSubTabChange(1)}
-                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${subTab === 1
-                            ? 'bg-white dark:bg-gray-800 text-tremor-content-strong dark:text-dark-tremor-content-strong shadow-sm'
-                            : 'text-tremor-content-subtle hover:text-tremor-content'
-                            }`}
-                    >
-                        {label2}
-                    </button>
-                </div>
+            {/* Flat header, matching the Watchlist card rather than a separate tab panel. */}
+            <div className="flex items-center gap-1 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+                <button
+                    onClick={() => handleSubTabChange(0)}
+                    className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${subTab === 0
+                        ? 'bg-gray-100 text-gray-950 dark:bg-gray-800 dark:text-gray-50'
+                        : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200'
+                        }`}
+                >
+                    {label1}
+                </button>
+                <button
+                    onClick={() => handleSubTabChange(1)}
+                    className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${subTab === 1
+                        ? 'bg-gray-100 text-gray-950 dark:bg-gray-800 dark:text-gray-50'
+                        : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200'
+                        }`}
+                >
+                    {label2}
+                </button>
             </div>
 
             {/* List */}
@@ -229,18 +194,15 @@ function MarketList({
                                                 </div>
 
                                                 {isUp ? (
-                                                    <span className="inline-flex items-center gap-x-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
-                                                        <TrendIcon direction="up" alt="Up" />
+                                                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
                                                         +{item.ChangePricePercent.toFixed(2)}%
                                                     </span>
                                                 ) : isDown ? (
-                                                    <span className="inline-flex items-center gap-x-0.5 text-xs font-medium text-red-500 dark:text-red-400 tabular-nums">
-                                                        <TrendIcon direction="down" alt="Down" />
-                                                        {Math.abs(item.ChangePricePercent).toFixed(2)}%
+                                                    <span className="text-xs font-medium text-red-500 dark:text-red-400 tabular-nums">
+                                                        -{Math.abs(item.ChangePricePercent).toFixed(2)}%
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-x-0.5 text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums">
-                                                        <TrendIcon direction="unchanged" alt="Unchanged" />
+                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums">
                                                         0.00%
                                                     </span>
                                                 )}
