@@ -186,10 +186,10 @@ function MarketList({
                                 <Link
                                     key={item.Symbol}
                                     href={`/stock/${item.Symbol}`}
-                                    className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-all group relative"
+                                    className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group"
                                 >
                                     <div className="flex items-center gap-3 overflow-hidden flex-1 mr-2">
-                                        <div className="shrink-0 relative w-9 h-9 rounded-lg bg-white border border-gray-100 dark:border-gray-700 dark:bg-gray-800 flex items-center justify-center p-1.5 shadow-sm group-hover:border-blue-200 transition-colors overflow-hidden">
+                                        <div className="shrink-0 relative size-9 rounded-full bg-white border border-tremor-border dark:border-dark-tremor-border dark:bg-gray-800 flex items-center justify-center p-0.5 group-hover:border-blue-200 transition-colors overflow-hidden">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={siteConfig.stockLogoUrl(item.Symbol)}
@@ -205,7 +205,7 @@ function MarketList({
                                                     }
                                                 }}
                                             />
-                                            <span className="hidden w-full h-full bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                            <span className="hidden w-full h-full bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-500">
                                                 {item.Symbol[0]}
                                             </span>
                                         </div>
@@ -221,7 +221,7 @@ function MarketList({
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col items-end shrink-0 gap-1">
+                                    <div className="flex flex-col items-end shrink-0">
                                         {type === 'movers' ? (
                                             <>
                                                 <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
@@ -229,18 +229,18 @@ function MarketList({
                                                 </div>
 
                                                 {isUp ? (
-                                                    <span className="inline-flex items-center gap-x-0.5 rounded-tremor-small bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/10 dark:bg-emerald-400/20 dark:text-emerald-500 dark:ring-emerald-400/20 tabular-nums">
-                                                        <TrendIcon direction="up" alt="Tăng" />
-                                                        {item.ChangePricePercent.toFixed(2)}%
+                                                    <span className="inline-flex items-center gap-x-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                                        <TrendIcon direction="up" alt="Up" />
+                                                        +{item.ChangePricePercent.toFixed(2)}%
                                                     </span>
                                                 ) : isDown ? (
-                                                    <span className="inline-flex items-center gap-x-0.5 rounded-tremor-small bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-800 ring-1 ring-inset ring-red-600/10 dark:bg-red-400/20 dark:text-red-500 dark:ring-red-400/20 tabular-nums">
-                                                        <TrendIcon direction="down" alt="Giảm" />
+                                                    <span className="inline-flex items-center gap-x-0.5 text-xs font-medium text-red-500 dark:text-red-400 tabular-nums">
+                                                        <TrendIcon direction="down" alt="Down" />
                                                         {Math.abs(item.ChangePricePercent).toFixed(2)}%
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-x-0.5 rounded-tremor-small bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-700 ring-1 ring-inset ring-gray-600/10 dark:bg-gray-500/30 dark:text-gray-300 dark:ring-gray-400/20 tabular-nums">
-                                                        <TrendIcon direction="unchanged" alt="Đứng giá" />
+                                                    <span className="inline-flex items-center gap-x-0.5 text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums">
+                                                        <TrendIcon direction="unchanged" alt="Unchanged" />
                                                         0.00%
                                                     </span>
                                                 )}
