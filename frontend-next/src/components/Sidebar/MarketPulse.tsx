@@ -111,10 +111,10 @@ function MarketList({
     return (
         <div className="flex flex-col">
             {/* Flat header, matching the Watchlist card rather than a separate tab panel. */}
-            <div className="flex items-center gap-1 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+            <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
                 <button
                     onClick={() => handleSubTabChange(0)}
-                    className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${subTab === 0
+                    className={`flex-1 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${subTab === 0
                         ? 'bg-gray-100 text-gray-950 dark:bg-gray-800 dark:text-gray-50'
                         : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200'
                         }`}
@@ -123,7 +123,7 @@ function MarketList({
                 </button>
                 <button
                     onClick={() => handleSubTabChange(1)}
-                    className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${subTab === 1
+                    className={`flex-1 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${subTab === 1
                         ? 'bg-gray-100 text-gray-950 dark:bg-gray-800 dark:text-gray-50'
                         : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200'
                         }`}
