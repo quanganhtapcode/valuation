@@ -137,6 +137,14 @@ def count_new_news(news_conn: sqlite3.Connection, ticker: str, since_iso: str = 
     return int(row[0]) if row else 0
 
 
+def has_any_company_news(news_conn: sqlite3.Connection, ticker: str) -> bool:
+    """Return whether the local news store has at least one company item."""
+    row = news_conn.execute(
+        "SELECT 1 FROM news_items WHERE ticker=? LIMIT 1", (ticker,)
+    ).fetchone()
+    return row is not None
+
+
 def fetch_recent_news(news_conn: sqlite3.Connection, ticker: str, limit: int = 8) -> list[dict]:
     """Return list of recent news dicts {id, title, summary, sentiment, date, source} for ticker."""
     rows = news_conn.execute(
@@ -744,10 +752,10 @@ def run(
     regen_tickers = []
     for t in candidates:
         last_at = get_last_analysis(cache, t, year, q)
-        # Deliberately re-run AI only where there is recent company news.
-        # This avoids spending an LLM call on a rule-based "no news" result.
+        # Only analyze companies for which the platform has actual news; this
+        # prevents an LLM from fabricating an investment thesis for no-news names.
         if force_news_refresh:
-            if news_conn and count_new_news(news_conn, t) > 0:
+            if news_conn and has_any_company_news(news_conn, t):
                 refresh_tickers.append(t)
             continue
         if last_at is None:
