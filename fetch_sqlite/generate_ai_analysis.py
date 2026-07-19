@@ -18,7 +18,7 @@ import sqlite3
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +62,8 @@ STATS_FINANCIAL_DB = os.environ.get(
 LISTED_EXCHANGES = ("HSX", "HNX", "UPCOM")
 RATE_LIMIT_DELAY = 4.0  # seconds between API calls — respects ~15 RPM limit
 NEWS_REFRESH_THRESHOLD = 3  # re-analyze if this many new news items since last analysis
+PRICE_MOVE_REFRESH_THRESHOLD = float(os.environ.get("AI_NEWS_PRICE_MOVE_THRESHOLD", "5"))
+PRICE_MOVE_COOLDOWN_HOURS = int(os.environ.get("AI_NEWS_PRICE_MOVE_COOLDOWN_HOURS", "24"))
 
 
 def detect_current_quarter(fin: sqlite3.Connection) -> tuple[int, int]:
@@ -143,6 +145,25 @@ def has_any_company_news(news_conn: sqlite3.Connection, ticker: str) -> bool:
         "SELECT 1 FROM news_items WHERE ticker=? LIMIT 1", (ticker,)
     ).fetchone()
     return row is not None
+
+
+def has_strong_price_move(scr: sqlite3.Connection, ticker: str) -> bool:
+    """Use the latest daily move from screening data as a refresh signal."""
+    row = scr.execute(
+        "SELECT dailyPriceChangePercent FROM screening_data WHERE ticker=?", (ticker,)
+    ).fetchone()
+    return bool(row and row[0] is not None and abs(float(row[0])) >= PRICE_MOVE_REFRESH_THRESHOLD)
+
+
+def outside_price_move_cooldown(generated_at: str | None) -> bool:
+    """Avoid repeatedly re-running an unchanged limit-up/limit-down signal."""
+    if not generated_at:
+        return True
+    try:
+        generated = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    return datetime.now(timezone.utc) - generated >= timedelta(hours=PRICE_MOVE_COOLDOWN_HOURS)
 
 
 def fetch_recent_news(news_conn: sqlite3.Connection, ticker: str, limit: int = 8) -> list[dict]:
@@ -710,6 +731,7 @@ def run(
     dry_run: bool,
     regen_missing: bool = False,
     force_news_refresh: bool = False,
+    refresh_on_signals: bool = False,
     notify_telegram_results: bool | None = None,
 ) -> None:
     fin = sqlite3.connect(f"file:{FINANCIALS_DB}?mode=ro", uri=True)
@@ -735,7 +757,7 @@ def run(
 
     if tickers_override:
         candidates = [t for t in tickers_override if t in listed_tickers]
-    elif force_news_refresh:
+    elif force_news_refresh or refresh_on_signals:
         # A news refresh must cover every listed stock, not only the subset
         # that has already reported the latest market-wide quarter.
         candidates = sorted(listed_tickers)
@@ -756,6 +778,21 @@ def run(
         # prevents an LLM from fabricating an investment thesis for no-news names.
         if force_news_refresh:
             if news_conn and has_any_company_news(news_conn, t):
+                refresh_tickers.append(t)
+            continue
+        if refresh_on_signals:
+            if not news_conn or not has_any_company_news(news_conn, t):
+                continue
+            ticker_period = detect_latest_ticker_period(fin, t)
+            if not ticker_period:
+                continue
+            signal_year, signal_quarter = ticker_period
+            last_at = get_last_analysis(cache, t, signal_year, signal_quarter)
+            news_triggered = bool(
+                last_at and count_new_news(news_conn, t, last_at) >= NEWS_REFRESH_THRESHOLD
+            )
+            price_triggered = has_strong_price_move(scr, t) and outside_price_move_cooldown(last_at)
+            if last_at is None or news_triggered or price_triggered:
                 refresh_tickers.append(t)
             continue
         if last_at is None:
@@ -787,7 +824,7 @@ def run(
 
     for ticker in pending:
         analysis_year, analysis_q = year, q
-        if tickers_override or force_news_refresh:
+        if tickers_override or force_news_refresh or refresh_on_signals:
             ticker_period = detect_latest_ticker_period(fin, ticker)
             if ticker_period:
                 analysis_year, analysis_q = ticker_period
@@ -936,7 +973,9 @@ if __name__ == "__main__":
     parser.add_argument("--regen-missing", action="store_true",
                         help="Re-generate tickers that have analysis_vi but missing news_json (old format)")
     parser.add_argument("--force-news-refresh", action="store_true",
-                        help="Re-run AI news analysis for every ticker with news in the last 14 days")
+                        help="Backfill AI news analysis for every listed ticker with available news")
+    parser.add_argument("--refresh-on-signals", action="store_true",
+                        help="Refresh only when a ticker has 3 new news items or a daily move of at least 5%")
     notification_group = parser.add_mutually_exclusive_group()
     notification_group.add_argument(
         "--notify-telegram",
@@ -958,5 +997,6 @@ if __name__ == "__main__":
         args.dry_run,
         regen_missing=args.regen_missing,
         force_news_refresh=args.force_news_refresh,
+        refresh_on_signals=args.refresh_on_signals,
         notify_telegram_results=args.notify_telegram,
     )

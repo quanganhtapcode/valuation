@@ -1,0 +1,13 @@
+[Unit]
+Description=Check stock AI news refresh signals during trading hours
+Requires=ai-news-refresh.service
+
+[Timer]
+# Check hourly in the Vietnamese trading session and once after close.
+OnCalendar=Mon..Fri *-*-* 09..15:25:00
+OnCalendar=Mon..Fri *-*-* 18:25:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
