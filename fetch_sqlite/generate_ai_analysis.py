@@ -777,8 +777,10 @@ def run(
         # Only analyze companies for which the platform has actual news; this
         # prevents an LLM from fabricating an investment thesis for no-news names.
         if force_news_refresh:
-            if news_conn and has_any_company_news(news_conn, t):
-                refresh_tickers.append(t)
+            # Initial backfill must leave every listed ticker with an insight
+            # record. Tickers without company news take the deterministic path
+            # below, while tickers with news receive an OpenRouter analysis.
+            refresh_tickers.append(t)
             continue
         if refresh_on_signals:
             if not news_conn or not has_any_company_news(news_conn, t):
@@ -973,7 +975,7 @@ if __name__ == "__main__":
     parser.add_argument("--regen-missing", action="store_true",
                         help="Re-generate tickers that have analysis_vi but missing news_json (old format)")
     parser.add_argument("--force-news-refresh", action="store_true",
-                        help="Backfill AI news analysis for every listed ticker with available news")
+                        help="Backfill an insight record for every listed ticker; use AI when company news exists")
     parser.add_argument("--refresh-on-signals", action="store_true",
                         help="Refresh only when a ticker has 3 new news items or a daily move of at least 5%")
     notification_group = parser.add_mutually_exclusive_group()
