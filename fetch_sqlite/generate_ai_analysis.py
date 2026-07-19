@@ -727,6 +727,10 @@ def run(
 
     if tickers_override:
         candidates = [t for t in tickers_override if t in listed_tickers]
+    elif force_news_refresh:
+        # A news refresh must cover every listed stock, not only the subset
+        # that has already reported the latest market-wide quarter.
+        candidates = sorted(listed_tickers)
     else:
         rows = fin.execute(
             "SELECT DISTINCT ticker FROM income_statement WHERE year_report=? AND quarter_report=?",
@@ -775,7 +779,7 @@ def run(
 
     for ticker in pending:
         analysis_year, analysis_q = year, q
-        if tickers_override:
+        if tickers_override or force_news_refresh:
             ticker_period = detect_latest_ticker_period(fin, ticker)
             if ticker_period:
                 analysis_year, analysis_q = ticker_period
