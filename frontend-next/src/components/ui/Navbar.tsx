@@ -233,7 +233,7 @@ export function Navbar() {
     return (
         <header
             className={cx(
-                "fixed inset-x-0 top-0 z-50 flex h-[60px] transform-gpu animate-slide-down-fade justify-center overflow-visible border-b border-gray-200/90 bg-white/95 px-3 py-2 backdrop-blur-xl transition-all duration-300 dark:border-gray-800 dark:bg-gray-950/95 md:h-[68px] md:px-6",
+                "fixed inset-x-0 top-0 z-50 flex h-[60px] transform-gpu animate-slide-down-fade justify-center overflow-visible border-b border-gray-200/90 bg-white/95 px-3 py-2 backdrop-blur-xl transition-[height,box-shadow,background-color] duration-300 ease-out dark:border-gray-800 dark:bg-gray-950/95 md:h-[68px] md:px-6",
                 open && "h-auto min-h-[60px] bg-white dark:bg-gray-950",
                 scrolled && "shadow-sm",
             )}
@@ -470,7 +470,15 @@ export function Navbar() {
                 </div>
 
                 {/* Mobile Menu */}
-                <nav className={cx("my-6 flex flex-col ease-in-out will-change-transform md:hidden", open ? "" : "hidden")}>
+                <nav
+                    aria-hidden={!open}
+                    className={cx(
+                        "flex flex-col overflow-hidden will-change-[max-height,opacity,transform] transition-[max-height,opacity,transform,margin] duration-300 ease-out md:hidden",
+                        open
+                            ? "my-6 max-h-[640px] translate-y-0 opacity-100"
+                            : "pointer-events-none my-0 max-h-0 -translate-y-2 opacity-0",
+                    )}
+                >
                     <ul className="w-full space-y-1 font-medium">
                         {NAV_GROUPS.map((group) => (
                             <li key={group.id}>
