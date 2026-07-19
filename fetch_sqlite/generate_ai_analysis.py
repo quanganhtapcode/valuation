@@ -689,6 +689,7 @@ def run(
     limit: int,
     dry_run: bool,
     regen_missing: bool = False,
+    force_news_refresh: bool = False,
     notify_telegram_results: bool | None = None,
 ) -> None:
     fin = sqlite3.connect(f"file:{FINANCIALS_DB}?mode=ro", uri=True)
@@ -727,6 +728,12 @@ def run(
     regen_tickers = []
     for t in candidates:
         last_at = get_last_analysis(cache, t, year, q)
+        # Deliberately re-run AI only where there is recent company news.
+        # This avoids spending an LLM call on a rule-based "no news" result.
+        if force_news_refresh:
+            if news_conn and count_new_news(news_conn, t) > 0:
+                refresh_tickers.append(t)
+            continue
         if last_at is None:
             new_tickers.append(t)
         else:
@@ -898,6 +905,8 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--regen-missing", action="store_true",
                         help="Re-generate tickers that have analysis_vi but missing news_json (old format)")
+    parser.add_argument("--force-news-refresh", action="store_true",
+                        help="Re-run AI news analysis for every ticker with news in the last 14 days")
     notification_group = parser.add_mutually_exclusive_group()
     notification_group.add_argument(
         "--notify-telegram",
@@ -918,5 +927,6 @@ if __name__ == "__main__":
         args.limit,
         args.dry_run,
         regen_missing=args.regen_missing,
+        force_news_refresh=args.force_news_refresh,
         notify_telegram_results=args.notify_telegram,
     )

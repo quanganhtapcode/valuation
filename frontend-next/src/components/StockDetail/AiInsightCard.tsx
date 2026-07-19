@@ -38,6 +38,11 @@ interface NewsThesis {
     summary?: string;
     bull_case?: { point: string; news_ids?: (string | number)[] }[];
     bear_case?: { point: string; news_ids?: (string | number)[] }[];
+    key_issues?: {
+        title: string;
+        bullish_view?: { text?: string; news_ids?: (string | number)[] };
+        bearish_view?: { text?: string; news_ids?: (string | number)[] };
+    }[];
     key_events?: string[];
     watch_out?: string;
 }
@@ -55,6 +60,48 @@ interface LiveTechnicalSnapshot {
     ema200?: number | null;
     support?: number | null;
     resistance?: number | null;
+}
+
+function KeyIssues({ issues, lang }: { issues: NonNullable<NewsThesis['key_issues']>; lang: 'vi' | 'en' }) {
+    const [openIndex, setOpenIndex] = useState(0);
+    const referenceLabel = (count: number) => lang === 'vi' ? `${count} tin tham chiếu` : `${count} referenced articles`;
+
+    return (
+        <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{lang === 'vi' ? 'Các chủ đề cần theo dõi' : 'Key issues'}</p>
+            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                {issues.map((issue, index) => {
+                    const isOpen = index === openIndex;
+                    const bull = issue.bullish_view;
+                    const bear = issue.bearish_view;
+                    const bullRefs = bull?.news_ids?.length || 0;
+                    const bearRefs = bear?.news_ids?.length || 0;
+                    return (
+                        <div key={`${issue.title}-${index}`} className={index > 0 ? 'border-t border-slate-200 dark:border-slate-700' : ''}>
+                            <button type="button" onClick={() => setOpenIndex(isOpen ? -1 : index)} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-medium text-slate-800 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-800/50">
+                                <span>{issue.title}</span>
+                                <span className="text-slate-400">{isOpen ? '⌃' : '⌄'}</span>
+                            </button>
+                            {isOpen && (
+                                <div className="grid grid-cols-1 divide-y divide-slate-200 bg-slate-50/60 sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-slate-700 dark:bg-slate-900/40">
+                                    <div className="p-3">
+                                        <span className="inline-flex rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{lang === 'vi' ? 'Góc nhìn tích cực ↗' : 'Bullish view ↗'}</span>
+                                        <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{bull?.text || (lang === 'vi' ? 'Chưa có tin đủ mạnh để xác nhận.' : 'No sufficiently strong news to confirm this view.')}</p>
+                                        {bullRefs > 0 && <span className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">◉ {referenceLabel(bullRefs)}</span>}
+                                    </div>
+                                    <div className="p-3">
+                                        <span className="inline-flex rounded-md bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">{lang === 'vi' ? 'Góc nhìn tiêu cực ↘' : 'Bearish view ↘'}</span>
+                                        <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{bear?.text || (lang === 'vi' ? 'Chưa có tin đủ mạnh để xác nhận.' : 'No sufficiently strong news to confirm this view.')}</p>
+                                        {bearRefs > 0 && <span className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">◉ {referenceLabel(bearRefs)}</span>}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -189,12 +236,13 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
         );
     }
 
+    const hasIssues = (news?.key_issues?.length ?? 0) > 0;
     const hasBull = (news?.bull_case?.length ?? 0) > 0;
     const hasBear = (news?.bear_case?.length ?? 0) > 0;
     // A rule-based analysis deliberately stores an empty-news sentinel with only
     // a generic summary/watch-out. It is not a real news thesis and should not
     // be presented as one.
-    const hasNews = hasBull || hasBear || (news?.key_events?.length ?? 0) > 0;
+    const hasNews = hasIssues || hasBull || hasBear || (news?.key_events?.length ?? 0) > 0;
     const badge = sentimentBadge(news?.overall_sentiment, lang);
 
     return (
@@ -236,8 +284,10 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
                             </p>
                         )}
 
+                        {hasIssues && news.key_issues && <KeyIssues issues={news.key_issues} lang={lang} />}
+
                         {/* Bull / Bear grid */}
-                        {(hasBull || hasBear) && (
+                        {!hasIssues && (hasBull || hasBear) && (
                             <div className="grid grid-cols-2 gap-2">
                                 {hasBull && (
                                     <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-2 space-y-1">

@@ -147,6 +147,11 @@ def build_combined_prompt(
   "news_thesis": {
     "overall_sentiment": "bullish|mixed|bearish",
     "summary": "1 câu tổng hợp tình hình",
+    "key_issues": [{
+      "title": "Chủ đề đầu tư/catalyst cụ thể",
+      "bullish_view": {"text": "Luận điểm tích cực 1-2 câu", "news_ids": []},
+      "bearish_view": {"text": "Luận điểm rủi ro/đối trọng 1-2 câu", "news_ids": []}
+    }],
     "bull_case": [{"point": "...", "news_ids": []}],
     "bear_case": [{"point": "...", "news_ids": []}],
     "key_events": ["sự kiện 1", "sự kiện 2"],
@@ -162,7 +167,8 @@ Trả về JSON hợp lệ theo đúng cấu trúc sau, không thêm bất kỳ 
 {schema}
 
 Yêu cầu news_thesis:
-- bull_case 2-3 điểm mạnh nhất kèm news_ids; bear_case 2-3 rủi ro kèm news_ids
+- key_issues: 1-3 chủ đề đầu tư quan trọng nhất. Mỗi chủ đề phải có cả bullish_view và bearish_view, kèm news_ids thật từ tin được cung cấp. Nếu không có tin hỗ trợ cho một phía, ghi rõ "Chưa có tin đủ mạnh để xác nhận" và để news_ids=[]; không bịa dữ kiện.
+- bull_case / bear_case: danh sách ngắn để tương thích dữ liệu cũ, tóm tắt lại các luận điểm trong key_issues
 - key_events: 2-3 sự kiện/catalyst quan trọng; watch_out: 1 câu theo dõi tiếp
 - Nếu không có tin tức: overall_sentiment="mixed", bull_case=[], bear_case=[], key_events=[], watch_out="Chờ cập nhật thêm tin tức"
 - Chỉ dùng tin tức được cung cấp. Tuyệt đối không tạo giá mục tiêu, khuyến nghị mua/bán/giữ, P/E, P/B, mô hình định giá hoặc tín hiệu kỹ thuật.
@@ -204,6 +210,13 @@ def build_news_prompt(
     schema = """{
   "overall_sentiment": "bullish|mixed|bearish",
   "summary": "1 câu tổng hợp tình hình và tâm lý thị trường với cổ phiếu này",
+  "key_issues": [
+    {
+      "title": "Chủ đề đầu tư/catalyst cụ thể",
+      "bullish_view": {"text": "Luận điểm tích cực 1-2 câu", "news_ids": ["id1"]},
+      "bearish_view": {"text": "Luận điểm rủi ro/đối trọng 1-2 câu", "news_ids": ["id2"]}
+    }
+  ],
   "bull_case": [
     {"point": "Luận điểm tích cực 1-2 câu", "news_ids": ["id1"]}
   ],
@@ -224,6 +237,7 @@ Trả về JSON hợp lệ theo đúng cấu trúc sau, không thêm bất kỳ 
 
 Yêu cầu:
 - overall_sentiment: đánh giá tổng từ toàn bộ tin tức
+- key_issues: 1-3 chủ đề đầu tư quan trọng nhất; luôn trình bày cả bullish_view và bearish_view cho từng chủ đề, kèm đúng news_ids. Nếu một phía thiếu bằng chứng, nói rõ là chưa có tin đủ mạnh để xác nhận, không bịa.
 - bull_case: 2-3 điểm tích cực mạnh nhất, mỗi điểm kèm news_ids liên quan
 - bear_case: 2-3 rủi ro/tiêu cực rõ ràng nhất, kèm news_ids
 - key_events: 2-3 sự kiện/catalyst quan trọng nhất trong tin tức
