@@ -81,6 +81,18 @@ def detect_current_quarter(fin: sqlite3.Connection) -> tuple[int, int]:
     return int(row[0]), int(row[1])
 
 
+def detect_latest_ticker_period(fin: sqlite3.Connection, ticker: str) -> tuple[int, int] | None:
+    """Use the latest reported quarter for a targeted ticker refresh."""
+    row = fin.execute(
+        """SELECT year_report, quarter_report FROM income_statement
+           WHERE ticker=? AND quarter_report != 0
+           GROUP BY year_report, quarter_report
+           ORDER BY year_report DESC, quarter_report DESC LIMIT 1""",
+        (ticker,),
+    ).fetchone()
+    return (int(row[0]), int(row[1])) if row else None
+
+
 def get_listed_tickers(scr: sqlite3.Connection) -> set[str]:
     rows = scr.execute(
         "SELECT ticker FROM screening_data WHERE exchange IN ('HSX', 'HNX', 'UPCOM')"
@@ -762,7 +774,13 @@ def run(
     pe_pb_valuation_keys = ("pe_2yr_avg", "pb_2yr_avg", "pe_5yr_avg", "pb_5yr_avg")
 
     for ticker in pending:
-        data = fetch_stock_data(fin, ticker, year, q)
+        analysis_year, analysis_q = year, q
+        if tickers_override:
+            ticker_period = detect_latest_ticker_period(fin, ticker)
+            if ticker_period:
+                analysis_year, analysis_q = ticker_period
+        ticker_quarter_label = f"Q{analysis_q}.{analysis_year}"
+        data = fetch_stock_data(fin, ticker, analysis_year, analysis_q)
         if not data:
             print(f"  [{ticker}] No data, skip")
             continue
@@ -789,7 +807,7 @@ def run(
             path = "AI" if has_news else "rule-based"
             if has_news:
                 combined_prompt = build_combined_prompt(
-                    ticker=ticker, name=name, sector=sector, quarter=quarter_label,
+                    ticker=ticker, name=name, sector=sector, quarter=ticker_quarter_label,
                     forecast_years=forecast_years, technical=tech,
                     valuation_models=valuation_models, news=recent_news,
                     **{k: v for k, v in pe_pb_avgs.items() if k in pe_pb_valuation_keys},
@@ -806,7 +824,7 @@ def run(
         if has_news:
             # ── AI path: LLM call ──────────────────────────────────────
             combined_prompt = build_combined_prompt(
-                ticker=ticker, name=name, sector=sector, quarter=quarter_label,
+                ticker=ticker, name=name, sector=sector, quarter=ticker_quarter_label,
                 forecast_years=forecast_years, technical=tech,
                 valuation_models=valuation_models, news=recent_news,
                 **{k: v for k, v in pe_pb_avgs.items() if k in pe_pb_valuation_keys},
@@ -820,14 +838,14 @@ def run(
                 try:
                     combined_raw, model_used = generate(combined_prompt)
                     valuation, news_thesis = save_analysis(
-                        cache, ticker, year, q, combined_raw, model_used
+                        cache, ticker, analysis_year, analysis_q, combined_raw, model_used
                     )
                     print(f"  [{ticker}] {name} [AI/{model_used}]: saved")
                     done_ai += 1
                     if notify_telegram_results:
                         notify_telegram(
                             build_telegram_message(
-                                ticker, name, quarter_label, news_thesis,
+                                ticker, name, ticker_quarter_label, news_thesis,
                             )
                         )
                     time.sleep(RATE_LIMIT_DELAY)
@@ -856,7 +874,7 @@ def run(
                              analysis_json, news_json, model, generated_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """,
-                        (ticker, year, q, name, analysis_json, news_json,
+                        (ticker, analysis_year, analysis_q, name, analysis_json, news_json,
                          "rule-based-fallback", datetime.now(timezone.utc).isoformat()),
                     )
                     cache.commit()
@@ -881,7 +899,7 @@ def run(
                          analysis_json, news_json, model, generated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (ticker, year, q, name, analysis_json, news_json,
+                    (ticker, analysis_year, analysis_q, name, analysis_json, news_json,
                      "rule-based", datetime.now(timezone.utc).isoformat()),
                 )
                 cache.commit()
