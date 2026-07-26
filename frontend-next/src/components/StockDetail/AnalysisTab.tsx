@@ -163,8 +163,25 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
     }
 
     return (
-        <div className="space-y-6">
-            {/* Peer comparison */}
+        <div className="space-y-4">
+            <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                        {lang === 'vi' ? 'So sánh ngành' : 'Industry comparison'}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {lang === 'vi'
+                            ? `${peers.length} công ty cùng ngành ${displayIndustry}`
+                            : `${peers.length} companies in ${displayIndustry}`}
+                    </p>
+                </div>
+                {medianPe !== null && (
+                    <span className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+                        {lang === 'vi' ? 'Median P/E ngành' : 'Industry median P/E'}: {medianPe.toFixed(2)}
+                    </span>
+                )}
+            </div>
+
             {industryName === 'Ngân hàng' ? (
                 <BankingPeerTable
                     symbol={symbol}
@@ -174,30 +191,11 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
                 />
             ) : (
                 <Card className="p-0 overflow-hidden">
-                    <div className="p-6 border-b border-tremor-border dark:border-dark-tremor-border bg-tremor-background-muted/50 dark:bg-dark-tremor-background-muted/20">
-                        <div className="sm:flex sm:items-center sm:justify-between sm:space-x-10">
-                            <div>
-                                <h3 className="text-lg font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                                    {lang === 'vi' ? 'So sánh ngành' : 'Industry comparison'}
-                                </h3>
-                                <p className="mt-1 text-tremor-default leading-6 text-tremor-content dark:text-dark-tremor-content">
-                                    {lang === 'vi' ? `${peers.length} công ty · ${displayIndustry} · sắp xếp theo vốn hóa` : `${peers.length} companies · ${displayIndustry} · sorted by market cap`}
-                                </p>
-                            </div>
-                            {medianPe !== null && (
-                                <div className="mt-4 sm:mt-0">
-                                    <span className="inline-flex items-center rounded-tremor-small bg-blue-50 px-3 py-1.5 text-tremor-default font-bold text-blue-700 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/20">
-                                        {lang === 'vi' ? 'Median P/E ngành' : 'Industry median P/E'}: {medianPe.toFixed(2)}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
                     <div className="px-4 pb-4">
                         <Table className="h-[450px] [&>table]:border-separate [&>table]:border-spacing-0">
                             <TableHead>
                                 <TableRow>
-                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Mã CK' : 'Ticker'}</TableHeaderCell>
+                                    <TableHeaderCell className="sticky left-0 top-0 z-20 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Mã CK' : 'Ticker'}</TableHeaderCell>
                                     <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Vốn hóa' : 'Market cap'}</TableHeaderCell>
                                     <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/E</TableHeaderCell>
                                     <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/B</TableHeaderCell>
@@ -233,7 +231,7 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
                                         <TableRow key={item.symbol} className={cx(
                                             item.isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/20'
                                         )}>
-                                            <TableCell className="border-b border-tremor-border dark:border-dark-tremor-border">
+                                            <TableCell className={cx('sticky left-0 z-10 border-b border-tremor-border dark:border-dark-tremor-border', item.isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'bg-white dark:bg-gray-900')}>
                                                 <div className="flex flex-col">
                                                     {item.isCurrent ? (
                                                         <span className="font-bold text-tremor-default text-blue-600 dark:text-blue-400">

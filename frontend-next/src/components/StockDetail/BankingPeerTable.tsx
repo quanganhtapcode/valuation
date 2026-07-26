@@ -175,32 +175,25 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
     const extremes = useMemo(() => buildExtremes(peers), [peers]);
 
     return (
-        <Card className="p-0 overflow-hidden">
-            <div className="p-6 border-b border-tremor-border dark:border-dark-tremor-border bg-tremor-background-muted/50 dark:bg-dark-tremor-background-muted/20">
-                <div className="sm:flex sm:items-center sm:justify-between sm:space-x-10">
-                    <div>
-                        <h3 className="text-lg font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                            So sánh ngành Ngân hàng
-                        </h3>
-                        <p className="mt-1 text-tremor-default leading-6 text-tremor-content dark:text-dark-tremor-content">
-                            {peers.length} ngân hàng · {industry}
-                            {period && <span className="ml-2 text-xs font-mono text-tremor-content-subtle">· {period}</span>}
-                        </p>
-                    </div>
-                    <div className="mt-4 sm:mt-0 flex items-center gap-3">
-                        {medianPe !== null && (
-                            <span className="inline-flex items-center rounded-tremor-small bg-blue-50 px-3 py-1.5 text-tremor-default font-bold text-blue-700 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/20">
-                                Median P/E: {medianPe.toFixed(1)}
-                            </span>
-                        )}
-                        <div className="inline-flex rounded-tremor-small border border-tremor-border dark:border-dark-tremor-border overflow-hidden">
+        <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {period ? `${industry} · ${period}` : industry}
+                </p>
+                <div className="flex items-center gap-3">
+                    {medianPe !== null && (
+                        <span className="hidden rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 sm:inline-flex dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+                            Median P/E: {medianPe.toFixed(1)}
+                        </span>
+                    )}
+                    <div className="inline-flex overflow-hidden rounded-full border border-slate-200 dark:border-slate-700">
                             <button
                                 onClick={() => setMode('quarter')}
                                 className={cx(
-                                    'px-3 py-1.5 text-sm font-medium transition-colors',
+                                    'px-3 py-1.5 text-xs font-medium transition-colors',
                                     mode === 'quarter'
                                         ? 'bg-blue-600 text-white'
-                                        : 'bg-white dark:bg-gray-900 text-tremor-content dark:text-dark-tremor-content hover:bg-gray-50 dark:hover:bg-gray-800'
+                                        : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
                                 )}
                             >
                                 Quý
@@ -208,20 +201,20 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
                             <button
                                 onClick={() => setMode('year')}
                                 className={cx(
-                                    'px-3 py-1.5 text-sm font-medium transition-colors border-l border-tremor-border dark:border-dark-tremor-border',
+                                    'border-l border-slate-200 px-3 py-1.5 text-xs font-medium transition-colors dark:border-slate-700',
                                     mode === 'year'
                                         ? 'bg-blue-600 text-white'
-                                        : 'bg-white dark:bg-gray-900 text-tremor-content dark:text-dark-tremor-content hover:bg-gray-50 dark:hover:bg-gray-800'
+                                        : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
                                 )}
                             >
                                 Năm
                             </button>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            {loading ? (
+            <Card className="overflow-hidden p-0">
+                {loading ? (
                 <div className="flex items-center justify-center p-12">
                     <div className="spinner" />
                     <span className="ml-3 text-tremor-default text-tremor-content">Đang tải...</span>
@@ -239,7 +232,7 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
                                         key={label}
                                         className={cx(
                                             'sticky top-0 z-10 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong',
-                                            i > 0 ? 'text-right' : ''
+                                            i > 0 ? 'text-right' : 'left-0 z-20'
                                         )}
                                     >
                                         {label}
@@ -270,7 +263,7 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
                                                 : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/20'
                                         )}
                                     >
-                                        <TableCell className="border-b border-tremor-border dark:border-dark-tremor-border">
+                                        <TableCell className={cx('sticky left-0 z-10 border-b border-tremor-border dark:border-dark-tremor-border', peer.isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'bg-white dark:bg-gray-900')}>
                                             <div className="flex flex-col">
                                                 {peer.isCurrent ? (
                                                     <span className="font-bold text-tremor-default text-blue-600 dark:text-blue-400">
@@ -328,8 +321,9 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
                         </TableBody>
                     </Table>
                 </div>
-            )}
-        </Card>
+                )}
+            </Card>
+        </div>
     );
 };
 
