@@ -580,75 +580,6 @@ const NOTE_LABELS_EN: Record<string, string> = {
     nob96: 'Interest expense on deposits', nob97: 'Interest expense on borrowings', nob98: 'Interest expense on bonds', nob95: 'Total interest expense',
 };
 
-// ── Pill Dropdown Component ───────────────────────────────────────────────────
-
-function PillDropdown({
-    label,
-    children,
-    align = 'left',
-}: {
-    label: React.ReactNode;
-    children: React.ReactNode;
-    align?: 'left' | 'right';
-}) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        function onClickOutside(e: MouseEvent) {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-        }
-        if (open) document.addEventListener('mousedown', onClickOutside);
-        return () => document.removeEventListener('mousedown', onClickOutside);
-    }, [open]);
-
-    return (
-        <div ref={ref} className="relative">
-            <button
-                onClick={() => setOpen(o => !o)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-[13px] font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
-            >
-                {label}
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-400 flex-shrink-0">
-                    <polyline points="6 9 12 15 18 9" />
-                </svg>
-            </button>
-            {open && (
-                <div className={cx(
-                    'absolute top-full mt-1.5 z-50 min-w-[160px] rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg py-1 overflow-hidden',
-                    align === 'right' ? 'right-0' : 'left-0'
-                )}>
-                    {children}
-                </div>
-            )}
-        </div>
-    );
-}
-
-function PillDropdownItem({
-    active,
-    onClick,
-    children,
-}: {
-    active?: boolean;
-    onClick: () => void;
-    children: React.ReactNode;
-}) {
-    return (
-        <button
-            onClick={onClick}
-            className={cx(
-                'w-full text-left px-3 py-2 text-[13px] transition-colors',
-                active
-                    ? 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white font-medium'
-                    : 'text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/60'
-            )}
-        >
-            {children}
-        </button>
-    );
-}
-
 // ── Settings Popover ──────────────────────────────────────────────────────────
 
 function SettingsPopover({
@@ -746,22 +677,39 @@ function SectionedTable({
         return fmt(v / effectiveDivisor);
     };
 
+    const tableCopy = lang === 'vi'
+        ? { title: 'Dữ liệu tài chính chi tiết', hint: '8 kỳ gần nhất · cuộn ngang để xem thêm', metric: 'Chỉ tiêu' }
+        : { title: 'Detailed financial data', hint: '8 latest periods · scroll horizontally for more', metric: 'Metric' };
+
     return (
-        <div className="overflow-x-auto -mx-4">
-            <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/30">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60">
+                <div>
+                    <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{tableCopy.title}</h4>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{tableCopy.hint}</p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                    {displayRows.length} {lang === 'vi' ? 'kỳ' : 'periods'}
+                </span>
+            </div>
+            <div className="max-h-[660px] overflow-auto">
+            <table className="min-w-[940px] w-full text-[13px]" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                 <thead>
-                    <tr className="border-b border-gray-100 dark:border-slate-800">
-                        <th className="sticky left-0 bg-white dark:bg-[#111827] z-10 text-left py-2.5 px-4 font-medium text-gray-500 dark:text-slate-400 whitespace-nowrap min-w-[180px] text-[12px]">
-                            {lang === 'vi' ? 'Chỉ tiêu' : 'Metric'}
+                    <tr>
+                        <th className="sticky left-0 top-0 z-30 min-w-[230px] border-b border-slate-200 bg-slate-50 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 shadow-[1px_0_0_0_rgba(226,232,240,0.9)] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:shadow-[1px_0_0_0_rgba(51,65,85,0.9)]">
+                            {tableCopy.metric}
                         </th>
                         {displayRows.map((row, i) => {
                             const { label, isForecast } = renderPeriod(row);
                             return (
-                                <th key={i} className="text-right py-2.5 px-4 font-medium text-gray-500 dark:text-slate-400 whitespace-nowrap min-w-[90px] text-[12px]">
-                                    <span className="inline-flex items-center gap-1">
+                                <th key={i} className={cx(
+                                    'sticky top-0 z-20 min-w-[112px] border-b border-slate-200 bg-slate-50 px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400',
+                                    i === 0 ? 'text-blue-700 dark:text-blue-300' : '',
+                                )}>
+                                    <span className="inline-flex items-center justify-end gap-1">
                                         {label}
                                         {isForecast && (
-                                            <span className="text-gray-400 cursor-help" title={lang === 'vi' ? 'Dự báo' : 'Forecast'}>
+                                            <span className="cursor-help text-amber-500" title={lang === 'vi' ? 'Dự báo' : 'Forecast'}>
                                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                     <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
                                                 </svg>
@@ -777,8 +725,8 @@ function SectionedTable({
                     {sections.map((section, sectionIdx) => (
                         <React.Fragment key={sectionIdx}>
                             <tr>
-                                <td colSpan={displayRows.length + 1} className="px-4 pt-4 pb-1.5">
-                                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{getSectionTitle ? getSectionTitle(section.title) : section.title}</span>
+                                <td colSpan={displayRows.length + 1} className="border-b border-t border-slate-100 bg-slate-50/70 px-5 py-2.5 dark:border-slate-800 dark:bg-slate-900/60">
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{getSectionTitle ? getSectionTitle(section.title) : section.title}</span>
                                 </td>
                             </tr>
                             {section.rows.map((rowDef, rowIdx) => {
@@ -796,32 +744,32 @@ function SectionedTable({
                                 const isIndented = rowDef.indent ?? false;
 
                                 const bgClass = isIndented
-                                    ? 'bg-gray-50 dark:bg-slate-800/40'
-                                    : 'bg-white dark:bg-[#111827]';
+                                    ? 'bg-slate-50/80 dark:bg-slate-900/40'
+                                    : 'bg-white dark:bg-slate-950/30';
 
                                 return (
                                     <tr
                                         key={`${sectionIdx}-${rowIdx}`}
                                         className={cx(
-                                            'border-b border-gray-100 dark:border-slate-800/60',
-                                            isGrandTotal ? 'border-t border-gray-300 dark:border-slate-600' : '',
+                                            'border-b border-slate-100 transition-colors hover:bg-blue-50/30 dark:border-slate-800/70 dark:hover:bg-slate-800/20',
+                                            isGrandTotal ? 'border-t border-slate-300 dark:border-slate-600' : '',
                                         )}
                                     >
                                         <td className={cx(
-                                            'sticky left-0 z-10 py-2.5 px-4 whitespace-nowrap',
+                                            'sticky left-0 z-10 px-5 py-3 whitespace-nowrap shadow-[1px_0_0_0_rgba(226,232,240,0.75)] dark:shadow-[1px_0_0_0_rgba(51,65,85,0.75)]',
                                             bgClass,
-                                            isGrandTotal ? 'font-semibold text-gray-900 dark:text-white' : '',
-                                            isTotal ? 'font-medium text-gray-800 dark:text-slate-100' : '',
-                                            !isTotal && !isGrandTotal ? 'text-gray-700 dark:text-slate-300' : '',
-                                            isIndented ? 'pl-8 italic text-gray-500 dark:text-slate-400' : '',
+                                            isGrandTotal ? 'font-semibold text-slate-950 dark:text-white' : '',
+                                            isTotal ? 'font-semibold text-slate-800 dark:text-slate-100' : '',
+                                            !isTotal && !isGrandTotal ? 'text-slate-600 dark:text-slate-300' : '',
+                                            isIndented ? 'pl-9 italic text-slate-500 dark:text-slate-400' : '',
                                         )}>
                                             {getRowLabel ? getRowLabel(rowDef.key, rowDef.label) : rowDef.label}
                                         </td>
                                         {displayRows.map((row, i) => (
                                             <td key={i} className={cx(
-                                                'text-right py-2.5 px-4 tabular-nums whitespace-nowrap',
+                                                'px-4 py-3 text-right font-medium tabular-nums whitespace-nowrap',
                                                 bgClass,
-                                                isGrandTotal ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-slate-300',
+                                                isGrandTotal ? 'font-semibold text-slate-950 dark:text-white' : i === 0 ? 'text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300',
                                             )}>
                                                 {getDisplayValue(row, rowDef.key, isPct, isMultiple)}
                                             </td>
@@ -833,7 +781,11 @@ function SectionedTable({
                     ))}
                 </tbody>
             </table>
-        </div>
+            </div>
+            <div className="border-t border-slate-100 px-4 py-2 text-[11px] text-slate-400 dark:border-slate-800 dark:text-slate-500">
+                {lang === 'vi' ? 'Cột chỉ tiêu được ghim khi cuộn ngang.' : 'The metric column stays pinned while scrolling.'}
+            </div>
+        </section>
     );
 }
 
@@ -895,8 +847,8 @@ function RatioDashboard({
     lang: 'vi' | 'en';
 }) {
     const copy = lang === 'vi'
-        ? { title: 'Bức tranh tài chính', subtitle: 'Xu hướng các tỷ lệ trọng yếu trong tối đa 8 kỳ gần nhất.', badge: 'Tỷ lệ tài chính', latest: 'Kỳ gần nhất', recent: 'Các kỳ gần đây', show: 'Xem bảng số liệu đầy đủ', hide: 'Ẩn bảng số liệu đầy đủ' }
-        : { title: 'Financial snapshot', subtitle: 'Key ratio trends across up to the eight most recent periods.', badge: 'Financial ratios', latest: 'Latest period', recent: 'Recent periods', show: 'View full data table', hide: 'Hide full data table' };
+        ? { title: 'Bức tranh tài chính', subtitle: 'Xu hướng các tỷ lệ trọng yếu trong tối đa 8 kỳ gần nhất.', badge: 'Tỷ lệ tài chính', latest: 'Kỳ gần nhất', recent: 'Các kỳ gần đây', show: 'Mở dữ liệu đầy đủ', hide: 'Thu gọn dữ liệu đầy đủ', detail: 'Bảng tỷ lệ theo từng kỳ báo cáo' }
+        : { title: 'Financial snapshot', subtitle: 'Key ratio trends across up to the eight most recent periods.', badge: 'Financial ratios', latest: 'Latest period', recent: 'Recent periods', show: 'Open detailed data', hide: 'Collapse detailed data', detail: 'Ratio table by reporting period' };
     const ratioText: Record<string, { label: string; description: string }> = lang === 'vi' ? {} : {
         ROE: { label: 'ROE', description: 'Return generated from shareholders’ equity' },
         'Biên lợi nhuận ròng': { label: 'Net profit margin', description: 'Profit retained from revenue' },
@@ -942,9 +894,15 @@ function RatioDashboard({
                     );
                 })}
             </div>
-            <details className="group mt-5 border-t border-gray-100 pt-4 dark:border-slate-800">
-                <summary className="cursor-pointer list-none text-[13px] font-medium text-blue-700 hover:text-blue-800 dark:text-blue-400"><span className="group-open:hidden">{copy.show}</span><span className="hidden group-open:inline">{copy.hide}</span></summary>
-                <div className="mt-3 -mx-4"><SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} lang={lang} /></div>
+            <details className="group mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-1.5 dark:border-slate-800 dark:bg-slate-900/40">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3.5 py-3 text-left transition-colors hover:bg-white dark:hover:bg-slate-800">
+                    <span>
+                        <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100"><span className="group-open:hidden">{copy.show}</span><span className="hidden group-open:inline">{copy.hide}</span></span>
+                        <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{copy.detail}</span>
+                    </span>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-transform group-open:rotate-180 dark:bg-slate-800 dark:text-slate-300">⌄</span>
+                </summary>
+                <div className="px-1 pb-1 pt-2"><SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} lang={lang} /></div>
             </details>
         </div>
     );
@@ -1259,64 +1217,95 @@ export default function FinancialsTab({
 
     const isBank = isBankStock(symbol, overviewData);
     const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Key Stats';
-    const periodLabel = displayMode === 'annual' ? (lang === 'vi' ? 'Năm' : 'Year') : (lang === 'vi' ? 'Quý' : 'Quarter');
+    const pageCopy = lang === 'vi'
+        ? {
+            title: 'Trung tâm dữ liệu tài chính',
+            subtitle: 'Theo dõi kết quả kinh doanh, sức khỏe bảng cân đối và định giá theo từng kỳ báo cáo.',
+            period: 'Chu kỳ báo cáo',
+            unit: 'Đơn vị',
+        }
+        : {
+            title: 'Financial data centre',
+            subtitle: 'Follow business performance, balance-sheet health, and valuation across each reporting period.',
+            period: 'Reporting cadence',
+            unit: 'Unit',
+        };
 
     return (
-        <div className="space-y-3">
-            {/* ── Perplexity-style toolbar ─────────────────────────────── */}
-            <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                    {lang === 'vi' ? 'Tài chính' : 'Financials'}
-                </h3>
-                <div className="flex flex-wrap items-center gap-2">
-                {/* Report type pill dropdown */}
-                <PillDropdown label={activeTabLabel}>
+        <div className="space-y-5">
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50/70 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-blue-950/20">
+                <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="max-w-2xl">
+                        <div className="mb-3 flex items-center gap-2">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white shadow-sm">ƒ</span>
+                            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{symbol}</span>
+                        </div>
+                        <h3 className="text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{pageCopy.title}</h3>
+                        <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-400">{pageCopy.subtitle}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="rounded-xl border border-slate-200 bg-white/90 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/90">
+                            {([['quarterly', lang === 'vi' ? 'Theo quý' : 'Quarterly'], ['annual', lang === 'vi' ? 'Theo năm' : 'Annual']] as [DisplayMode, string][]).map(([mode, label]) => (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => setDisplayMode(mode)}
+                                    className={cx(
+                                        'rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                                        displayMode === mode
+                                            ? 'bg-slate-900 text-white shadow-sm dark:bg-blue-500'
+                                            : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <span className="hidden text-xs font-medium text-slate-400 sm:inline">{pageCopy.unit}</span>
+                        <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={lang === 'vi' ? 'Đơn vị hiển thị' : 'Display unit'} />
+                        {onDownloadExcel && (
+                            <button
+                                onClick={onDownloadExcel}
+                                title={lang === 'vi' ? 'Tải Excel' : 'Download Excel'}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-blue-800 dark:hover:bg-blue-950/40 dark:hover:text-blue-300"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                </div>
+                <nav className="flex overflow-x-auto border-t border-slate-200/80 bg-white/60 px-3 dark:border-slate-800 dark:bg-slate-950/40" aria-label={lang === 'vi' ? 'Danh mục báo cáo tài chính' : 'Financial report categories'}>
                     {TABS.map(tab => (
-                        <PillDropdownItem
+                        <button
                             key={tab.id}
-                            active={activeTab === tab.id}
+                            type="button"
                             onClick={() => setActiveTab(tab.id)}
+                            className={cx(
+                                'relative shrink-0 px-3 py-3 text-sm font-medium transition-colors sm:px-4',
+                                activeTab === tab.id
+                                    ? 'text-blue-700 dark:text-blue-300'
+                                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
+                            )}
                         >
                             {tab.label}
-                        </PillDropdownItem>
+                            {activeTab === tab.id && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400" />}
+                        </button>
                     ))}
-                </PillDropdown>
+                </nav>
+            </section>
 
-                {/* Period pill dropdown */}
-                <PillDropdown label={periodLabel}>
-                    {([['annual', lang === 'vi' ? 'Năm' : 'Year'], ['quarterly', lang === 'vi' ? 'Quý' : 'Quarter']] as [DisplayMode, string][]).map(([m, lbl]) => (
-                        <PillDropdownItem
-                            key={m}
-                            active={displayMode === m}
-                            onClick={() => setDisplayMode(m)}
-                        >
-                            {lbl}
-                        </PillDropdownItem>
-                    ))}
-                </PillDropdown>
-
-                {/* Settings (units) */}
-                <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={lang === 'vi' ? 'Đơn vị hiển thị' : 'Display unit'} />
-
-                {/* Download */}
-                {onDownloadExcel && (
-                    <button
-                        onClick={onDownloadExcel}
-                        title={lang === 'vi' ? 'Tải Excel' : 'Download Excel'}
-                        className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                    </button>
-                )}
+            <main className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-950/30">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700 dark:text-blue-300">{activeTabLabel}</p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{pageCopy.period}: {displayMode === 'quarterly' ? (lang === 'vi' ? 'Theo quý' : 'Quarterly') : (lang === 'vi' ? 'Theo năm' : 'Annual')}</p>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{DISPLAY_UNITS.find(u => u.id === displayUnit)?.label}</span>
                 </div>
-            </div>
-
-            {/* ── Content Area ────────────────────────────────────────────── */}
-            <div className="bg-white dark:bg-[#111827] rounded-xl border border-gray-200 dark:border-slate-800 overflow-hidden px-4 py-1">
                 {reportLoading ? (
                     <div className="flex items-center justify-center p-12">
                         <div className="spinner" />
@@ -1396,7 +1385,7 @@ export default function FinancialsTab({
                         )}
                     </>
                 )}
-            </div>
+            </main>
         </div>
     );
 }
