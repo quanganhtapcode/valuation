@@ -793,7 +793,9 @@ export async function fetchEarningsSeason(): Promise<EarningsSeasonData | null> 
 
 export async function fetchMarketTakeaways(): Promise<MarketTakeawaysData | null> {
     try {
-        return await fetchAPI<MarketTakeawaysData>(API.AI_TAKEAWAYS);
+        // The server snapshot is already persisted; bypass browser/proxy caches
+        // so a successful AI refresh immediately replaces an earlier fallback.
+        return await fetchAPI<MarketTakeawaysData>(`${API.AI_TAKEAWAYS}?cache=no-store`);
     } catch {
         return null;
     }

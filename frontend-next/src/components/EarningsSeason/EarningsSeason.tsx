@@ -16,6 +16,16 @@ function Skeleton() {
     );
 }
 
+function uniqueTakeawayItems(items?: string[]): string[] {
+    const seen = new Set<string>();
+    return (items || []).filter(item => {
+        const key = item.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 export default function EarningsSeason() {
     const { lang } = useLanguage();
     const [takeaways, setTakeaways] = useState<MarketTakeawaysData | null>(null);
@@ -42,9 +52,9 @@ export default function EarningsSeason() {
         ? { title: 'AI market takeaways', subtitle: 'News and market moves from the last 24 hours', waiting: 'Awaiting the next market summary.', up: 'Up', down: 'Down', neutral: 'Market news' }
         : { title: 'Tổng hợp thị trường AI', subtitle: 'Tin tức và biến động trong 24 giờ gần nhất', waiting: 'Đang chờ bản tổng hợp mới.', up: 'Tăng', down: 'Giảm', neutral: 'Tin nổi bật' };
     const headline = isEnglish ? takeaways?.headline : (takeaways?.headline_vi || takeaways?.headline);
-    const summary = isEnglish ? takeaways?.summary : (takeaways?.summary_vi?.length ? takeaways.summary_vi : takeaways?.summary);
-    const marketSummary = isEnglish ? takeaways?.market_summary : takeaways?.market_summary_vi;
-    const newsSummary = isEnglish ? takeaways?.news_summary : takeaways?.news_summary_vi;
+    const summary = uniqueTakeawayItems(isEnglish ? takeaways?.summary : (takeaways?.summary_vi?.length ? takeaways.summary_vi : takeaways?.summary));
+    const marketSummary = uniqueTakeawayItems(isEnglish ? takeaways?.market_summary : takeaways?.market_summary_vi);
+    const newsSummary = uniqueTakeawayItems(isEnglish ? takeaways?.news_summary : takeaways?.news_summary_vi);
     const sections = marketSummary?.length || newsSummary?.length
         ? [
             { title: isEnglish ? 'Largest price moves' : 'Biến động giá mạnh', items: marketSummary || [], color: 'bg-emerald-500' },

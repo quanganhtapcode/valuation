@@ -30,6 +30,10 @@ const REALTIME_PATH_PREFIXES = [
     'market/top-movers',
     'market/heatmap',
     'market/prices',
+    // This is a small, persisted snapshot that can change whenever the
+    // background AI job completes. Never serve an older fallback after a
+    // successful refresh.
+    'market/ai-takeaways',
 ];
 
 const SHORT_CACHE_PATH_PREFIXES = [
@@ -53,7 +57,6 @@ const MEDIUM_CACHE_PATH_PREFIXES = [
 
 const LONG_CACHE_PATH_PREFIXES = [
     'company/profile/',
-    'market/ai-takeaways',
     'tickers',
     'health',
 ];
