@@ -108,7 +108,15 @@ export default function DownloadsPage() {
     };
 
     const downloadOriginalVietcap = async () => {
-        const symbol = selectedTicker || query.trim().toUpperCase();
+        const symbols = (selectedTicker || query)
+            .split(',')
+            .map(symbol => symbol.trim().toUpperCase())
+            .filter(Boolean);
+        if (symbols.length > 1) {
+            await downloadOriginalBulk(symbols);
+            return;
+        }
+        const symbol = symbols[0] || '';
         if (!symbol) return;
         setOriginalStatus('loading');
         try {
@@ -124,8 +132,8 @@ export default function DownloadsPage() {
         }
     };
 
-    const downloadOriginalBulk = async () => {
-        if (!exchanges.length || (scope === 'industry' && !sector)) return;
+    const downloadOriginalBulk = async (tickerList?: string[]) => {
+        if (!tickerList && (!exchanges.length || (scope === 'industry' && !sector))) return;
         const picker = (window as Window & { showDirectoryPicker?: () => Promise<any> }).showDirectoryPicker;
         if (!picker) {
             setOriginalStatus('error');
@@ -138,8 +146,10 @@ export default function DownloadsPage() {
             // The browser asks for the destination folder. Files then travel
             // directly from R2 to that folder; the VPS only returns the URL list.
             const directory = await picker();
-            const params = new URLSearchParams({ scope, exchanges: exchanges.join(',') });
-            if (scope === 'industry') params.set('sectors', sector);
+            const params = tickerList?.length
+                ? new URLSearchParams({ scope: 'ticker', tickers: tickerList.join(',') })
+                : new URLSearchParams({ scope, exchanges: exchanges.join(',') });
+            if (!tickerList?.length && scope === 'industry') params.set('sectors', sector);
             const response = await fetch(`/api/stock/excel-manifest?${params.toString()}`, { cache: 'no-store' });
             if (!response.ok) {
                 const error = await response.json().catch(() => null) as { error?: string } | null;
