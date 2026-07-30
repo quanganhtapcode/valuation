@@ -283,6 +283,55 @@ def rate_limit_download(f):
 download_bp.route("/api/financial-bulk-export")(rate_limit_download(financial_bulk_export))
 
 
+def stock_excel_manifest():
+    """Return direct R2 URLs so the browser can download files into a folder."""
+    try:
+        tickers = _selected_market_tickers()
+        if not tickers:
+            return jsonify({"success": False, "error": "No tickers matched the selected scope"}), 400
+        r2_client = get_r2_client()
+        if not r2_client.is_configured:
+            return jsonify({"success": False, "error": "R2 is not configured"}), 503
+
+        existing_keys: set[str] = set()
+        paginator = r2_client._client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=r2_client.bucket_name, Prefix=f"{r2_client.excel_folder}/"):
+            existing_keys.update(str(item.get("Key")) for item in page.get("Contents", []) if item.get("Key"))
+
+        files = []
+        missing = []
+        for ticker in tickers:
+            key = r2_client._get_excel_key(ticker)
+            if key not in existing_keys:
+                missing.append(ticker)
+                continue
+            url = r2_client._client.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": r2_client.bucket_name,
+                    "Key": key,
+                    "ResponseContentDisposition": f'attachment; filename="{ticker}.xlsx"',
+                },
+                ExpiresIn=PRESIGNED_URL_EXPIRES_SECONDS,
+            )
+            files.append({"ticker": ticker, "filename": f"{ticker}.xlsx", "url": url})
+
+        if not files:
+            return jsonify({"success": False, "error": "No original Vietcap Excel files found in R2"}), 404
+        return jsonify({
+            "success": True,
+            "files": files,
+            "count": len(files),
+            "missing": missing,
+        })
+    except Exception as exc:
+        logger.exception("Original Excel manifest failed")
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+download_bp.route("/api/stock/excel-manifest")(rate_limit_download(stock_excel_manifest))
+
+
 @download_bp.route("/api/stock/excel-bulk")
 @rate_limit_download
 def stock_excel_bulk():

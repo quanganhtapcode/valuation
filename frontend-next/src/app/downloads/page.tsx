@@ -7,6 +7,7 @@ type ExportFormat = 'csv' | 'xlsx';
 type PeriodKind = 'year' | 'quarter' | 'all';
 type Status = 'idle' | 'loading' | 'done' | 'error';
 type Ticker = { symbol: string; name: string; en_name?: string; sector?: string; exchange?: string };
+type OriginalFile = { ticker: string; filename: string; url: string };
 
 const EXCHANGES = ['HOSE', 'HNX', 'UPCOM'];
 const TABLES = [
@@ -38,6 +39,8 @@ export default function DownloadsPage() {
     const [format, setFormat] = useState<ExportFormat>('csv');
     const [status, setStatus] = useState<Status>('idle');
     const [originalStatus, setOriginalStatus] = useState<Status>('idle');
+    const [originalProgress, setOriginalProgress] = useState(0);
+    const [originalTotal, setOriginalTotal] = useState(0);
     const [message, setMessage] = useState('');
 
     useEffect(() => {
@@ -123,24 +126,45 @@ export default function DownloadsPage() {
 
     const downloadOriginalBulk = async () => {
         if (!exchanges.length || (scope === 'industry' && !sector)) return;
+        const picker = (window as Window & { showDirectoryPicker?: () => Promise<any> }).showDirectoryPicker;
+        if (!picker) {
+            setOriginalStatus('error');
+            setMessage('Trình duyệt này chưa hỗ trợ chọn folder. Hãy dùng Chrome hoặc Edge trên máy tính.');
+            return;
+        }
         setOriginalStatus('loading');
+        setOriginalProgress(0);
         try {
+            // The browser asks for the destination folder. Files then travel
+            // directly from R2 to that folder; the VPS only returns the URL list.
+            const directory = await picker();
             const params = new URLSearchParams({ scope, exchanges: exchanges.join(',') });
             if (scope === 'industry') params.set('sectors', sector);
-            const response = await fetch(`/api/stock/excel-bulk?${params.toString()}`, { cache: 'no-store' });
+            const response = await fetch(`/api/stock/excel-manifest?${params.toString()}`, { cache: 'no-store' });
             if (!response.ok) {
                 const error = await response.json().catch(() => null) as { error?: string } | null;
                 throw new Error(error?.error || `HTTP ${response.status}`);
             }
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement('a');
-            anchor.href = url;
-            anchor.download = `vietcap-original-${scope}.zip`;
-            anchor.click();
-            URL.revokeObjectURL(url);
+            const payload = await response.json() as { files?: OriginalFile[]; missing?: string[] };
+            const files = payload.files ?? [];
+            if (!files.length) throw new Error('Không tìm thấy file Excel Vietcap trong R2.');
+            setOriginalTotal(files.length);
+            for (const [index, file] of files.entries()) {
+                const fileResponse = await fetch(file.url);
+                if (!fileResponse.ok) throw new Error(`Không tải được ${file.ticker}.xlsx (HTTP ${fileResponse.status})`);
+                const handle = await directory.getFileHandle(file.filename, { create: true });
+                const writable = await handle.createWritable();
+                if (fileResponse.body) {
+                    await fileResponse.body.pipeTo(writable);
+                } else {
+                    await writable.write(await fileResponse.blob());
+                    await writable.close();
+                }
+                setOriginalProgress(index + 1);
+            }
             setOriginalStatus('done');
-            setTimeout(() => setOriginalStatus('idle'), 2500);
+            setMessage(payload.missing?.length ? `Đã tải ${files.length} file; thiếu ${payload.missing.length} mã trên R2.` : '');
+            setTimeout(() => { setOriginalStatus('idle'); setOriginalProgress(0); setOriginalTotal(0); }, 3500);
         } catch (error) {
             setOriginalStatus('error');
             setMessage(error instanceof Error ? error.message : 'Không thể tải Excel Vietcap.');
@@ -171,7 +195,7 @@ export default function DownloadsPage() {
                         {scope !== 'ticker' && <fieldset><legend className="mb-2 text-sm font-semibold">Sàn</legend><div className="flex flex-wrap gap-2">{EXCHANGES.map(exchange => <label key={exchange} className={`cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold ${exchanges.includes(exchange) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 text-slate-500 dark:border-slate-700'}`}><input type="checkbox" className="sr-only" checked={exchanges.includes(exchange)} onChange={() => setExchanges(current => current.includes(exchange) ? current.filter(item => item !== exchange) : [...current, exchange])} />{exchange}</label>)}</div></fieldset>}
                         {scope === 'industry' && <label className="text-sm font-semibold">Ngành<select value={sector} onChange={e => setSector(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal dark:border-slate-700 dark:bg-slate-950"><option value="">Chọn ngành</option>{sectors.map(item => <option key={item}>{item}</option>)}</select></label>}
                         {scope === 'ticker' && <div className="flex items-end"><button type="button" onClick={() => void downloadOriginalVietcap()} disabled={!query.trim() || originalStatus === 'loading'} className="w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30">{originalStatus === 'loading' ? 'Đang lấy file…' : 'Tải Excel gốc Vietcap'}</button></div>}
-                        {scope !== 'ticker' && <div className="flex items-end md:col-span-2"><button type="button" onClick={() => void downloadOriginalBulk()} disabled={!exchanges.length || (scope === 'industry' && !sector) || originalStatus === 'loading'} className="w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30">{originalStatus === 'loading' ? 'Đang đóng gói Excel…' : 'Tải ZIP Excel gốc Vietcap cho phạm vi đã chọn'}</button></div>}
+                        {scope !== 'ticker' && <div className="flex items-end md:col-span-2"><button type="button" onClick={() => void downloadOriginalBulk()} disabled={!exchanges.length || (scope === 'industry' && !sector) || originalStatus === 'loading'} className="w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30">{originalStatus === 'loading' ? `Đang tải ${originalProgress}/${originalTotal || '…'} file vào folder…` : 'Chọn folder & tải Excel gốc Vietcap'}</button></div>}
                     </div>
                 </section>
 
