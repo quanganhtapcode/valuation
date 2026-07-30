@@ -277,7 +277,7 @@ def register(stock_bp: Blueprint) -> None:
     def api_tickers():
         """Serve the latest ticker_data.json content."""
         try:
-            root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
             ticker_file = os.path.join(root_dir, "frontend-next", "public", "ticker_data.json")
             if not os.path.exists(ticker_file):
                 ticker_file = os.path.join(root_dir, "frontend", "ticker_data.json")
