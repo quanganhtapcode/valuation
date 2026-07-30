@@ -222,6 +222,20 @@ export async function toXlsxBuf(rows: FlatRow[], cols: string[], sheet = 'Data')
     return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }
 
+export async function toMultiSheetXlsxBuf(
+    sheets: Array<{ name: string; rows: FlatRow[]; cols: string[] }>,
+): Promise<ArrayBuffer> {
+    const wb = new ExcelJS.Workbook();
+    for (const sheet of sheets) {
+        const ws = wb.addWorksheet(sheet.name.slice(0, 31) || 'Data');
+        ws.addRow(sheet.cols);
+        sheet.rows.forEach(row => ws.addRow(sheet.cols.map(col => row[col] ?? '')));
+        ws.getRow(1).font = { bold: true };
+        ws.columns = sheet.cols.map(col => ({ header: col, key: col, width: Math.min(Math.max(col.length + 4, 14), 40) }));
+    }
+    return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
+}
+
 export async function doExport(rows: FlatRow[], cols: string[], format: ExportFormat, filename: string) {
     if (format === 'CSV') {
         triggerBlobDownload(new Blob([toCsv(rows, cols)], { type: 'text/csv;charset=utf-8' }), filename);
