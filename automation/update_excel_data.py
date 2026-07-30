@@ -4,6 +4,7 @@ Weekly VietCap Excel updater:
 2) Wait for user reply containing the token.
 3) Download financial Excel files from VietCap.
 4) Upload Excel files to Cloudflare R2.
+5) Create one local ZIP snapshot, sync it to rclone, and retain the latest 10 remote snapshots.
 
 Ticker source: frontend-next/public/ticker_data.json
 """
@@ -14,9 +15,12 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import threading
 import time
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -65,7 +69,10 @@ DOWNLOAD_WORKERS = _env_int("EXCEL_DOWNLOAD_WORKERS", MAX_WORKERS)
 UPLOAD_WORKERS = _env_int("EXCEL_UPLOAD_WORKERS", MAX_WORKERS)
 REQUEST_TIMEOUT = int(os.getenv("EXCEL_REQUEST_TIMEOUT", "15"))
 MAX_RETRIES = int(os.getenv("EXCEL_MAX_RETRIES", "3"))
-KEEP_LOCAL_BACKUP = os.getenv("EXCEL_KEEP_LOCAL_BACKUP", "false").lower() == "true"
+RCLONE_EXCEL_REMOTE = os.getenv(
+    "EXCEL_RCLONE_REMOTE", "onedrive:valuation-backups/vietcap-excel"
+).rstrip("/")
+RCLONE_EXCEL_KEEP = _env_int("EXCEL_RCLONE_KEEP", 10)
 UPDATE_INTERVAL_DAYS = int(os.getenv("EXCEL_UPDATE_INTERVAL_DAYS", "7"))
 TOKEN_WAIT_MINUTES = int(os.getenv("EXCEL_TOKEN_WAIT_MINUTES", "30"))
 TELEGRAM_TOKEN_BUTTON_TEXT = "🔑 Gửi bearer token"
@@ -506,14 +513,84 @@ def upload_ticker_file(
         if r2_result.get("success"):
             r2_success_count += 1
             print(f"[UP {index}/{total}] {ticker} ✓ R2 ({len(content) / 1024:.1f} KB)")
-            if KEEP_LOCAL_BACKUP:
-                os.makedirs(DATA_DIR, exist_ok=True)
-                with open(os.path.join(DATA_DIR, f"{ticker}.xlsx"), "wb") as f:
-                    f.write(content)
         else:
             fail_count += 1
             r2_fail_count += 1
             print(f"[UP {index}/{total}] {ticker} ✗ R2 Upload Failed: {r2_result.get('error')}")
+
+
+def _local_excel_archives() -> list[str]:
+    if not os.path.isdir(DATA_DIR):
+        return []
+    return sorted(
+        os.path.join(DATA_DIR, name)
+        for name in os.listdir(DATA_DIR)
+        if name.startswith("vietcap-excel-") and name.endswith(".zip")
+    )
+
+
+def _run_rclone(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["rclone", *args],
+        check=True,
+        text=True,
+        capture_output=True,
+        timeout=1800,
+    )
+
+
+def create_and_sync_excel_snapshot(downloaded_files: list[tuple[str, bytes]]) -> str:
+    """Create one VPS snapshot, upload it to rclone, then prune old copies."""
+    if not downloaded_files:
+        raise RuntimeError("Cannot create Excel snapshot: no downloaded files")
+    if not shutil.which("rclone"):
+        raise RuntimeError("rclone is not installed or is not on PATH")
+
+    os.makedirs(DATA_DIR, exist_ok=True)
+    stamp = now_utc().strftime("%Y%m%dT%H%M%SZ")
+    archive_path = os.path.join(DATA_DIR, f"vietcap-excel-{stamp}.zip")
+    partial_path = f"{archive_path}.partial"
+    try:
+        with zipfile.ZipFile(
+            partial_path,
+            mode="w",
+            compression=zipfile.ZIP_DEFLATED,
+            compresslevel=6,
+        ) as archive:
+            for ticker, content in sorted(downloaded_files):
+                archive.writestr(f"{ticker}.xlsx", content)
+        os.replace(partial_path, archive_path)
+
+        remote_file = f"{RCLONE_EXCEL_REMOTE}/{os.path.basename(archive_path)}"
+        _run_rclone("copyto", archive_path, remote_file, "--no-check-dest")
+
+        remote_listing = _run_rclone(
+            "lsf", RCLONE_EXCEL_REMOTE, "--files-only", "--include", "vietcap-excel-*.zip"
+        ).stdout.splitlines()
+        remote_archives = sorted(
+            name.strip()
+            for name in remote_listing
+            if name.strip().startswith("vietcap-excel-") and name.strip().endswith(".zip")
+        )
+        for old_name in remote_archives[:-RCLONE_EXCEL_KEEP]:
+            _run_rclone("deletefile", f"{RCLONE_EXCEL_REMOTE}/{old_name}")
+
+        # The new remote copy is confirmed before removing old VPS snapshots.
+        for old_path in _local_excel_archives():
+            if old_path != archive_path:
+                os.unlink(old_path)
+        print(
+            f"✓ Excel snapshot synced: {os.path.basename(archive_path)} "
+            f"({len(downloaded_files)} files; rclone keeps {RCLONE_EXCEL_KEEP})"
+        )
+        return archive_path
+    except Exception:
+        if os.path.exists(partial_path):
+            os.unlink(partial_path)
+        if os.path.exists(archive_path):
+            # Keep a failed snapshot for diagnosis; it is not considered current.
+            print(f"⚠️ Excel snapshot sync failed; local archive retained: {archive_path}")
+        raise
 
 
 def run_update(
@@ -612,6 +689,13 @@ def run_update(
                     notify_progress(
                         f"📤 Tiến độ upload R2: đã xong {up_milestone * 100}/{len(downloaded_files)} mã."
                     )
+
+        try:
+            create_and_sync_excel_snapshot(downloaded_files)
+        except Exception as exc:
+            print(f"❌ Excel snapshot backup failed: {type(exc).__name__}: {exc}")
+            notify_progress(f"❌ Backup Excel lên rclone thất bại: {type(exc).__name__}")
+            return 1
 
     elapsed = time.time() - start_time
 
