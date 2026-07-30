@@ -115,6 +115,21 @@ def _column_headers(fields: list[str], labels: dict[str, str]) -> list[str]:
     return headers
 
 
+def _is_empty_financial_value(value: object) -> bool:
+    """Treat numeric zeroes returned as numbers or text as empty cells."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        normalized = value.strip().replace(",", "")
+        if not normalized:
+            return True
+        try:
+            return float(normalized) == 0
+        except ValueError:
+            return False
+    return value == 0
+
+
 def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: list[str], labels: dict[str, str], period_clause: str, period_params: list[int | str], output: io.TextIOBase) -> int:
     writer = csv.writer(output)
     metadata = ["ticker", "period_kind", "year_report", "quarter_report", "length_report", "public_date"]
@@ -135,12 +150,12 @@ def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: lis
         values = row[6:]
         if table == "note":
             for field, value in zip(fields, values):
-                if value is None or value == 0 or value == "":
+                if _is_empty_financial_value(value):
                     continue
                 writer.writerow(metadata_values + [field, labels.get(field.lower(), field), value])
                 count += 1
         else:
-            if not any(value not in (None, "", 0, 0.0) for value in values):
+            if not any(not _is_empty_financial_value(value) for value in values):
                 continue
             writer.writerow(metadata_values + list(values))
             count += 1
