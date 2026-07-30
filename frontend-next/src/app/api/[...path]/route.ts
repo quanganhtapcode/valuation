@@ -135,7 +135,12 @@ export async function GET(
                 'User-Agent': 'Next.js API Proxy',
                 'Accept': '*/*',
             },
-            signal: AbortSignal.timeout(15000),
+            // Bulk exports may need time to fetch and ZIP many original
+            // Vietcap workbooks from R2. Keep normal API calls fast, but let
+            // download requests finish before the proxy aborts them.
+            signal: AbortSignal.timeout(
+                apiPath === 'financial-bulk-export' || apiPath === 'stock/excel-bulk' ? 120000 : 15000
+            ),
         };
 
         if (cachePolicy.mode === 'realtime') {
