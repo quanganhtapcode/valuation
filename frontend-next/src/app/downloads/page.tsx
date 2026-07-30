@@ -143,9 +143,16 @@ export default function DownloadsPage() {
         setOriginalStatus('loading');
         setOriginalProgress(0);
         try {
-            // The browser asks for the destination folder. Files then travel
-            // directly from R2 to that folder; the VPS only returns the URL list.
-            const directory = await picker();
+            // The browser asks for a parent folder once. The app creates a
+            // named child folder, then streams files directly from R2 into it.
+            const parentDirectory = await picker();
+            const folderLabel = tickerList?.length
+                ? `vietcap-${tickerList.join('-')}`
+                : scope === 'industry'
+                    ? `vietcap-${sector}`
+                    : 'vietcap-toan-thi-truong';
+            const folderName = folderLabel.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'vietcap-files';
+            const directory = await parentDirectory.getDirectoryHandle(folderName, { create: true });
             const params = tickerList?.length
                 ? new URLSearchParams({ scope: 'ticker', tickers: tickerList.join(',') })
                 : new URLSearchParams({ scope, exchanges: exchanges.join(',') });
@@ -204,8 +211,8 @@ export default function DownloadsPage() {
                         {scope === 'ticker' && <label className="relative text-sm font-semibold md:col-span-2">Mã cổ phiếu<input value={query} onChange={e => { setQuery(e.target.value.toUpperCase()); setSelectedTicker(''); }} placeholder="Ví dụ: VCB, FPT, VNM" className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-950" />{suggestions.length > 0 && <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">{suggestions.map(t => <button key={t.symbol} type="button" onClick={() => { setQuery(t.symbol); setSelectedTicker(t.symbol); }} className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800"><b>{t.symbol}</b><span className="truncate text-xs text-slate-500">{t.name}</span><span className="ml-auto text-[10px] text-slate-400">{t.exchange}</span></button>)}</div>}</label>}
                         {scope !== 'ticker' && <fieldset><legend className="mb-2 text-sm font-semibold">Sàn</legend><div className="flex flex-wrap gap-2">{EXCHANGES.map(exchange => <label key={exchange} className={`cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold ${exchanges.includes(exchange) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 text-slate-500 dark:border-slate-700'}`}><input type="checkbox" className="sr-only" checked={exchanges.includes(exchange)} onChange={() => setExchanges(current => current.includes(exchange) ? current.filter(item => item !== exchange) : [...current, exchange])} />{exchange}</label>)}</div></fieldset>}
                         {scope === 'industry' && <label className="text-sm font-semibold">Ngành<select value={sector} onChange={e => setSector(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal dark:border-slate-700 dark:bg-slate-950"><option value="">Chọn ngành</option>{sectors.map(item => <option key={item}>{item}</option>)}</select></label>}
-                        {scope === 'ticker' && <div className="flex items-end"><button type="button" onClick={() => void downloadOriginalVietcap()} disabled={!query.trim() || originalStatus === 'loading'} className="w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30">{originalStatus === 'loading' ? 'Đang lấy file…' : 'Tải Excel gốc Vietcap'}</button></div>}
-                        {scope !== 'ticker' && <div className="flex items-end md:col-span-2"><button type="button" onClick={() => void downloadOriginalBulk()} disabled={!exchanges.length || (scope === 'industry' && !sector) || originalStatus === 'loading'} className="w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30">{originalStatus === 'loading' ? `Đang tải ${originalProgress}/${originalTotal || '…'} file vào folder…` : 'Chọn folder & tải Excel gốc Vietcap'}</button></div>}
+                        {scope === 'ticker' && <div className="flex items-end"><button type="button" onClick={() => void downloadOriginalVietcap()} disabled={!query.trim() || originalStatus === 'loading'} className="w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30">{originalStatus === 'loading' ? 'Đang lấy file…' : query.includes(',') ? 'Chọn thư mục cha & tự tạo folder' : 'Tải Excel gốc Vietcap'}</button></div>}
+                        {scope !== 'ticker' && <div className="flex items-end md:col-span-2"><button type="button" onClick={() => void downloadOriginalBulk()} disabled={!exchanges.length || (scope === 'industry' && !sector) || originalStatus === 'loading'} className="w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30">{originalStatus === 'loading' ? `Đang tải ${originalProgress}/${originalTotal || '…'} file vào folder…` : 'Chọn thư mục cha & tự tạo folder'}</button></div>}
                     </div>
                 </section>
 
