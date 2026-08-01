@@ -22,6 +22,7 @@ const TAPE_ITEMS: TapeItem[] = [
   { channel: 'NDX/USD',    label: 'Nasdaq',   formatPrice: (p) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
   { channel: 'Dow/USD',    label: 'Dow Jones',formatPrice: (p) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
   { channel: 'Nikkei/JPY', label: 'Nikkei',   formatPrice: (p) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+  { channel: 'KOSPI/USD',  label: 'KOSPI',    formatPrice: (p) => p.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
   { channel: 'Gold/USD',   label: 'XAU/USD',  formatPrice: (p) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
   { channel: 'WTI/USD',    label: 'WTI Oil',  formatPrice: (p) => p.toFixed(2) },
   { channel: 'BTC/USD',  label: 'Bitcoin',  formatPrice: (p) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },

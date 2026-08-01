@@ -11,7 +11,7 @@ from .deps import cache_func
 
 logger = logging.getLogger(__name__)
 
-_WORLD_SYMBOLS = ['^GSPC', '^IXIC', '^DJI', '^GDAXI', '^FTSE', '^N225', '^HSI', '000001.SS']
+_WORLD_SYMBOLS = ['^GSPC', '^IXIC', '^DJI', '^GDAXI', '^FTSE', '^N225', '^KS11', '^HSI', '000001.SS']
 _WORLD_NAMES = {
     '^GSPC': 'S&P 500',
     '^IXIC': 'NASDAQ',
@@ -19,6 +19,7 @@ _WORLD_NAMES = {
     '^GDAXI': 'DAX',
     '^FTSE': 'FTSE 100',
     '^N225': 'Nikkei 225',
+    '^KS11': 'KOSPI',
     '^HSI': 'Hang Seng',
     '000001.SS': 'Shanghai',
 }

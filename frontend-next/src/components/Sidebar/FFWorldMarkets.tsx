@@ -15,6 +15,7 @@ const ITEMS = [
     { channel: 'Gold/USD',   label: 'Gold',       fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
     { channel: 'WTI/USD',    label: 'WTI Oil',    fmt: (p: number) => p.toFixed(2) },
     { channel: 'Nikkei/JPY', label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+    { channel: 'KOSPI/USD',  label: 'KOSPI',      fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
 ];
 
 export default function FFWorldMarkets() {

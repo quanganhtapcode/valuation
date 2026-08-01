@@ -59,6 +59,7 @@ _YAHOO_SYMBOLS = {
     "USD/CAD": "USDCAD=X",
     "NZD/USD": "NZDUSD=X",
     "Nikkei225/USD": "^N225",
+    "KOSPI/USD": "^KS11",
     "ASX/USD": "^AXJO",
     "DAX/USD": "^GDAXI",
     "FTSE100/USD": "^FTSE",
@@ -199,6 +200,24 @@ def _run_yahoo_fallback() -> None:
             if not _fallback_active:
                 logger.warning("[FF] no primary updates; using Yahoo fallback")
             _fallback_active = True
+        time.sleep(_YAHOO_POLL_SEC)
+
+
+def _run_kospi_fallback() -> None:
+    """Keep KOSPI available independently of the primary FF WebSocket."""
+    channel = "KOSPI/USD"
+    symbol = _YAHOO_SYMBOLS[channel]
+    while True:
+        snap = _fetch_yahoo_quote(symbol)
+        if snap:
+            should_broadcast = False
+            with _prices_lock:
+                previous = _prices.get(channel)
+                if not previous or float(previous.get("price") or 0) != float(snap["price"]):
+                    _prices[channel] = snap
+                    should_broadcast = True
+            if should_broadcast:
+                _broadcast({"channel": channel, **snap, "source": "yahoo_kospi"})
         time.sleep(_YAHOO_POLL_SEC)
 
 
@@ -352,8 +371,10 @@ def ensure_started() -> None:
             return
         t_primary = threading.Thread(target=_run_ws, daemon=True, name="ff-ws")
         t_fallback = threading.Thread(target=_run_yahoo_fallback, daemon=True, name="ff-yahoo-fallback")
+        t_kospi = threading.Thread(target=_run_kospi_fallback, daemon=True, name="kospi-yahoo-fallback")
         t_primary.start()
         t_fallback.start()
+        t_kospi.start()
         _started = True
         logger.info("[FF] background threads started")
 

@@ -107,6 +107,7 @@ export const FF_FOREX_CHANNELS = [
 
 export const FF_ASIA_CHANNELS = [
     { channel: 'Nikkei225/USD', label: 'Nikkei 225', fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
+    { channel: 'KOSPI/USD', label: 'KOSPI', fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 2 }) },
     { channel: 'ASX/USD', label: 'ASX 200', fmt: (p: number) => p.toLocaleString('en', { maximumFractionDigits: 0 }) },
 ] as const;
 
