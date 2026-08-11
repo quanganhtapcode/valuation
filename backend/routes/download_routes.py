@@ -22,11 +22,12 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FINANCIAL_TABLES = (
-    ("income", "income_statement", "income_statement"),
-    ("balance", "balance_sheet", "balance_sheet"),
-    ("cashflow", "cash_flow", "cash_flow"),
+    ("income_statement", "income_statement", "income_statement"),
+    ("balance_sheet", "balance_sheet", "balance_sheet"),
+    ("cash_flow", "cash_flow", "cash_flow"),
     ("note", "note", "note"),
 )
+FINANCIAL_TABLE_BY_ID = {item[0]: item for item in FINANCIAL_TABLES}
 FINANCIAL_META_COLUMNS = {
     "ticker", "period_kind", "year_report", "quarter_report", "length_report",
     "public_date", "create_date", "update_date", "fetched_at",
@@ -177,12 +178,22 @@ def financial_bulk_export():
             connection.execute("CREATE TEMP TABLE selected_financial_tickers (ticker TEXT PRIMARY KEY)")
             connection.executemany("INSERT INTO selected_financial_tickers(ticker) VALUES (?)", [(ticker,) for ticker in tickers])
             requested_format = (request.args.get("format") or "csv").lower()
+            requested_tables = [
+                item.strip().lower()
+                for item in (request.args.get("tables") or "").split(",")
+                if item.strip()
+            ]
+            selected_tables = tuple(
+                FINANCIAL_TABLE_BY_ID[item]
+                for item in requested_tables
+                if item in FINANCIAL_TABLE_BY_ID
+            ) or FINANCIAL_TABLES
             if requested_format == "xlsx":
                 from openpyxl import Workbook
                 output_path = tempfile.NamedTemporaryFile(prefix="financial-export-", suffix=".xlsx", delete=False).name
                 temporary_paths.append(output_path)
                 workbook = Workbook(write_only=True)
-                for _, table, sheet_name in FINANCIAL_TABLES:
+                for _, table, sheet_name in selected_tables:
                     worksheet = workbook.create_sheet(sheet_name[:31])
                     fields = [row[1] for row in connection.execute(f"PRAGMA table_info({table})") if row[1] not in FINANCIAL_META_COLUMNS]
                     csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
@@ -199,7 +210,7 @@ def financial_bulk_export():
                 output_path = tempfile.NamedTemporaryFile(prefix="financial-export-", suffix=".zip", delete=False).name
                 temporary_paths.append(output_path)
                 with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
-                    for _, table, filename in FINANCIAL_TABLES:
+                    for _, table, filename in selected_tables:
                         fields = [row[1] for row in connection.execute(f"PRAGMA table_info({table})") if row[1] not in FINANCIAL_META_COLUMNS]
                         csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
                         temporary_paths.append(csv_path)
