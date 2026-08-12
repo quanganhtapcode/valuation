@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+import threading
+import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -98,6 +100,12 @@ _COMMODITY_SYMBOLS: dict[str, dict] = {
 _INVESTING_CPI_ID   = 1851  # Vietnamese CPI YoY (monthly)
 _INVESTING_GDP_ID   = 1853  # Vietnamese GDP YoY (quarterly)
 _INVESTING_VN10Y_ID = 1860  # Vietnam 10-Year Government Bond Yield (monthly)
+
+_RATES_CACHE_TTL_SEC = 300
+_rates_cache: dict | None = None
+_rates_cache_updated_at = 0.0
+_rates_cache_refreshing = False
+_rates_cache_lock = threading.Lock()
 
 
 def _fetch_yahoo(sym: str) -> dict | None:
@@ -199,6 +207,79 @@ def _fetch_rates_data() -> dict:
             if sym in yahoo_results
         ],
     }
+
+
+def _read_rates_seed() -> dict:
+    """Return the most recent local quotes immediately while Yahoo refreshes."""
+    try:
+        conn = sqlite3.connect(os.path.normpath(_MACRO_HISTORY_DB))
+        rows = conn.execute(
+            '''SELECT current.symbol, current.close, previous.close
+               FROM macro_prices AS current
+               LEFT JOIN macro_prices AS previous ON previous.symbol = current.symbol
+                   AND previous.date = (
+                       SELECT MAX(date) FROM macro_prices
+                       WHERE symbol = current.symbol AND date < current.date
+                   )
+               WHERE current.date = (
+                   SELECT MAX(date) FROM macro_prices WHERE symbol = current.symbol
+               )'''
+        ).fetchall()
+        conn.close()
+    except Exception as exc:
+        logger.warning('macro: unable to load local rates seed: %s', exc)
+        return {'exchange_rates': [], 'commodities': []}
+
+    quotes = {}
+    for symbol, price, previous in rows:
+        if price is None:
+            continue
+        prev = previous if previous not in (None, 0) else price
+        change = round(price - prev, 4)
+        quotes[symbol] = {
+            'price': price,
+            'change': change,
+            'changePercent': round((change / prev) * 100, 2) if prev else 0.0,
+        }
+    return {
+        'exchange_rates': [
+            {'symbol': sym, 'name': name, **quotes[sym]}
+            for sym, name in _FX_SYMBOLS.items() if sym in quotes
+        ],
+        'commodities': [
+            {'symbol': sym, 'name': meta['name'], 'unit': meta['unit'], **quotes[sym]}
+            for sym, meta in _COMMODITY_SYMBOLS.items() if sym in quotes
+        ],
+    }
+
+
+def _refresh_rates_cache() -> None:
+    global _rates_cache, _rates_cache_updated_at, _rates_cache_refreshing
+    try:
+        fresh = _fetch_rates_data()
+        if fresh['exchange_rates'] or fresh['commodities']:
+            with _rates_cache_lock:
+                _rates_cache = fresh
+                _rates_cache_updated_at = time.monotonic()
+    finally:
+        with _rates_cache_lock:
+            _rates_cache_refreshing = False
+
+
+def _get_rates_stale_while_revalidate() -> dict:
+    """Serve cached/local data now; refresh Yahoo quotes outside the request path."""
+    global _rates_cache, _rates_cache_updated_at, _rates_cache_refreshing
+    with _rates_cache_lock:
+        if _rates_cache is None:
+            _rates_cache = _read_rates_seed()
+        should_refresh = (
+            not _rates_cache_refreshing
+            and time.monotonic() - _rates_cache_updated_at >= _RATES_CACHE_TTL_SEC
+        )
+        if should_refresh:
+            _rates_cache_refreshing = True
+            threading.Thread(target=_refresh_rates_cache, daemon=True, name='macro-rates-refresh').start()
+        return _rates_cache
 
 
 def _fetch_vn10y() -> list[dict]:
@@ -316,10 +397,9 @@ def _fetch_fireant_macro_data(types: list[str] | None = None, full: bool = False
 def register(market_bp: Blueprint) -> None:
     @market_bp.route('/macro/rates', methods=['GET'])
     def api_macro_rates():
-        """Exchange rates + commodities from Yahoo Finance. Cache 5 min."""
+        """Exchange rates + commodities, returned immediately from stale cache."""
         try:
-            data, _ = cache_func()('market_macro_rates', 300, _fetch_rates_data)
-            return jsonify(data)
+            return jsonify(_get_rates_stale_while_revalidate())
         except Exception as exc:
             logger.error('macro/rates error: %s', exc)
             return jsonify({'exchange_rates': [], 'commodities': []})
@@ -432,3 +512,42 @@ def register(market_bp: Blueprint) -> None:
         except Exception as exc:
             logger.error('macro history %s: %s', symbol, exc)
             return jsonify([])
+
+    @market_bp.route('/macro/history/batch', methods=['GET'])
+    def api_macro_history_batch():
+        """Historical macro series in one SQLite query for the active table."""
+        symbols = [symbol.strip().upper() for symbol in request.args.get('symbols', '').split(',') if symbol.strip()]
+        symbols = list(dict.fromkeys(symbols))
+        if not symbols or len(symbols) > 12 or any(symbol not in _ALLOWED_SYMBOLS for symbol in symbols):
+            return jsonify({'error': 'unknown or invalid symbols'}), 400
+        try:
+            days = min(int(request.args.get('days', 365)), 3 * 365)
+        except ValueError:
+            days = 365
+
+        cache_key = f'macro_history_batch_{"|".join(symbols)}_{days}'
+
+        def _read_batch():
+            db_path = os.path.normpath(_MACRO_HISTORY_DB)
+            conn = sqlite3.connect(db_path)
+            placeholders = ', '.join('?' for _ in symbols)
+            rows = conn.execute(
+                f'''SELECT symbol, date, close FROM (
+                        SELECT symbol, date, close,
+                               ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY date DESC) AS row_num
+                        FROM macro_prices WHERE symbol IN ({placeholders})
+                    ) WHERE row_num <= ? ORDER BY symbol, date ASC''',
+                [*symbols, days],
+            ).fetchall()
+            conn.close()
+            data = {symbol: [] for symbol in symbols}
+            for symbol, date, close in rows:
+                data[symbol].append({'date': date, 'close': close})
+            return data
+
+        try:
+            data, _ = cache_func()(cache_key, 3600, _read_batch)
+            return jsonify(data)
+        except Exception as exc:
+            logger.error('macro history batch %s: %s', symbols, exc)
+            return jsonify({symbol: [] for symbol in symbols})

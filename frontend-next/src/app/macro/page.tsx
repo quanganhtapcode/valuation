@@ -70,6 +70,14 @@ function loadMacroHistory(symbol: string, days: number): Promise<PricePoint[]> {
     return request;
 }
 
+function loadMacroHistoryBatch(symbols: string[]): Promise<Record<string, PricePoint[]>> {
+    if (!symbols.length) return Promise.resolve({});
+    const days = Math.max(...symbols.map((symbol) => TV_CONFIGS[symbol].defaultDays));
+    return fetch(API.MACRO_HISTORY_BATCH(symbols, days))
+        .then((response) => response.ok ? response.json() : {})
+        .catch(() => ({} as Record<string, PricePoint[]>));
+}
+
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -331,15 +339,9 @@ function buildTvSummary(sym: string, points: PricePoint[]) {
     };
 }
 
-function VietnamTvRow({ sym }: { sym: string }) {
+function VietnamTvRow({ sym, points }: { sym: string; points: PricePoint[] | null }) {
     const { lang } = useLanguage();
     const cfg = TV_CONFIGS[sym];
-    const [points, setPoints] = useState<PricePoint[] | null>(null);
-    useEffect(() => {
-        let active = true;
-        loadMacroHistory(sym, cfg.defaultDays).then(data => { if (active) setPoints(data); }).catch(() => { if (active) setPoints([]); });
-        return () => { active = false; };
-    }, [cfg.defaultDays, sym]);
     if (!points) return <tr><td colSpan={5} className="px-4 py-4"><div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></td></tr>;
     const summary = buildTvSummary(sym, points);
     const tone = getDeltaDirection(summary.delta);
@@ -350,6 +352,16 @@ function VietnamTvRow({ sym }: { sym: string }) {
 function VietnamMacroTab() {
     const { lang } = useLanguage();
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
+    const [history, setHistory] = useState<{ tab: VietnamSubTabId; data: Record<string, PricePoint[]> } | null>(null);
+    const activeSymbols = VIETNAM_TAB_TV[activeSubTab];
+
+    useEffect(() => {
+        let active = true;
+        loadMacroHistoryBatch(VIETNAM_TAB_TV[activeSubTab]).then((data) => {
+            if (active) setHistory({ tab: activeSubTab, data });
+        });
+        return () => { active = false; };
+    }, [activeSubTab]);
 
     return (
         <div className="space-y-5">
@@ -373,7 +385,7 @@ function VietnamMacroTab() {
                     ))}
                 </div>
 
-                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">Chỉ số</th><th className="px-3 py-3 text-right md:px-4">Lần cuối</th><th className="px-3 py-3 text-right md:px-4">T. đổi</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">So sánh</th><th className="px-3 py-3 text-right md:px-4">Thời gian</th></tr></thead><tbody>{VIETNAM_TAB_TV[activeSubTab].map(sym => <VietnamTvRow key={sym} sym={sym} />)}</tbody></table></div>
+                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">Chỉ số</th><th className="px-3 py-3 text-right md:px-4">Lần cuối</th><th className="px-3 py-3 text-right md:px-4">T. đổi</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">So sánh</th><th className="px-3 py-3 text-right md:px-4">Thời gian</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
             </section>
         </div>
     );

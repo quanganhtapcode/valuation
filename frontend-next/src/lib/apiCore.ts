@@ -35,6 +35,8 @@ export const API = {
         `${API_BASE}/market/events/export?fromDate=${fromDate}&toDate=${toDate}`,
     MACRO_HISTORY: (symbol: string, days: number) =>
         `${API_BASE}/market/macro/history?symbol=${encodeURIComponent(symbol)}&days=${days}`,
+    MACRO_HISTORY_BATCH: (symbols: string[], days: number) =>
+        `${API_BASE}/market/macro/history/batch?symbols=${symbols.map(encodeURIComponent).join(',')}&days=${days}`,
 
     // Stock Data (VCI Source via vnstock)
     STOCK: (symbol: string) => `${API_BASE}/stock/${symbol}?fetch_price=true`,
