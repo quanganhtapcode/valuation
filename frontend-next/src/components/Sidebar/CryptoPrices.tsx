@@ -66,8 +66,18 @@ export default function CryptoPrices() {
             const ws = wsRef.current;
             if (ws) {
                 ws.onopen = ws.onclose = ws.onerror = ws.onmessage = null;
-                try { ws.close(); } catch {}
                 wsRef.current = null;
+
+                // Calling close() while CONNECTING makes Chromium emit
+                // "closed before the connection is established". Let the
+                // handshake settle, then close without updating stale state.
+                if (ws.readyState === WebSocket.CONNECTING) {
+                    ws.onopen = () => {
+                        try { ws.close(); } catch {}
+                    };
+                } else if (ws.readyState === WebSocket.OPEN) {
+                    try { ws.close(); } catch {}
+                }
             }
         }
 

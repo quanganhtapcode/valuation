@@ -90,7 +90,12 @@ export async function fetchAPI<T>(url: string, options?: RequestInit): Promise<T
 
         return response.json();
     } catch (error) {
-        console.error(`Fetch error for ${url}:`, error);
+        // Aborting an in-flight request is expected when a component unmounts,
+        // a filter changes, or navigation starts. Keep the rejection so callers
+        // can stop their own work, but do not report normal cleanup as an error.
+        if (!(error instanceof Error && error.name === 'AbortError')) {
+            console.error(`Fetch error for ${url}:`, error);
+        }
         throw error;
     }
 }

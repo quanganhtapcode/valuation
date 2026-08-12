@@ -72,6 +72,7 @@ function MarketPulse({
                     type="movers"
                     isLoading={isLoading}
                     companyNames={lang === 'en' ? englishNames : undefined}
+                    lang={lang}
                 />
             </div>
         </Card>
@@ -94,6 +95,7 @@ function MarketList({
     type,
     isLoading,
     companyNames,
+    lang,
 }: {
     items1: TopMoverItem[],
     items2: TopMoverItem[],
@@ -102,6 +104,7 @@ function MarketList({
     type: 'movers' | 'foreign',
     isLoading?: boolean,
     companyNames?: Record<string, string>,
+    lang: 'vi' | 'en',
 }) {
     const [subTab, setSubTab] = useState(0); // 0 or 1
     const items = subTab === 0 ? items1 : items2;
