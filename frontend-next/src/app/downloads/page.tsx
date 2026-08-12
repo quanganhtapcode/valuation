@@ -24,7 +24,7 @@ const TABS: Array<{ id: DownloadTab; vi: string; en: string }> = [
 ];
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
-    return <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{n}</span><h2 className="font-bold">{title}</h2></div><div className="p-5">{children}</div></section>;
+    return <section className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{n}</span><h2 className="font-bold">{title}</h2></div><div className="p-5">{children}</div></section>;
 }
 
 export default function DownloadsPage() {
