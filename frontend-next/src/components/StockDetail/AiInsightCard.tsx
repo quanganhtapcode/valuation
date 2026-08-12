@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -64,11 +65,11 @@ interface LiveTechnicalSnapshot {
 
 function KeyIssues({ issues, lang }: { issues: NonNullable<NewsThesis['key_issues']>; lang: 'vi' | 'en' }) {
     const [openIndex, setOpenIndex] = useState(0);
-    const referenceLabel = (count: number) => lang === 'vi' ? `${count} tin tham chiếu` : `${count} referenced articles`;
+    const copy = translations[lang].detail.aiInsight;
 
     return (
         <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{lang === 'vi' ? 'Các chủ đề cần theo dõi' : 'Key issues'}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{copy.keyIssues}</p>
             <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
                 {issues.map((issue, index) => {
                     const isOpen = index === openIndex;
@@ -85,14 +86,14 @@ function KeyIssues({ issues, lang }: { issues: NonNullable<NewsThesis['key_issue
                             {isOpen && (
                                 <div className="grid grid-cols-1 divide-y divide-slate-200 bg-slate-50/60 sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-slate-700 dark:bg-slate-900/40">
                                     <div className="p-3">
-                                        <span className="inline-flex rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{lang === 'vi' ? 'Góc nhìn tích cực ↗' : 'Bullish view ↗'}</span>
-                                        <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{bull?.text || (lang === 'vi' ? 'Chưa có tin đủ mạnh để xác nhận.' : 'No sufficiently strong news to confirm this view.')}</p>
-                                        {bullRefs > 0 && <span className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">◉ {referenceLabel(bullRefs)}</span>}
+                                        <span className="inline-flex rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{copy.bullishView}</span>
+                                        <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{bull?.text || copy.noStrongNews}</p>
+                                        {bullRefs > 0 && <span className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">◉ {copy.references(bullRefs)}</span>}
                                     </div>
                                     <div className="p-3">
-                                        <span className="inline-flex rounded-md bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">{lang === 'vi' ? 'Góc nhìn tiêu cực ↘' : 'Bearish view ↘'}</span>
-                                        <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{bear?.text || (lang === 'vi' ? 'Chưa có tin đủ mạnh để xác nhận.' : 'No sufficiently strong news to confirm this view.')}</p>
-                                        {bearRefs > 0 && <span className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">◉ {referenceLabel(bearRefs)}</span>}
+                                        <span className="inline-flex rounded-md bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">{copy.bearishView}</span>
+                                        <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{bear?.text || copy.noStrongNews}</p>
+                                        {bearRefs > 0 && <span className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">◉ {copy.references(bearRefs)}</span>}
                                     </div>
                                 </div>
                             )}
@@ -113,16 +114,18 @@ function signalColor(s: string | undefined) {
 }
 
 function sentimentBadge(s: string | undefined, lang: 'vi' | 'en') {
-    if (s === 'bullish') return { label: lang === 'vi' ? 'Tích cực' : 'Positive', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' };
-    if (s === 'bearish') return { label: lang === 'vi' ? 'Tiêu cực' : 'Negative', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' };
-    return { label: lang === 'vi' ? 'Trung lập' : 'Neutral', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' };
+    const copy = translations[lang].detail.aiInsight;
+    if (s === 'bullish') return { label: copy.positive, cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' };
+    if (s === 'bearish') return { label: copy.negative, cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' };
+    return { label: copy.neutral, cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' };
 }
 
 function technicalSignal(rating: string | undefined, lang: 'vi' | 'en'): string {
+    const copy = translations[lang].detail.aiInsight;
     const value = rating?.toUpperCase() || '';
-    if (value.includes('VERY_GOOD') || value.includes('GOOD') || value.includes('BUY')) return lang === 'vi' ? 'Tích cực' : 'Positive';
-    if (value.includes('VERY_BAD') || value.includes('BAD') || value.includes('SELL')) return lang === 'vi' ? 'Tiêu cực' : 'Negative';
-    return lang === 'vi' ? 'Trung tính' : 'Neutral';
+    if (value.includes('VERY_GOOD') || value.includes('GOOD') || value.includes('BUY')) return copy.positive;
+    if (value.includes('VERY_BAD') || value.includes('BAD') || value.includes('SELL')) return copy.negative;
+    return copy.neutralTechnical;
 }
 
 function toLiveTechnicalSnapshot(payload: unknown): LiveTechnicalSnapshot | null {
@@ -150,34 +153,34 @@ function toLiveTechnicalSnapshot(payload: unknown): LiveTechnicalSnapshot | null
 }
 
 function liveTrend(snapshot: LiveTechnicalSnapshot, lang: 'vi' | 'en'): string {
+    const copy = translations[lang].detail.aiInsight;
     if (snapshot.price != null && snapshot.ema200 != null) {
-        return snapshot.price < snapshot.ema200
-            ? (lang === 'vi' ? 'Giá đang dưới EMA200.' : 'Price is below EMA200.')
-            : (lang === 'vi' ? 'Giá đang trên EMA200.' : 'Price is above EMA200.');
+        return snapshot.price < snapshot.ema200 ? copy.belowEma200 : copy.aboveEma200;
     }
-    return lang === 'vi' ? 'Tổng hợp từ trung bình động và dao động.' : 'Summary from moving averages and oscillators.';
+    return copy.technicalSummary;
 }
 
 function formatTechnicalLevel(value: number, lang: 'vi' | 'en'): string {
-    return (Math.round(value / 1_000) * 1_000).toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-US');
+    return (Math.round(value / 1_000) * 1_000).toLocaleString(translations[lang].overview.locale);
 }
 
 function LiveTechnicalSection({ snapshot, lang }: { snapshot: LiveTechnicalSnapshot; lang: 'vi' | 'en' }) {
     const signal = technicalSignal(snapshot.rating, lang);
+    const copy = translations[lang].detail.aiInsight;
 
     return (
         <div className="space-y-1.5 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{lang === 'vi' ? 'Tín hiệu kỹ thuật' : 'Technical signal'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{copy.technicalSignal}</p>
             </div>
             <p className={`text-sm font-semibold ${signalColor(signal)}`}>{signal}</p>
             <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">{liveTrend(snapshot, lang)}</p>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                 {snapshot.support != null && (
-                    <p className="text-gray-500 dark:text-gray-400">{lang === 'vi' ? 'Hỗ trợ' : 'Support'}: <strong className="text-emerald-600 dark:text-emerald-400">{formatTechnicalLevel(snapshot.support, lang)}</strong></p>
+                    <p className="text-gray-500 dark:text-gray-400">{copy.support}: <strong className="text-emerald-600 dark:text-emerald-400">{formatTechnicalLevel(snapshot.support, lang)}</strong></p>
                 )}
                 {snapshot.resistance != null && (
-                    <p className="text-gray-500 dark:text-gray-400">{lang === 'vi' ? 'Kháng cự' : 'Resistance'}: <strong className="text-rose-500 dark:text-rose-400">{formatTechnicalLevel(snapshot.resistance, lang)}</strong></p>
+                    <p className="text-gray-500 dark:text-gray-400">{copy.resistance}: <strong className="text-rose-500 dark:text-rose-400">{formatTechnicalLevel(snapshot.resistance, lang)}</strong></p>
                 )}
             </div>
         </div>
@@ -188,6 +191,7 @@ function LiveTechnicalSection({ snapshot, lang }: { snapshot: LiveTechnicalSnaps
 
 export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter }: AiInsightCardProps) {
     const { lang } = useLanguage();
+    const copy = translations[lang].detail.aiInsight;
     const [liveTechnical, setLiveTechnical] = useState<LiveTechnicalSnapshot | null>(null);
 
     useEffect(() => {
@@ -222,16 +226,16 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
         return (
             <section className="flex h-full min-h-[260px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-labelledby="ai-insight-title">
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-                    <span id="ai-insight-title" className="text-base font-semibold text-slate-800 dark:text-slate-100">{lang === 'vi' ? 'Phân tích tin tức AI' : 'AI news analysis'}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{lang === 'vi' ? 'Đang cập nhật' : 'Updating'}</span>
+                    <span id="ai-insight-title" className="text-base font-semibold text-slate-800 dark:text-slate-100">{copy.title}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">{copy.updating}</span>
                 </div>
                 {liveTechnical && <LiveTechnicalSection snapshot={liveTechnical} lang={lang} />}
                 <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-lg dark:bg-blue-950/40">✦</div>
-                    <h3 className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">{lang === 'vi' ? 'Phân tích tin tức đang được chuẩn bị' : 'News analysis is being prepared'}</h3>
-                    <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'AI sẽ tóm tắt các tin tức mới thành yếu tố tích cực, rủi ro và điểm cần theo dõi.' : 'AI summarizes recent news into positive factors, risks, and items to watch.'}</p>
+                    <h3 className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.preparing}</h3>
+                    <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500 dark:text-slate-400">{copy.preparingDescription}</p>
                 </div>
-                <p className="border-t border-slate-100 px-4 py-2 text-xs leading-relaxed text-slate-400 dark:border-slate-800 dark:text-slate-500">{lang === 'vi' ? 'Nội dung mang tính tham khảo, không phải khuyến nghị đầu tư.' : 'For reference only; not investment advice.'}</p>
+                <p className="border-t border-slate-100 px-4 py-2 text-xs leading-relaxed text-slate-400 dark:border-slate-800 dark:text-slate-500">{copy.disclaimer}</p>
             </section>
         );
     }
@@ -252,7 +256,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                 <div className="flex items-center gap-1.5">
                     <span id="ai-insight-title" className="text-base font-semibold text-slate-800 dark:text-slate-100">
-                        {lang === 'vi' ? 'Phân tích tin tức AI' : 'AI news analysis'}
+                        {copy.title}
                     </span>
                     {quarter && (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -272,7 +276,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
                     <div className="px-4 py-3 space-y-2">
                         {/* Header */}
                         <div className="flex items-center gap-2">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{lang === 'vi' ? 'Luận điểm từ tin tức' : 'News thesis'}</p>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{copy.newsThesis}</p>
                             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge.cls}`}>
                                 {badge.label}
                             </span>
@@ -292,7 +296,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
                                 {hasBull && (
                                     <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-2 space-y-1">
                                         <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400">
-                                            {lang === 'vi' ? 'Hỗ trợ' : 'Support'}
+                                            {copy.support}
                                         </span>
                                         {news.bull_case!.slice(0, 3).map((item, i) => (
                                             <div key={i} className="flex gap-1">
@@ -307,7 +311,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
                                 {hasBear && (
                                     <div className="rounded-lg bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 p-2 space-y-1">
                                         <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-900/50 dark:text-rose-400">
-                                            {lang === 'vi' ? 'Rủi ro' : 'Risks'}
+                                            {copy.risks}
                                         </span>
                                         {news.bear_case!.slice(0, 3).map((item, i) => (
                                             <div key={i} className="flex gap-1">
@@ -347,7 +351,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
 
             </div>
             <p className="border-t border-slate-100 px-4 py-2 text-xs leading-relaxed text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                {lang === 'vi' ? 'Nội dung mang tính tham khảo, không phải khuyến nghị đầu tư.' : 'For reference only; not investment advice.'}
+                {copy.disclaimer}
             </p>
         </section>
     );

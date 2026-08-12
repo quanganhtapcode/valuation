@@ -32,6 +32,7 @@ import {
 import { ReportGenerator } from '@/lib/reportGenerator';
 import type { ValuationResult, StockApiData } from '@/lib/types';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
@@ -178,6 +179,7 @@ function SensitivityMatrix({ matrix, currentPrice }: {
 const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initialData, isBank, stockData }) => {
     const { lang } = useLanguage();
     const isVietnamese = lang === 'vi';
+    const copy = translations[lang].detail.valuationTab;
     const [loading, setLoading] = useState(false);
     const [exportLoading, setExportLoading] = useState(false);
     const [result, setResult] = useState<ValuationResult | null>(initialData || null);
@@ -433,27 +435,21 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         icb_cohort_count?: number;
     } | undefined;
     const newsOverlay = result?.news_overlay;
-    const businessTypeLabel: Record<string, string> = isVietnamese ? {
-        technology: 'Công nghệ', bank: 'Ngân hàng', securities: 'Chứng khoán',
-        real_estate: 'Bất động sản', utility: 'Tiện ích', cyclical: 'Ngành chu kỳ', general: 'Doanh nghiệp phổ thông',
-    } : {
-        technology: 'Technology', bank: 'Banking', securities: 'Securities',
-        real_estate: 'Real Estate', utility: 'Utilities', cyclical: 'Cyclical', general: 'General Business',
-    };
+    const businessTypeLabel: Record<string, string> = copy.businessTypes;
     const businessType = businessTypeLabel[valuationPolicy?.archetype || 'general'] || businessTypeLabel.general;
     const industryPosition = valuationPolicy?.is_icb_leader
-        ? (isVietnamese ? 'nhóm doanh nghiệp lớn nhất ngành' : 'the largest companies in its industry')
-        : (isVietnamese ? 'nhóm doanh nghiệp cùng ngành' : 'its industry peer group');
+        ? copy.leaderPosition
+        : copy.peerPosition;
     const newsScore = Number(newsOverlay?.weighted_score ?? 5);
     const newsTone = newsScore >= 7.5
-        ? (isVietnamese ? 'Tích cực' : 'Positive')
+        ? copy.positive
         : newsScore >= 5.5
-            ? (isVietnamese ? 'Hơi tích cực' : 'Slightly positive')
+            ? copy.slightlyPositive
             : newsScore > 4.5
-                ? (isVietnamese ? 'Trung tính' : 'Neutral')
+                ? copy.neutral
                 : newsScore > 2.5
-                    ? (isVietnamese ? 'Tiêu cực' : 'Negative')
-                    : (isVietnamese ? 'Rất tiêu cực' : 'Strongly negative');
+                    ? copy.negative
+                    : copy.stronglyNegative;
     const growthSuggestion = result?.inputs?.growth_suggestion as {
         used?: number; analyst_profit_growth?: number; historical_used?: number;
     } | undefined;
@@ -462,12 +458,12 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         <div className="space-y-6 pb-8">
             <div className="sm:flex sm:items-center sm:justify-between">
                 <div>
-                    <Title className="font-bold text-gray-900 dark:text-gray-50">Valuation Models</Title>
-                    <Text className="mt-1">Customize assumptions and methods to estimate intrinsic value</Text>
+                    <Title className="font-bold text-gray-900 dark:text-gray-50">{copy.title}</Title>
+                    <Text className="mt-1">{copy.subtitle}</Text>
                 </div>
                 <div className="mt-4 sm:mt-0 flex gap-2 w-full sm:w-auto">
                     <Button variant="secondary" onClick={handleReset} icon={RiRefreshLine} className="flex-1 sm:flex-none">
-                        Reset
+                        {copy.reset}
                     </Button>
                     <Button
                         variant="secondary"
@@ -476,10 +472,10 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                         loading={exportLoading}
                         className="flex-1 sm:flex-none"
                     >
-                        Excel Model
+                        {copy.excelModel}
                     </Button>
                     <Button onClick={handleCalculate} loading={loading} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 border-none text-white font-semibold">
-                        Analyze
+                        {copy.analyze}
                     </Button>
                 </div>
             </div>
@@ -487,13 +483,13 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             <Grid numItems={1} numItemsLg={3} className="gap-6">
                 <Col numColSpan={1}>
                     <Card className="h-full rounded-tremor-default">
-                        <Title>Input Assumptions</Title>
+                        <Title>{copy.assumptions}</Title>
                         <div className="mt-6 flex flex-col gap-4">
                             <div>
-                                <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Market Data</Text>
+                                <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{copy.marketData}</Text>
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="text-sm text-gray-600 dark:text-gray-400">Current Price</label>
+                                        <label className="text-sm text-gray-600 dark:text-gray-400">{copy.currentPrice}</label>
                                         <div className="mt-1">
                                             <TextInput
                                                 type="number"
@@ -507,7 +503,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                     </div>
                                     {result?.target_price && (
                                         <div>
-                                            <label className="text-sm text-gray-600 dark:text-gray-400">{isVietnamese ? 'Giá mục tiêu VCI' : 'VCI target price'}</label>
+                                            <label className="text-sm text-gray-600 dark:text-gray-400">{copy.targetPrice}</label>
                                             <div className="mt-1 flex items-center justify-between rounded-tremor-default border border-tremor-border bg-tremor-background-subtle px-3 py-2 dark:border-dark-tremor-border dark:bg-dark-tremor-background-subtle">
                                                 <span className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
                                                     {result.target_price.toLocaleString('vi-VN')}
@@ -517,7 +513,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                         </div>
                                     )}
                                     <div>
-                                        <label className="text-sm text-gray-600 dark:text-gray-400">Discount Rate (WACC) %</label>
+                                        <label className="text-sm text-gray-600 dark:text-gray-400">{copy.discountRate}</label>
                                         <div className="mt-1">
                                             <TextInput
                                                 type="number"
@@ -527,7 +523,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-sm text-gray-600 dark:text-gray-400">Required Return %</label>
+                                        <label className="text-sm text-gray-600 dark:text-gray-400">{copy.requiredReturn}</label>
                                         <div className="mt-1">
                                             <TextInput
                                                 type="number"
@@ -540,10 +536,10 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                             </div>
 
                             <div className="border-t border-gray-100 pt-4 dark:border-gray-800">
-                                <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Growth Rates</Text>
+                                <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{copy.growthRates}</Text>
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="text-sm text-gray-600 dark:text-gray-400">Revenue Growth %</label>
+                                        <label className="text-sm text-gray-600 dark:text-gray-400">{copy.revenueGrowth}</label>
                                         <div className="mt-1">
                                             <TextInput
                                                 type="number"
@@ -553,7 +549,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-sm text-gray-600 dark:text-gray-400">Terminal Growth %</label>
+                                        <label className="text-sm text-gray-600 dark:text-gray-400">{copy.terminalGrowth}</label>
                                         <div className="mt-1">
                                             <TextInput
                                                 type="number"
@@ -563,7 +559,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-sm text-gray-600 dark:text-gray-400">Tax Rate %</label>
+                                        <label className="text-sm text-gray-600 dark:text-gray-400">{copy.taxRate}</label>
                                         <div className="mt-1">
                                             <TextInput
                                                 type="number"
@@ -574,11 +570,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                     </div>
                                     {growthSuggestion?.analyst_profit_growth !== undefined && growthSuggestion?.historical_used !== undefined && (
                                         <div className="rounded-md bg-blue-50 px-2.5 py-2 text-[10px] text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
-                                            {isVietnamese ? (
-                                                <>Tăng trưởng tự động: 60% forecast lợi nhuận ({(growthSuggestion.analyst_profit_growth * 100).toFixed(2)}%) + 40% CAGR EPS lịch sử ({(growthSuggestion.historical_used * 100).toFixed(2)}%) = <strong>{(Number(growthSuggestion.used || 0) * 100).toFixed(2)}%</strong>.</>
-                                            ) : (
-                                                <>Automatic growth: 60% analyst profit forecast ({(growthSuggestion.analyst_profit_growth * 100).toFixed(2)}%) + 40% historical EPS CAGR ({(growthSuggestion.historical_used * 100).toFixed(2)}%) = <strong>{(Number(growthSuggestion.used || 0) * 100).toFixed(2)}%</strong>.</>
-                                            )}
+                                            {copy.automaticGrowth}: 60% {copy.analystForecast} ({(growthSuggestion.analyst_profit_growth * 100).toFixed(2)}%) + 40% {copy.historicalEpsCagr} ({(growthSuggestion.historical_used * 100).toFixed(2)}%) = <strong>{(Number(growthSuggestion.used || 0) * 100).toFixed(2)}%</strong>.
                                         </div>
                                     )}
                                 </div>
@@ -622,7 +614,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                         {result && (
                             <Card className="flex-1 flex flex-col justify-between rounded-tremor-default overflow-hidden relative border-none bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg p-0">
                                 <div className="p-8 relative z-10">
-                                    <Text className="text-slate-400 font-medium tracking-wider uppercase text-xs">Intrinsic Value (Projected)</Text>
+                                    <Text className="text-slate-400 font-medium tracking-wider uppercase text-xs">{copy.intrinsicProjected}</Text>
                                     <div className="mt-2 flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-4">
                                         <span className="text-4xl sm:text-5xl font-bold tracking-tight">
                                             {formatPrice(weightedAvg)}
@@ -633,28 +625,28 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                             className="font-bold w-fit"
                                         >
                                             {finalUpside > 0 ? '+' : ''}
-                                            {finalUpside.toFixed(1)}% UPSIDE
+                                            {finalUpside.toFixed(1)}% {copy.upside}
                                         </Badge>
                                     </div>
                                     <div className="mt-8 border-t border-slate-700/50 pt-8">
                                         <div className="grid grid-cols-2 gap-8">
                                             <div>
-                                                <Text className="text-slate-400 text-xs uppercase mb-1">Recommendation</Text>
+                                                <Text className="text-slate-400 text-xs uppercase mb-1">{copy.recommendation}</Text>
                                                 <Title
                                                     className={classNames(
                                                         'text-2xl sm:text-3xl font-black',
                                                         finalUpside >= 15 ? 'text-emerald-400' : finalUpside <= -10 ? 'text-rose-400' : 'text-amber-400',
                                                     )}
                                                 >
-                                                    {finalUpside >= 15 ? 'STRONG BUY' : finalUpside >= 5 ? 'ACCUMULATE' : finalUpside <= -10 ? 'SELL' : 'HOLD'}
+                                                    {finalUpside >= 15 ? copy.strongBuy : finalUpside >= 5 ? copy.accumulate : finalUpside <= -10 ? copy.sell : copy.hold}
                                                 </Title>
                                             </div>
                                             <div className="text-right">
-                                                <Text className="text-slate-400 text-xs uppercase mb-1">Active Models</Text>
+                                                <Text className="text-slate-400 text-xs uppercase mb-1">{copy.activeModels}</Text>
                                                 <Title className="text-2xl sm:text-3xl font-black text-blue-300">
                                                     {activeModelsCount}
                                                 </Title>
-                                                <Text className="text-xs text-slate-500 mt-1">Weight-based blend</Text>
+                                                <Text className="text-xs text-slate-500 mt-1">{copy.weightBlend}</Text>
                                             </div>
                                         </div>
                                     </div>
@@ -669,64 +661,60 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             </Grid>
 
             {valuationPolicy && (
-                <Callout title={isVietnamese ? 'Cách hệ thống định giá' : 'How the valuation is selected'} color="blue" className="text-sm">
-                    {isVietnamese ? <><strong>{symbol}</strong> được xếp vào nhóm <strong>{businessType}</strong> và thuộc <strong>{industryPosition}</strong></> : <><strong>{symbol}</strong> is classified as <strong>{businessType}</strong> and is among <strong>{industryPosition}</strong></>}
+                <Callout title={copy.selectionTitle} color="blue" className="text-sm">
+                    <strong>{symbol}</strong> {copy.classifiedAs} <strong>{businessType}</strong> {copy.belongsTo} <strong>{industryPosition}</strong>
                     {valuationPolicy.icb_rank && valuationPolicy.icb_cohort_count
-                        ? isVietnamese
-                            ? <> (quy mô <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong> trong ngành)</>
-                            : <> (size rank <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong> in its industry)</>
+                        ? <> ({copy.sizeRank} <strong>#{valuationPolicy.icb_rank}/{valuationPolicy.icb_cohort_count}</strong> {copy.inIndustry})</>
                         : null}
-                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Thông tin này giúp chọn mô hình và doanh nghiệp so sánh phù hợp; quy mô lớn không tự động làm giá mục tiêu cao hơn.' : 'This selects the appropriate valuation models and peer group; large size does not automatically add a premium to the target price.'}</span>
+                    <span className="block mt-1 text-xs opacity-80">{copy.selectionHint}</span>
                 </Callout>
             )}
 
             {result?.wacc_suggestion && !result.wacc_suggestion.is_fallback && (
-                <Callout title={isVietnamese ? 'Giả định lãi suất chiết khấu' : 'Discount-rate assumptions'} color="blue" className="text-sm">
+                <Callout title={copy.discountTitle} color="blue" className="text-sm">
                     <strong>Ke {(result.wacc_suggestion.ke * 100).toFixed(2)}%</strong>
                     {' = '}Rf {(result.wacc_suggestion.rf * 100).toFixed(1)}% + β {result.wacc_suggestion.beta.toFixed(2)} × ERP {(result.wacc_suggestion.erp * 100).toFixed(1)}%.
                     {result.wacc_suggestion.debt_weight ? (
                         <span className="block mt-1">
-                            {isVietnamese
-                                ? <>WACC {(result.wacc_suggestion.wacc * 100).toFixed(2)}% kết hợp {((1 - result.wacc_suggestion.debt_weight) * 100).toFixed(1)}% vốn chủ và {(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% nợ sau thuế.</>
-                                : <>WACC {(result.wacc_suggestion.wacc * 100).toFixed(2)}% combines {((1 - result.wacc_suggestion.debt_weight) * 100).toFixed(1)}% equity and {(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% after-tax debt.</>}
+                            WACC {(result.wacc_suggestion.wacc * 100).toFixed(2)}% {copy.combines} {((1 - result.wacc_suggestion.debt_weight) * 100).toFixed(1)}% {copy.equity} + {(result.wacc_suggestion.debt_weight * 100).toFixed(1)}% {copy.afterTaxDebt}.
                         </span>
                     ) : null}
-                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Rf và ERP là giả định thị trường Việt Nam của hệ thống.' : 'Rf and ERP are the system\'s Vietnam market assumptions.'}</span>
+                    <span className="block mt-1 text-xs opacity-80">{copy.marketAssumptions}</span>
                 </Callout>
             )}
 
             {newsOverlay?.available && (
                 <Callout
-                    title={isVietnamese ? 'Tác động từ tin tức gần đây' : 'Effect of recent news'}
+                    title={copy.newsImpact}
                     color={newsOverlay.direction === 'positive' ? 'emerald' : newsOverlay.direction === 'negative' ? 'rose' : 'blue'}
                     className="text-sm"
                 >
-                    {isVietnamese ? <>Tín hiệu tin tức: <strong>{newsTone}</strong> ({newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10), dựa trên <strong>{newsOverlay.article_count}</strong> tin trong 21 ngày.</> : <>News signal: <strong>{newsTone}</strong> ({newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10), based on <strong>{newsOverlay.article_count}</strong> articles over the last 21 days.</>}
+                    {copy.newsSignal}: <strong>{newsTone}</strong> ({newsOverlay.weighted_score?.toFixed(2) ?? '—'}/10), {copy.basedOn} <strong>{newsOverlay.article_count}</strong> {copy.articles21Days}.
                     {newsOverlay.applicable ? (
                         <>
-                            {isVietnamese ? <> Nếu phản ánh nhẹ tâm lý này, mức giá tham khảo thay đổi <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>{newsOverlay.context_target ? <> thành <strong>{fmt(newsOverlay.context_target)}</strong>.</> : null}</> : <> If this short-term sentiment is lightly reflected, the reference price changes by <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>{newsOverlay.context_target ? <> to <strong>{fmt(newsOverlay.context_target)}</strong>.</> : null}</>}
+                            {' '}{copy.reflected} <strong>{newsOverlay.adjustment_pct >= 0 ? '+' : ''}{(newsOverlay.adjustment_pct * 100).toFixed(2)}%</strong>{newsOverlay.context_target ? <> {copy.to} <strong>{fmt(newsOverlay.context_target)}</strong>.</> : null}
                         </>
                     ) : (
-                        isVietnamese ? <> Chưa đủ tin để đưa vào mức giá tham khảo.</> : <> There is not enough news coverage to adjust the reference price.</>
+                        <> {copy.insufficientNews}</>
                     )}
-                    <span className="block mt-1 text-xs opacity-80">{isVietnamese ? 'Hệ thống khuếch đại tín hiệu tin tức và có thể điều chỉnh mức giá tham khảo tối đa ±15%; giá trị nội tại vẫn dựa trên dòng tiền, forecast lợi nhuận và doanh nghiệp cùng ngành.' : 'The system amplifies the news signal and can adjust the reference price by up to ±15%; intrinsic value still comes from cash flow, earnings forecasts and industry peers.'}</span>
+                    <span className="block mt-1 text-xs opacity-80">{copy.newsHint}</span>
                 </Callout>
             )}
 
             {result?.valuations && (
                 <Card>
-                    <Title className="mb-0.5">{isVietnamese ? 'Kết quả từng mô hình' : 'Model results'}</Title>
-                    <Text className="mb-4">{isVietnamese ? 'Nhấn vào card ở trên để bật/tắt mô hình · trọng số phân bổ đều' : 'Select a card above to enable or disable a model · weights are allocated evenly'}</Text>
+                    <Title className="mb-0.5">{copy.modelResults}</Title>
+                    <Text className="mb-4">{copy.modelResultsHint}</Text>
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableHeaderCell>{isVietnamese ? 'Mô hình' : 'Model'}</TableHeaderCell>
-                                    <TableHeaderCell>{isVietnamese ? 'Công thức' : 'Formula'}</TableHeaderCell>
-                                    <TableHeaderCell className="text-right">{isVietnamese ? 'Giá trị' : 'Value'}</TableHeaderCell>
+                                    <TableHeaderCell>{copy.model}</TableHeaderCell>
+                                    <TableHeaderCell>{copy.formula}</TableHeaderCell>
+                                    <TableHeaderCell className="text-right">{copy.value}</TableHeaderCell>
                                     <TableHeaderCell className="text-right">Upside</TableHeaderCell>
-                                    <TableHeaderCell className="text-right">{isVietnamese ? 'Trọng số' : 'Weight'}</TableHeaderCell>
-                                    <TableHeaderCell className="text-center">{isVietnamese ? 'Trạng thái' : 'Status'}</TableHeaderCell>
+                                    <TableHeaderCell className="text-right">{copy.weight}</TableHeaderCell>
+                                    <TableHeaderCell className="text-center">{copy.status}</TableHeaderCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -762,7 +750,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge color={m.enabled && val > 0 ? 'emerald' : m.enabled ? 'amber' : 'gray'} size="xs">
-                                                    {m.enabled && val > 0 ? (isVietnamese ? 'Bật' : 'On') : !m.enabled ? (isVietnamese ? 'Tắt' : 'Off') : (isVietnamese ? 'Thiếu dữ liệu' : 'No data')}
+                                                    {m.enabled && val > 0 ? copy.on : !m.enabled ? copy.off : copy.noData}
                                                 </Badge>
                                             </TableCell>
                                         </TableRow>
@@ -770,7 +758,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                 })}
                                 <TableRow className="bg-tremor-background-subtle font-bold">
                                     <TableCell colSpan={2}>
-                                        <Text className="font-bold">{isVietnamese ? 'Bình quân gia quyền' : 'Weighted average'}</Text>
+                                        <Text className="font-bold">{copy.weightedAverage}</Text>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Text className="font-mono font-black text-blue-600">{fmt(weightedAvg)}</Text>

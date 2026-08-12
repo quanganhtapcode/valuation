@@ -681,8 +681,9 @@ function SectionedTable({
     divisor?: number;
     lang?: 'vi' | 'en';
 }) {
+    const copy = translations[lang].financials;
     if (!rows || rows.length === 0) {
-        return <div className="text-center py-8 text-gray-400 text-sm">{lang === 'vi' ? 'Không có dữ liệu' : 'No data available'}</div>;
+        return <div className="text-center py-8 text-gray-400 text-sm">{copy.noData}</div>;
     }
 
     const sortedRows = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
@@ -710,7 +711,7 @@ function SectionedTable({
                 <thead>
                     <tr className="border-b border-gray-100 dark:border-slate-800">
                         <th className="sticky left-0 z-10 min-w-[200px] bg-white px-4 py-2.5 text-left text-[12px] font-medium text-gray-500 dark:bg-[#111827] dark:text-slate-400">
-                            {lang === 'vi' ? 'Chỉ tiêu' : 'Metric'}
+                            {copy.metric}
                         </th>
                         {displayRows.map((row, i) => {
                             const { label, isForecast } = renderPeriod(row);
@@ -719,7 +720,7 @@ function SectionedTable({
                                     <span className="inline-flex items-center justify-end gap-1">
                                         {label}
                                         {isForecast && (
-                                            <span className="cursor-help text-gray-400" title={lang === 'vi' ? 'Dự báo' : 'Forecast'}>
+                                            <span className="cursor-help text-gray-400" title={copy.forecast}>
                                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                     <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
                                                 </svg>
@@ -852,16 +853,16 @@ function RatioDashboard({
     divisor?: number;
     lang: 'vi' | 'en';
 }) {
-    const copy = lang === 'vi'
-        ? { title: 'Bức tranh tài chính', subtitle: 'Xu hướng các tỷ lệ trọng yếu trong tối đa 8 kỳ gần nhất.', badge: 'Tỷ lệ tài chính', latest: 'Kỳ gần nhất', recent: 'Các kỳ gần đây', show: 'Mở dữ liệu đầy đủ', hide: 'Thu gọn dữ liệu đầy đủ' }
-        : { title: 'Financial snapshot', subtitle: 'Key ratio trends across up to the eight most recent periods.', badge: 'Financial ratios', latest: 'Latest period', recent: 'Recent periods', show: 'Open detailed data', hide: 'Collapse detailed data' };
-    const ratioText: Record<string, { label: string; description: string }> = lang === 'vi' ? {} : {
-        ROE: { label: 'ROE', description: 'Return generated from shareholders’ equity' },
-        'Biên lợi nhuận ròng': { label: 'Net profit margin', description: 'Profit retained from revenue' },
-        'P/E': { label: 'P/E', description: 'Market price relative to earnings' },
-        'P/B': { label: 'P/B', description: 'Market price relative to book value' },
-        'Nợ / vốn chủ': { label: 'Debt / equity', description: 'Degree of financial leverage' },
-        'Thanh toán hiện hành': { label: 'Current ratio', description: 'Capacity to meet short-term obligations' },
+    const financialCopy = translations[lang].financials;
+    const copy = financialCopy.ratioDashboard;
+    const localizedRatios = financialCopy.ratioText;
+    const ratioText: Record<string, { label: string; description: string }> = {
+        ROE: localizedRatios.roe,
+        'Biên lợi nhuận ròng': localizedRatios.netMargin,
+        'P/E': localizedRatios.pe,
+        'P/B': localizedRatios.pb,
+        'Nợ / vốn chủ': localizedRatios.debtEquity,
+        'Thanh toán hiện hành': localizedRatios.currentRatio,
     };
     const sortedRows = [...rows].sort((a, b) => periodSortKey(a) - periodSortKey(b));
     const cards = RATIO_HIGHLIGHTS.map(metric => {
@@ -963,14 +964,16 @@ function KeyStatsTable({
     data,
     getMetricLabel,
     divisor,
+    noDataLabel,
 }: {
     metrics: typeof NORMAL_KEY_METRICS;
     data: Record<string, any>;
     getMetricLabel?: (key: string, fallback: string) => string;
     divisor?: number;
+    noDataLabel: string;
 }) {
     if (!data) {
-        return <div className="text-center py-8 text-gray-400 text-sm">Không có dữ liệu</div>;
+        return <div className="text-center py-8 text-gray-400 text-sm">{noDataLabel}</div>;
     }
 
     const effectiveDivisor = divisor ?? 1_000_000_000;
@@ -1016,7 +1019,7 @@ function KeyStatsTable({
                             </span>
                         </div>
                         {sectionMetrics.map((metric) => {
-                            const value = getValue(metric.key, metric.isPct, metric.isMultiple);
+                            const value = getValue(metric.key, metric.isPct, (metric as { isMultiple?: boolean }).isMultiple);
                             const isIndented = metric.indent ?? false;
                             return (
                                 <div
@@ -1084,7 +1087,7 @@ export default function FinancialsTab({
         { id: 'balance',   label: tFin.tabs.balance },
         { id: 'cashflow',  label: tFin.tabs.cashflow },
         { id: 'ratios',    label: tFin.tabs.ratios },
-        { id: 'notes',     label: lang === 'vi' ? 'Thuyết minh' : 'Notes' },
+        { id: 'notes',     label: tFin.notes },
     ]
 
     const DISPLAY_UNITS: { id: DisplayUnit; label: string; divisor: number }[] = [
@@ -1219,21 +1222,21 @@ export default function FinancialsTab({
 
     const isBank = isBankStock(symbol, overviewData);
     const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Key Stats';
-    const periodLabel = displayMode === 'annual' ? (lang === 'vi' ? 'Năm' : 'Year') : (lang === 'vi' ? 'Quý' : 'Quarter');
+    const periodLabel = displayMode === 'annual' ? tFin.year : tFin.quarter;
 
     return (
         <div className="space-y-3">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Tài chính' : 'Financials'}</h3>
+                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{tFin.title}</h3>
                 <div className="flex flex-wrap items-center gap-2">
                     <PillDropdown label={activeTabLabel}>
                         {TABS.map(tab => <PillDropdownItem key={tab.id} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>{tab.label}</PillDropdownItem>)}
                     </PillDropdown>
                     <PillDropdown label={periodLabel}>
-                        {([['annual', lang === 'vi' ? 'Năm' : 'Year'], ['quarterly', lang === 'vi' ? 'Quý' : 'Quarter']] as [DisplayMode, string][]).map(([mode, label]) => <PillDropdownItem key={mode} active={displayMode === mode} onClick={() => setDisplayMode(mode)}>{label}</PillDropdownItem>)}
+                        {([['annual', tFin.year], ['quarterly', tFin.quarter]] as [DisplayMode, string][]).map(([mode, label]) => <PillDropdownItem key={mode} active={displayMode === mode} onClick={() => setDisplayMode(mode)}>{label}</PillDropdownItem>)}
                     </PillDropdown>
-                    <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={lang === 'vi' ? 'Đơn vị hiển thị' : 'Display unit'} />
-                    {onDownloadExcel && <button onClick={onDownloadExcel} title={lang === 'vi' ? 'Tải Excel' : 'Download Excel'} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>}
+                    <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={tFin.displayUnit} />
+                    {onDownloadExcel && <button onClick={onDownloadExcel} title={tFin.downloadExcel} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>}
                 </div>
             </div>
 
@@ -1248,6 +1251,7 @@ export default function FinancialsTab({
                         {activeTab === 'key_stats' && (
                             <KeyStatsTable
                                 metrics={isBank ? BANK_KEY_METRICS : NORMAL_KEY_METRICS}
+                                noDataLabel={tFin.noData}
                                 data={buildKeyStatsData(overviewData, reportData.income, reportData.balance, reportData.cashflow)}
                                 getMetricLabel={metricLabel}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}

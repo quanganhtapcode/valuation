@@ -35,7 +35,7 @@ function formatCompact(value: number | undefined, lang: 'vi' | 'en'): string {
     if (!value) return '—';
     if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)} ${translations[lang].units.trillionVnd}`;
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} ${translations[lang].units.billionVnd}`;
-    return value.toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-US', { maximumFractionDigits: 0 });
+    return value.toLocaleString(translations[lang].overview.locale, { maximumFractionDigits: 0 });
 }
 
 export default function FinancialMetricsPanel({

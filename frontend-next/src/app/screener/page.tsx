@@ -11,6 +11,7 @@ import {
   ScreenerSortKey,
 } from '@/lib/api';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 const PAGE_SIZE = 50;
 
@@ -63,8 +64,8 @@ function isActive(value: SliderRange, range: { min: number; max: number }) {
 type RangePreset = { label: string; min: number; max: number };
 
 function translatePreset(label: string, lang: 'vi' | 'en') {
-  if (lang === 'vi') return label;
-  return ({ 'Tất cả': 'All', 'Âm': 'Negative' } as Record<string, string>)[label] ?? label;
+  const copy = translations[lang].screenerPage;
+  return ({ 'Tất cả': copy.all, 'Âm': copy.negative } as Record<string, string>)[label] ?? label;
 }
 
 function QuickRangeFilter({
@@ -82,7 +83,7 @@ function QuickRangeFilter({
   const format = valueFormatter ?? String;
   const selectedPreset = presets.find((preset) => preset.min === value.min && preset.max === value.max)?.label;
   const isCustom = !selectedPreset;
-  const copy = lang === 'en' ? { custom: 'Custom', from: 'From', to: 'To', filtering: 'Filtering' } : { custom: 'Tùy chỉnh', from: 'Từ', to: 'Đến', filtering: 'Đang lọc' };
+  const copy = translations[lang].screenerPage;
 
   return (
     <section className={`rounded-xl border p-3 ${isActive(value, range) ? 'border-blue-300 bg-blue-50/40 dark:border-blue-800 dark:bg-blue-950/20' : 'border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/50'}`}>
@@ -114,7 +115,7 @@ function QuickRangeFilter({
 
 export default function ScreenerPage() {
   const { lang } = useLanguage();
-  const vi = lang === 'vi';
+  const t = translations[lang].screenerPage;
   const [items, setItems]                     = useState<ScreenerItem[]>([]);
   const [total, setTotal]                     = useState(0);
   const [page, setPage]                       = useState(1);
@@ -226,11 +227,11 @@ export default function ScreenerPage() {
       setTotal(resp.total || 0);
       setHasValuationData(!!resp.hasValuationData);
     } catch (e: any) {
-      setError(e?.message || 'Failed to load screener');
+      setError(e?.message || t.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, [debouncedFilters, page, sortBy, sortOrder]);
+  }, [debouncedFilters, page, sortBy, sortOrder, t.loadFailed]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -262,15 +263,15 @@ export default function ScreenerPage() {
   };
 
   const summary = useMemo(() => {
-    if (loading) return 'Loading...';
+    if (loading) return t.loading;
     if (error) return error;
-    return `${total.toLocaleString('en-US')} stocks`;
-  }, [loading, error, total]);
+    return t.stocks(total);
+  }, [loading, error, total, t]);
 
   const TABS: Array<{ id: FilterTab; label: string }> = [
-    { id: 'valuation', label: vi ? 'Định giá' : 'Valuation' },
-    { id: 'quality',   label: vi ? 'Chất lượng' : 'Quality' },
-    { id: 'growth',    label: vi ? 'Tăng trưởng' : 'Growth' },
+    { id: 'valuation', label: t.valuation },
+    { id: 'quality',   label: t.quality },
+    { id: 'growth',    label: t.growth },
   ];
 
   return (
@@ -280,10 +281,10 @@ export default function ScreenerPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-5">
           <div>
-            <h1 className="text-3xl font-bold leading-tight tracking-tight md:text-4xl">Stock <span className="text-blue-600 dark:text-blue-400">Screener</span></h1>
+            <h1 className="text-3xl font-bold leading-tight tracking-tight md:text-4xl">{t.title}</h1>
             <div className="mt-2 h-1 w-24 rounded bg-blue-500" />
             <p className="mt-3 hidden text-sm text-slate-600 dark:text-slate-300 md:block">
-              Screen the active HOSE, HNX, and UPCOM universe by valuation, quality, and growth.
+              {t.subtitle}
             </p>
           </div>
 
@@ -316,7 +317,7 @@ export default function ScreenerPage() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2" />
               </svg>
-              {vi ? 'Bộ lọc' : 'Filters'}
+              {t.filters}
               {totalActiveFilters > 0 && (
                 <span className="rounded-full bg-blue-600 text-white text-xs px-1.5 py-0.5 leading-none">{totalActiveFilters}</span>
               )}
@@ -331,10 +332,10 @@ export default function ScreenerPage() {
           <div className="relative z-10 flex flex-col gap-3 border-b border-slate-200 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{vi ? 'Ngành' : 'Industry'}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{vi ? 'ICB cấp 2' : 'ICB level 2'}</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t.industry}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t.icbLevel2}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{vi ? 'Lọc theo ngành chi tiết; ICB cấp 1 chỉ dùng để phân nhóm.' : 'Filters use detailed ICB level 2 industries; level 1 is used only for grouping.'}</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t.industryHint}</p>
               </div>
               <div className="relative w-full md:w-[330px]">
                 <button
@@ -343,7 +344,7 @@ export default function ScreenerPage() {
                   className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-blue-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                   aria-expanded={sectorOpen}
                 >
-                  <span className="truncate">{selectedSector || (vi ? 'Tất cả ngành' : 'All industries')}</span>
+                  <span className="truncate">{selectedSector || t.allIndustries}</span>
                   <span className="ml-3 text-slate-400">⌄</span>
                 </button>
                 {sectorOpen && (
@@ -353,12 +354,12 @@ export default function ScreenerPage() {
                         autoFocus
                         value={sectorQuery}
                         onChange={(event) => setSectorQuery(event.target.value)}
-                        placeholder={vi ? 'Tìm ngành ICB cấp 2…' : 'Search ICB level 2 industries…'}
+                        placeholder={t.searchIndustry}
                         className="w-full rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:text-slate-100"
                       />
                     </div>
                     <div className="max-h-72 overflow-y-auto p-1.5">
-                      <button type="button" onClick={() => { setSelectedSector(''); setSectorOpen(false); setSectorQuery(''); setPage(1); }} className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-blue-950/40 dark:hover:text-blue-300">{vi ? 'Tất cả ngành' : 'All industries'}</button>
+                      <button type="button" onClick={() => { setSelectedSector(''); setSectorOpen(false); setSectorQuery(''); setPage(1); }} className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-blue-950/40 dark:hover:text-blue-300">{t.allIndustries}</button>
                       {sectorGroups.map(([group, sectors]) => (
                         <div key={group} className="py-1">
                           <p className="px-2.5 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{group}</p>
@@ -369,12 +370,12 @@ export default function ScreenerPage() {
                           ))}
                         </div>
                       ))}
-                      {sectorGroups.length === 0 && <p className="px-3 py-5 text-center text-sm text-slate-400">{vi ? 'Không tìm thấy ngành phù hợp.' : 'No matching industries found.'}</p>}
+                      {sectorGroups.length === 0 && <p className="px-3 py-5 text-center text-sm text-slate-400">{t.noIndustries}</p>}
                     </div>
                   </div>
                 )}
               </div>
-              {selectedSector && <button onClick={() => { setSelectedSector(''); setPage(1); }} className="absolute bottom-2 right-5 text-xs font-medium text-slate-400 hover:text-rose-500 dark:hover:text-rose-400">{vi ? 'Xóa ngành đã chọn' : 'Clear industry'}</button>}
+              {selectedSector && <button onClick={() => { setSelectedSector(''); setPage(1); }} className="absolute bottom-2 right-5 text-xs font-medium text-slate-400 hover:text-rose-500 dark:hover:text-rose-400">{t.clearIndustry}</button>}
             </div>
           )}
 
@@ -407,7 +408,7 @@ export default function ScreenerPage() {
                 onClick={resetAll}
                 className="ml-auto mr-3 my-2 text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors self-center"
               >
-                {vi ? 'Xóa bộ lọc' : 'Clear filters'}
+                {t.clearFilters}
               </button>
             )}
           </div>
@@ -418,13 +419,13 @@ export default function ScreenerPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
                 <QuickRangeFilter label="P/E" range={PE_RANGE} value={peRange} onChange={setPeRange} presets={[{ label: 'Tất cả', ...PE_RANGE }, { label: '< 10', min: 0, max: 10 }, { label: '10–20', min: 10, max: 20 }, { label: '> 20', min: 20, max: 60 }]} />
                 <QuickRangeFilter label="P/B" range={PB_RANGE} value={pbRange} onChange={setPbRange} valueFormatter={(n) => n.toFixed(1)} presets={[{ label: 'Tất cả', ...PB_RANGE }, { label: '< 1', min: 0, max: 1 }, { label: '1–3', min: 1, max: 3 }, { label: '> 3', min: 3, max: 10 }]} />
-                <QuickRangeFilter label="Giá (VND)" range={PRICE_RANGE} value={priceRange} onChange={setPriceRange} valueFormatter={(n) => n >= 1000 ? `${(n / 1000).toFixed(0)}k` : String(n)} presets={[{ label: 'Tất cả', ...PRICE_RANGE }, { label: '< 20k', min: 0, max: 20000 }, { label: '20–50k', min: 20000, max: 50000 }, { label: '> 50k', min: 50000, max: 200000 }]} />
-                <QuickRangeFilter label="Vốn hóa (tỷ VNĐ)" range={MARKET_CAP_BN_RANGE} value={mcapRange} onChange={setMcapRange} valueFormatter={(n) => n >= 1000 ? `${(n / 1000).toFixed(0)} nghìn tỷ` : `${n} tỷ`} presets={[{ label: 'Tất cả', ...MARKET_CAP_BN_RANGE }, { label: '< 10 nghìn tỷ', min: 0, max: 10000 }, { label: '10–100 nghìn tỷ', min: 10000, max: 100000 }, { label: '> 100 nghìn tỷ', min: 100000, max: 1200000 }]} />
+                <QuickRangeFilter label={t.price} range={PRICE_RANGE} value={priceRange} onChange={setPriceRange} valueFormatter={(n) => n >= 1000 ? `${(n / 1000).toFixed(0)}k` : String(n)} presets={[{ label: 'Tất cả', ...PRICE_RANGE }, { label: '< 20k', min: 0, max: 20000 }, { label: '20–50k', min: 20000, max: 50000 }, { label: '> 50k', min: 50000, max: 200000 }]} />
+                <QuickRangeFilter label={t.marketCap} range={MARKET_CAP_BN_RANGE} value={mcapRange} onChange={setMcapRange} valueFormatter={(n) => n >= 1000 ? `${(n / 1000).toFixed(0)} ${translations[lang].units.trillionVnd}` : `${n} ${translations[lang].units.billionVnd}`} presets={[{ label: 'Tất cả', ...MARKET_CAP_BN_RANGE }, { label: '< 10k', min: 0, max: 10000 }, { label: '10–100k', min: 10000, max: 100000 }, { label: '> 100k', min: 100000, max: 1200000 }]} />
                 {hasValuationData
-                  ? <QuickRangeFilter label="Tiềm năng tăng giá" range={UPSIDE_PCT_RANGE} value={upsideRange} onChange={setUpsideRange} valueFormatter={(n) => `${n > 0 ? '+' : ''}${n}%`} presets={[{ label: 'Tất cả', ...UPSIDE_PCT_RANGE }, { label: 'Âm', min: -100, max: 0 }, { label: '0–20%', min: 0, max: 20 }, { label: '> 20%', min: 20, max: 300 }]} />
+                  ? <QuickRangeFilter label={t.upside} range={UPSIDE_PCT_RANGE} value={upsideRange} onChange={setUpsideRange} valueFormatter={(n) => `${n > 0 ? '+' : ''}${n}%`} presets={[{ label: 'Tất cả', ...UPSIDE_PCT_RANGE }, { label: 'Âm', min: -100, max: 0 }, { label: '0–20%', min: 0, max: 20 }, { label: '> 20%', min: 20, max: 300 }]} />
                   : (
                     <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-3 flex items-center justify-center text-center text-xs text-slate-400">
-                      Upside % available<br />after pipeline runs
+                      {t.upsidePending}
                     </div>
                   )
                 }
@@ -433,14 +434,14 @@ export default function ScreenerPage() {
             {activeTab === 'quality' && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
                 <QuickRangeFilter label="ROE" range={ROE_RANGE} value={roeRange} onChange={setRoeRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...ROE_RANGE }, { label: '< 10%', min: -20, max: 10 }, { label: '10–20%', min: 10, max: 20 }, { label: '> 20%', min: 20, max: 40 }]} />
-                <QuickRangeFilter label="Biên lợi nhuận ròng" range={NET_MARGIN_RANGE} value={netMarginRange} onChange={setNetMarginRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...NET_MARGIN_RANGE }, { label: 'Âm', min: -30, max: 0 }, { label: '0–15%', min: 0, max: 15 }, { label: '> 15%', min: 15, max: 50 }]} />
-                <QuickRangeFilter label="Biên lợi nhuận gộp" range={GROSS_MARGIN_RANGE} value={grossMarginRange} onChange={setGrossMarginRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...GROSS_MARGIN_RANGE }, { label: '< 20%', min: -10, max: 20 }, { label: '20–40%', min: 20, max: 40 }, { label: '> 40%', min: 40, max: 80 }]} />
+                <QuickRangeFilter label={t.netMargin} range={NET_MARGIN_RANGE} value={netMarginRange} onChange={setNetMarginRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...NET_MARGIN_RANGE }, { label: 'Âm', min: -30, max: 0 }, { label: '0–15%', min: 0, max: 15 }, { label: '> 15%', min: 15, max: 50 }]} />
+                <QuickRangeFilter label={t.grossMargin} range={GROSS_MARGIN_RANGE} value={grossMarginRange} onChange={setGrossMarginRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...GROSS_MARGIN_RANGE }, { label: '< 20%', min: -10, max: 20 }, { label: '20–40%', min: 20, max: 40 }, { label: '> 40%', min: 40, max: 80 }]} />
               </div>
             )}
             {activeTab === 'growth' && (
               <div className="grid grid-cols-2 md:grid-cols-2 gap-2 md:gap-3 md:max-w-lg">
-                <QuickRangeFilter label="Tăng trưởng doanh thu" range={REVENUE_GROWTH_RANGE} value={revGrowthRange} onChange={setRevGrowthRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...REVENUE_GROWTH_RANGE }, { label: 'Âm', min: -100, max: 0 }, { label: '0–20%', min: 0, max: 20 }, { label: '> 20%', min: 20, max: 300 }]} />
-                <QuickRangeFilter label="Tăng trưởng lợi nhuận" range={NET_PROFIT_GROWTH_RANGE} value={npGrowthRange} onChange={setNpGrowthRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...NET_PROFIT_GROWTH_RANGE }, { label: 'Âm', min: -100, max: 0 }, { label: '0–20%', min: 0, max: 20 }, { label: '> 20%', min: 20, max: 300 }]} />
+                <QuickRangeFilter label={t.revenueGrowth} range={REVENUE_GROWTH_RANGE} value={revGrowthRange} onChange={setRevGrowthRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...REVENUE_GROWTH_RANGE }, { label: 'Âm', min: -100, max: 0 }, { label: '0–20%', min: 0, max: 20 }, { label: '> 20%', min: 20, max: 300 }]} />
+                <QuickRangeFilter label={t.profitGrowth} range={NET_PROFIT_GROWTH_RANGE} value={npGrowthRange} onChange={setNpGrowthRange} valueFormatter={(n) => `${n}%`} presets={[{ label: 'Tất cả', ...NET_PROFIT_GROWTH_RANGE }, { label: 'Âm', min: -100, max: 0 }, { label: '0–20%', min: 0, max: 20 }, { label: '> 20%', min: 20, max: 300 }]} />
               </div>
             )}
           </div>
@@ -448,7 +449,7 @@ export default function ScreenerPage() {
           {/* Mobile done button */}
           <div className="px-3 pb-3 flex md:hidden">
             <button onClick={() => setFiltersOpen(false)} className="ml-auto rounded-lg bg-blue-600 text-white px-5 py-1.5 text-sm font-medium">
-              Done
+              {t.done}
             </button>
           </div>
         </div>
@@ -457,7 +458,7 @@ export default function ScreenerPage() {
         <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-5">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Results</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{t.results}</p>
               <div className="mt-0.5 text-sm font-semibold text-slate-600 tabular-nums dark:text-slate-300">{summary}</div>
             </div>
             <div className="flex gap-2">
@@ -475,21 +476,21 @@ export default function ScreenerPage() {
             <table className="w-full text-sm min-w-[480px]">
               <thead>
                 <tr className="text-left border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                  <th className="py-2 pl-3 md:pl-0 pr-2 font-medium">Ticker</th>
-                  <th className="py-2 px-2 font-medium text-right">Price</th>
+                  <th className="py-2 pl-3 md:pl-0 pr-2 font-medium">{t.ticker}</th>
+                  <th className="py-2 px-2 font-medium text-right">{t.price}</th>
                   {hasValuationData && (
-                    <th className="py-2 px-2 font-medium text-right" title="Intrinsic value estimate. Grade (A–F) = data quality: A ≥85%, B ≥70%, C ≥55%, D ≥40%, F &lt;40%">
-                      Intrinsic <span className="hidden sm:inline text-slate-400 font-normal">(grade)</span>
+                    <th className="py-2 px-2 font-medium text-right" title={t.intrinsicHint}>
+                      {t.intrinsic} <span className="hidden sm:inline text-slate-400 font-normal">({t.grade})</span>
                     </th>
                   )}
-                  {hasValuationData && <th className="py-2 px-2 font-medium text-right">Upside</th>}
-                  <th className="py-2 px-2 font-medium text-right hidden sm:table-cell">MCap</th>
+                  {hasValuationData && <th className="py-2 px-2 font-medium text-right">{t.upside}</th>}
+                  <th className="py-2 px-2 font-medium text-right hidden sm:table-cell">{t.marketCapShort}</th>
                   <th className="py-2 px-2 font-medium text-right">P/E</th>
                   <th className="py-2 px-2 font-medium text-right hidden sm:table-cell">P/B</th>
                   <th className="py-2 px-2 font-medium text-right">ROE</th>
-                  <th className="py-2 px-2 font-medium text-right hidden md:table-cell">Net Mgn</th>
-                  <th className="py-2 px-2 font-medium text-right hidden md:table-cell">Rev Grw</th>
-                  <th className="py-2 px-2 font-medium text-right hidden md:table-cell">NP Grw</th>
+                  <th className="py-2 px-2 font-medium text-right hidden md:table-cell">{t.netMarginShort}</th>
+                  <th className="py-2 px-2 font-medium text-right hidden md:table-cell">{t.revenueGrowthShort}</th>
+                  <th className="py-2 px-2 font-medium text-right hidden md:table-cell">{t.profitGrowthShort}</th>
                 </tr>
               </thead>
               <tbody>
@@ -535,16 +536,16 @@ export default function ScreenerPage() {
               </tbody>
             </table>
             {!loading && items.length === 0 && (
-              <div className="py-10 text-center text-sm text-slate-400">No results</div>
+              <div className="py-10 text-center text-sm text-slate-400">{t.noResults}</div>
             )}
           </div>
 
           <div className="mt-3 flex items-center justify-between">
             <button className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm disabled:opacity-40"
-              onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1 || loading}>← Prev</button>
+              onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1 || loading}>← {t.previous}</button>
             <div className="text-sm text-slate-500 tabular-nums">{page} / {totalPages}</div>
             <button className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm disabled:opacity-40"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages || loading}>Next →</button>
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages || loading}>{t.next} →</button>
           </div>
         </div>
       </div>

@@ -91,7 +91,7 @@ function formatDateTime(value: string | null | undefined, lang: 'vi' | 'en'): st
     if (!value) return '-';
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    return d.toLocaleString(translations[lang].overview.locale, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function ratingTone(rating?: TechnicalRating): 'bull' | 'bear' | 'neutral' {

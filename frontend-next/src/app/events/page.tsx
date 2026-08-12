@@ -43,13 +43,13 @@ function fmtDate(iso: string | null, locale: string): string {
 
 // ── Category config ───────────────────────────────────────────────────────────
 
-const CATEGORIES: Array<{ id: Category; vi: string; en: string; color: string; bg: string }> = [
-    { id: 'ALL',                    vi: 'Tất cả', en: 'All', color: 'text-slate-700 dark:text-slate-200', bg: 'bg-slate-100 dark:bg-slate-700' },
-    { id: 'DIVIDEND',               vi: 'Cổ tức', en: 'Dividends', color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { id: 'SHAREHOLDER_MEETING',    vi: 'Đại hội CĐ', en: 'Shareholder meetings', color: 'text-blue-700 dark:text-blue-300', bg: 'bg-blue-50 dark:bg-blue-900/30' },
-    { id: 'MAJOR_SHAREHOLDER_TRADING', vi: 'Giao dịch nội bộ', en: 'Insider trading', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50 dark:bg-amber-900/30' },
-    { id: 'OTHER',                  vi: 'Khác', en: 'Other', color: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-50 dark:bg-slate-800' },
-];
+const CATEGORIES = [
+    { id: 'ALL',                    label: 'all', color: 'text-slate-700 dark:text-slate-200', bg: 'bg-slate-100 dark:bg-slate-700' },
+    { id: 'DIVIDEND',               label: 'dividend', color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
+    { id: 'SHAREHOLDER_MEETING',    label: 'meeting', color: 'text-blue-700 dark:text-blue-300', bg: 'bg-blue-50 dark:bg-blue-900/30' },
+    { id: 'MAJOR_SHAREHOLDER_TRADING', label: 'insider', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50 dark:bg-amber-900/30' },
+    { id: 'OTHER',                  label: 'other', color: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-50 dark:bg-slate-800' },
+] as const;
 
 function catConfig(cat: EventItem['category']) {
     return CATEGORIES.find(c => c.id === cat) ?? CATEGORIES[0];
@@ -61,7 +61,7 @@ function CategoryBadge({ cat, lang }: { cat: EventItem['category']; lang: 'vi' |
     const cfg = catConfig(cat);
     return (
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.color} ${cfg.bg}`}>
-            {cfg[lang]}
+            {translations[lang].pages.events.categories[cfg.label]}
         </span>
     );
 }
@@ -186,7 +186,7 @@ export default function EventsPage() {
                                     : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-blue-400'
                             }`}
                         >
-                            {cat[lang]}
+                            {copy.categories[cat.label]}
                             {counts[cat.id] !== undefined && (
                                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
                                     category === cat.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
@@ -223,7 +223,7 @@ export default function EventsPage() {
                                 ) : filtered.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-                                            {copy.empty} {category !== 'ALL' ? `"${catConfig(category as EventItem['category'])[lang]}"` : ''} {copy.emptySuffix}
+                                            {copy.empty} {category !== 'ALL' ? `"${copy.categories[catConfig(category as EventItem['category']).label]}"` : ''} {copy.emptySuffix}
                                         </td>
                                     </tr>
                                 ) : (

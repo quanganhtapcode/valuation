@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "i18n:audit": "node scripts/check-i18n.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs --strict"
   },
   "dependencies": {
     "@radix-ui/react-radio-group": "^1.3.8",

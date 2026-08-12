@@ -26,7 +26,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     useEffect(() => {
-        document.documentElement.lang = lang === "vi" ? "vi-VN" : "en-US"
+        document.documentElement.lang = translations[lang].overview.locale
         document.documentElement.dir = "ltr"
     }, [lang])
 
@@ -51,7 +51,7 @@ export function useLanguage() {
 /** Shared locale-aware formatting for values that must not be translated inline. */
 export function useI18n() {
     const { lang, setLanguage } = useLanguage()
-    const locale = lang === "vi" ? "vi-VN" : "en-US"
+    const locale = translations[lang].overview.locale
     const formatters = useMemo(() => ({
         number: (value: number, options?: Intl.NumberFormatOptions) => new Intl.NumberFormat(locale, options).format(value),
         date: (value: string | Date, options: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" }) =>

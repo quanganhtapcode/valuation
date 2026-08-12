@@ -72,10 +72,10 @@ function toCumulative(points: ForeignVolumePoint[]) {
 }
 
 const TIME_TABS = [
-    { vi: 'Sáng', en: 'Morning', filter: (t: string) => t >= '09:00' && t <= '11:35' },
-    { vi: 'Chiều', en: 'Afternoon', filter: (t: string) => t >= '13:00' },
-    { vi: 'Cả ngày', en: 'Full day', filter: () => true },
-];
+    { label: 'morning', filter: (t: string) => t >= '09:00' && t <= '11:35' },
+    { label: 'afternoon', filter: (t: string) => t >= '13:00' },
+    { label: 'fullDay', filter: () => true },
+] as const;
 
 function CumulativeNetChart({
     title,
@@ -129,10 +129,10 @@ function CumulativeNetChart({
                     <TabList className="px-6">
                         {TIME_TABS.map((tab) => (
                             <Tab
-                                key={tab.vi}
+                                key={tab.label}
                                 className="font-medium hover:border-tremor-content-subtle dark:hover:border-dark-tremor-content-subtle dark:hover:text-dark-tremor-content"
                             >
-                                {tab[lang]}
+                                {copy[tab.label]}
                             </Tab>
                         ))}
                     </TabList>
@@ -140,7 +140,7 @@ function CumulativeNetChart({
                         {TIME_TABS.map((tab) => {
                             const sliced = chartData.filter((d) => tab.filter(d.time));
                             return (
-                                <TabPanel key={tab.vi} className="p-6">
+                                <TabPanel key={tab.label} className="p-6">
                                     <LineChart
                                         data={sliced}
                                         index="time"

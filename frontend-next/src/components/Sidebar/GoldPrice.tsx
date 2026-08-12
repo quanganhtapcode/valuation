@@ -100,13 +100,14 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                         try {
                             if (!updatedAt) return '';
 
-                            const relative = formatRelativeTime(updatedAt, lang === 'en' ? 'en-US' : 'vi-VN');
+                            const locale = translations[lang].overview.locale;
+                            const relative = formatRelativeTime(updatedAt, locale);
                             if (relative) return relative;
 
                             if (updatedAt.includes('/') && updatedAt.includes(':')) return updatedAt;
                             const date = new Date(updatedAt);
                             if (isNaN(date.getTime())) return updatedAt;
-                            return date.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN', {
+                            return date.toLocaleString(locale, {
                                 hour: '2-digit',
                                 minute: '2-digit',
                                 day: '2-digit',

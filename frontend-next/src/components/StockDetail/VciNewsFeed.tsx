@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 type FeedTab = 'news' | 'dividend' | 'insider' | 'agm' | 'other';
 
@@ -37,17 +38,18 @@ function fmtRelative(iso: string | null | undefined, lang: 'vi' | 'en'): string 
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso.slice(0, 10);
   const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
-  if (diff === 0) return lang === 'vi' ? 'Hôm nay' : 'Today';
-  if (diff === 1) return lang === 'vi' ? 'Hôm qua' : 'Yesterday';
-  if (diff < 7) return lang === 'vi' ? `${diff} ngày trước` : `${diff} days ago`;
-  return d.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short', year: diff > 300 ? 'numeric' : undefined });
+  const copy = translations[lang].detail.newsFeed;
+  if (diff === 0) return copy.today;
+  if (diff === 1) return copy.yesterday;
+  if (diff < 7) return copy.daysAgo(diff);
+  return d.toLocaleDateString(translations[lang].overview.locale, { day: 'numeric', month: 'short', year: diff > 300 ? 'numeric' : undefined });
 }
 
 function fmtFull(iso: string | null | undefined, lang: 'vi' | 'en'): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso.slice(0, 10);
-  return d.toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(translations[lang].overview.locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ── Icons (SVG — no emojis) ───────────────────────────────────────────────────
@@ -72,6 +74,7 @@ function IcoNewspaper() {
 // ── Sentiment badge ───────────────────────────────────────────────────────────
 
 function SentimentBadge({ score, label, lang }: { score?: number; label?: string; lang: 'vi' | 'en' }) {
+  const copy = translations[lang].detail.newsFeed;
   const raw = label?.toLowerCase() ?? '';
   const isPos = raw.includes('pos') || (score !== undefined && score > 0.15);
   const isNeg = raw.includes('neg') || (score !== undefined && score < -0.15);
@@ -83,7 +86,7 @@ function SentimentBadge({ score, label, lang }: { score?: number; label?: string
               'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
     }`}>
       <span className={`w-1.5 h-1.5 rounded-full ${isPos ? 'bg-emerald-500' : isNeg ? 'bg-red-500' : 'bg-slate-400'}`} />
-      {isPos ? (lang === 'vi' ? 'Tích cực' : 'Positive') : isNeg ? (lang === 'vi' ? 'Tiêu cực' : 'Negative') : (lang === 'vi' ? 'Trung lập' : 'Neutral')}
+      {isPos ? copy.positive : isNeg ? copy.negative : copy.neutral}
     </span>
   );
 }
@@ -204,6 +207,7 @@ function Skeleton() {
 // ── Empty / Error ─────────────────────────────────────────────────────────────
 
 function EmptyState({ label, lang }: { label: string; lang: 'vi' | 'en' }) {
+  const copy = translations[lang].detail.newsFeed;
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
@@ -211,8 +215,8 @@ function EmptyState({ label, lang }: { label: string; lang: 'vi' | 'en' }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
         </svg>
       </div>
-      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{lang === 'vi' ? `Không có ${label.toLowerCase()}` : `No ${label.toLowerCase()} available`}</p>
-      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{lang === 'vi' ? 'Chưa có dữ liệu cho mục này.' : 'There is no data for this section yet.'}</p>
+      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{copy.empty(label)}</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{copy.emptyDescription}</p>
     </div>
   );
 }
@@ -225,7 +229,7 @@ function ErrorState({ message, lang }: { message: string; lang: 'vi' | 'en' }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
         </svg>
       </div>
-      <p className="text-sm font-medium text-red-600 dark:text-red-400">{lang === 'vi' ? 'Không tải được dữ liệu' : 'Unable to load data'}</p>
+      <p className="text-sm font-medium text-red-600 dark:text-red-400">{translations[lang].detail.newsFeed.failed}</p>
       <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{message}</p>
     </div>
   );
@@ -235,6 +239,7 @@ function ErrorState({ message, lang }: { message: string; lang: 'vi' | 'en' }) {
 
 export default function VciNewsFeed({ symbol }: { symbol: string }) {
   const { lang } = useLanguage();
+  const copy = translations[lang].detail.newsFeed;
   const [activeTab, setActiveTab] = useState<FeedTab>('news');
   const [data,    setData]    = useState<Partial<Record<FeedTab, any[]>>>({});
   const [loading, setLoading] = useState<Partial<Record<FeedTab, boolean>>>({});
@@ -270,9 +275,9 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
       {/* Shared stock-detail header */}
       <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Tin tức & Sự kiện' : 'News & Events'}</h3>
+          <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            {isLoad ? (lang === 'vi' ? 'Đang tải…' : 'Loading…') : count !== undefined ? `${count} ${tabLabel.toLowerCase()}` : (lang === 'vi' ? 'Tin tức và sự kiện của doanh nghiệp' : 'Company news and events')}
+            {isLoad ? copy.loading : count !== undefined ? `${count} ${tabLabel.toLowerCase()}` : copy.description}
           </p>
         </div>
         <span className="rounded-full bg-blue-50 dark:bg-blue-900/30 px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">
@@ -292,7 +297,7 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
             {TAB_LABELS[lang][tab]}
             {data[tab] !== undefined && (
               <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] ${
-                activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                activeTab === tab ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
               }`}>
                 {data[tab]!.length}
               </span>
