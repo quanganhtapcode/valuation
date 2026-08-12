@@ -3,6 +3,7 @@ import { RiArrowRightUpLine } from "@remixicon/react"
 import Link from "next/link"
 import { useLanguage } from "@/lib/languageContext"
 import { translations } from "@/lib/translations"
+import { localizedPath } from "@/lib/localePath"
 
 export default function Footer() {
     const { lang } = useLanguage()
@@ -10,20 +11,20 @@ export default function Footer() {
 
     const navigation = {
         product: [
-            { name: t.marketOverview, href: "/", external: false },
-            { name: t.stockAnalysis, href: "/stock/VCB", external: false },
+            { name: t.marketOverview, href: localizedPath('/', lang), external: false },
+            { name: t.stockAnalysis, href: localizedPath('/stock/VCB', lang), external: false },
         ],
         resources: [
-            { name: t.disclaimer, href: "/disclaimer", external: false },
-            { name: t.downloadData, href: "/downloads", external: false },
+            { name: t.disclaimer, href: localizedPath('/disclaimer', lang), external: false },
+            { name: t.downloadData, href: localizedPath('/downloads', lang), external: false },
             { name: "GitHub", href: "https://github.com/quanganhtapcode", external: true },
         ],
         company: [
-            { name: t.contact, href: "/contact", external: false },
+            { name: t.contact, href: localizedPath('/contact', lang), external: false },
         ],
         legal: [
-            { name: t.privacy, href: "/privacy", external: false },
-            { name: t.terms, href: "/terms", external: false },
+            { name: t.privacy, href: localizedPath('/privacy', lang), external: false },
+            { name: t.terms, href: localizedPath('/terms', lang), external: false },
         ],
     }
 

@@ -1,0 +1,32 @@
+.shell { width: min(100%, 1440px); margin: 0 auto; padding: 28px 24px 64px; color: var(--color-text); }
+.hero { position: relative; overflow: hidden; max-width: 1200px; margin: 0 auto 24px; padding: 34px; border: 1px solid var(--color-border); border-radius: 24px; background: linear-gradient(145deg, color-mix(in srgb, var(--color-primary-light) 52%, var(--color-surface)), var(--color-surface) 72%); box-shadow: 0 18px 50px rgb(15 23 42 / .06); }
+.hero::after { position: absolute; right: -80px; top: -110px; width: 280px; height: 280px; border-radius: 50%; background: color-mix(in srgb, var(--color-primary) 12%, transparent); content: ''; filter: blur(4px); pointer-events: none; }
+.heroCopy { position: relative; z-index: 1; max-width: 780px; }
+.eyebrow { margin: 0 0 8px; color: var(--color-primary); font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.hero h1 { margin: 0; font-size: clamp(34px, 5vw, 58px); font-weight: 780; letter-spacing: -.055em; line-height: 1.02; }
+.hero h1 span { color: var(--color-primary); }
+.intro { max-width: 720px; margin: 16px 0 0; color: var(--color-text-secondary); font-size: 15px; line-height: 1.7; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; color: var(--color-text-secondary); font-size: 12px; }
+.summary { position: relative; z-index: 1; max-width: 900px; margin-top: 24px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border)); border-radius: 14px; background: color-mix(in srgb, var(--color-surface) 82%, transparent); }
+.summary span { color: var(--color-primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.summary p { margin: 7px 0 0; color: var(--color-text); font-size: 14px; line-height: 1.7; }
+.documentNav { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.documentNav a { padding: 8px 13px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); font-size: 12px; font-weight: 700; text-decoration: none; transition: .2s ease; }
+.documentNav a:hover, .documentNav .active { border-color: var(--color-primary); color: var(--color-primary); box-shadow: 0 5px 16px color-mix(in srgb, var(--color-primary) 15%, transparent); }
+.layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); align-items: start; gap: 24px; max-width: 1200px; margin: 0 auto; }
+.sidebar { position: sticky; top: 88px; padding: 18px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); }
+.sidebar > p { margin: 0 0 10px; color: var(--color-text); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.sidebar ol { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.sidebar a { display: block; padding: 7px 8px; border-radius: 8px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.35; text-decoration: none; }
+.sidebar a:hover { background: var(--color-primary-light); color: var(--color-primary); }
+.article { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.section { scroll-margin-top: 96px; padding: 26px 28px; border: 1px solid var(--color-border); border-radius: 18px; background: var(--color-surface); box-shadow: 0 8px 28px rgb(15 23 42 / .035); }
+.section h2 { margin: 0 0 14px; font-size: 19px; font-weight: 760; letter-spacing: -.025em; }
+.section p { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 14px; line-height: 1.78; }
+.section p:last-child { margin-bottom: 0; }
+.section ul { display: grid; gap: 9px; margin: 10px 0 0; padding-left: 21px; }
+.section li { padding-left: 3px; color: var(--color-text-secondary); font-size: 14px; line-height: 1.68; }
+.section li::marker { color: var(--color-primary); }
+.section .important { margin-bottom: 14px; padding: 13px 15px; border-left: 3px solid var(--color-primary); border-radius: 0 10px 10px 0; background: color-mix(in srgb, var(--color-primary-light) 55%, transparent); color: var(--color-text); font-weight: 650; line-height: 1.65; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; } .sidebar ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .shell { padding: 16px 12px 42px; } .hero { padding: 24px 18px; border-radius: 18px; } .hero h1 { font-size: 36px; } .section { padding: 21px 18px; border-radius: 15px; } .sidebar ol { grid-template-columns: 1fr; } }

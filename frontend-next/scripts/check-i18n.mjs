@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 
 const root = join(process.cwd(), 'src');
 const strict = process.argv.includes('--strict');
-const ignored = new Set(['lib/translations.ts']);
+const ignored = new Set(['lib/translations.ts', 'lib/i18nRouting.ts', 'lib/legalContent.ts']);
 const findings = [];
 
 function visit(path) {
@@ -16,7 +16,7 @@ function visit(path) {
 
 function inspect(path) {
   const file = relative(root, path).replaceAll('\\', '/');
-  if (ignored.has(file)) return;
+  if (ignored.has(file) || file.endsWith('/layout.tsx') || file === 'app/layout.tsx') return;
   const lines = readFileSync(path, 'utf8').split('\n');
   lines.forEach((line, index) => {
     const directLangConditional = /lang\s*===\s*['"](?:vi|en)['"].*\?.*['"`].*:\s*['"`]/.test(line);

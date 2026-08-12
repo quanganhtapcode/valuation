@@ -15,6 +15,7 @@ import { cx } from '@/lib/utils';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
 import BankingPeerTable from './BankingPeerTable';
+import { localizedPath } from '@/lib/localePath';
 
 interface Peer {
     symbol: string;
@@ -239,7 +240,7 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
                                                             <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full dark:bg-blue-800 dark:text-blue-200 uppercase">Hiện tại</span>
                                                         </span>
                                                     ) : (
-                                                        <Link href={`/stock/${item.symbol}`}
+                                                        <Link href={localizedPath(`/stock/${item.symbol}`, lang)}
                                                             className="font-bold text-tremor-default text-tremor-content-strong dark:text-dark-tremor-content-strong hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors">
                                                             {item.symbol}
                                                         </Link>

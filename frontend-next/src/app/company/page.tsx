@@ -1,6 +1,7 @@
 import styles from './company.module.css';
+import { createLocalizedMetadata } from '@/lib/i18nRouting';
 
-export const metadata = {
+/*export const metadata = {
     title: 'Danh Sách Doanh Nghiệp Niêm Yết Việt Nam | HOSE, HNX, UPCOM',
     description:
         'Tra cứu và phân tích doanh nghiệp niêm yết trên sàn chứng khoán Việt Nam: HOSE, HNX, UPCOM. Thông tin ngành, vốn hóa, chỉ số tài chính và lịch sử giá.',
@@ -28,7 +29,12 @@ export const metadata = {
         description:
             'Tra cứu và phân tích 1.700+ doanh nghiệp niêm yết trên HOSE, HNX, UPCOM.',
     },
-};
+};*/
+
+export const generateMetadata = () => createLocalizedMetadata('/company', {
+    vi: { title: 'Danh Sách Doanh Nghiệp Niêm Yết Việt Nam', description: 'Tra cứu doanh nghiệp niêm yết HOSE, HNX và UPCOM theo ngành, vốn hóa và chỉ số tài chính.' },
+    en: { title: 'Vietnam Listed Company Directory | HOSE, HNX, UPCOM', description: 'Explore companies listed on HOSE, HNX, and UPCOM by sector, market capitalization, and financial metrics.' },
+});
 
 export default function CompanyPage() {
     return (

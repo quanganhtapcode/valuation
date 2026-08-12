@@ -26,6 +26,7 @@ import { Button } from "@/components/Button"
 import { getTickerData } from "@/lib/tickerCache"
 import ThemeSwitch from "@/components/ThemeSwitch"
 import LanguageSwitch from "@/components/LanguageSwitch"
+import { localizedPath } from "@/lib/localePath"
 
 interface Ticker {
     symbol: string;
@@ -65,22 +66,22 @@ export function Navbar() {
             id: "market",
             label: t.market,
             items: [
-                { label: t.overview, href: "/", icon: RiPieChartLine, desc: t.overviewDesc },
-                { label: t.foreign, href: "/foreign", icon: RiGlobalLine, desc: t.foreignDesc },
-                { label: t.macro, href: "/macro", icon: RiLineChartLine, desc: t.macroDesc },
-                { label: t.events, href: "/events", icon: RiCalendarEventLine, desc: t.eventsDesc },
+                { label: t.overview, href: localizedPath('/', lang), icon: RiPieChartLine, desc: t.overviewDesc },
+                { label: t.foreign, href: localizedPath('/foreign', lang), icon: RiGlobalLine, desc: t.foreignDesc },
+                { label: t.macro, href: localizedPath('/macro', lang), icon: RiLineChartLine, desc: t.macroDesc },
+                { label: t.events, href: localizedPath('/events', lang), icon: RiCalendarEventLine, desc: t.eventsDesc },
             ],
         },
         {
             id: "stocks",
             label: t.stocks,
             items: [
-                { label: t.company, href: "/stock/VCB", icon: RiBuilding2Line, desc: t.companyDesc },
-                { label: t.screener, href: "/screener", icon: RiFilterLine, desc: t.screenerDesc },
-                { label: t.news, href: "https://stock.quanganh.org/news", icon: RiCalendarEventLine, desc: t.newsDesc },
+                { label: t.company, href: localizedPath('/stock/VCB', lang), icon: RiBuilding2Line, desc: t.companyDesc },
+                { label: t.screener, href: localizedPath('/screener', lang), icon: RiFilterLine, desc: t.screenerDesc },
+                { label: t.news, href: localizedPath('/news', lang), icon: RiCalendarEventLine, desc: t.newsDesc },
             ],
         },
-    ], [t])
+    ], [lang, t])
 
     const scrolled = useScroll(15)
     const [open, setOpen] = React.useState(false)
@@ -243,7 +244,7 @@ export function Navbar() {
                 <div className="flex items-center justify-between gap-4">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <Link href={siteConfig.baseLinks.overview}>
+                        <Link href={localizedPath(siteConfig.baseLinks.overview, lang)}>
                             <span className="sr-only">Overview</span>
                             <DatabaseLogo className="size-9 md:size-10" />
                         </Link>
@@ -343,7 +344,7 @@ export function Navbar() {
                                     onChange={handleSearch}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && searchResults.length > 0) {
-                                            router.push(`/stock/${searchResults[0].symbol}`);
+                                            router.push(localizedPath(`/stock/${searchResults[0].symbol}`, lang));
                                             setSearchOpen(false);
                                             setSearchQuery('');
                                         }
@@ -368,10 +369,10 @@ export function Navbar() {
                                             searchResults.map((result) => (
                                                 <Link
                                                     key={result.symbol}
-                                                    href={`/stock/${result.symbol}`}
+                                                    href={localizedPath(`/stock/${result.symbol}`, lang)}
                                                     prefetch={false}
                                                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 group"
-                                                    onMouseDown={() => router.push(`/stock/${result.symbol}`)}
+                                                    onMouseDown={() => router.push(localizedPath(`/stock/${result.symbol}`, lang))}
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div className="shrink-0 relative w-8 h-8 rounded-lg bg-white border border-gray-100 dark:border-gray-800 flex items-center justify-center p-1 group-hover:border-blue-200 transition-colors shadow-sm overflow-hidden">
@@ -551,10 +552,10 @@ export function Navbar() {
                                     {searchResults.map((result) => (
                                         <Link
                                             key={result.symbol}
-                                            href={`/stock/${result.symbol}`}
+                                            href={localizedPath(`/stock/${result.symbol}`, lang)}
                                             prefetch={false}
                                             className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-900"
-                                            onMouseDown={() => router.push(`/stock/${result.symbol}`)}
+                                            onMouseDown={() => router.push(localizedPath(`/stock/${result.symbol}`, lang))}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-gray-900 dark:text-gray-50">{result.symbol}</span>

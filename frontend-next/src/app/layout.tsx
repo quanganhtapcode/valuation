@@ -10,6 +10,7 @@ import { ClientErrorBoundary } from "@/components/ui/ClientErrorBoundary";
 import { siteConfig } from "@/app/siteConfig";
 import { WatchlistProvider } from "@/lib/watchlistContext"
 import { LanguageProvider } from "@/lib/languageContext";
+import { getRequestLang } from "@/lib/i18nRouting";
 
 const manrope = Manrope({
   subsets: ["latin", "vietnamese"],
@@ -72,14 +73,6 @@ export const metadata: Metadata = {
     description: siteConfig.description,
     images: [siteConfig.defaultOgImage],
   },
-  alternates: {
-    canonical: "/",
-    languages: {
-      "x-default": "/",
-      "vi": "/",
-      "en": "/",
-    },
-  },
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "",
   },
@@ -92,24 +85,25 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const lang = await getRequestLang();
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": siteConfig.shortName,
     "alternateName": ["Quang Anh", "QuangAnh Stocks", "stock.quanganh.org"],
     "url": siteConfig.url,
-    "description": siteConfig.description,
+    "description": lang === 'vi' ? siteConfig.description : siteConfig.descriptionEn,
     "inLanguage": ["vi", "en"],
     "potentialAction": {
       "@type": "SearchAction",
       "target": {
         "@type": "EntryPoint",
-        "urlTemplate": `${siteConfig.url}/stock/{search_term_string}`,
+        "urlTemplate": `${siteConfig.url}/${lang}/stock/{search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
@@ -136,7 +130,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={lang === 'vi' ? 'vi-VN' : 'en-US'} suppressHydrationWarning>
       <body className={`${manrope.className} ${manrope.variable} min-h-screen scroll-auto antialiased selection:bg-indigo-100 selection:text-indigo-700 dark:bg-gray-950`}>
         <script
           type="application/ld+json"
@@ -151,7 +145,7 @@ export default function RootLayout({
           defaultTheme="system"
           disableTransitionOnChange
         >
-          <LanguageProvider>
+          <LanguageProvider initialLang={lang}>
             <WatchlistProvider>
               <Navbar />
               <LazyTickerTape />

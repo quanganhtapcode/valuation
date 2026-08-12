@@ -12,6 +12,7 @@ import {
 } from '@/lib/api';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
+import { localizedPath } from '@/lib/localePath';
 
 const PAGE_SIZE = 50;
 
@@ -505,7 +506,7 @@ export default function ScreenerPage() {
                   return (
                     <tr key={row.ticker} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td className="py-2 pl-3 md:pl-0 pr-2">
-                        <Link href={`/stock/${row.ticker}`} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                        <Link href={localizedPath(`/stock/${row.ticker}`, lang)} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                           {row.ticker}
                         </Link>
                         <div className="text-xs text-slate-400 truncate max-w-[90px] sm:max-w-none">

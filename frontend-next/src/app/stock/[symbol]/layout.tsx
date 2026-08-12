@@ -2,10 +2,12 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import { siteConfig } from '@/app/siteConfig';
 import tickerData from '../../../../public/ticker_data.json';
+import { getRequestLang, localizedPath } from '@/lib/i18nRouting';
+import type { Lang } from '@/lib/translations';
 
 type Props = { params: Promise<{ symbol: string }> };
 
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 export const revalidate = 300;
 
 type StockSeoData = {
@@ -20,7 +22,11 @@ function normalizeSymbol(symbol: string): string {
   return (symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
 }
 
-function buildDescription(data: StockSeoData): string {
+function buildDescription(data: StockSeoData, lang: Lang): string {
+  if (lang === 'en') {
+    const identity = data.companyName && data.companyName !== data.symbol ? `${data.symbol} (${data.companyName})` : data.symbol;
+    return `Analysis and valuation of ${identity}, listed on ${data.exchange}. Explore price history, financial statements, P/E, P/B, ROE, holders, news, and valuation models.`;
+  }
   const parts = [
     `Phân tích và định giá cổ phiếu ${data.symbol}`,
   ];
@@ -64,6 +70,7 @@ const getStockSeoData = cache((symbol: string): StockSeoData | null => {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params;
+  const lang = await getRequestLang();
   const sym = normalizeSymbol(symbol);
 
   if (!sym) {
@@ -84,13 +91,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const hasCompanyName = stock.companyName && stock.companyName !== sym;
   const pageTitle = hasCompanyName
-    ? `${sym} - ${stock.companyName} | Phân tích & định giá cổ phiếu`
-    : `${sym} | Phân tích & định giá cổ phiếu`;
-  const description = buildDescription(stock);
-  const canonicalPath = `/stock/${sym}`;
+    ? `${sym} - ${stock.companyName} | ${lang === 'vi' ? 'Phân tích & định giá cổ phiếu' : 'Stock analysis & valuation'}`
+    : `${sym} | ${lang === 'vi' ? 'Phân tích & định giá cổ phiếu' : 'Stock analysis & valuation'}`;
+  const description = buildDescription(stock, lang);
+  const canonicalPath = localizedPath(`/stock/${sym}`, lang);
   const ogTitle = hasCompanyName
-    ? `${sym} (${stock.companyName}) | Phân tích cổ phiếu - Quang Anh`
-    : `${sym} | Phân tích cổ phiếu - Quang Anh`;
+    ? `${sym} (${stock.companyName}) | ${lang === 'vi' ? 'Phân tích cổ phiếu' : 'Stock analysis'} - Quang Anh`
+    : `${sym} | ${lang === 'vi' ? 'Phân tích cổ phiếu' : 'Stock analysis'} - Quang Anh`;
 
   const keywords = [
     `${sym} cổ phiếu`,
@@ -117,7 +124,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     keywords.push(`${stock.sector} vietnam stocks`);
   }
 
-  const ogImagePath = `/stock/${sym}/opengraph-image`;
+  const ogImagePath = localizedPath(`/stock/${sym}/opengraph-image`, lang);
 
   return {
     title: pageTitle,
@@ -126,9 +133,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: canonicalPath,
       languages: {
-        'x-default': canonicalPath,
-        vi: canonicalPath,
-        en: canonicalPath,
+        'x-default': localizedPath(`/stock/${sym}`, 'vi'),
+        'vi-VN': localizedPath(`/stock/${sym}`, 'vi'),
+        'en-US': localizedPath(`/stock/${sym}`, 'en'),
       },
     },
     openGraph: {
@@ -163,6 +170,7 @@ export default async function StockLayout({
 }) {
   const { symbol } = await params;
   const sym = normalizeSymbol(symbol);
+  const lang = await getRequestLang();
 
   if (!sym) {
     return <>{children}</>;
@@ -170,18 +178,18 @@ export default async function StockLayout({
 
   const stock = getStockSeoData(sym);
   const companyName = stock?.companyName || sym;
-  const pageUrl = `${siteConfig.url}/stock/${sym}`;
+  const pageUrl = `${siteConfig.url}${localizedPath(`/stock/${sym}`, lang)}`;
   const displayName = companyName !== sym ? `${companyName} (${sym})` : sym;
 
   const webPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: `${displayName} - Phân tích cổ phiếu`,
+    name: `${displayName} - ${lang === 'vi' ? 'Phân tích cổ phiếu' : 'Stock analysis'}`,
     description: stock
-      ? buildDescription(stock)
-      : `Phân tích và định giá cổ phiếu ${sym} trên thị trường Việt Nam.`,
+      ? buildDescription(stock, lang)
+      : lang === 'vi' ? `Phân tích và định giá cổ phiếu ${sym} trên thị trường Việt Nam.` : `Analysis and valuation of ${sym} on the Vietnamese stock market.`,
     url: pageUrl,
-    inLanguage: 'vi',
+    inLanguage: lang,
     isPartOf: {
       '@type': 'WebSite',
       name: siteConfig.name,
@@ -205,14 +213,14 @@ export default async function StockLayout({
       {
         '@type': 'ListItem',
         position: 1,
-        name: 'Trang chủ',
-        item: siteConfig.url,
+        name: lang === 'vi' ? 'Trang chủ' : 'Home',
+        item: `${siteConfig.url}/${lang}`,
       },
       {
         '@type': 'ListItem',
         position: 2,
-        name: 'Cổ phiếu',
-        item: `${siteConfig.url}/stock/${sym}`,
+        name: lang === 'vi' ? 'Cổ phiếu' : 'Stocks',
+        item: pageUrl,
       },
       {
         '@type': 'ListItem',

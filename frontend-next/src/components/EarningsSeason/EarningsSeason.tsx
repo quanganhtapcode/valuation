@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { fetchMarketTakeaways, MarketTakeawaysData } from '@/lib/api';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
+import { localizedPath } from '@/lib/localePath';
 
 function Skeleton() {
     return (
@@ -119,7 +120,7 @@ export default function EarningsSeason() {
                                 return (
                                     <Link
                                         key={`${item.symbol}-${item.direction}`}
-                                        href={`/stock/${item.symbol}`}
+                                        href={localizedPath(`/stock/${item.symbol}`, lang)}
                                         className="rounded-lg border border-gray-100 p-2.5 transition-colors hover:border-blue-200 hover:bg-blue-50/40 dark:border-gray-800 dark:hover:border-blue-900 dark:hover:bg-blue-950/20"
                                     >
                                         <div className="mb-1 flex items-center gap-2">

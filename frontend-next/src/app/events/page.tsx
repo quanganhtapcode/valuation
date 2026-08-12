@@ -7,6 +7,7 @@ import { API } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
 import { useI18n } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
+import { localizedPath } from '@/lib/localePath';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -232,7 +233,7 @@ export default function EventsPage() {
                                             className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                             {/* Ticker */}
                                             <td className="px-4 py-3">
-                                                <Link href={`/stock/${event.ticker}`}
+                                                <Link href={localizedPath(`/stock/${event.ticker}`, lang)}
                                                     className="flex items-center gap-2 group w-fit">
                                                     <StockLogo ticker={event.ticker} />
                                                     <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">

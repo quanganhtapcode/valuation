@@ -1,6 +1,7 @@
 import ContactContent from './ContactContent';
+import { createLocalizedMetadata } from '@/lib/i18nRouting';
 
-export const metadata = {
+/*export const metadata = {
     title: 'Liên Hệ – Quang Anh Stocks',
     description:
         'Liên hệ nhóm phát triển Quang Anh để đặt câu hỏi, góp ý tính năng hoặc hợp tác. Email: contact@quanganh.org – SĐT: +84 813 601 054.',
@@ -23,7 +24,12 @@ export const metadata = {
         description:
             'Liên hệ nhóm phát triển Quang Anh để hỗ trợ và hợp tác.',
     },
-};
+};*/
+
+export const generateMetadata = () => createLocalizedMetadata('/contact', {
+    vi: { title: 'Liên Hệ', description: 'Liên hệ Quang Anh để được hỗ trợ, góp ý tính năng hoặc trao đổi hợp tác.' },
+    en: { title: 'Contact', description: 'Contact Quang Anh for support, product feedback, or business collaboration.' },
+});
 
 export default function ContactPage() {
     return <ContactContent />;

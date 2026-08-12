@@ -10,6 +10,7 @@ import { siteConfig } from '@/app/siteConfig';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
 import { getTickerData } from '@/lib/tickerCache';
+import { localizedPath } from '@/lib/localePath';
 
 interface MarketPulseProps {
     gainers: TopMoverItem[];
@@ -151,7 +152,7 @@ function MarketList({
                             return (
                                 <Link
                                     key={item.Symbol}
-                                    href={`/stock/${item.Symbol}`}
+                                    href={localizedPath(`/stock/${item.Symbol}`, lang)}
                                     className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group"
                                 >
                                     <div className="flex items-center gap-3 overflow-hidden flex-1 mr-2">

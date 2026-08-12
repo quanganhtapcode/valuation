@@ -12,17 +12,11 @@ const LanguageContext = createContext<LanguageContextValue>({
     setLanguage: () => {},
 })
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-    const [lang, setLang] = useState<Lang>("en")
-    const [mounted, setMounted] = useState(false)
+export function LanguageProvider({ children, initialLang = "vi" }: { children: React.ReactNode; initialLang?: Lang }) {
+    const [lang, setLang] = useState<Lang>(initialLang)
 
     useEffect(() => {
         if (process.env.NODE_ENV !== "production") assertTranslationParity()
-        const stored = localStorage.getItem("lang") as Lang | null
-        queueMicrotask(() => {
-            if (stored === "vi" || stored === "en") setLang(stored)
-            setMounted(true)
-        })
     }, [])
 
     useEffect(() => {
@@ -33,9 +27,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const setLanguage = (l: Lang) => {
         setLang(l)
         localStorage.setItem("lang", l)
+        document.cookie = `lang=${l}; path=/; max-age=31536000; samesite=lax`
     }
-
-    if (!mounted) return <>{children}</>
 
     return (
         <LanguageContext.Provider value={{ lang, setLanguage }}>

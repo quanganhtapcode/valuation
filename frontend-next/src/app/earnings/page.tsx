@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
+import { localizedPath } from '@/lib/localePath';
 
 type Release = {
     ticker: string;
@@ -129,7 +130,7 @@ export default function EarningsPage() {
                                 <tr key={item.ticker} className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20">
                                     <td className="whitespace-nowrap px-4 py-3 text-slate-500 dark:text-slate-400">{new Date(item.public_date).toLocaleDateString(locale)}</td>
                                     <td className="px-4 py-3">
-                                        <Link href={`/stock/${item.ticker}`} className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">{item.ticker}</Link>
+                                        <Link href={localizedPath(`/stock/${item.ticker}`, lang)} className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">{item.ticker}</Link>
                                         <span className="ml-2 text-slate-600 dark:text-slate-300">{lang === 'en' ? item.name_en : item.name}</span>
                                     </td>
                                     <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBn(item.revenue, locale, translations[lang].units.billionVnd)}</td>

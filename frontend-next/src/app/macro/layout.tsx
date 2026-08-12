@@ -1,36 +1,8 @@
-import type { Metadata } from 'next';
+import { createLocalizedMetadata } from '@/lib/i18nRouting';
 
-export const metadata: Metadata = {
-  title: 'Kinh Tế Vĩ Mô Việt Nam: Tỷ Giá, CPI, GDP, Hàng Hóa',
-  description:
-    'Theo dõi chỉ số kinh tế vĩ mô Việt Nam: tỷ giá USD/VND, lạm phát CPI, tăng trưởng GDP, giá vàng và hàng hóa ảnh hưởng đến thị trường chứng khoán.',
-  keywords: [
-    'kinh tế vĩ mô Việt Nam',
-    'tỷ giá USD VND',
-    'lạm phát CPI Việt Nam',
-    'GDP Việt Nam',
-    'giá vàng hôm nay',
-    'vietnam macro indicators',
-    'vietnam cpi',
-    'vietnam gdp',
-    'vietnam exchange rate',
-    'vietnam commodities',
-  ],
-  alternates: { canonical: '/macro' },
-  openGraph: {
-    title: 'Kinh Tế Vĩ Mô Việt Nam | Quang Anh',
-    description:
-      'Chỉ số kinh tế vĩ mô Việt Nam: tỷ giá, CPI, GDP và hàng hóa tác động đến chứng khoán.',
-    url: '/macro',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Kinh Tế Vĩ Mô Việt Nam | Quang Anh',
-    description:
-      'Tỷ giá USD/VND, CPI, GDP, giá vàng và hàng hóa ảnh hưởng đến thị trường chứng khoán Việt Nam.',
-  },
-};
+export const generateMetadata = () => createLocalizedMetadata('/macro', {
+    vi: { title: 'Kinh Tế Vĩ Mô Việt Nam: Tỷ Giá, CPI, GDP, Hàng Hóa', description: 'Theo dõi tỷ giá USD/VND, CPI, GDP, lãi suất, vàng và hàng hóa ảnh hưởng đến thị trường chứng khoán Việt Nam.' },
+    en: { title: 'Vietnam Macro Data: FX, CPI, GDP & Commodities', description: 'Track USD/VND, inflation, GDP, interest rates, gold, and commodities affecting the Vietnamese stock market.' },
+});
 
-export default function MacroLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
-}
+export default function MacroLayout({ children }: { children: React.ReactNode }) { return <>{children}</>; }
