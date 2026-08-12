@@ -55,7 +55,24 @@ function macroLabel(symbol: string, vietnamese: string, lang: 'vi' | 'en') {
 
 function macroUnit(unit: string, lang: 'vi' | 'en') {
     if (lang === 'vi') return unit;
-    return unit.replaceAll('nghìn tỷ', 'trillion').replaceAll('tỷ', 'bil').replaceAll('triệu', 'million').replaceAll('người', 'people').replaceAll('năm', 'year').replaceAll('tháng', 'month').replaceAll('₫', 'VND');
+    return unit
+        .replaceAll('nghìn tỷ ₫', 'trillion VND')
+        .replaceAll('triệu ₫/tháng', 'million VND/month')
+        .replaceAll('triệu người', 'million people')
+        .replaceAll('tỷ $', 'billion USD')
+        .replaceAll('%/năm', '%/year')
+        .replaceAll('USD/lít', 'USD/litre')
+        .replaceAll('chỉ số', 'index');
+}
+
+function macroValue(value: number, sym: string, lang: 'vi' | 'en') {
+    const formatted = TV_CONFIGS[sym].fmt(value);
+    if (lang === 'vi') return formatted;
+    return formatted
+        .replaceAll('nghìn tỷ ₫', 'trillion VND')
+        .replaceAll('triệu ₫', 'million VND')
+        .replaceAll('tỷ $', 'billion USD')
+        .replaceAll('M người', 'million people');
 }
 
 function loadMacroHistory(symbol: string, days: number): Promise<PricePoint[]> {
@@ -114,6 +131,7 @@ function downloadCsv(filename: string, rows: PricePoint[]) {
 }
 
 function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean; onClose: () => void }) {
+    const { lang } = useLanguage();
     const [days, setDays]       = useState(365);
     const [points, setPoints]   = useState<PricePoint[]>([]);
     const [loading, setLoading] = useState(true);
@@ -137,7 +155,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
     const chartData = points.map((p) => {
         const [y, m, d] = p.date.split('-');
         return {
-            Ngày: useDayFormat ? `${d}/${m}` : `${m}/${y.slice(2)}`,
+            [lang === 'vi' ? 'Ngày' : 'Date']: useDayFormat ? `${d}/${m}` : `${m}/${y.slice(2)}`,
             [item.name]: p.close,
         };
     });
@@ -158,7 +176,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                         </p>
                         {overallChange !== null && (
                             <p className={`text-sm mt-0.5 font-medium ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                {up ? '▲' : '▼'} {Math.abs(overallChange).toFixed(2)}% trong kỳ
+                                {up ? '▲' : '▼'} {Math.abs(overallChange).toFixed(2)}% {lang === 'vi' ? 'trong kỳ' : 'over the period'}
                             </p>
                         )}
                     </div>
@@ -173,7 +191,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                         </div>
                         {points.length > 0 && (
                             <button onClick={() => downloadCsv(`${item.symbol.replace('=', '_')}_${rangeLabel}.csv`, points)}
-                                title="Tải CSV"
+                                title={lang === 'vi' ? 'Tải CSV' : 'Download CSV'}
                                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                     <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" strokeLinecap="round" strokeLinejoin="round"/>
@@ -181,7 +199,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                                 CSV
                             </button>
                         )}
-                        <button onClick={onClose} className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Đóng">
+                        <button onClick={onClose} className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label={lang === 'vi' ? 'Đóng' : 'Close'}>
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                 <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
                             </svg>
@@ -189,8 +207,8 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                     </div>
                 </div>
                 {loading ? <Spinner h="h-48" /> : chartData.length === 0
-                    ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">Không có dữ liệu</div>
-                    : <AreaChart data={chartData} index="Ngày" categories={[item.name]}
+                    ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">{lang === 'vi' ? 'Không có dữ liệu' : 'No data available'}</div>
+                    : <AreaChart data={chartData} index={lang === 'vi' ? 'Ngày' : 'Date'} categories={[item.name]}
                         colors={[up ? 'emerald' : 'rose']} valueFormatter={fmtY}
                         yAxisWidth={yAxisW} showLegend={false} showGradient autoMinValue
                         showAnimation={false} tickGap={60} className="h-48" />}
@@ -263,6 +281,7 @@ function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]
 // ── Rate Card ─────────────────────────────────────────────────────────────────
 
 function RateCard({ item, isVnd, selected, onClick }: { item: RateItem; isVnd: boolean; selected: boolean; onClick: () => void }) {
+    const { lang } = useLanguage();
     const up        = item.changePercent >= 0;
     const colorCls  = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
     const bgCls     = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
@@ -282,7 +301,7 @@ function RateCard({ item, isVnd, selected, onClick }: { item: RateItem; isVnd: b
                 <span className="opacity-70">({isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)})</span>
             </div>
             <p className="mt-2 text-[10px] text-blue-500 dark:text-blue-400 font-medium">
-                {selected ? '▴ Thu gọn' : '▾ Xem lịch sử'}
+                {selected ? (lang === 'vi' ? '▴ Thu gọn' : '▴ Collapse') : (lang === 'vi' ? '▾ Xem lịch sử' : '▾ View history')}
             </p>
         </button>
     );
@@ -317,14 +336,18 @@ function getDeltaDirection(delta: number | null) {
     return 'flat';
 }
 
-function formatComparisonText(delta: number | null, label: string, unitLabel: string, formatter: (v: number) => string) {
-    if (delta === null) return 'Chưa đủ dữ liệu so sánh';
+function formatComparisonText(delta: number | null, label: string, unitLabel: string, formatter: (v: number) => string, lang: 'vi' | 'en') {
+    if (delta === null) return lang === 'vi' ? 'Chưa đủ dữ liệu so sánh' : 'Insufficient comparison data';
     const abs = Math.abs(delta);
-    if (unitLabel.includes('%')) return `${delta >= 0 ? '+' : '-'}${abs.toFixed(2)} điểm so với ${label}`;
-    return `${delta >= 0 ? '+' : '-'}${formatter(abs)} so với ${label}`;
+    if (unitLabel.includes('%')) return lang === 'vi'
+        ? `${delta >= 0 ? '+' : '-'}${abs.toFixed(2)} điểm so với ${label}`
+        : `${delta >= 0 ? '+' : '-'}${abs.toFixed(2)} percentage points vs. ${label}`;
+    return lang === 'vi'
+        ? `${delta >= 0 ? '+' : '-'}${formatter(abs)} so với ${label}`
+        : `${delta >= 0 ? '+' : '-'}${formatter(abs)} vs. ${label}`;
 }
 
-function buildTvSummary(sym: string, points: PricePoint[]) {
+function buildTvSummary(sym: string, points: PricePoint[], lang: 'vi' | 'en') {
     const cfg = TV_CONFIGS[sym];
     const latest = points.at(-1)?.close ?? null;
     const compareLag = cfg.compareLag ?? (cfg.freq === 'annual' ? 1 : cfg.freq === 'daily' ? 1 : 12);
@@ -334,8 +357,8 @@ function buildTvSummary(sym: string, points: PricePoint[]) {
         latest,
         updatedAt: points.at(-1)?.date ?? null,
         delta,
-        comparisonText: formatComparisonText(delta, cfg.compareLabel ?? 'kỳ trước', cfg.unitLabel, cfg.fmt),
-        comparisonLabel: cfg.compareLabel ?? 'kỳ trước',
+        comparisonText: formatComparisonText(delta, cfg.compareLabel ?? 'kỳ trước', cfg.unitLabel, (value) => macroValue(value, sym, lang), lang),
+        comparisonLabel: lang === 'vi' ? (cfg.compareLabel ?? 'kỳ trước') : (cfg.compareLabel === 'cùng kỳ' ? 'same period last year' : cfg.compareLabel === 'năm trước' ? 'previous year' : 'previous period'),
     };
 }
 
@@ -343,10 +366,10 @@ function VietnamTvRow({ sym, points }: { sym: string; points: PricePoint[] | nul
     const { lang } = useLanguage();
     const cfg = TV_CONFIGS[sym];
     if (!points) return <tr><td colSpan={5} className="px-4 py-4"><div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></td></tr>;
-    const summary = buildTvSummary(sym, points);
+    const summary = buildTvSummary(sym, points, lang);
     const tone = getDeltaDirection(summary.delta);
     const toneClass = tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-rose-600' : 'text-slate-500';
-    return <tr className="border-b border-slate-100 dark:border-slate-800"><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{macroLabel(sym, cfg.titleVN, lang)}</p><p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : cfg.fmt(summary.latest)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${cfg.fmt(summary.delta)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
+    return <tr className="border-b border-slate-100 dark:border-slate-800"><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{macroLabel(sym, cfg.titleVN, lang)}</p><p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${macroValue(Math.abs(summary.delta), sym, lang)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
 }
 
 function VietnamMacroTab() {
@@ -354,6 +377,16 @@ function VietnamMacroTab() {
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
     const [history, setHistory] = useState<{ tab: VietnamSubTabId; data: Record<string, PricePoint[]> } | null>(null);
     const activeSymbols = VIETNAM_TAB_TV[activeSubTab];
+    const subTabCopy: Record<VietnamSubTabId, { label: string; subtitle: string }> = lang === 'vi'
+        ? Object.fromEntries(VIETNAM_SUBTABS.map((tab) => [tab.id, { label: tab.label, subtitle: tab.subtitle }])) as Record<VietnamSubTabId, { label: string; subtitle: string }>
+        : {
+            growth: { label: 'Growth', subtitle: 'GDP and fixed-asset investment' },
+            prices: { label: 'Prices', subtitle: 'CPI, inflation and energy prices' },
+            trade: { label: 'Trade', subtitle: 'Exports, imports, balance and FDI' },
+            money: { label: 'Money', subtitle: 'Interest rates, M2 and foreign reserves' },
+            labour: { label: 'Labour', subtitle: 'Employment, income and population' },
+            taxes: { label: 'Taxes', subtitle: 'Budget and taxes' },
+        };
 
     useEffect(() => {
         let active = true;
@@ -366,7 +399,7 @@ function VietnamMacroTab() {
     return (
         <div className="space-y-5">
             <section>
-                <SectionHeader title={lang === 'vi' ? 'Chỉ số kinh tế Việt Nam' : 'Vietnam economic indicators'} subtitle={VIETNAM_SUBTABS.find((tab) => tab.id === activeSubTab)?.subtitle ?? ''} />
+                <SectionHeader title={lang === 'vi' ? 'Chỉ số kinh tế Việt Nam' : 'Vietnam economic indicators'} subtitle={subTabCopy[activeSubTab].subtitle} />
                 <div className="flex flex-wrap gap-2">
                     {VIETNAM_SUBTABS.map((tab) => (
                         <button
@@ -380,12 +413,12 @@ function VietnamMacroTab() {
                                     : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
                             }`}
                         >
-                            {tab.label}
+                            {subTabCopy[tab.id].label}
                         </button>
                     ))}
                 </div>
 
-                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">Chỉ số</th><th className="px-3 py-3 text-right md:px-4">Lần cuối</th><th className="px-3 py-3 text-right md:px-4">T. đổi</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">So sánh</th><th className="px-3 py-3 text-right md:px-4">Thời gian</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
+                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{lang === 'vi' ? 'Chỉ số' : 'Indicator'}</th><th className="px-3 py-3 text-right md:px-4">{lang === 'vi' ? 'Lần cuối' : 'Latest'}</th><th className="px-3 py-3 text-right md:px-4">{lang === 'vi' ? 'T. đổi' : 'Change'}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{lang === 'vi' ? 'So sánh' : 'Comparison'}</th><th className="px-3 py-3 text-right md:px-4">{lang === 'vi' ? 'Thời gian' : 'Date'}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
             </section>
         </div>
     );
