@@ -1,12 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { API } from '@/lib/api';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 import { useLanguage } from '@/lib/languageContext';
 import {
-    FA_COLORS,
     FF_ALL_INDEX_CHANNELS,
     FF_AMERICAS_CHANNELS,
     FF_ASIA_CHANNELS,
@@ -16,21 +15,12 @@ import {
     RATES_REFRESH_MS,
     TV_CONFIGS,
     VIETNAM_SUBTABS,
-    VIETNAM_TAB_FA,
     VIETNAM_TAB_TV,
-    calcYAxisWidth,
-    fmtMilVND,
-    fmtTrVND,
     fmtUsdChange,
     fmtUsdPrice,
     fmtVndChange,
     fmtVndPrice,
     getMarketSessions,
-    limitByFreq,
-    normalizeColor,
-    type DetailSelection,
-    type FAData,
-    type FAIndicator,
     type FFCardDef,
     type PricePoint,
     type RateItem,
@@ -42,27 +32,8 @@ const AreaChart = dynamic(() => import('@tremor/react').then((module) => module.
     ssr: false,
     loading: () => <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
 });
-const BarChart = dynamic(() => import('@tremor/react').then((module) => module.BarChart), {
-    ssr: false,
-    loading: () => <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
-});
 
-// ── Lazy section: only mount children when scrolled into view ─────────────────
-function LazySection({ children, className }: { children: React.ReactNode; className?: string }) {
-    const ref  = useRef<HTMLDivElement>(null);
-    const [vis, setVis] = useState(false);
-    useEffect(() => {
-        const el = ref.current;
-        if (!el) return;
-        const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVis(true); obs.disconnect(); } }, { rootMargin: '200px' });
-        obs.observe(el);
-        return () => obs.disconnect();
-    }, []);
-    return <div ref={ref} className={className}>{vis ? children : <div className="h-[260px] rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />}</div>;
-}
-
-// History is used by both summary cards and the expanded chart. Keeping one
-// in-memory request per symbol/range prevents duplicate API calls on first load.
+// Keep one in-memory request per symbol/range for the summary cards.
 const historyRequestCache = new Map<string, Promise<PricePoint[]>>();
 
 const MACRO_LABELS_EN: Record<string, string> = {
@@ -103,9 +74,6 @@ function loadMacroHistory(symbol: string, days: number): Promise<PricePoint[]> {
 
 function SkeletonCard() {
     return <div className="h-[100px] rounded-lg animate-pulse bg-slate-100 dark:bg-slate-800" />;
-}
-function SkeletonChart() {
-    return <div className="h-[260px] rounded-xl animate-pulse bg-slate-100 dark:bg-slate-800" />;
 }
 function Spinner({ h = 'h-48' }: { h?: string }) {
     return (
@@ -334,35 +302,6 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
     );
 }
 
-function getSourceLabel(source: string) {
-    return source.replace('TradingView / ', '').split(' · ')[0];
-}
-
-function formatRawNumber(value: number, maximumFractionDigits = 2) {
-    return Math.abs(value) >= 1000
-        ? value.toLocaleString('en-US', { maximumFractionDigits: 0 })
-        : value.toLocaleString('en-US', { maximumFractionDigits });
-}
-
-function getFaFormatter(ind: FAIndicator) {
-    const unit = ind.unit?.trim().toLowerCase() ?? '';
-    if (unit.includes('%')) return (v: number) => `${v.toFixed(2)}%`;
-    if (unit.includes('triệu') && unit.includes('đ')) return fmtMilVND;
-    if (unit.includes('tỷ') && unit.includes('$')) return (v: number) => `${v.toFixed(2)} tỷ $`;
-    if (unit.includes('nghìn tỷ')) return fmtTrVND;
-    // FireAnt GDP sectors are stored in Tỷ VNĐ (billions VND) → convert to nghìn tỷ for readability
-    if (unit.includes('tỷ vn') || unit.includes('tỷ vnđ')) return (v: number) => `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })} nghìn tỷ ₫`;
-    return (v: number) => formatRawNumber(v);
-}
-
-function getFaCompareMeta(ind: FAIndicator) {
-    const freq = (ind.frequency ?? '').toLowerCase();
-    if (freq.includes('quý')) return { lag: 4, label: 'cùng kỳ' };
-    if (freq.includes('tháng')) return { lag: 12, label: 'cùng kỳ' };
-    if (freq.includes('năm')) return { lag: 1, label: 'năm trước' };
-    return { lag: 1, label: 'kỳ trước' };
-}
-
 function getDeltaDirection(delta: number | null) {
     if (delta === null) return 'flat';
     if (delta > 0) return 'up';
@@ -389,254 +328,10 @@ function buildTvSummary(sym: string, points: PricePoint[]) {
         delta,
         comparisonText: formatComparisonText(delta, cfg.compareLabel ?? 'kỳ trước', cfg.unitLabel, cfg.fmt),
         comparisonLabel: cfg.compareLabel ?? 'kỳ trước',
-        sourceLabel: getSourceLabel(cfg.source),
     };
 }
 
-function buildFaSummary(ind: FAIndicator) {
-    const fmt = getFaFormatter(ind);
-    const latest = ind.data.at(-1)?.value ?? ind.lastValue ?? null;
-    const compareMeta = getFaCompareMeta(ind);
-    const comparePoint = ind.data.length > compareMeta.lag ? ind.data.at(-(compareMeta.lag + 1))?.value ?? null : null;
-    const delta = latest !== null && comparePoint !== null ? latest - comparePoint : null;
-    return {
-        latest,
-        updatedAt: ind.data.at(-1)?.date ?? ind.lastDate ?? null,
-        delta,
-        comparisonText: formatComparisonText(delta, compareMeta.label, ind.unit ?? '', fmt),
-        comparisonLabel: compareMeta.label,
-        sourceLabel: ind.source ?? 'FireAnt',
-        formatter: fmt,
-    };
-}
-
-function DetailChartCard({
-    title,
-    subtitle,
-    latestText,
-    updatedAt,
-    comparisonText,
-    color,
-    unit,
-    chartData,
-    chartKey,
-    valueFormatter,
-    barChart,
-}: {
-    title: string;
-    subtitle: string;
-    latestText: string;
-    updatedAt: string;
-    comparisonText: string;
-    color: string;
-    unit: string;
-    chartData: Record<string, string | number>[];
-    chartKey: string;
-    valueFormatter: (v: number) => string;
-    barChart?: boolean;
-}) {
-    const values = chartData.map((row) => Number(row[chartKey]));
-    const yAxisWidth = calcYAxisWidth(values, valueFormatter);
-    const tremorColor = normalizeColor(color);
-
-    return (
-        <Panel className="p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                    <p className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{title}</p>
-                    <p className="mt-1 text-xs text-tremor-content dark:text-dark-tremor-content">{subtitle}</p>
-                </div>
-                <div className="sm:text-right">
-                    <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{latestText}</p>
-                    <p className="mt-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">Đơn vị: {unit}</p>
-                    <p className="mt-1 text-[11px] text-tremor-content dark:text-dark-tremor-content">Cập nhật: {updatedAt}</p>
-                    <p className="mt-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">{comparisonText}</p>
-                </div>
-            </div>
-            {chartData.length === 0 ? (
-                <div className="mt-4 h-56 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">Không có dữ liệu</div>
-            ) : barChart ? (
-                <BarChart
-                    data={chartData}
-                    index="Kỳ"
-                    categories={[chartKey]}
-                    colors={[tremorColor]}
-                    valueFormatter={valueFormatter}
-                    yAxisWidth={yAxisWidth}
-                    showLegend={false}
-                    showAnimation={false}
-                    tickGap={24}
-                    className="mt-4 h-56"
-                />
-            ) : (
-                <AreaChart
-                    data={chartData}
-                    index="Kỳ"
-                    categories={[chartKey]}
-                    colors={[tremorColor]}
-                    valueFormatter={valueFormatter}
-                    yAxisWidth={yAxisWidth}
-                    showLegend={false}
-                    showGradient
-                    autoMinValue
-                    showAnimation={false}
-                    tickGap={24}
-                    className="mt-4 h-56"
-                />
-            )}
-        </Panel>
-    );
-}
-
-function TVDetailPanel({ sym }: { sym: string }) {
-    const { lang } = useLanguage();
-    const cfg = TV_CONFIGS[sym];
-    const [points, setPoints] = useState<PricePoint[] | null>(null);
-
-    useEffect(() => {
-        let active = true;
-        loadMacroHistory(sym, cfg.defaultDays)
-            .then((data: PricePoint[]) => { if (active) setPoints(data); })
-            .catch(() => { if (active) setPoints([]); });
-        return () => { active = false; };
-    }, [cfg.defaultDays, sym]);
-
-    if (!points) return <SkeletonChart />;
-
-    const summary = buildTvSummary(sym, points);
-    const chartData = points.map((p) => {
-        const [y, m, d] = p.date.split('-');
-        let label = p.date;
-        if (cfg.freq === 'annual') label = y;
-        else if (cfg.freq === 'daily') label = `${d}/${m}`;
-        else label = `${m}/${y.slice(2)}`;
-        return { 'Kỳ': label, [macroLabel(sym, cfg.titleVN, lang)]: p.close };
-    });
-
-    return (
-        <DetailChartCard
-            title={macroLabel(sym, cfg.titleVN, lang)}
-            subtitle={cfg.source}
-            latestText={summary.latest !== null ? cfg.fmt(summary.latest) : 'N/A'}
-            updatedAt={summary.updatedAt ?? 'N/A'}
-            comparisonText={summary.comparisonText}
-            color={cfg.color}
-            unit={macroUnit(cfg.unitLabel, lang)}
-            chartData={chartData}
-            chartKey={macroLabel(sym, cfg.titleVN, lang)}
-            valueFormatter={cfg.fmt}
-            barChart={cfg.barChart}
-        />
-    );
-}
-
-function FADetailPanel({ ind, color }: { ind: FAIndicator; color: string }) {
-    const summary = buildFaSummary(ind);
-    const fmt = summary.formatter;
-    const displayData = limitByFreq(ind.data, ind.frequency ?? '');
-    const chartData = displayData.map((p) => ({ 'Kỳ': p.date, [ind.nameVN]: p.value }));
-    return (
-        <DetailChartCard
-            title={ind.nameVN}
-            subtitle={`${summary.sourceLabel} · ${ind.frequency || 'Chuỗi thời gian'}`}
-            latestText={summary.latest !== null ? fmt(summary.latest) : 'N/A'}
-            updatedAt={summary.updatedAt ?? 'N/A'}
-            comparisonText={summary.comparisonText}
-            color={color}
-            unit={ind.unit || 'Dữ liệu'}
-            chartData={chartData}
-            chartKey={ind.nameVN}
-            valueFormatter={fmt}
-        />
-    );
-}
-
-// ── GDP Composition Stacked Bar ───────────────────────────────────────────────
-
-const GDP_SECTORS = [
-    { sym: 'ECONOMICS:VNGDPS',   label: 'Dịch vụ',     color: 'cyan'   },
-    { sym: 'ECONOMICS:VNGDPMAN', label: 'Công nghiệp',  color: 'orange' },
-    { sym: 'ECONOMICS:VNGDPA',   label: 'Nông nghiệp',  color: 'lime'   },
-] as const;
-
-function dateToQuarter(date: string): string {
-    const [y, m] = date.split('-');
-    const q = m === '03' ? 'Q1' : m === '06' ? 'Q2' : m === '09' ? 'Q3' : 'Q4';
-    return `${q}/${y.slice(2)}`;
-}
-
-function GDPCompositionChart() {
-    const { lang } = useLanguage();
-    const [chartData, setChartData] = useState<Record<string, string | number>[]>([]);
-    const [loading, setLoading]     = useState(true);
-
-    useEffect(() => {
-        let active = true;
-        Promise.all(
-            GDP_SECTORS.map(({ sym }): Promise<PricePoint[]> =>
-                loadMacroHistory(sym, 1095)
-            )
-        ).then(([services, industry, agriculture]) => {
-            if (!active) return;
-            const byQ = new Map<string, Record<string, number>>();
-            const add = (points: PricePoint[], label: string) =>
-                points.forEach(p => {
-                    const q = dateToQuarter(p.date);
-                    if (!byQ.has(q)) byQ.set(q, {});
-                    byQ.get(q)![label] = Math.round(p.close / 1e12);
-                });
-            add(services,    'Dịch vụ');
-            add(industry,    'Công nghiệp');
-            add(agriculture, 'Nông nghiệp');
-            const rows = Array.from(byQ.entries())
-                .filter(([, v]) => v['Dịch vụ'] && v['Công nghiệp'] && v['Nông nghiệp'])
-                .sort(([a], [b]) => a.localeCompare(b))
-                .slice(-20)
-                .map(([q, v]) => ({ Kỳ: q, ...v }));
-            setChartData(rows);
-            setLoading(false);
-        });
-        return () => { active = false; };
-    }, []);
-
-    if (loading) return <SkeletonChart />;
-    if (!chartData.length) return null;
-    const gdpCategories = lang === 'vi' ? ['Dịch vụ', 'Công nghiệp', 'Nông nghiệp'] : ['Services', 'Industry', 'Agriculture'];
-    const displayedChartData = lang === 'vi' ? chartData : chartData.map((row) => ({
-        Kỳ: row['Kỳ'],
-        Services: row['Dịch vụ'],
-        Industry: row['Công nghiệp'],
-        Agriculture: row['Nông nghiệp'],
-    }));
-
-    return (
-        <Panel className="p-5">
-            <div className="mb-4">
-                <p className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                    {lang === 'vi' ? 'Cơ Cấu GDP theo Ngành' : 'GDP composition by sector'}
-                </p>
-                <p className="mt-1 text-xs text-tremor-content dark:text-dark-tremor-content">
-                    TradingView / GSO · {lang === 'vi' ? 'nghìn tỷ ₫ · 5 năm gần nhất' : 'VND trillion · last 5 years'}
-                </p>
-            </div>
-            <BarChart
-                data={displayedChartData}
-                index="Kỳ"
-                categories={gdpCategories}
-                colors={['cyan', 'orange', 'lime']}
-                valueFormatter={(v) => `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${lang === 'vi' ? 'nghìn tỷ' : 'trillion VND'}`}
-                stack={true}
-                yAxisWidth={72}
-                showLegend={true}
-                showAnimation={false}
-                tickGap={24}
-                className="mt-4 h-72"
-            />
-        </Panel>
-    );
-}
-
-function VietnamTvRow({ sym, selected, onClick }: { sym: string; selected: boolean; onClick: () => void }) {
+function VietnamTvRow({ sym }: { sym: string }) {
     const { lang } = useLanguage();
     const cfg = TV_CONFIGS[sym];
     const [points, setPoints] = useState<PricePoint[] | null>(null);
@@ -649,88 +344,23 @@ function VietnamTvRow({ sym, selected, onClick }: { sym: string; selected: boole
     const summary = buildTvSummary(sym, points);
     const tone = getDeltaDirection(summary.delta);
     const toneClass = tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-rose-600' : 'text-slate-500';
-    return <tr onClick={onClick} className={`cursor-pointer border-b border-slate-100 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60 ${selected ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{macroLabel(sym, cfg.titleVN, lang)}</p><p className="mt-0.5 text-xs text-slate-500">{summary.sourceLabel} · {macroUnit(cfg.unitLabel, lang)}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : cfg.fmt(summary.latest)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${cfg.fmt(summary.delta)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
-}
-
-function VietnamFaRow({ ind, type, selected, onClick }: { ind: FAIndicator; type: string; selected: boolean; onClick: () => void }) {
-    const summary = buildFaSummary(ind);
-    const tone = getDeltaDirection(summary.delta);
-    const toneClass = tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-rose-600' : 'text-slate-500';
-    return <tr onClick={onClick} className={`cursor-pointer border-b border-slate-100 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60 ${selected ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{ind.nameVN}</p><p className="mt-0.5 text-xs text-slate-500">{summary.sourceLabel} · {ind.unit || type}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : summary.formatter(summary.latest)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${summary.formatter(summary.delta)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
+    return <tr className="border-b border-slate-100 dark:border-slate-800"><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{macroLabel(sym, cfg.titleVN, lang)}</p><p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : cfg.fmt(summary.latest)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${cfg.fmt(summary.delta)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
 }
 
 function VietnamMacroTab() {
     const { lang } = useLanguage();
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
-    const [selected, setSelected] = useState<DetailSelection | null>(null);
-    const [showGdpComposition, setShowGdpComposition] = useState(false);
-    const [faData, setFaData] = useState<FAData>({});
-    const [loadingTypes, setLoadingTypes] = useState<Set<string>>(new Set());
-    const loadedTypesRef = useRef(new Set<string>());
-    const activeFaTypes = VIETNAM_TAB_FA[activeSubTab];
-    const activeFaKey = activeFaTypes.join(',');
-
-    useEffect(() => {
-        const missingTypes = activeFaTypes.filter((type) => !loadedTypesRef.current.has(type));
-        if (!missingTypes.length) return;
-
-        let cancelled = false;
-        setLoadingTypes((current) => new Set([...current, ...missingTypes]));
-        fetch(API.MACRO_FIREANT(missingTypes.join(',')))
-            .then((response) => response.ok ? response.json() : {})
-            .then((data: FAData) => {
-                if (cancelled) return;
-                setFaData((current) => ({ ...current, ...data }));
-                missingTypes.forEach((type) => loadedTypesRef.current.add(type));
-            })
-            .catch(() => undefined)
-            .finally(() => {
-                if (cancelled) return;
-                setLoadingTypes((current) => {
-                    const next = new Set(current);
-                    missingTypes.forEach((type) => next.delete(type));
-                    return next;
-                });
-            });
-
-        return () => { cancelled = true; };
-    }, [activeFaKey, activeFaTypes]);
-
-    const faLoading = activeFaTypes.some((type) => loadingTypes.has(type));
-
-    const selectTv = (sym: string, tab?: VietnamSubTabId) => {
-        if (tab) setActiveSubTab(tab);
-        setShowGdpComposition(false);
-        setSelected((prev) => prev?.kind === 'tv' && prev.key === sym ? null : { kind: 'tv', key: sym });
-    };
-
-    const selectFa = (ind: FAIndicator, type: string) => {
-        setShowGdpComposition(false);
-        setSelected((prev) => prev?.kind === 'fa' && prev.key === ind.id ? null : { kind: 'fa', key: ind.id, type });
-    };
-
-    const selectGdpComposition = () => {
-        setSelected(null);
-        setShowGdpComposition((open) => !open);
-    };
-
-    const activeFaIndicators = activeFaTypes.flatMap((type) => (faData[type] ?? []).map((ind) => ({ ind, type })));
-    const selectedFa = selected?.kind === 'fa'
-        ? (faData[selected.type] ?? []).find((ind) => ind.id === selected.key) ?? null
-        : null;
 
     return (
         <div className="space-y-5">
             <section>
-                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><SectionHeader title={lang === 'vi' ? 'Chỉ số kinh tế Việt Nam' : 'Vietnam economic indicators'} subtitle={VIETNAM_SUBTABS.find((tab) => tab.id === activeSubTab)?.subtitle ?? ''} /><button type="button" onClick={selectGdpComposition} className="text-left text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">{showGdpComposition ? 'Ẩn cơ cấu GDP' : 'Xem cơ cấu GDP'}</button></div>
+                <SectionHeader title={lang === 'vi' ? 'Chỉ số kinh tế Việt Nam' : 'Vietnam economic indicators'} subtitle={VIETNAM_SUBTABS.find((tab) => tab.id === activeSubTab)?.subtitle ?? ''} />
                 <div className="flex flex-wrap gap-2">
                     {VIETNAM_SUBTABS.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => {
                                 setActiveSubTab(tab.id);
-                                setSelected(null);
-                                setShowGdpComposition(false);
                             }}
                             className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                                 activeSubTab === tab.id
@@ -743,25 +373,7 @@ function VietnamMacroTab() {
                     ))}
                 </div>
 
-                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">Chỉ số</th><th className="px-3 py-3 text-right md:px-4">Lần cuối</th><th className="px-3 py-3 text-right md:px-4">T. đổi</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">So sánh</th><th className="px-3 py-3 text-right md:px-4">Thời gian</th></tr></thead><tbody>{VIETNAM_TAB_TV[activeSubTab].map(sym => <VietnamTvRow key={sym} sym={sym} selected={selected?.kind === 'tv' && selected.key === sym} onClick={() => selectTv(sym)} />)}{!faLoading && activeFaIndicators.map(({ ind, type }) => <VietnamFaRow key={ind.id} ind={ind} type={type} selected={selected?.kind === 'fa' && selected.key === ind.id} onClick={() => selectFa(ind, type)} />)}{faLoading && <tr><td colSpan={5} className="px-4 py-4"><div className="h-4 animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></td></tr>}</tbody></table></div>
-
-                {activeSubTab === 'growth' && showGdpComposition && (
-                    <LazySection className="mt-4">
-                        <GDPCompositionChart />
-                    </LazySection>
-                )}
-
-                {selected?.kind === 'tv' && (
-                    <div className="mt-4">
-                        <TVDetailPanel key={selected.key} sym={selected.key} />
-                    </div>
-                )}
-
-                {selectedFa && selected?.kind === 'fa' && (
-                    <div className="mt-4">
-                        <FADetailPanel ind={selectedFa} color={FA_COLORS[selected.type] ?? 'blue'} />
-                    </div>
-                )}
+                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">Chỉ số</th><th className="px-3 py-3 text-right md:px-4">Lần cuối</th><th className="px-3 py-3 text-right md:px-4">T. đổi</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">So sánh</th><th className="px-3 py-3 text-right md:px-4">Thời gian</th></tr></thead><tbody>{VIETNAM_TAB_TV[activeSubTab].map(sym => <VietnamTvRow key={sym} sym={sym} />)}</tbody></table></div>
             </section>
         </div>
     );
@@ -874,14 +486,15 @@ export default function MacroPage() {
         : [{ id: 'vietnam', label: 'Vietnam' }, { id: 'world', label: 'Global' }];
 
     return (
-        <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-            <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:p-8">
-                <header>
-                    <h1 className="flex items-center gap-3 text-3xl font-bold tracking-tight md:text-4xl">
-                        {lang === 'vi' ? 'Thị trường vĩ mô' : 'Macro markets'}
-                        <span className="text-2xl font-normal text-slate-400">›</span>
+        <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+            <div className="mx-auto max-w-[1600px] space-y-4 p-4 md:p-6">
+                <header className="mb-5">
+                    <h1 className="text-3xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100 md:text-4xl">
+                        {lang === 'vi' ? 'Thị trường ' : 'Macro '}
+                        <span className="text-emerald-600 dark:text-emerald-400">{lang === 'vi' ? 'vĩ mô' : 'markets'}</span>
                     </h1>
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'Theo dõi chỉ số kinh tế Việt Nam và thị trường quốc tế.' : 'Follow Vietnamese economic indicators and global markets.'}</p>
+                    <div className="mt-2 h-1 w-32 rounded bg-emerald-500" />
+                    <p className="mt-3 max-w-4xl text-sm text-slate-600 dark:text-slate-300 md:text-base">{lang === 'vi' ? 'Theo dõi chỉ số kinh tế Việt Nam và thị trường quốc tế.' : 'Follow Vietnamese economic indicators and global markets.'}</p>
                     <div className="mt-5 flex overflow-x-auto border-b border-slate-200 dark:border-slate-800">
                         {tabs.map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
