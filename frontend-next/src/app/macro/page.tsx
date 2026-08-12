@@ -234,32 +234,6 @@ function SessionBadge({ open, tz }: { open: boolean; tz: string }) {
     );
 }
 
-function FFLiveCard({ def, snap }: { def: FFCardDef; snap: FFPrice | undefined }) {
-    const up        = (snap?.changePercent ?? 0) >= 0;
-    const colorCls  = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
-    const bgCls     = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
-    return (
-        <div className="rounded-tremor-default ring-1 ring-tremor-ring dark:ring-dark-tremor-ring bg-tremor-background dark:bg-dark-tremor-background p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content mb-1">{def.label}</p>
-            {snap ? (
-                <>
-                    <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">{def.fmt(snap.price)}</p>
-                    <div className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${bgCls} ${colorCls}`}>
-                        <span>{up ? '▲' : '▼'}</span>
-                        <span>{Math.abs(snap.changePercent).toFixed(2)}%</span>
-                    </div>
-                    <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">Live · Forex Factory</p>
-                </>
-            ) : (
-                <div className="space-y-2 mt-1">
-                    <div className="h-7 w-28 rounded bg-slate-100 dark:bg-slate-800 animate-pulse" />
-                    <div className="h-4 w-16 rounded-full bg-slate-100 dark:bg-slate-800 animate-pulse" />
-                </div>
-            )}
-        </div>
-    );
-}
-
 function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]; snapshots: Map<string, FFPrice> }) {
     const { lang } = useLanguage();
     const common = translations[lang].common;
@@ -283,47 +257,43 @@ function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]
     );
 }
 
-// ── Rate Card ─────────────────────────────────────────────────────────────────
-
-function RateCard({ item, isVnd, selected, onClick }: { item: RateItem; isVnd: boolean; selected: boolean; onClick: () => void }) {
-    const { lang } = useLanguage();
-    const copy = translations[lang].macro;
-    const up        = item.changePercent >= 0;
-    const colorCls  = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
-    const bgCls     = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
-    return (
-        <button onClick={onClick}
-            className={`text-left rounded-tremor-default ring-1 transition-all duration-150 focus:outline-none
-                ${selected ? 'ring-blue-500 shadow-md shadow-blue-500/10' : 'ring-tremor-ring dark:ring-dark-tremor-ring hover:ring-blue-400 hover:shadow-sm'}
-                bg-tremor-background dark:bg-dark-tremor-background p-4 w-full`}>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content mb-1">{item.name}</p>
-            <p className="text-2xl font-bold tabular-nums text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                {isVnd ? fmtVndPrice(item.price) : fmtUsdPrice(item.price)}
-            </p>
-            {item.unit && <p className="text-[11px] text-tremor-content dark:text-dark-tremor-content mt-0.5">{item.unit}</p>}
-            <div className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${bgCls} ${colorCls}`}>
-                <span>{up ? '▲' : '▼'}</span>
-                <span>{Math.abs(item.changePercent).toFixed(2)}%</span>
-                <span className="opacity-70">({isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)})</span>
-            </div>
-            <p className="mt-2 text-[10px] text-blue-500 dark:text-blue-400 font-medium">
-                {selected ? copy.collapse : copy.viewHistory}
-            </p>
-        </button>
-    );
-}
-
 function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
+    const { lang } = useLanguage();
+    const common = translations[lang].common;
+    const copy = translations[lang].macro;
     const [selected, setSelected] = useState<string | null>(null);
     const selectedItem = items.find((i) => i.symbol === selected) ?? null;
     const toggle = (sym: string) => setSelected((prev) => (prev === sym ? null : sym));
     return (
         <div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {items.map((item) => (
-                    <RateCard key={item.symbol} item={item} isVnd={isVnd}
-                        selected={selected === item.symbol} onClick={() => toggle(item.symbol)} />
-                ))}
+            <div className="overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                <table className="min-w-full text-left text-sm">
+                    <thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300">
+                        <tr>
+                            <th className="px-3 py-3 md:px-4">{common.name}</th>
+                            <th className="px-3 py-3 text-right md:px-4">{common.latest}</th>
+                            <th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{common.open}</th>
+                            <th className="px-3 py-3 text-right md:px-4">{common.change}</th>
+                            <th className="px-3 py-3 text-right md:px-4">{common.changePercent}</th>
+                            <th className="px-3 py-3 text-right md:px-4" />
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {items.map((item) => {
+                            const up = item.changePercent >= 0;
+                            const tone = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+                            const format = isVnd ? fmtVndPrice : fmtUsdPrice;
+                            return <tr key={item.symbol} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                                <td className="px-3 py-3.5 md:px-4"><p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>{item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
+                                <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{format(item.price)}</td>
+                                <td className="hidden px-3 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{format(item.price - item.change)}</td>
+                                <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)}</td>
+                                <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%</td>
+                                <td className="px-3 py-3.5 text-right md:px-4"><button type="button" onClick={() => toggle(item.symbol)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">{selected === item.symbol ? copy.collapse : copy.viewHistory}</button></td>
+                            </tr>;
+                        })}
+                    </tbody>
+                </table>
             </div>
             {selectedItem && (
                 <div className="mt-4">
@@ -495,11 +465,7 @@ function WorldTab() {
             {/* Forex */}
             <section>
                 <SectionHeader title={copy.globalFx} subtitle={copy.globalFxSubtitle} />
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
-                    {FF_FOREX_CHANNELS.map(def => (
-                        <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
-                    ))}
-                </div>
+                <MarketSnapshotTable items={FF_FOREX_CHANNELS} snapshots={ffForex} />
             </section></>}
 
             {/* Commodities */}
