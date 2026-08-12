@@ -12,7 +12,6 @@ import {
     FF_ASIA_CHANNELS,
     FF_EUROPE_CHANNELS,
     FF_FOREX_CHANNELS,
-    KEY_STATS,
     RANGE_OPTIONS,
     RATES_REFRESH_MS,
     TV_CONFIGS,
@@ -411,67 +410,6 @@ function buildFaSummary(ind: FAIndicator) {
     };
 }
 
-function CompactStatCard({
-    title,
-    source,
-    unit,
-    valueText,
-    updatedAt,
-    comparisonText,
-    selected,
-    tone,
-    onClick,
-}: {
-    title: string;
-    source: string;
-    unit: string;
-    valueText: string;
-    updatedAt: string;
-    comparisonText: string;
-    selected: boolean;
-    tone: 'up' | 'down' | 'flat';
-    onClick: () => void;
-}) {
-    const toneCls = tone === 'up'
-        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
-        : tone === 'down'
-            ? 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20'
-            : 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800';
-
-    return (
-        <button
-            onClick={onClick}
-            className={`w-full text-left rounded-xl border p-4 transition-all duration-150 ${
-                selected
-                    ? 'border-blue-500 bg-white dark:bg-slate-900 shadow-sm shadow-blue-500/10'
-                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-300 dark:hover:border-blue-700'
-            }`}
-        >
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</p>
-                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{source}</p>
-                </div>
-                <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                    {unit}
-                </span>
-            </div>
-            <div className="mt-4">
-                <p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{valueText}</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Cập nhật {updatedAt}</p>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-2">
-                <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${toneCls}`}>
-                    {comparisonText}
-                </span>
-                <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                    {selected ? 'Đang mở' : 'Xem chart'}
-                </span>
-            </div>
-        </button>
-    );
-}
-
 function DetailChartCard({
     title,
     subtitle,
@@ -550,37 +488,6 @@ function DetailChartCard({
     );
 }
 
-function TVStatCard({ sym, selected, onClick }: { sym: string; selected: boolean; onClick: () => void }) {
-    const { lang } = useLanguage();
-    const cfg = TV_CONFIGS[sym];
-    const [points, setPoints] = useState<PricePoint[] | null>(null);
-
-    useEffect(() => {
-        let active = true;
-        loadMacroHistory(sym, cfg.defaultDays)
-            .then((data: PricePoint[]) => { if (active) setPoints(data); })
-            .catch(() => { if (active) setPoints([]); });
-        return () => { active = false; };
-    }, [cfg.defaultDays, sym]);
-
-    if (!points) return <SkeletonCard />;
-    const summary = buildTvSummary(sym, points);
-
-    return (
-        <CompactStatCard
-            title={macroLabel(sym, cfg.titleVN, lang)}
-            source={summary.sourceLabel}
-            unit={macroUnit(cfg.unitLabel, lang)}
-            valueText={summary.latest !== null ? cfg.fmt(summary.latest) : 'N/A'}
-            updatedAt={summary.updatedAt ?? 'N/A'}
-            comparisonText={summary.comparisonText}
-            selected={selected}
-            tone={getDeltaDirection(summary.delta)}
-            onClick={onClick}
-        />
-    );
-}
-
 function TVDetailPanel({ sym }: { sym: string }) {
     const { lang } = useLanguage();
     const cfg = TV_CONFIGS[sym];
@@ -619,23 +526,6 @@ function TVDetailPanel({ sym }: { sym: string }) {
             chartKey={macroLabel(sym, cfg.titleVN, lang)}
             valueFormatter={cfg.fmt}
             barChart={cfg.barChart}
-        />
-    );
-}
-
-function FAStatCard({ ind, selected, onClick }: { ind: FAIndicator; selected: boolean; onClick: () => void }) {
-    const summary = buildFaSummary(ind);
-    return (
-        <CompactStatCard
-            title={ind.nameVN}
-            source={summary.sourceLabel}
-            unit={ind.unit || 'Dữ liệu'}
-            valueText={summary.latest !== null ? summary.formatter(summary.latest) : 'N/A'}
-            updatedAt={summary.updatedAt ?? 'N/A'}
-            comparisonText={summary.comparisonText}
-            selected={selected}
-            tone={getDeltaDirection(summary.delta)}
-            onClick={onClick}
         />
     );
 }
@@ -746,21 +636,27 @@ function GDPCompositionChart() {
     );
 }
 
-function GDPCompositionCard({ selected, onClick }: { selected: boolean; onClick: () => void }) {
+function VietnamTvRow({ sym, selected, onClick }: { sym: string; selected: boolean; onClick: () => void }) {
     const { lang } = useLanguage();
-    return (
-        <CompactStatCard
-            title={lang === 'vi' ? 'Cơ Cấu GDP theo Ngành' : 'GDP composition by sector'}
-            source="TradingView / GSO"
-            unit={lang === 'vi' ? '5 năm' : '5 years'}
-            valueText={lang === 'vi' ? '3 khu vực' : '3 sectors'}
-            updatedAt={lang === 'vi' ? 'Theo quý' : 'Quarterly'}
-            comparisonText={lang === 'vi' ? 'Xem cơ cấu GDP' : 'View GDP composition'}
-            selected={selected}
-            tone="flat"
-            onClick={onClick}
-        />
-    );
+    const cfg = TV_CONFIGS[sym];
+    const [points, setPoints] = useState<PricePoint[] | null>(null);
+    useEffect(() => {
+        let active = true;
+        loadMacroHistory(sym, cfg.defaultDays).then(data => { if (active) setPoints(data); }).catch(() => { if (active) setPoints([]); });
+        return () => { active = false; };
+    }, [cfg.defaultDays, sym]);
+    if (!points) return <tr><td colSpan={5} className="px-4 py-4"><div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></td></tr>;
+    const summary = buildTvSummary(sym, points);
+    const tone = getDeltaDirection(summary.delta);
+    const toneClass = tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-rose-600' : 'text-slate-500';
+    return <tr onClick={onClick} className={`cursor-pointer border-b border-slate-100 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60 ${selected ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{macroLabel(sym, cfg.titleVN, lang)}</p><p className="mt-0.5 text-xs text-slate-500">{summary.sourceLabel} · {macroUnit(cfg.unitLabel, lang)}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : cfg.fmt(summary.latest)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${cfg.fmt(summary.delta)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
+}
+
+function VietnamFaRow({ ind, type, selected, onClick }: { ind: FAIndicator; type: string; selected: boolean; onClick: () => void }) {
+    const summary = buildFaSummary(ind);
+    const tone = getDeltaDirection(summary.delta);
+    const toneClass = tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-rose-600' : 'text-slate-500';
+    return <tr onClick={onClick} className={`cursor-pointer border-b border-slate-100 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60 ${selected ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{ind.nameVN}</p><p className="mt-0.5 text-xs text-slate-500">{summary.sourceLabel} · {ind.unit || type}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : summary.formatter(summary.latest)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${summary.formatter(summary.delta)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
 }
 
 function VietnamMacroTab() {
@@ -822,37 +718,11 @@ function VietnamMacroTab() {
     const selectedFa = selected?.kind === 'fa'
         ? (faData[selected.type] ?? []).find((ind) => ind.id === selected.key) ?? null
         : null;
-    const isKeyStatSelected = selected?.kind === 'tv' && KEY_STATS.some(({ sym }) => sym === selected.key);
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-5">
             <section>
-                <SectionHeader
-                    title={lang === 'vi' ? 'Key Stats Việt Nam' : 'Vietnam key statistics'}
-                    subtitle={lang === 'vi' ? 'Tóm tắt nhanh các chỉ số chính. Chọn một card để xem lịch sử và chi tiết.' : 'A quick view of the main indicators. Select a card to see its history and detail.'}
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                    {KEY_STATS.map(({ sym, tab }) => (
-                        <TVStatCard
-                            key={sym}
-                            sym={sym}
-                            selected={selected?.kind === 'tv' && selected.key === sym}
-                            onClick={() => selectTv(sym, tab)}
-                        />
-                    ))}
-                </div>
-                {isKeyStatSelected && selected?.kind === 'tv' && (
-                    <div className="mt-4">
-                        <TVDetailPanel key={selected.key} sym={selected.key} />
-                    </div>
-                )}
-            </section>
-
-            <section className="space-y-4">
-                <SectionHeader
-                    title={lang === 'vi' ? 'Bộ Chỉ Số Việt Nam' : 'Vietnam indicators'}
-                    subtitle={VIETNAM_SUBTABS.find((tab) => tab.id === activeSubTab)?.subtitle ?? ''}
-                />
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><SectionHeader title={lang === 'vi' ? 'Chỉ số kinh tế Việt Nam' : 'Vietnam economic indicators'} subtitle={VIETNAM_SUBTABS.find((tab) => tab.id === activeSubTab)?.subtitle ?? ''} /><button type="button" onClick={selectGdpComposition} className="text-left text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">{showGdpComposition ? 'Ẩn cơ cấu GDP' : 'Xem cơ cấu GDP'}</button></div>
                 <div className="flex flex-wrap gap-2">
                     {VIETNAM_SUBTABS.map((tab) => (
                         <button
@@ -862,10 +732,10 @@ function VietnamMacroTab() {
                                 setSelected(null);
                                 setShowGdpComposition(false);
                             }}
-                            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                            className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                                 activeSubTab === tab.id
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'
+                                    : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
                             }`}
                         >
                             {tab.label}
@@ -873,35 +743,7 @@ function VietnamMacroTab() {
                     ))}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {activeSubTab === 'growth' && (
-                        <GDPCompositionCard
-                            selected={showGdpComposition}
-                            onClick={selectGdpComposition}
-                        />
-                    )}
-                    {VIETNAM_TAB_TV[activeSubTab].map((sym) => (
-                        <TVStatCard
-                            key={sym}
-                            sym={sym}
-                            selected={selected?.kind === 'tv' && selected.key === sym}
-                            onClick={() => selectTv(sym)}
-                        />
-                    ))}
-
-                    {!faLoading && activeFaIndicators.map(({ ind, type }) => (
-                        <FAStatCard
-                            key={ind.id}
-                            ind={ind}
-                            selected={selected?.kind === 'fa' && selected.key === ind.id}
-                            onClick={() => selectFa(ind, type)}
-                        />
-                    ))}
-
-                    {faLoading && VIETNAM_TAB_TV[activeSubTab].length === 0 && (
-                        Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`fa-skeleton-${i}`} />)
-                    )}
-                </div>
+                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">Chỉ số</th><th className="px-3 py-3 text-right md:px-4">Lần cuối</th><th className="px-3 py-3 text-right md:px-4">T. đổi</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">So sánh</th><th className="px-3 py-3 text-right md:px-4">Thời gian</th></tr></thead><tbody>{VIETNAM_TAB_TV[activeSubTab].map(sym => <VietnamTvRow key={sym} sym={sym} selected={selected?.kind === 'tv' && selected.key === sym} onClick={() => selectTv(sym)} />)}{!faLoading && activeFaIndicators.map(({ ind, type }) => <VietnamFaRow key={ind.id} ind={ind} type={type} selected={selected?.kind === 'fa' && selected.key === ind.id} onClick={() => selectFa(ind, type)} />)}{faLoading && <tr><td colSpan={5} className="px-4 py-4"><div className="h-4 animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></td></tr>}</tbody></table></div>
 
                 {activeSubTab === 'growth' && showGdpComposition && (
                     <LazySection className="mt-4">
@@ -909,7 +751,7 @@ function VietnamMacroTab() {
                     </LazySection>
                 )}
 
-                {selected?.kind === 'tv' && !isKeyStatSelected && (
+                {selected?.kind === 'tv' && (
                     <div className="mt-4">
                         <TVDetailPanel key={selected.key} sym={selected.key} />
                     </div>
@@ -985,7 +827,6 @@ function WorldTab() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><SectionHeader title={regionalCopy.title} subtitle={`${regionalCopy.hours} · ${lang === 'vi' ? 'giờ Việt Nam' : 'Vietnam time'}`} /><SessionBadge open={regionalCopy.open} tz={regionalCopy.tz} /></div>
                 <div className="mb-4 flex flex-wrap gap-2">{([['asia', lang === 'vi' ? 'Châu Á - Thái Bình Dương' : 'Asia-Pacific'], ['europe', lang === 'vi' ? 'Châu Âu' : 'Europe'], ['americas', lang === 'vi' ? 'Châu Mỹ' : 'Americas']] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setRegion(id)} className={`rounded-full border px-4 py-2 text-sm font-semibold ${region === id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' : 'border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300'}`}>{label}</button>)}</div>
                 <MarketSnapshotTable items={regionItems} snapshots={ffIndices} />
-                <p className="mt-3 text-xs text-slate-400">{lang === 'vi' ? 'Dữ liệu chỉ số quốc tế qua luồng giá trực tiếp. Biểu đồ lịch sử chỉ được tải khi cần.' : 'International indices use the live price stream. Historical charts load only when requested.'}</p>
             </section>}
 
             {/* VND Exchange Rates */}
