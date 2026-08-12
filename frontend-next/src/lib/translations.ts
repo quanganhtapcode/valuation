@@ -1,4 +1,4 @@
-export type Lang = "vi" | "en"
+export type Lang = "vi" | "en";
 
 export const translations = {
     vi: {
@@ -66,8 +66,8 @@ export const translations = {
             today: "Hôm nay",
             yesterday: "Hôm qua",
             daysAgo: (n: number) => `${n} ngày trước`,
-            billion: "tỷ",
-            million: "tr",
+            billion: "tỷ VND",
+            million: "triệu VND",
             locale: "vi-VN",
         },
         dashboard: {
@@ -112,8 +112,8 @@ export const translations = {
                 ratios: "Chỉ số tài chính",
             },
             units: {
-                billions: "Tỷ đồng (VND)",
-                trillions: "Nghìn tỷ đồng (VND)",
+                billions: "tỷ VND",
+                trillions: "nghìn tỷ VND",
             },
             sections: {
                 incomeStatement: "Báo cáo kết quả kinh doanh",
@@ -275,8 +275,8 @@ export const translations = {
                 ratios: "Ratios",
             },
             units: {
-                billions: "bil VND",
-                trillions: "Trillion VND",
+                billions: "billion VND",
+                trillions: "trillion VND",
             },
             sections: {
                 incomeStatement: "Income Statement",
@@ -327,4 +327,21 @@ export const translations = {
             },
         },
     },
+};
+
+function messageKeys(value: unknown, prefix = ''): string[] {
+    if (typeof value === 'string' || typeof value === 'function') return [prefix];
+    if (!value || typeof value !== 'object') return [];
+    return Object.entries(value).flatMap(([key, child]) => messageKeys(child, prefix ? `${prefix}.${key}` : key));
+}
+
+/** Fails fast in development if either locale is missing a message key. */
+export function assertTranslationParity() {
+    const vi = new Set(messageKeys(translations.vi));
+    const en = new Set(messageKeys(translations.en));
+    const missingEnglish = [...vi].filter((key) => !en.has(key));
+    const missingVietnamese = [...en].filter((key) => !vi.has(key));
+    if (missingEnglish.length || missingVietnamese.length) {
+        throw new Error(`Translation key mismatch. Missing en: ${missingEnglish.join(', ') || 'none'}; missing vi: ${missingVietnamese.join(', ') || 'none'}`);
+    }
 }

@@ -35,12 +35,12 @@ function fmtVolume(val: number) {
     return val.toLocaleString('en-US');
 }
 
-function fmtBillionVi(val: number) {
-    return `${(val / 1e9).toFixed(1)} tỷ`;
+function fmtBillionLocalized(val: number, lang: 'vi' | 'en') {
+    return `${(val / 1e9).toFixed(1)} ${lang === 'vi' ? 'tỷ VND' : 'billion VND'}`;
 }
 
-function fmtMillionVi(val: number) {
-    return `${(val / 1e6).toFixed(1)} triệu`;
+function fmtMillionLocalized(val: number, lang: 'vi' | 'en') {
+    return `${(val / 1e6).toFixed(1)} ${lang === 'vi' ? 'triệu cổ phiếu' : 'million shares'}`;
 }
 
 function toCumulative(points: ForeignVolumePoint[]) {
@@ -108,7 +108,7 @@ function CumulativeNetChart({
                     {title}
                 </p>
                 <p className={`mt-1 text-tremor-metric font-semibold tabular-nums ${negative ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {negative ? '-' : '+'}{unit === 'volume' ? fmtMillionVi(Math.abs(value)) : fmtBillionVi(Math.abs(value))}
+                    {negative ? '-' : '+'}{unit === 'volume' ? fmtMillionLocalized(Math.abs(value), lang) : fmtBillionLocalized(Math.abs(value), lang)}
                 </p>
                 <p className="mt-0.5 text-tremor-default text-tremor-content dark:text-dark-tremor-content">
                     {copy.session}
@@ -128,7 +128,7 @@ function CumulativeNetChart({
                     <TabList className="px-6">
                         {TIME_TABS.map((tab) => (
                             <Tab
-                                key={tab.name}
+                                key={tab.vi}
                                 className="font-medium hover:border-tremor-content-subtle dark:hover:border-dark-tremor-content-subtle dark:hover:text-dark-tremor-content"
                             >
                                 {tab[lang]}
@@ -139,7 +139,7 @@ function CumulativeNetChart({
                         {TIME_TABS.map((tab) => {
                             const sliced = chartData.filter((d) => tab.filter(d.time));
                             return (
-                                <TabPanel key={tab.name} className="p-6">
+                                <TabPanel key={tab.vi} className="p-6">
                                     <LineChart
                                         data={sliced}
                                         index="time"
@@ -232,7 +232,7 @@ function TopBarChart({
                 <BarList
                     data={data}
                     color={color}
-                    valueFormatter={(v: number) => `${v} tỷ`}
+                    valueFormatter={(v: number) => `${v} ${lang === 'vi' ? 'tỷ VND' : 'billion VND'}`}
                 />
             )}
         </Card>
