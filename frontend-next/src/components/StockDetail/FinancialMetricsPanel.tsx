@@ -33,8 +33,8 @@ function formatRatio(value?: number, suffix = ''): string {
 
 function formatCompact(value: number | undefined, lang: 'vi' | 'en'): string {
     if (!value) return '—';
-    if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)} ${lang === 'vi' ? 'nghìn tỷ VND' : 'trillion VND'}`;
-    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} ${lang === 'vi' ? 'tỷ VND' : 'bil VND'}`;
+    if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)} ${translations[lang].units.trillionVnd}`;
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} ${translations[lang].units.billionVnd}`;
     return value.toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-US', { maximumFractionDigits: 0 });
 }
 
@@ -54,7 +54,7 @@ export default function FinancialMetricsPanel({
         : null;
     const recommendation = upside === null
         ? null
-        : upside >= 15 ? (lang === 'vi' ? 'MUA' : 'BUY') : upside >= 0 ? (lang === 'vi' ? 'THEO DÕI' : 'HOLD') : (lang === 'vi' ? 'GIẢM TỶ TRỌNG' : 'REDUCE');
+        : upside >= 15 ? t.recommendations.buy : upside >= 0 ? t.recommendations.hold : t.recommendations.reduce;
     const recommendationClass = upside !== null && upside >= 15
         ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-900'
         : upside !== null && upside >= 0
@@ -64,8 +64,8 @@ export default function FinancialMetricsPanel({
         {
             title: t.valuation,
             metrics: [
-                [lang === 'vi' ? 'Vốn hóa' : 'Market cap', formatCompact(financials.marketCap, lang)],
-                [lang === 'vi' ? 'KLCP lưu hành' : 'Shares outstanding', formatCompact(financials.sharesOutstanding, lang)],
+                [t.marketCap, formatCompact(financials.marketCap, lang)],
+                [t.sharesOutstanding, formatCompact(financials.sharesOutstanding, lang)],
                 ['P/E (TTM)', formatRatio(financials.pe)],
                 ['P/B (TTM)', formatRatio(financials.pb)],
             ],
@@ -96,16 +96,16 @@ export default function FinancialMetricsPanel({
             {targetPrice && upside !== null && (
                 <div className={styles.indicatorHighlight}>
                     <div className={styles.indicatorHighlightTop}>
-                        <span>{lang === 'vi' ? 'Định giá tham khảo' : 'Reference valuation'}</span>
+                        <span>{t.referenceValuation}</span>
                         {recommendation && <span className={`${styles.recommendationBadge} ${recommendationClass}`}>{recommendation}</span>}
                     </div>
                     <dl>
                         <div>
-                            <dt>{lang === 'vi' ? 'Giá mục tiêu' : 'Target price'}</dt>
+                            <dt>{t.targetPrice}</dt>
                             <dd>{formatCompact(targetPrice, lang)}</dd>
                         </div>
                         <div>
-                            <dt>{lang === 'vi' ? 'Tiềm năng tăng/giảm' : 'Upside / downside'}</dt>
+                            <dt>{t.upsideDownside}</dt>
                             <dd className={upside >= 0 ? styles.positiveMetric : styles.negativeMetric}>
                                 {upside >= 0 ? '+' : ''}{upside.toFixed(1)}%
                             </dd>

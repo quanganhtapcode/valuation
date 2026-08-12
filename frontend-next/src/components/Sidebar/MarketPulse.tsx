@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { TopMoverItem } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 import { getTickerData } from '@/lib/tickerCache';
 
 interface MarketPulseProps {
@@ -65,8 +66,8 @@ function MarketPulse({
                 <MarketList
                     items1={gainers}
                     items2={losers}
-                    label1={lang === 'en' ? 'Gainers' : 'Tăng giá'}
-                    label2={lang === 'en' ? 'Losers' : 'Giảm giá'}
+                    label1={translations[lang].common.gainers}
+                    label2={translations[lang].common.losers}
                     type="movers"
                     isLoading={isLoading}
                     companyNames={lang === 'en' ? englishNames : undefined}

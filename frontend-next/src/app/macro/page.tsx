@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { API } from '@/lib/api';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 import {
     FF_ALL_INDEX_CHANNELS,
     FF_AMERICAS_CHANNELS,
@@ -132,6 +133,7 @@ function downloadCsv(filename: string, rows: PricePoint[]) {
 
 function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean; onClose: () => void }) {
     const { lang } = useLanguage();
+    const copy = translations[lang].macro;
     const [days, setDays]       = useState(365);
     const [points, setPoints]   = useState<PricePoint[]>([]);
     const [loading, setLoading] = useState(true);
@@ -155,7 +157,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
     const chartData = points.map((p) => {
         const [y, m, d] = p.date.split('-');
         return {
-            [lang === 'vi' ? 'Ngày' : 'Date']: useDayFormat ? `${d}/${m}` : `${m}/${y.slice(2)}`,
+            [copy.dateAxis]: useDayFormat ? `${d}/${m}` : `${m}/${y.slice(2)}`,
             [item.name]: p.close,
         };
     });
@@ -176,7 +178,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                         </p>
                         {overallChange !== null && (
                             <p className={`text-sm mt-0.5 font-medium ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                {up ? '▲' : '▼'} {Math.abs(overallChange).toFixed(2)}% {lang === 'vi' ? 'trong kỳ' : 'over the period'}
+                                {up ? '▲' : '▼'} {Math.abs(overallChange).toFixed(2)}% {copy.overPeriod}
                             </p>
                         )}
                     </div>
@@ -191,7 +193,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                         </div>
                         {points.length > 0 && (
                             <button onClick={() => downloadCsv(`${item.symbol.replace('=', '_')}_${rangeLabel}.csv`, points)}
-                                title={lang === 'vi' ? 'Tải CSV' : 'Download CSV'}
+                                title={copy.downloadCsv}
                                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                     <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" strokeLinecap="round" strokeLinejoin="round"/>
@@ -199,7 +201,7 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                                 CSV
                             </button>
                         )}
-                        <button onClick={onClose} className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label={lang === 'vi' ? 'Đóng' : 'Close'}>
+                        <button onClick={onClose} className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label={translations[lang].common.close}>
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                 <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
                             </svg>
@@ -207,8 +209,8 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
                     </div>
                 </div>
                 {loading ? <Spinner h="h-48" /> : chartData.length === 0
-                    ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">{lang === 'vi' ? 'Không có dữ liệu' : 'No data available'}</div>
-                    : <AreaChart data={chartData} index={lang === 'vi' ? 'Ngày' : 'Date'} categories={[item.name]}
+                    ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">{copy.noData}</div>
+                    : <AreaChart data={chartData} index={copy.dateAxis} categories={[item.name]}
                         colors={[up ? 'emerald' : 'rose']} valueFormatter={fmtY}
                         yAxisWidth={yAxisW} showLegend={false} showGradient autoMinValue
                         showAnimation={false} tickGap={60} className="h-48" />}
@@ -218,6 +220,8 @@ function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean
 }
 
 function SessionBadge({ open, tz }: { open: boolean; tz: string }) {
+    const { lang } = useLanguage();
+    const copy = translations[lang].macro.global;
     return (
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
             open
@@ -225,7 +229,7 @@ function SessionBadge({ open, tz }: { open: boolean; tz: string }) {
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
         }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${open ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-            {open ? 'Đang mở' : 'Đóng cửa'} · {tz}
+            {open ? copy.open : copy.closed} · {tz}
         </span>
     );
 }
@@ -258,19 +262,20 @@ function FFLiveCard({ def, snap }: { def: FFCardDef; snap: FFPrice | undefined }
 
 function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]; snapshots: Map<string, FFPrice> }) {
     const { lang } = useLanguage();
+    const common = translations[lang].common;
     const marketFlag = (channel: string) => channel.startsWith('Nikkei') ? '🇯🇵' : channel.startsWith('KOSPI') ? '🇰🇷' : channel.startsWith('ASX') ? '🇦🇺' : channel.startsWith('DAX') ? '🇩🇪' : channel.startsWith('FTSE') ? '🇬🇧' : channel.startsWith('CAC') || channel.startsWith('STOXX') ? '🇪🇺' : '🇺🇸';
     return (
         <div className="overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <table className="min-w-full text-left text-sm">
                 <thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300">
-                    <tr><th className="px-2 py-3 md:px-4">{lang === 'vi' ? 'Tên' : 'Name'}</th><th className="px-2 py-3 text-right md:px-4">{lang === 'vi' ? 'Lần cuối' : 'Last'}</th><th className="hidden px-2 py-3 text-right sm:table-cell md:px-4">{lang === 'vi' ? 'Mở cửa' : 'Open'}</th><th className="px-2 py-3 text-right md:px-4">{lang === 'vi' ? 'T. đổi' : 'Change'}</th><th className="px-2 py-3 text-right md:px-4">{lang === 'vi' ? '% T. đổi' : '% change'}</th><th className="px-2 py-3 text-right md:px-4">{lang === 'vi' ? 'Thời gian' : 'Status'}</th></tr>
+                    <tr><th className="px-2 py-3 md:px-4">{common.name}</th><th className="px-2 py-3 text-right md:px-4">{common.latest}</th><th className="hidden px-2 py-3 text-right sm:table-cell md:px-4">{common.open}</th><th className="px-2 py-3 text-right md:px-4">{common.change}</th><th className="px-2 py-3 text-right md:px-4">{common.changePercent}</th><th className="px-2 py-3 text-right md:px-4">{common.status}</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {items.map((item) => {
                         const snap = snapshots.get(item.channel);
                         const change = snap ? snap.price - snap.dayOpen : null;
                         const up = (snap?.changePercent ?? 0) >= 0;
-                        return <tr key={item.channel} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-2 py-3.5 font-semibold text-slate-900 md:px-4 dark:text-slate-100"><span className="mr-3">{marketFlag(item.channel)}</span>{item.label}</td><td className="px-2 py-3.5 text-right font-medium tabular-nums md:px-4">{snap ? item.fmt(snap.price) : <span className="inline-block h-4 w-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />}</td><td className="hidden px-2 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{snap ? item.fmt(snap.dayOpen) : '—'}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{change === null ? '—' : `${change >= 0 ? '+' : ''}${item.fmt(change)}`}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{snap ? `${snap.changePercent >= 0 ? '+' : ''}${snap.changePercent.toFixed(2)}%` : '—'}</td><td className="px-2 py-3.5 text-right md:px-4"><span className={`inline-flex items-center gap-1.5 text-xs font-medium ${snap ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}><span className={`h-1.5 w-1.5 rounded-full ${snap ? 'bg-emerald-500' : 'bg-slate-300'}`} /><span className="hidden sm:inline">{snap ? (lang === 'vi' ? 'Trực tiếp' : 'Live') : (lang === 'vi' ? 'Đang kết nối' : 'Connecting')}</span></span></td></tr>;
+                        return <tr key={item.channel} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-2 py-3.5 font-semibold text-slate-900 md:px-4 dark:text-slate-100"><span className="mr-3">{marketFlag(item.channel)}</span>{item.label}</td><td className="px-2 py-3.5 text-right font-medium tabular-nums md:px-4">{snap ? item.fmt(snap.price) : <span className="inline-block h-4 w-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />}</td><td className="hidden px-2 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{snap ? item.fmt(snap.dayOpen) : '—'}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{change === null ? '—' : `${change >= 0 ? '+' : ''}${item.fmt(change)}`}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{snap ? `${snap.changePercent >= 0 ? '+' : ''}${snap.changePercent.toFixed(2)}%` : '—'}</td><td className="px-2 py-3.5 text-right md:px-4"><span className={`inline-flex items-center gap-1.5 text-xs font-medium ${snap ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}><span className={`h-1.5 w-1.5 rounded-full ${snap ? 'bg-emerald-500' : 'bg-slate-300'}`} /><span className="hidden sm:inline">{snap ? common.live : common.connecting}</span></span></td></tr>;
                     })}
                 </tbody>
             </table>
@@ -282,6 +287,7 @@ function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]
 
 function RateCard({ item, isVnd, selected, onClick }: { item: RateItem; isVnd: boolean; selected: boolean; onClick: () => void }) {
     const { lang } = useLanguage();
+    const copy = translations[lang].macro;
     const up        = item.changePercent >= 0;
     const colorCls  = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
     const bgCls     = up ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
@@ -301,7 +307,7 @@ function RateCard({ item, isVnd, selected, onClick }: { item: RateItem; isVnd: b
                 <span className="opacity-70">({isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)})</span>
             </div>
             <p className="mt-2 text-[10px] text-blue-500 dark:text-blue-400 font-medium">
-                {selected ? (lang === 'vi' ? '▴ Thu gọn' : '▴ Collapse') : (lang === 'vi' ? '▾ Xem lịch sử' : '▾ View history')}
+                {selected ? copy.collapse : copy.viewHistory}
             </p>
         </button>
     );
@@ -337,18 +343,16 @@ function getDeltaDirection(delta: number | null) {
 }
 
 function formatComparisonText(delta: number | null, label: string, unitLabel: string, formatter: (v: number) => string, lang: 'vi' | 'en') {
-    if (delta === null) return lang === 'vi' ? 'Chưa đủ dữ liệu so sánh' : 'Insufficient comparison data';
+    const copy = translations[lang].macro;
+    if (delta === null) return copy.insufficient;
     const abs = Math.abs(delta);
-    if (unitLabel.includes('%')) return lang === 'vi'
-        ? `${delta >= 0 ? '+' : '-'}${abs.toFixed(2)} điểm so với ${label}`
-        : `${delta >= 0 ? '+' : '-'}${abs.toFixed(2)} percentage points vs. ${label}`;
-    return lang === 'vi'
-        ? `${delta >= 0 ? '+' : '-'}${formatter(abs)} so với ${label}`
-        : `${delta >= 0 ? '+' : '-'}${formatter(abs)} vs. ${label}`;
+    if (unitLabel.includes('%')) return `${delta >= 0 ? '+' : '-'}${abs.toFixed(2)} ${copy.percentagePointsVs} ${label}`;
+    return `${delta >= 0 ? '+' : '-'}${formatter(abs)} ${copy.versus} ${label}`;
 }
 
 function buildTvSummary(sym: string, points: PricePoint[], lang: 'vi' | 'en') {
     const cfg = TV_CONFIGS[sym];
+    const copy = translations[lang].macro;
     const latest = points.at(-1)?.close ?? null;
     const compareLag = cfg.compareLag ?? (cfg.freq === 'annual' ? 1 : cfg.freq === 'daily' ? 1 : 12);
     const comparePoint = points.length > compareLag ? points.at(-(compareLag + 1))?.close ?? null : null;
@@ -357,8 +361,8 @@ function buildTvSummary(sym: string, points: PricePoint[], lang: 'vi' | 'en') {
         latest,
         updatedAt: points.at(-1)?.date ?? null,
         delta,
-        comparisonText: formatComparisonText(delta, cfg.compareLabel ?? 'kỳ trước', cfg.unitLabel, (value) => macroValue(value, sym, lang), lang),
-        comparisonLabel: lang === 'vi' ? (cfg.compareLabel ?? 'kỳ trước') : (cfg.compareLabel === 'cùng kỳ' ? 'same period last year' : cfg.compareLabel === 'năm trước' ? 'previous year' : 'previous period'),
+        comparisonText: formatComparisonText(delta, cfg.compareLabel ?? copy.previousPeriod, cfg.unitLabel, (value) => macroValue(value, sym, lang), lang),
+        comparisonLabel: cfg.compareLabel === 'cùng kỳ' ? copy.samePeriod : cfg.compareLabel === 'năm trước' ? copy.previousYear : copy.previousPeriod,
     };
 }
 
@@ -374,19 +378,10 @@ function VietnamTvRow({ sym, points }: { sym: string; points: PricePoint[] | nul
 
 function VietnamMacroTab() {
     const { lang } = useLanguage();
+    const copy = translations[lang].macro;
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
     const [history, setHistory] = useState<{ tab: VietnamSubTabId; data: Record<string, PricePoint[]> } | null>(null);
     const activeSymbols = VIETNAM_TAB_TV[activeSubTab];
-    const subTabCopy: Record<VietnamSubTabId, { label: string; subtitle: string }> = lang === 'vi'
-        ? Object.fromEntries(VIETNAM_SUBTABS.map((tab) => [tab.id, { label: tab.label, subtitle: tab.subtitle }])) as Record<VietnamSubTabId, { label: string; subtitle: string }>
-        : {
-            growth: { label: 'Growth', subtitle: 'GDP and fixed-asset investment' },
-            prices: { label: 'Prices', subtitle: 'CPI, inflation and energy prices' },
-            trade: { label: 'Trade', subtitle: 'Exports, imports, balance and FDI' },
-            money: { label: 'Money', subtitle: 'Interest rates, M2 and foreign reserves' },
-            labour: { label: 'Labour', subtitle: 'Employment, income and population' },
-            taxes: { label: 'Taxes', subtitle: 'Budget and taxes' },
-        };
 
     useEffect(() => {
         let active = true;
@@ -399,7 +394,7 @@ function VietnamMacroTab() {
     return (
         <div className="space-y-5">
             <section>
-                <SectionHeader title={lang === 'vi' ? 'Chỉ số kinh tế Việt Nam' : 'Vietnam economic indicators'} subtitle={subTabCopy[activeSubTab].subtitle} />
+                <SectionHeader title={copy.vietnamIndicators} subtitle={copy.subtitles[activeSubTab]} />
                 <div className="flex flex-wrap gap-2">
                     {VIETNAM_SUBTABS.map((tab) => (
                         <button
@@ -413,12 +408,12 @@ function VietnamMacroTab() {
                                     : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
                             }`}
                         >
-                            {subTabCopy[tab.id].label}
+                            {copy.tabs[tab.id]}
                         </button>
                     ))}
                 </div>
 
-                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{lang === 'vi' ? 'Chỉ số' : 'Indicator'}</th><th className="px-3 py-3 text-right md:px-4">{lang === 'vi' ? 'Lần cuối' : 'Latest'}</th><th className="px-3 py-3 text-right md:px-4">{lang === 'vi' ? 'T. đổi' : 'Change'}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{lang === 'vi' ? 'So sánh' : 'Comparison'}</th><th className="px-3 py-3 text-right md:px-4">{lang === 'vi' ? 'Thời gian' : 'Date'}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
+                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{copy.indicator}</th><th className="px-3 py-3 text-right md:px-4">{copy.latest}</th><th className="px-3 py-3 text-right md:px-4">{copy.change}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{copy.comparison}</th><th className="px-3 py-3 text-right md:px-4">{copy.date}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
             </section>
         </div>
     );
@@ -428,6 +423,7 @@ function VietnamMacroTab() {
 
 function WorldTab() {
     const { lang } = useLanguage();
+    const copy = translations[lang].macro.global;
     const [view, setView]           = useState<'indices' | 'fx' | 'commodities'>('indices');
     const [region, setRegion]       = useState<'asia' | 'europe' | 'americas'>('asia');
     const [rates, setRates]         = useState<RatesData | null>(null);
@@ -467,38 +463,38 @@ function WorldTab() {
     const sess        = getMarketSessions();
     const regionItems = region === 'asia' ? FF_ASIA_CHANNELS : region === 'europe' ? FF_EUROPE_CHANNELS : FF_AMERICAS_CHANNELS;
     const regionalCopy = region === 'asia'
-        ? { title: lang === 'vi' ? 'Châu Á - Thái Bình Dương' : 'Asia-Pacific', hours: 'Tokyo 7:00–13:30 · Sydney 7:00–13:00', open: sess.asia, tz: '07:00–13:30' }
+        ? { title: copy.asia, hours: 'Tokyo 7:00–13:30 · Sydney 7:00–13:00', open: sess.asia, tz: '07:00–13:30' }
         : region === 'europe'
-            ? { title: lang === 'vi' ? 'Châu Âu' : 'Europe', hours: 'Frankfurt/London 14:00–22:30', open: sess.europe, tz: '14:00–22:30' }
-            : { title: lang === 'vi' ? 'Châu Mỹ' : 'Americas', hours: 'NYSE/NASDAQ 20:30–03:00', open: sess.americas, tz: '20:30–03:00' };
+            ? { title: copy.europe, hours: 'Frankfurt/London 14:00–22:30', open: sess.europe, tz: '14:00–22:30' }
+            : { title: copy.americas, hours: 'NYSE/NASDAQ 20:30–03:00', open: sess.americas, tz: '20:30–03:00' };
 
     return (
         <div className="space-y-6">
             <div className="border-b border-slate-200 dark:border-slate-800">
-                <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label={lang === 'vi' ? 'Dữ liệu thị trường toàn cầu' : 'Global market data'}>
-                    {([['indices', lang === 'vi' ? 'Chỉ số' : 'Indices'], ['fx', lang === 'vi' ? 'Tiền tệ' : 'Currencies'], ['commodities', lang === 'vi' ? 'Hàng hóa' : 'Commodities']] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold ${view === id ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'}`}>{label}</button>)}
+                <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label={copy.aria}>
+                    {([['indices', copy.indices], ['fx', copy.currencies], ['commodities', copy.commodities]] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold ${view === id ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'}`}>{label}</button>)}
                 </div>
             </div>
 
             {view === 'indices' && <section>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><SectionHeader title={regionalCopy.title} subtitle={`${regionalCopy.hours} · ${lang === 'vi' ? 'giờ Việt Nam' : 'Vietnam time'}`} /><SessionBadge open={regionalCopy.open} tz={regionalCopy.tz} /></div>
-                <div className="mb-4 flex flex-wrap gap-2">{([['asia', lang === 'vi' ? 'Châu Á - Thái Bình Dương' : 'Asia-Pacific'], ['europe', lang === 'vi' ? 'Châu Âu' : 'Europe'], ['americas', lang === 'vi' ? 'Châu Mỹ' : 'Americas']] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setRegion(id)} className={`rounded-full border px-4 py-2 text-sm font-semibold ${region === id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' : 'border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300'}`}>{label}</button>)}</div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><SectionHeader title={regionalCopy.title} subtitle={`${regionalCopy.hours} · ${copy.vietnamTime}`} /><SessionBadge open={regionalCopy.open} tz={regionalCopy.tz} /></div>
+                <div className="mb-4 flex flex-wrap gap-2">{([['asia', copy.asia], ['europe', copy.europe], ['americas', copy.americas]] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setRegion(id)} className={`rounded-full border px-4 py-2 text-sm font-semibold ${region === id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' : 'border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300'}`}>{label}</button>)}</div>
                 <MarketSnapshotTable items={regionItems} snapshots={ffIndices} />
             </section>}
 
             {/* VND Exchange Rates */}
             {view === 'fx' && <><section>
-                <SectionHeader title={lang === 'vi' ? 'Tỷ Giá Hối Đoái VND' : 'VND exchange rates'} subtitle={lang === 'vi' ? 'VND so với các đồng tiền chính' : 'VND against major currencies'} />
+                <SectionHeader title={copy.vndRates} subtitle={copy.vndRatesSubtitle} />
                 {ratesLoading
                     ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
                     : fxRates.length === 0
-                    ? <p className="text-sm text-slate-500 py-6">{lang === 'vi' ? 'Không lấy được dữ liệu tỷ giá.' : 'Exchange-rate data is unavailable.'}</p>
+                    ? <p className="text-sm text-slate-500 py-6">{copy.ratesUnavailable}</p>
                     : <CardGrid items={fxRates} isVnd={true} />}
             </section>
 
             {/* Forex */}
             <section>
-                <SectionHeader title={lang === 'vi' ? 'Ngoại Hối Quốc Tế' : 'Global foreign exchange'} subtitle={lang === 'vi' ? 'Các cặp tiền tệ chính' : 'Major currency pairs'} />
+                <SectionHeader title={copy.globalFx} subtitle={copy.globalFxSubtitle} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
                     {FF_FOREX_CHANNELS.map(def => (
                         <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
@@ -508,11 +504,11 @@ function WorldTab() {
 
             {/* Commodities */}
             {view === 'commodities' && <section>
-                <SectionHeader title={lang === 'vi' ? 'Hàng Hóa Quốc Tế' : 'Global commodities'} subtitle={lang === 'vi' ? 'Nguồn Yahoo Finance · chỉ tải khi mở nhóm này' : 'Yahoo Finance · loaded only when this group is opened'} />
+                <SectionHeader title={copy.globalCommodities} subtitle={copy.commoditiesSubtitle} />
                 {ratesLoading
                     ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
                     : commodities.length === 0
-                    ? <p className="text-sm text-slate-500 py-6">{lang === 'vi' ? 'Không lấy được dữ liệu hàng hóa.' : 'Commodity data is unavailable.'}</p>
+                    ? <p className="text-sm text-slate-500 py-6">{copy.commoditiesUnavailable}</p>
                     : <CardGrid items={commodities} isVnd={false} />}
             </section>}
         </div>
@@ -525,21 +521,19 @@ type TabId = 'vietnam' | 'world';
 
 export default function MacroPage() {
     const { lang } = useLanguage();
+    const copy = translations[lang].macro;
     const [activeTab, setActiveTab] = useState<TabId>('vietnam');
-    const tabs: Array<{ id: TabId; label: string }> = lang === 'vi'
-        ? [{ id: 'vietnam', label: 'Việt Nam' }, { id: 'world', label: 'Thế Giới' }]
-        : [{ id: 'vietnam', label: 'Vietnam' }, { id: 'world', label: 'Global' }];
+    const tabs: Array<{ id: TabId; label: string }> = [{ id: 'vietnam', label: copy.vietnam }, { id: 'world', label: copy.world }];
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
             <div className="mx-auto max-w-[1600px] space-y-4 p-4 md:p-6">
                 <header className="mb-5">
                     <h1 className="text-3xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100 md:text-4xl">
-                        {lang === 'vi' ? 'Thị trường ' : 'Macro '}
-                        <span className="text-emerald-600 dark:text-emerald-400">{lang === 'vi' ? 'vĩ mô' : 'markets'}</span>
+                        {copy.pageTitle} <span className="text-emerald-600 dark:text-emerald-400">{copy.pageAccent}</span>
                     </h1>
                     <div className="mt-2 h-1 w-32 rounded bg-emerald-500" />
-                    <p className="mt-3 max-w-4xl text-sm text-slate-600 dark:text-slate-300 md:text-base">{lang === 'vi' ? 'Theo dõi chỉ số kinh tế Việt Nam và thị trường quốc tế.' : 'Follow Vietnamese economic indicators and global markets.'}</p>
+                    <p className="mt-3 max-w-4xl text-sm text-slate-600 dark:text-slate-300 md:text-base">{copy.pageSubtitle}</p>
                     <div className="mt-5 flex overflow-x-auto border-b border-slate-200 dark:border-slate-800">
                         {tabs.map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}

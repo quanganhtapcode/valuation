@@ -19,6 +19,7 @@ import {
 } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 const REFRESH_MS = 60_000;
 
@@ -36,11 +37,11 @@ function fmtVolume(val: number) {
 }
 
 function fmtBillionLocalized(val: number, lang: 'vi' | 'en') {
-    return `${(val / 1e9).toFixed(1)} ${lang === 'vi' ? 'tỷ VND' : 'billion VND'}`;
+    return `${(val / 1e9).toFixed(1)} ${translations[lang].units.billionVnd}`;
 }
 
 function fmtMillionLocalized(val: number, lang: 'vi' | 'en') {
-    return `${(val / 1e6).toFixed(1)} ${lang === 'vi' ? 'triệu cổ phiếu' : 'million shares'}`;
+    return `${(val / 1e6).toFixed(1)} ${translations[lang].units.millionShares}`;
 }
 
 function toCumulative(points: ForeignVolumePoint[]) {
@@ -91,7 +92,7 @@ function CumulativeNetChart({
     isLoading: boolean;
     lang: 'vi' | 'en';
 }) {
-    const copy = lang === 'vi' ? { cumulative: 'Lũy kế trong phiên', session: '09:00 – 15:00', empty: 'Không có dữ liệu phiên' } : { cumulative: 'Session cumulative', session: '09:00 – 15:00', empty: 'No session data available' };
+    const copy = translations[lang].pages.foreign;
     const negative = value < 0;
     const color = negative ? 'rose' : 'emerald';
     const yFormatter = unit === 'volume' ? fmtVolume : fmtBillion;
@@ -121,7 +122,7 @@ function CumulativeNetChart({
                 </div>
             ) : data.length === 0 ? (
                 <div className="h-72 flex items-center justify-center text-tremor-content dark:text-dark-tremor-content text-sm">
-                    {copy.empty}
+                    {copy.sessionEmpty}
                 </div>
             ) : (
                 <TabGroup defaultIndex={2}>
@@ -226,13 +227,13 @@ function TopBarChart({
                 </div>
             ) : data.length === 0 ? (
                 <p className="py-10 text-center text-sm text-tremor-content dark:text-dark-tremor-content">
-                    {lang === 'vi' ? 'Không có dữ liệu' : 'No data available'}
+                    {translations[lang].pages.foreign.noData}
                 </p>
             ) : (
                 <BarList
                     data={data}
                     color={color}
-                    valueFormatter={(v: number) => `${v} ${lang === 'vi' ? 'tỷ VND' : 'billion VND'}`}
+                    valueFormatter={(v: number) => `${v} ${translations[lang].units.billionVnd}`}
                 />
             )}
         </Card>
@@ -253,16 +254,16 @@ function TopStocksPanel({
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <TopBarChart
-                title={lang === 'vi' ? 'Top Mua ròng' : 'Top net buys'}
-                subtitle={lang === 'vi' ? 'Khối ngoại mua ròng nhiều nhất hôm nay (tỷ VNĐ)' : 'Largest foreign net buys today (VND bn)'}
+                title={translations[lang].pages.foreign.netBuys}
+                subtitle={translations[lang].pages.foreign.netBuysSubtitle}
                 items={buyList}
                 color="emerald"
                 isLoading={isLoading}
                 lang={lang}
             />
             <TopBarChart
-                title={lang === 'vi' ? 'Top Bán ròng' : 'Top net sells'}
-                subtitle={lang === 'vi' ? 'Khối ngoại bán ròng nhiều nhất hôm nay (tỷ VNĐ)' : 'Largest foreign net sells today (VND bn)'}
+                title={translations[lang].pages.foreign.netSells}
+                subtitle={translations[lang].pages.foreign.netSellsSubtitle}
                 items={sellList}
                 color="rose"
                 isLoading={isLoading}
@@ -274,6 +275,7 @@ function TopStocksPanel({
 
 export default function ForeignPage() {
     const { lang } = useLanguage();
+    const copy = translations[lang].pages.foreign;
     const [buyList, setBuyList] = useState<ForeignNetItem[]>([]);
     const [sellList, setSellList] = useState<ForeignNetItem[]>([]);
     const [points, setPoints] = useState<ForeignVolumePoint[]>([]);
@@ -323,18 +325,18 @@ export default function ForeignPage() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-5">
                     <div>
                         <h1 className="text-3xl md:text-4xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
-                            {lang === 'vi' ? 'Nước Ngoài' : 'Foreign'} <span className="text-emerald-600 dark:text-emerald-400">{lang === 'vi' ? 'Tự Doanh' : 'Trading'}</span>
+                            {copy.title} <span className="text-emerald-600 dark:text-emerald-400">{copy.accent}</span>
                         </h1>
                         <div className="w-32 h-1 bg-emerald-500 rounded mt-2" />
                         <p className="text-slate-600 dark:text-slate-300 mt-3 text-sm md:text-base max-w-4xl">
-                            {lang === 'vi' ? 'Biểu đồ thể hiện các cổ phiếu (bao gồm các quỹ ETF) được nước ngoài giao dịch nhiều nhất theo Khối lượng, Giá trị và Mua/Bán ròng.' : 'Track the most actively traded stocks and ETFs by foreign investors, including volume, value, and net buying or selling.'}
+                            {copy.subtitle}
                         </p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <CumulativeNetChart
-                            title={lang === 'vi' ? 'KLGD ròng tích lũy (CP)' : 'Cumulative net volume (shares)'}
+                            title={copy.cumulativeVolume}
                             value={latestVolume}
                             data={volumeData}
                             unit="volume"
@@ -342,7 +344,7 @@ export default function ForeignPage() {
                             lang={lang}
                         />
                         <CumulativeNetChart
-                            title={lang === 'vi' ? 'GTGD ròng tích lũy (VNĐ)' : 'Cumulative net value (VND)'}
+                            title={copy.cumulativeValue}
                             value={latestValue}
                             data={valueData}
                             unit="value"

@@ -238,7 +238,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0 px-5 pb-2">
                             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-tremor-content dark:text-dark-tremor-content">
-                                {q ? (lang === 'vi' ? 'Kết quả tìm kiếm' : 'Search results') : (lang === 'vi' ? 'Gợi ý mã phổ biến' : 'Popular tickers')}
+                                {q ? t.searchResults : t.popularTickers}
                             </p>
                             <div className="overflow-hidden rounded-xl border border-tremor-border dark:border-dark-tremor-border">
                                 {(q ? searchResults : allTickers.slice(0, 8)).map(entry => {
@@ -246,9 +246,9 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                     const inList = watchlist.includes(sym);
                                     return <button key={sym} type="button" onClick={() => { toggle(sym); setSearchQuery(''); }} className="flex w-full items-center gap-3 border-b border-tremor-border px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-tremor-background-muted dark:border-dark-tremor-border dark:hover:bg-dark-tremor-background-muted"><StockLogo symbol={sym} /><div className="min-w-0 flex-1"><div className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{sym}</div><div className="truncate text-xs text-tremor-content dark:text-dark-tremor-content">{(lang === 'en' ? entry.en_name : entry.name) || entry.name}</div></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${inList ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-600 text-white'}`}>{inList ? t.added : t.add}</span></button>;
                                 })}
-                                {q && searchResults.length === 0 && <p className="px-3 py-6 text-center text-sm text-tremor-content dark:text-dark-tremor-content">{lang === 'vi' ? 'Không tìm thấy mã phù hợp' : 'No matching tickers found'}</p>}
+                                {q && searchResults.length === 0 && <p className="px-3 py-6 text-center text-sm text-tremor-content dark:text-dark-tremor-content">{t.noMatchingTickers}</p>}
                             </div>
-                            <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-tremor-content dark:text-dark-tremor-content">{lang === 'vi' ? 'Danh sách đang theo dõi' : 'Your watchlist'}</p>
+                            <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-tremor-content dark:text-dark-tremor-content">{t.yourWatchlist}</p>
                             <div className="divide-y divide-tremor-border dark:divide-dark-tremor-border">
                             {watchlist.length === 0 ? (
                                 <p className="text-center text-sm text-tremor-content dark:text-dark-tremor-content py-8">{t.emptyWatchlist}</p>

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useLanguage } from '@/lib/languageContext';
+import { useI18n } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 type Release = {
     ticker: string;
@@ -26,13 +27,13 @@ type EarningsReleases = {
 type SortKey = 'public_date' | 'ticker' | 'revenue' | 'revenue_yoy' | 'revenue_qoq' | 'net_income' | 'net_income_yoy' | 'net_income_qoq';
 type SortDirection = 'asc' | 'desc';
 
-const fmtBn = (value: number | null, lang: 'vi' | 'en') => value == null
+const fmtBn = (value: number | null, locale: string, unit: string) => value == null
     ? '—'
-    : `${(value / 1_000_000_000).toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN', { maximumFractionDigits: 1 })} ${lang === 'en' ? 'bn VND' : 'tỷ'}`;
+    : `${(value / 1_000_000_000).toLocaleString(locale, { maximumFractionDigits: 1 })} ${unit}`;
 
-const fmtPct = (value: number | null, lang: 'vi' | 'en') => value == null
+const fmtPct = (value: number | null, locale: string) => value == null
     ? '—'
-    : `${value >= 0 ? '+' : ''}${value.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN', { maximumFractionDigits: 1 })}%`;
+    : `${value >= 0 ? '+' : ''}${value.toLocaleString(locale, { maximumFractionDigits: 1 })}%`;
 
 function SortHeader({ label, column, sortKey, sortDirection, onSort }: {
     label: string;
@@ -52,21 +53,13 @@ function SortHeader({ label, column, sortKey, sortDirection, onSort }: {
 }
 
 export default function EarningsPage() {
-    const { lang } = useLanguage();
+    const { lang, locale } = useI18n();
     const [data, setData] = useState<EarningsReleases | null>(null);
     const [error, setError] = useState(false);
     const [sortKey, setSortKey] = useState<SortKey>('public_date');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-    const copy = lang === 'en'
-        ? {
-            title: 'Financials', accent: 'Recently Reported', description: 'Revenue and net income attributable to parent shareholders; year-over-year and quarter-over-quarter comparison.',
-            error: 'Unable to load financial-report data.', loading: 'Loading…', published: 'Published', company: 'Ticker / Company', revenue: 'Revenue', netIncome: 'Net income',
-        }
-        : {
-            title: 'BCTC', accent: 'Vừa Công Bố', description: 'Doanh thu và LNST thuộc cổ đông công ty mẹ; so sánh cùng kỳ và quý trước.',
-            error: 'Không tải được dữ liệu BCTC.', loading: 'Đang tải…', published: 'Công bố', company: 'Mã / Doanh nghiệp', revenue: 'Doanh thu', netIncome: 'LNST',
-        };
+    const copy = translations[lang].pages.earnings;
 
     useEffect(() => {
         fetch('/api/market/earnings-releases')
@@ -134,17 +127,17 @@ export default function EarningsPage() {
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {sortedReleases.map(item => (
                                 <tr key={item.ticker} className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20">
-                                    <td className="whitespace-nowrap px-4 py-3 text-slate-500 dark:text-slate-400">{new Date(item.public_date).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN')}</td>
+                                    <td className="whitespace-nowrap px-4 py-3 text-slate-500 dark:text-slate-400">{new Date(item.public_date).toLocaleDateString(locale)}</td>
                                     <td className="px-4 py-3">
                                         <Link href={`/stock/${item.ticker}`} className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">{item.ticker}</Link>
                                         <span className="ml-2 text-slate-600 dark:text-slate-300">{lang === 'en' ? item.name_en : item.name}</span>
                                     </td>
-                                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBn(item.revenue, lang)}</td>
-                                    <td className={`px-4 py-3 text-right tabular-nums ${item.revenue_yoy != null && item.revenue_yoy < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtPct(item.revenue_yoy, lang)}</td>
-                                    <td className={`px-4 py-3 text-right tabular-nums ${item.revenue_qoq != null && item.revenue_qoq < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtPct(item.revenue_qoq, lang)}</td>
-                                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBn(item.net_income, lang)}</td>
-                                    <td className={`px-4 py-3 text-right tabular-nums ${item.net_income_yoy != null && item.net_income_yoy < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtPct(item.net_income_yoy, lang)}</td>
-                                    <td className={`px-4 py-3 text-right tabular-nums ${item.net_income_qoq != null && item.net_income_qoq < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtPct(item.net_income_qoq, lang)}</td>
+                                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBn(item.revenue, locale, translations[lang].units.billionVnd)}</td>
+                                    <td className={`px-4 py-3 text-right tabular-nums ${item.revenue_yoy != null && item.revenue_yoy < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtPct(item.revenue_yoy, locale)}</td>
+                                    <td className={`px-4 py-3 text-right tabular-nums ${item.revenue_qoq != null && item.revenue_qoq < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtPct(item.revenue_qoq, locale)}</td>
+                                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{fmtBn(item.net_income, locale, translations[lang].units.billionVnd)}</td>
+                                    <td className={`px-4 py-3 text-right tabular-nums ${item.net_income_yoy != null && item.net_income_yoy < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtPct(item.net_income_yoy, locale)}</td>
+                                    <td className={`px-4 py-3 text-right tabular-nums ${item.net_income_qoq != null && item.net_income_qoq < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtPct(item.net_income_qoq, locale)}</td>
                                 </tr>
                             ))}
                         </tbody>

@@ -13,6 +13,7 @@ import {
 } from '@tremor/react';
 import { cx } from '@/lib/utils';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 import BankingPeerTable from './BankingPeerTable';
 
 interface Peer {
@@ -101,6 +102,7 @@ function metricToneClass(tone: MetricTone): string {
 
 const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) => {
     const { lang } = useLanguage();
+    const copy = translations[lang].detail.analysis;
     const [peers, setPeers] = useState<Peer[]>([]);
     const [loading, setLoading] = useState(true);
     const [medianPe, setMedianPe] = useState<number | null>(null);
@@ -152,12 +154,12 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
         }, {} as Record<MetricKey, { best: number | null; worst: number | null }>);
     }, [peers]);
 
-    const displayIndustry = industryName || sector || 'Unknown';
+    const displayIndustry = industryName || sector || copy.unknown;
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
                 <div className="spinner" />
-                <span className="ml-3 text-tremor-default text-tremor-content">Loading analysis...</span>
+                <span className="ml-3 text-tremor-default text-tremor-content">{copy.loading}</span>
             </div>
         );
     }
@@ -167,17 +169,15 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
             <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                        {lang === 'vi' ? 'So sánh ngành' : 'Industry comparison'}
+                        {copy.title}
                     </h3>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        {lang === 'vi'
-                            ? `${peers.length} công ty cùng ngành ${displayIndustry}`
-                            : `${peers.length} companies in ${displayIndustry}`}
+                        {copy.companiesInIndustry(peers.length, displayIndustry)}
                     </p>
                 </div>
                 {medianPe !== null && (
                     <span className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
-                        {lang === 'vi' ? 'Median P/E ngành' : 'Industry median P/E'}: {medianPe.toFixed(2)}
+                        {copy.medianPe}: {medianPe.toFixed(2)}
                     </span>
                 )}
             </div>
@@ -195,8 +195,8 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
                         <Table className="h-[450px] [&>table]:border-separate [&>table]:border-spacing-0">
                             <TableHead>
                                 <TableRow>
-                                    <TableHeaderCell className="sticky left-0 top-0 z-20 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Mã CK' : 'Ticker'}</TableHeaderCell>
-                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Vốn hóa' : 'Market cap'}</TableHeaderCell>
+                                    <TableHeaderCell className="sticky left-0 top-0 z-20 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{copy.ticker}</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{translations[lang].detail.marketCap}</TableHeaderCell>
                                     <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/E</TableHeaderCell>
                                     <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/B</TableHeaderCell>
                                     <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROE (%)</TableHeaderCell>

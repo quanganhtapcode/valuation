@@ -5,7 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { API } from '@/lib/api';
 import { siteConfig } from '@/app/siteConfig';
-import { useLanguage } from '@/lib/languageContext';
+import { useI18n } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -96,10 +97,8 @@ function StockLogo({ ticker }: { ticker: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function EventsPage() {
-    const { lang } = useLanguage();
-    const copy = lang === 'vi'
-        ? { title: 'Lịch', accent: 'Sự Kiện', subtitle: 'Sự kiện doanh nghiệp niêm yết: cổ tức, đại hội cổ đông, giao dịch nội bộ và các sự kiện khác.', download: 'Tải Excel', count: 'sự kiện', ticker: 'Mã CP', event: 'Sự kiện', type: 'Loại', exDate: 'Ngày GD KHQ', date: 'Ngày thực hiện', failed: 'Không thể tải dữ liệu. Vui lòng thử lại.', empty: 'Không có sự kiện', source: 'Nguồn: Vietcap IQ · Dữ liệu cập nhật mỗi 15 phút' }
-        : { title: 'Corporate', accent: 'Events', subtitle: 'Listed-company events including dividends, shareholder meetings, insider trades, and more.', download: 'Download Excel', count: 'events', ticker: 'Ticker', event: 'Event', type: 'Type', exDate: 'Ex-right date', date: 'Event date', failed: 'Unable to load data. Please try again.', empty: 'No events', source: 'Source: Vietcap IQ · Data refreshes every 15 minutes' };
+    const { lang, locale } = useI18n();
+    const copy = translations[lang].pages.events;
     const today = new Date();
     const [dateInput, setDateInput] = useState(toInputValue(today));
     const [category, setCategory]   = useState<Category>('ALL');
@@ -224,7 +223,7 @@ export default function EventsPage() {
                                 ) : filtered.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-                                            {copy.empty} {category !== 'ALL' ? `"${catConfig(category as EventItem['category'])[lang]}"` : ''} {lang === 'vi' ? 'trong ngày này.' : 'on this date.'}
+                                            {copy.empty} {category !== 'ALL' ? `"${catConfig(category as EventItem['category'])[lang]}"` : ''} {copy.emptySuffix}
                                         </td>
                                     </tr>
                                 ) : (
@@ -260,11 +259,11 @@ export default function EventsPage() {
                                             </td>
                                             {/* Ex-right date */}
                                             <td className="px-4 py-3 text-slate-500 dark:text-slate-400 tabular-nums hidden md:table-cell">
-                                                {fmtDate(event.exrightDate, lang === 'vi' ? 'vi-VN' : 'en-US')}
+                                                {fmtDate(event.exrightDate, locale)}
                                             </td>
                                             {/* Exercise/display date */}
                                             <td className="px-4 py-3 text-slate-500 dark:text-slate-400 tabular-nums hidden lg:table-cell">
-                                                {fmtDate(event.displayDate1, lang === 'vi' ? 'vi-VN' : 'en-US')}
+                                                {fmtDate(event.displayDate1, locale)}
                                             </td>
                                         </tr>
                                     ))

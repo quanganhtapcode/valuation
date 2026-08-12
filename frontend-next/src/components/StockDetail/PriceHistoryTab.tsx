@@ -5,6 +5,7 @@ import { fetchPriceHistory } from '@/lib/stockApi';
 import { formatNumber } from '@/lib/api';
 import type { PriceData } from '@/lib/types';
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 interface PriceHistoryTabProps {
     symbol: string;
@@ -15,6 +16,7 @@ type PeriodType = '1M' | '6M' | '1Y' | '3Y' | '5Y';
 
 function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
     const { lang } = useLanguage();
+    const copy = translations[lang].detail.priceHistory;
     const [allPriceData, setAllPriceData] = useState<PriceData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [period, setPeriod] = useState<PeriodType>('1Y'); // visual (instant)
@@ -57,14 +59,14 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
                 normalized.sort((a: any, b: any) => new Date(String(a.time).replace(' ', 'T')).getTime() - new Date(String(b.time).replace(' ', 'T')).getTime());
                 setAllPriceData(normalized);
             } catch (err) {
-                setError('Failed to load price data');
+                setError(copy.failed);
                 console.error(err);
             } finally {
                 setIsLoading(false);
             }
         }
         loadPrices();
-    }, [symbol, initialData]);
+    }, [copy.failed, symbol, initialData]);
 
     const priceData = React.useMemo(() => {
         if (!allPriceData || allPriceData.length === 0) return [];
@@ -115,9 +117,9 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
 
             <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{lang === 'vi' ? 'Dữ liệu giá' : 'Price data'}</h3>
+                    <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        {lang === 'vi' ? 'Lịch sử giá giao dịch theo ngày.' : 'Daily trading price history.'}
+                        {copy.subtitle}
                     </p>
                 </div>
                 {/* Toolbar */}
@@ -154,7 +156,7 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
                             <polyline points="7 10 12 15 17 10" />
                             <line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
-                        <span className="hidden sm:inline">Export CSV</span>
+                        <span className="hidden sm:inline">{copy.exportCsv}</span>
                         <span className="sm:hidden">CSV</span>
                     </button>
                 </div>
@@ -169,7 +171,7 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
                 <div style={{ color: '#ef4444', textAlign: 'center', padding: '40px' }}>⚠️ {error}</div>
             ) : priceData.length === 0 ? (
                 <div style={{ color: '#6b7280', textAlign: 'center', padding: '60px' }}>
-                    No price history data found for this period
+                    {copy.empty}
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -177,12 +179,12 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
                         <table className="w-full border-collapse min-w-[600px]">
                             <thead className="bg-gray-50/50 dark:bg-gray-900/50">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">Date</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">Open</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">High</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">Low</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">Close</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">Volume</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">{copy.date}</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">{copy.open}</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">{copy.high}</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">{copy.low}</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">{copy.close}</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-tremor-content dark:text-dark-tremor-content border-b border-tremor-border dark:border-dark-tremor-border">{copy.volume}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -215,13 +217,13 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
                     {/* Pagination controls */}
                     <div className="flex items-center justify-between gap-4 px-1">
                         <span className="text-xs text-tremor-content dark:text-dark-tremor-content">
-                            {reversedData.length === 0 ? '0 rows' : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, reversedData.length)} of ${reversedData.length} rows`}
+                            {reversedData.length === 0 ? `0 ${copy.rows}` : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, reversedData.length)} ${copy.of} ${reversedData.length} ${copy.rows}`}
                         </span>
 
                         <div className="flex items-center gap-3">
                             {/* Rows per page */}
                             <div className="flex items-center gap-1.5">
-                                <span className="text-xs text-tremor-content dark:text-dark-tremor-content whitespace-nowrap">Rows</span>
+                                <span className="text-xs text-tremor-content dark:text-dark-tremor-content whitespace-nowrap">{copy.rows}</span>
                                 <select
                                     value={pageSize}
                                     onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}

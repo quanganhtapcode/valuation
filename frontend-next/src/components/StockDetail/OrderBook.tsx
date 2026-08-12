@@ -1,6 +1,7 @@
 'use client';
 
 import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
 
 interface OrderBookEntry {
     price: number;
@@ -50,15 +51,7 @@ const PRICE_COLOR: Record<PriceLevel, string> = {
 
 export default function OrderBook({ orderbook, refPrice, ceiling, floor }: OrderBookProps) {
     const { lang } = useLanguage();
-    const copy = lang === 'vi' ? {
-        title: 'Sổ lệnh', live: 'Trực tiếp', empty: 'Chưa có dữ liệu sổ lệnh',
-        bidVolume: 'KL mua', bidPrice: 'Giá mua', askPrice: 'Giá bán', askVolume: 'KL bán',
-        total: 'Tổng', spread: 'Chênh lệch',
-    } : {
-        title: 'Order book', live: 'Live', empty: 'No order book data',
-        bidVolume: 'Bid volume', bidPrice: 'Bid price', askPrice: 'Ask price', askVolume: 'Ask volume',
-        total: 'Total', spread: 'Spread',
-    };
+    const copy = translations[lang].detail.orderBook;
     const bids = [...(orderbook?.bid ?? [])].slice(0, 3);
     const asks = [...(orderbook?.ask ?? [])].slice(0, 3);
 
