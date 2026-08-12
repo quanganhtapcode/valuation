@@ -12,7 +12,6 @@ import {
     FF_ASIA_CHANNELS,
     FF_EUROPE_CHANNELS,
     FF_FOREX_CHANNELS,
-    FF_TO_YAHOO,
     KEY_STATS,
     RANGE_OPTIONS,
     RATES_REFRESH_MS,
@@ -260,6 +259,28 @@ function FFLiveCard({ def, snap }: { def: FFCardDef; snap: FFPrice | undefined }
                     <div className="h-4 w-16 rounded-full bg-slate-100 dark:bg-slate-800 animate-pulse" />
                 </div>
             )}
+        </div>
+    );
+}
+
+function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]; snapshots: Map<string, FFPrice> }) {
+    const { lang } = useLanguage();
+    const marketFlag = (channel: string) => channel.startsWith('Nikkei') ? '🇯🇵' : channel.startsWith('KOSPI') ? '🇰🇷' : channel.startsWith('ASX') ? '🇦🇺' : channel.startsWith('DAX') ? '🇩🇪' : channel.startsWith('FTSE') ? '🇬🇧' : channel.startsWith('CAC') || channel.startsWith('STOXX') ? '🇪🇺' : '🇺🇸';
+    return (
+        <div className="overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300">
+                    <tr><th className="px-2 py-3 md:px-4">{lang === 'vi' ? 'Tên' : 'Name'}</th><th className="px-2 py-3 text-right md:px-4">{lang === 'vi' ? 'Lần cuối' : 'Last'}</th><th className="hidden px-2 py-3 text-right sm:table-cell md:px-4">{lang === 'vi' ? 'Mở cửa' : 'Open'}</th><th className="px-2 py-3 text-right md:px-4">{lang === 'vi' ? 'T. đổi' : 'Change'}</th><th className="px-2 py-3 text-right md:px-4">{lang === 'vi' ? '% T. đổi' : '% change'}</th><th className="px-2 py-3 text-right md:px-4">{lang === 'vi' ? 'Thời gian' : 'Status'}</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {items.map((item) => {
+                        const snap = snapshots.get(item.channel);
+                        const change = snap ? snap.price - snap.dayOpen : null;
+                        const up = (snap?.changePercent ?? 0) >= 0;
+                        return <tr key={item.channel} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-2 py-3.5 font-semibold text-slate-900 md:px-4 dark:text-slate-100"><span className="mr-3">{marketFlag(item.channel)}</span>{item.label}</td><td className="px-2 py-3.5 text-right font-medium tabular-nums md:px-4">{snap ? item.fmt(snap.price) : <span className="inline-block h-4 w-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />}</td><td className="hidden px-2 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{snap ? item.fmt(snap.dayOpen) : '—'}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{change === null ? '—' : `${change >= 0 ? '+' : ''}${item.fmt(change)}`}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{snap ? `${snap.changePercent >= 0 ? '+' : ''}${snap.changePercent.toFixed(2)}%` : '—'}</td><td className="px-2 py-3.5 text-right md:px-4"><span className={`inline-flex items-center gap-1.5 text-xs font-medium ${snap ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}><span className={`h-1.5 w-1.5 rounded-full ${snap ? 'bg-emerald-500' : 'bg-slate-300'}`} /><span className="hidden sm:inline">{snap ? (lang === 'vi' ? 'Trực tiếp' : 'Live') : (lang === 'vi' ? 'Đang kết nối' : 'Connecting')}</span></span></td></tr>;
+                    })}
+                </tbody>
+            </table>
         </div>
     );
 }
@@ -908,6 +929,8 @@ function VietnamMacroTab() {
 
 function WorldTab() {
     const { lang } = useLanguage();
+    const [view, setView]           = useState<'indices' | 'fx' | 'commodities'>('indices');
+    const [region, setRegion]       = useState<'asia' | 'europe' | 'americas'>('asia');
     const [rates, setRates]         = useState<RatesData | null>(null);
     const [ratesLoading, setRL]     = useState(true);
     const [ffForex, setFfForex]     = useState<Map<string, FFPrice>>(new Map());
@@ -919,24 +942,15 @@ function WorldTab() {
     }, []);
 
     useEffect(() => {
+        if (view === 'indices') return;
         loadRates();
         const t = setInterval(loadRates, RATES_REFRESH_MS);
 
+        return () => clearInterval(t);
+    }, [loadRates, view]);
+
+    useEffect(() => {
         const ws = getFFWS();
-        const commodityUnsubs = Object.keys(FF_TO_YAHOO).map(ch =>
-            ws.subscribe(ch, (snap: FFPrice) => {
-                const yahooSym = FF_TO_YAHOO[ch];
-                setRates(prev => {
-                    if (!prev) return prev;
-                    const updated = prev.commodities.map(item => {
-                        if (item.symbol !== yahooSym) return item;
-                        const change = snap.dayOpen > 0 ? snap.price - snap.dayOpen : item.change;
-                        return { ...item, price: snap.price, change, changePercent: snap.changePercent };
-                    });
-                    return { ...prev, commodities: updated };
-                });
-            })
-        );
         const forexUnsubs   = FF_FOREX_CHANNELS.map(def =>
             ws.subscribe(def.channel, (snap: FFPrice) => setFfForex(prev => new Map(prev).set(def.channel, snap)))
         );
@@ -945,20 +959,37 @@ function WorldTab() {
         );
 
         return () => {
-            clearInterval(t);
-            [...commodityUnsubs, ...forexUnsubs, ...indicesUnsubs].forEach(fn => fn());
+            [...forexUnsubs, ...indicesUnsubs].forEach(fn => fn());
         };
-    }, [loadRates]);
+    }, []);
 
     const fxRates     = rates?.exchange_rates ?? [];
     const commodities = rates?.commodities    ?? [];
     const sess        = getMarketSessions();
+    const regionItems = region === 'asia' ? FF_ASIA_CHANNELS : region === 'europe' ? FF_EUROPE_CHANNELS : FF_AMERICAS_CHANNELS;
+    const regionalCopy = region === 'asia'
+        ? { title: lang === 'vi' ? 'Châu Á - Thái Bình Dương' : 'Asia-Pacific', hours: 'Tokyo 7:00–13:30 · Sydney 7:00–13:00', open: sess.asia, tz: '07:00–13:30' }
+        : region === 'europe'
+            ? { title: lang === 'vi' ? 'Châu Âu' : 'Europe', hours: 'Frankfurt/London 14:00–22:30', open: sess.europe, tz: '14:00–22:30' }
+            : { title: lang === 'vi' ? 'Châu Mỹ' : 'Americas', hours: 'NYSE/NASDAQ 20:30–03:00', open: sess.americas, tz: '20:30–03:00' };
 
     return (
-        <div className="space-y-10">
+        <div className="space-y-6">
+            <div className="border-b border-slate-200 dark:border-slate-800">
+                <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label={lang === 'vi' ? 'Dữ liệu thị trường toàn cầu' : 'Global market data'}>
+                    {([['indices', lang === 'vi' ? 'Chỉ số' : 'Indices'], ['fx', lang === 'vi' ? 'Tiền tệ' : 'Currencies'], ['commodities', lang === 'vi' ? 'Hàng hóa' : 'Commodities']] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold ${view === id ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'}`}>{label}</button>)}
+                </div>
+            </div>
+
+            {view === 'indices' && <section>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><SectionHeader title={regionalCopy.title} subtitle={`${regionalCopy.hours} · ${lang === 'vi' ? 'giờ Việt Nam' : 'Vietnam time'}`} /><SessionBadge open={regionalCopy.open} tz={regionalCopy.tz} /></div>
+                <div className="mb-4 flex flex-wrap gap-2">{([['asia', lang === 'vi' ? 'Châu Á - Thái Bình Dương' : 'Asia-Pacific'], ['europe', lang === 'vi' ? 'Châu Âu' : 'Europe'], ['americas', lang === 'vi' ? 'Châu Mỹ' : 'Americas']] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setRegion(id)} className={`rounded-full border px-4 py-2 text-sm font-semibold ${region === id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' : 'border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300'}`}>{label}</button>)}</div>
+                <MarketSnapshotTable items={regionItems} snapshots={ffIndices} />
+                <p className="mt-3 text-xs text-slate-400">{lang === 'vi' ? 'Dữ liệu chỉ số quốc tế qua luồng giá trực tiếp. Biểu đồ lịch sử chỉ được tải khi cần.' : 'International indices use the live price stream. Historical charts load only when requested.'}</p>
+            </section>}
 
             {/* VND Exchange Rates */}
-            <section>
+            {view === 'fx' && <><section>
                 <SectionHeader title={lang === 'vi' ? 'Tỷ Giá Hối Đoái VND' : 'VND exchange rates'} subtitle={lang === 'vi' ? 'VND so với các đồng tiền chính' : 'VND against major currencies'} />
                 {ratesLoading
                     ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
@@ -975,65 +1006,17 @@ function WorldTab() {
                         <FFLiveCard key={def.channel} def={def} snap={ffForex.get(def.channel)} />
                     ))}
                 </div>
-            </section>
-
-            {/* Asia-Pacific */}
-            <section>
-                <div className="flex items-center gap-3 mb-4">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{lang === 'vi' ? 'Châu Á - Thái Bình Dương' : 'Asia-Pacific'}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tokyo 7:00–13:30 · Sydney 7:00–13:00 {lang === 'vi' ? '(giờ VN)' : '(Vietnam time)'}</p>
-                    </div>
-                    <SessionBadge open={sess.asia} tz="07:00–13:30" />
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {FF_ASIA_CHANNELS.map(def => (
-                        <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
-                    ))}
-                </div>
-            </section>
-
-            {/* Europe */}
-            <section>
-                <div className="flex items-center gap-3 mb-4">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{lang === 'vi' ? 'Châu Âu' : 'Europe'}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Frankfurt/London 14:00–22:30 {lang === 'vi' ? '(giờ VN)' : '(Vietnam time)'}</p>
-                    </div>
-                    <SessionBadge open={sess.europe} tz="14:00–22:30" />
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {FF_EUROPE_CHANNELS.map(def => (
-                        <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
-                    ))}
-                </div>
-            </section>
-
-            {/* Americas */}
-            <section>
-                <div className="flex items-center gap-3 mb-4">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{lang === 'vi' ? 'Châu Mỹ' : 'Americas'}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">NYSE/NASDAQ 20:30–03:00 {lang === 'vi' ? '(giờ VN)' : '(Vietnam time)'}</p>
-                    </div>
-                    <SessionBadge open={sess.americas} tz="20:30–03:00" />
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {FF_AMERICAS_CHANNELS.map(def => (
-                        <FFLiveCard key={def.channel} def={def} snap={ffIndices.get(def.channel)} />
-                    ))}
-                </div>
-            </section>
+            </section></>}
 
             {/* Commodities */}
-            <section>
-                <SectionHeader title={lang === 'vi' ? 'Hàng Hóa Quốc Tế' : 'Global commodities'} subtitle={lang === 'vi' ? 'Live: Forex Factory · lịch sử: Yahoo Finance' : 'Live: Forex Factory · history: Yahoo Finance'} />
+            {view === 'commodities' && <section>
+                <SectionHeader title={lang === 'vi' ? 'Hàng Hóa Quốc Tế' : 'Global commodities'} subtitle={lang === 'vi' ? 'Nguồn Yahoo Finance · chỉ tải khi mở nhóm này' : 'Yahoo Finance · loaded only when this group is opened'} />
                 {ratesLoading
                     ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
                     : commodities.length === 0
                     ? <p className="text-sm text-slate-500 py-6">{lang === 'vi' ? 'Không lấy được dữ liệu hàng hóa.' : 'Commodity data is unavailable.'}</p>
                     : <CardGrid items={commodities} isVnd={false} />}
-            </section>
+            </section>}
         </div>
     );
 }
@@ -1050,26 +1033,21 @@ export default function MacroPage() {
         : [{ id: 'vietnam', label: 'Vietnam' }, { id: 'world', label: 'Global' }];
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-            <div className="max-w-[1600px] mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
-
-                {/* Header — follows the shared page heading style used by Events and Foreign. */}
-                <header className="mb-6">
-                    <h1 className="text-3xl md:text-4xl font-bold leading-tight tracking-tight">
-                        {lang === 'vi' ? 'Kinh tế' : 'Macro'} <span className="text-blue-600 dark:text-blue-400">{lang === 'vi' ? 'vĩ mô' : 'economy'}</span>
+        <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+            <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:p-8">
+                <header>
+                    <h1 className="flex items-center gap-3 text-3xl font-bold tracking-tight md:text-4xl">
+                        {lang === 'vi' ? 'Thị trường vĩ mô' : 'Macro markets'}
+                        <span className="text-2xl font-normal text-slate-400">›</span>
                     </h1>
-                    <div className="mt-2 h-1 w-24 rounded bg-blue-500" />
-                    <p className="mt-3 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-                        {lang === 'vi' ? 'Theo dõi các chỉ số Việt Nam và toàn cầu, với nguồn dữ liệu rõ ràng và biểu đồ mở theo nhu cầu.' : 'Track Vietnamese and global indicators with clear sources and charts that open only when needed.'}
-                    </p>
-
-                    <div className="mt-5 flex w-full gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:w-fit">
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'Theo dõi chỉ số kinh tế Việt Nam và thị trường quốc tế.' : 'Follow Vietnamese economic indicators and global markets.'}</p>
+                    <div className="mt-5 flex overflow-x-auto border-b border-slate-200 dark:border-slate-800">
                         {tabs.map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                                className={`flex-1 rounded-lg px-5 py-2 text-sm font-semibold transition-all duration-150 sm:flex-none
+                                className={`shrink-0 border-b-2 px-5 py-3 text-base font-semibold transition-colors
                                     ${activeTab === tab.id
-                                        ? 'bg-blue-600 text-white shadow-sm dark:bg-blue-600 dark:text-white'
-                                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}`}>
+                                        ? 'border-blue-600 text-blue-700 dark:text-blue-400'
+                                        : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}`}>
                                 {tab.label}
                             </button>
                         ))}
