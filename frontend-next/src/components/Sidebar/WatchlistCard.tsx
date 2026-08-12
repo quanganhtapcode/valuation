@@ -221,9 +221,9 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
             {modalOpen && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div className="absolute inset-0 bg-black/40 dark:bg-black/60" onClick={closeModal} />
-                    <div className="relative w-full sm:w-96 max-h-[80vh] bg-tremor-background dark:bg-dark-tremor-background rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col overflow-hidden">
+                    <div className="relative flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-tremor-background shadow-xl dark:bg-dark-tremor-background sm:w-[560px] sm:rounded-2xl">
                         <div className="px-5 pt-5 pb-4 flex-shrink-0">
-                            <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">Watchlist</h2>
+                            <div className="flex items-center justify-between"><h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">Watchlist</h2><button type="button" onClick={closeModal} className="rounded-full p-1.5 text-tremor-content hover:bg-tremor-background-muted dark:text-dark-tremor-content dark:hover:bg-dark-tremor-background-muted" aria-label="Close"><RiCloseLine className="h-4 w-4" /></button></div>
                             <p className="text-xs text-tremor-content dark:text-dark-tremor-content mt-0.5">{t.watchlistHint}</p>
                             <div className="relative mt-3">
                                 <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-tremor-content dark:text-dark-tremor-content pointer-events-none" />
@@ -235,30 +235,21 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                     className="w-full pl-9 pr-3 py-2 rounded-tremor-default border border-tremor-border dark:border-dark-tremor-border bg-tremor-background-muted dark:bg-dark-tremor-background-muted text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong placeholder:text-tremor-content dark:placeholder:text-dark-tremor-content outline-none focus:ring-2 focus:ring-tremor-brand dark:focus:ring-dark-tremor-brand"
                                 />
                             </div>
-                            {searchResults.length > 0 && (
-                                <div className="mt-1 border border-tremor-border dark:border-dark-tremor-border rounded-tremor-default overflow-hidden shadow-sm">
-                                    {searchResults.map(t => {
-                                        const sym = t.symbol.toUpperCase();
-                                        const inList = watchlist.includes(sym);
-                                        return (
-                                            <button key={sym} type="button"
-                                                onClick={() => { toggle(sym); setSearchQuery(''); }}
-                                                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-tremor-background-muted dark:hover:bg-dark-tremor-background-muted transition-colors border-b border-tremor-border dark:border-dark-tremor-border last:border-0">
-                                                <StockLogo symbol={sym} />
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{sym}</div>
-                                                    <div className="text-xs text-tremor-content dark:text-dark-tremor-content truncate">{(lang === 'en' ? t.en_name : t.name) || t.name}</div>
-                                                </div>
-                                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${inList ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-tremor-background-muted dark:bg-dark-tremor-background-muted text-tremor-content dark:text-dark-tremor-content'}`}>
-                                                    {inList ? t.added : t.add}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
                         </div>
-                        <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-tremor-border dark:divide-dark-tremor-border px-2">
+                        <div className="flex-1 overflow-y-auto min-h-0 px-5 pb-2">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-tremor-content dark:text-dark-tremor-content">
+                                {q ? (lang === 'vi' ? 'Kết quả tìm kiếm' : 'Search results') : (lang === 'vi' ? 'Gợi ý mã phổ biến' : 'Popular tickers')}
+                            </p>
+                            <div className="overflow-hidden rounded-xl border border-tremor-border dark:border-dark-tremor-border">
+                                {(q ? searchResults : allTickers.slice(0, 8)).map(entry => {
+                                    const sym = entry.symbol.toUpperCase();
+                                    const inList = watchlist.includes(sym);
+                                    return <button key={sym} type="button" onClick={() => { toggle(sym); setSearchQuery(''); }} className="flex w-full items-center gap-3 border-b border-tremor-border px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-tremor-background-muted dark:border-dark-tremor-border dark:hover:bg-dark-tremor-background-muted"><StockLogo symbol={sym} /><div className="min-w-0 flex-1"><div className="text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{sym}</div><div className="truncate text-xs text-tremor-content dark:text-dark-tremor-content">{(lang === 'en' ? entry.en_name : entry.name) || entry.name}</div></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${inList ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-600 text-white'}`}>{inList ? t.added : t.add}</span></button>;
+                                })}
+                                {q && searchResults.length === 0 && <p className="px-3 py-6 text-center text-sm text-tremor-content dark:text-dark-tremor-content">{lang === 'vi' ? 'Không tìm thấy mã phù hợp' : 'No matching tickers found'}</p>}
+                            </div>
+                            <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-tremor-content dark:text-dark-tremor-content">{lang === 'vi' ? 'Danh sách đang theo dõi' : 'Your watchlist'}</p>
+                            <div className="divide-y divide-tremor-border dark:divide-dark-tremor-border">
                             {watchlist.length === 0 ? (
                                 <p className="text-center text-sm text-tremor-content dark:text-dark-tremor-content py-8">{t.emptyWatchlist}</p>
                             ) : items.map(item => (
@@ -275,6 +266,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                     </button>
                                 </div>
                             ))}
+                            </div>
                         </div>
                         <div className="px-5 py-4 flex-shrink-0 border-t border-tremor-border dark:border-dark-tremor-border">
                             <button type="button" onClick={closeModal}
