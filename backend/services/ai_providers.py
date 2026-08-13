@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import urllib.error
 import urllib.request
 from typing import Any
@@ -12,8 +13,8 @@ logger = logging.getLogger(__name__)
 # Fallback chain: try models in order until one succeeds.
 #
 # AI_PROVIDER_ORDER controls provider order:
-#   gemma,openrouter  -> current behavior, OpenRouter as fallback
-#   openrouter,gemma  -> prefer OpenRouter free models, then Gemma
+#   groq,openrouter,gemma -> prefer Groq, then OpenRouter and Gemini
+#   openrouter,gemma      -> prefer OpenRouter free models, then Gemini
 _MODEL_CHAIN = [
     m.strip()
     for m in os.environ.get("GEMMA_MODEL_CHAIN", "gemma-4-31b-it,gemma-4-26b-a4b-it").split(",")
@@ -30,6 +31,14 @@ _OPENROUTER_MODEL_CHAIN = [
     ).split(",")
     if m.strip()
 ]
+_GROQ_MODEL_CHAIN = [
+    m.strip()
+    for m in os.environ.get(
+        "GROQ_MODEL_CHAIN",
+        "openai/gpt-oss-20b,llama-3.3-70b-versatile",
+    ).split(",")
+    if m.strip()
+]
 _PROVIDER_ORDER = [
     p.strip().lower()
     for p in os.environ.get("AI_PROVIDER_ORDER", "openrouter,gemma").split(",")
@@ -37,9 +46,22 @@ _PROVIDER_ORDER = [
 ]
 _GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 _OPENROUTER_API_BASE = "https://openrouter.ai/api/v1/chat/completions"
+_GROQ_API_BASE = "https://api.groq.com/openai/v1/chat/completions"
 _TIMEOUT = 90
 _QUOTA_EXCEEDED = {429}   # permanently skip model this run
 _TRANSIENT_ERRORS = {500, 502, 503}  # retry with backoff before moving to next model
+
+
+class RateLimitError(RuntimeError):
+    """A temporary provider rate limit with a provider-supplied retry delay."""
+
+    def __init__(self, retry_after_seconds: float, detail: str) -> None:
+        super().__init__(detail)
+        self.retry_after_seconds = retry_after_seconds
+
+
+class ProvidersUnavailableError(RuntimeError):
+    """Every configured model is unavailable for the current batch run."""
 
 
 def _api_key() -> str:
@@ -53,6 +75,13 @@ def _openrouter_api_key() -> str:
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
         raise RuntimeError("OPENROUTER_API_KEY not set")
+    return key
+
+
+def _groq_api_key() -> str:
+    key = os.environ.get("GROQ_API_KEY", "")
+    if not key:
+        raise RuntimeError("GROQ_API_KEY not set")
     return key
 
 
@@ -104,6 +133,50 @@ def _call_openrouter_model(model: str, prompt: str) -> str:
     return content.strip()
 
 
+def _call_groq_model(model: str, prompt: str) -> str:
+    """Call Groq's OpenAI-compatible Chat Completions endpoint."""
+    headers = {
+        "Authorization": f"Bearer {_groq_api_key()}",
+        "Content-Type": "application/json",
+        # Groq's Cloudflare edge rejects urllib's default user agent (403/1010).
+        "User-Agent": os.environ.get("GROQ_USER_AGENT", "VietnamStockValuation/1.0"),
+    }
+    body = json.dumps({
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": "Bạn là chuyên gia phân tích chứng khoán Việt Nam. Chỉ trả về JSON hợp lệ khi được yêu cầu.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": int(os.environ.get("GROQ_MAX_TOKENS", "3200")),
+        "temperature": 0.3,
+        "response_format": {"type": "json_object"},
+    }).encode()
+    req = urllib.request.Request(_GROQ_API_BASE, data=body, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
+            data: Any = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace").strip()
+        logger.warning("Groq model %s HTTP %s: %s", model, exc.code, detail[:500])
+        if exc.code == 429:
+            duration = re.search(r"try again in\s+([\d.\sA-Za-z]+)", detail, re.I)
+            parts = re.findall(r"(\d+(?:\.\d+)?)\s*(ms|s|m|h)", duration.group(1), re.I) if duration else []
+            multiplier = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
+            retry_after = sum(float(value) * multiplier[unit.lower()] for value, unit in parts)
+            # Retry short rolling-window limits. Long daily limits are skipped
+            # for this batch instead of failing every remaining ticker.
+            if retry_after and retry_after <= 120:
+                raise RateLimitError(max(retry_after + 1.0, 2.0), detail[:500]) from exc
+        raise
+    content = data["choices"][0].get("message", {}).get("content")
+    if not content:
+        raise RuntimeError(f"Groq returned empty content for {model}")
+    return content.strip()
+
+
 _quota_exceeded_models: set[str] = set()  # 429 = skip for entire run
 
 
@@ -112,9 +185,11 @@ _TRANSIENT_BACKOFF = [10, 30]  # seconds to wait before attempt 2 and 3 per mode
 
 def _provider_models(provider: str) -> list[str]:
     if provider == "gemma":
-        return _MODEL_CHAIN
+        return _MODEL_CHAIN if os.environ.get("GEMMA_API_KEY") else []
     if provider == "openrouter":
         return _OPENROUTER_MODEL_CHAIN if os.environ.get("OPENROUTER_API_KEY") else []
+    if provider == "groq":
+        return _GROQ_MODEL_CHAIN if os.environ.get("GROQ_API_KEY") else []
     return []
 
 
@@ -123,13 +198,16 @@ def _call_provider_model(provider: str, model: str, prompt: str) -> str:
         return _call_gemma_model(model, prompt)
     if provider == "openrouter":
         return _call_openrouter_model(model, prompt)
+    if provider == "groq":
+        return _call_groq_model(model, prompt)
     raise RuntimeError(f"Unknown AI provider: {provider}")
 
 
 def generate(prompt: str) -> tuple[str, str]:
     """Try each model in the fallback chain. Returns (response_text, model_used).
 
-    - 429: model is quota-exhausted, skip for the rest of this run.
+    - short 429 limits: wait for the provider-supplied retry window.
+    - long 429 limits: skip that model for the rest of this run.
     - 500/502/503: transient, retry up to 2 times with 10s/30s backoff per model.
     """
     import time
@@ -146,6 +224,18 @@ def generate(prompt: str) -> tuple[str, str]:
                     if provider != _PROVIDER_ORDER[0] or model != _provider_models(provider)[0]:
                         logger.info(f"Used fallback AI model: {model_key}")
                     return result, model_key
+                except RateLimitError as e:
+                    if attempt < 2:
+                        logger.warning(
+                            "Model %s rate limited; retrying in %.1fs",
+                            model_key,
+                            e.retry_after_seconds,
+                        )
+                        time.sleep(e.retry_after_seconds)
+                        last_err = e
+                        continue
+                    last_err = e
+                    break
                 except urllib.error.HTTPError as e:
                     if e.code in _QUOTA_EXCEEDED:
                         logger.warning(f"Model {model_key} quota exceeded (429), skipping for this run")
@@ -163,22 +253,12 @@ def generate(prompt: str) -> tuple[str, str]:
                     last_err = e
                     break
 
+    remaining_models = [
+        f"{provider}:{model}"
+        for provider in _PROVIDER_ORDER
+        for model in _provider_models(provider)
+        if f"{provider}:{model}" not in _quota_exceeded_models
+    ]
+    if not remaining_models:
+        raise ProvidersUnavailableError("All configured AI models are quota-limited for this batch")
     raise RuntimeError(f"All models exhausted. Last error: {last_err}")
-
-
-def generate_openrouter(prompt: str) -> tuple[str, str]:
-    """Generate with OpenRouter models only. Returns (response_text, model_used)."""
-    last_err: Exception | None = None
-    models = _provider_models("openrouter")
-    if not models:
-        raise RuntimeError("OPENROUTER_API_KEY not set")
-
-    for model in models:
-        model_key = f"openrouter:{model}"
-        try:
-            return _call_openrouter_model(model, prompt), model_key
-        except Exception as e:
-            last_err = e
-            logger.warning("OpenRouter model %s failed: %s", model_key, e)
-
-    raise RuntimeError(f"All OpenRouter models exhausted. Last error: {last_err}")

@@ -122,14 +122,6 @@ export interface PEChartResult {
     stats: { pe?: ValuationStats; pb?: ValuationStats };
 }
 
-export interface EmaBreadthPoint {
-    date: Date;
-    aboveEma50: number;
-    belowEma50: number;
-    total: number;
-    abovePercent: number;
-}
-
 export type ScreenerSortKey =
     | 'ticker'
     | 'price'
@@ -393,30 +385,6 @@ export async function fetchPEChartByRange(
     const series = parsePEChartPayload(response);
     const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
     return { series, stats };
-}
-
-export async function fetchEma50Breadth(days = 260): Promise<EmaBreadthPoint[]> {
-    const response = await fetchAPI<any>(`${API.EMA50_BREADTH}?days=${days}`);
-    const rows = Array.isArray(response?.data) ? response.data : [];
-    return rows
-        .map((row: any) => {
-            const d = parseDateInput(row?.date);
-            if (!d) return null;
-            const above = Number(row?.aboveEma50);
-            const below = Number(row?.belowEma50);
-            const total = Number(row?.total);
-            const pct = Number(row?.abovePercent);
-            if (![above, below, total, pct].every(Number.isFinite)) return null;
-            return {
-                date: d,
-                aboveEma50: above,
-                belowEma50: below,
-                total,
-                abovePercent: pct,
-            } as EmaBreadthPoint;
-        })
-        .filter((row: EmaBreadthPoint | null): row is EmaBreadthPoint => row !== null)
-        .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 export async function fetchScreenerIcbSectors(): Promise<IcbSector[]> {

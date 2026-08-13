@@ -48,8 +48,8 @@ function scheduleIdleWork(callback: () => void, timeout = 1200): () => void {
         return () => window.cancelIdleCallback(idleId);
     }
 
-    const timer = window.setTimeout(callback, Math.min(timeout, 300));
-    return () => window.clearTimeout(timer);
+    const timer = globalThis.setTimeout(callback, Math.min(timeout, 300));
+    return () => globalThis.clearTimeout(timer);
 }
 
 interface StockInfo {
@@ -229,7 +229,7 @@ export default function StockDetailPage() {
                     // per-share figures into the Financials tab.
                     const overviewWithoutDerivedPerShareValues = Object.fromEntries(
                         Object.entries(data).filter(([key]) => key !== 'eps' && key !== 'bvps'),
-                    ) as StockApiData;
+                    ) as unknown as StockApiData;
                     setRawOverviewData(overviewWithoutDerivedPerShareValues);
 
                     // Update description from DB if available (faster than fallback fetch)

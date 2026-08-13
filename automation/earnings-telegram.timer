@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for newly published financial statements every 15 minutes
+Requires=earnings-telegram.service
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

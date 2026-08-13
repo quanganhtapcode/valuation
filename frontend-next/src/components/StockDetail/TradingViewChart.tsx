@@ -8,7 +8,8 @@ import {
     CandlestickSeries,
     HistogramSeries,
     Time,
-    UTCTime,
+    BusinessDay,
+    ColorType,
     CrosshairMode,
     MouseEventParams,
 } from 'lightweight-charts';
@@ -79,7 +80,7 @@ function toFiniteNumber(value: unknown): number | null {
     return null;
 }
 
-function toUTCTime(time: string | number): UTCTime {
+function toBusinessDay(time: string | number): BusinessDay {
     const d = new Date(time);
     return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
 }
@@ -101,7 +102,7 @@ function formatPrice(value: number): string {
 
 function formatDate(time: Time): string {
     if (typeof time === 'object') {
-        const t = time as UTCTime;
+        const t = time as BusinessDay;
         return `${String(t.day).padStart(2, '0')}/${String(t.month).padStart(2, '0')}/${t.year}`;
     }
     return String(time);
@@ -292,7 +293,7 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             width:  chartContainerRef.current.clientWidth,
             height: 400,
             layout: {
-                background: { type: 'solid', color: 'transparent' },
+                background: { type: ColorType.Solid, color: 'transparent' },
                 textColor:  initTheme.text,
                 fontSize:   11,
                 fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -333,6 +334,8 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         const volumeSeries = chart.addSeries(HistogramSeries, {
             priceFormat:  { type: 'volume' },
             priceScaleId: '',
+        });
+        volumeSeries.priceScale().applyOptions({
             scaleMargins: { top: 0.84, bottom: 0.02 },
         });
 
@@ -409,7 +412,7 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         if (!aggregatedData.length) return;
 
         candlestickSeriesRef.current.setData(aggregatedData.map(d => ({
-            time:  toUTCTime(d.time),
+            time:  toBusinessDay(d.time),
             open:  d.open,
             high:  d.high,
             low:   d.low,
@@ -417,7 +420,7 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
         })));
 
         volumeSeriesRef.current.setData(aggregatedData.map(d => ({
-            time:  toUTCTime(d.time),
+            time:  toBusinessDay(d.time),
             value: d.volume,
             color: d.close >= d.open ? 'rgba(22,163,74,0.28)' : 'rgba(220,38,38,0.28)',
         })));

@@ -8,7 +8,8 @@ import {
     AreaSeries,
     LineSeries,
     HistogramSeries,
-    UTCTime,
+    BusinessDay,
+    ColorType,
     CrosshairMode,
     MouseEventParams,
 } from 'lightweight-charts';
@@ -69,16 +70,16 @@ function dateToISO(d: Date): string {
     return d.toISOString().slice(0, 10);
 }
 
-function toUTCTime(iso: string): UTCTime {
+function toBusinessDay(iso: string): BusinessDay {
     const [y, m, day] = iso.split('-').map(Number);
     return { year: y, month: m, day };
 }
 
-function fmtDate(t: UTCTime): string {
+function fmtDate(t: BusinessDay): string {
     return `${String(t.day).padStart(2, '0')}/${String(t.month).padStart(2, '0')}/${t.year}`;
 }
 
-function dayKey(t: UTCTime): string {
+function dayKey(t: BusinessDay): string {
     return `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
 }
 
@@ -160,7 +161,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const [idxLoad,  setIdxLoad]  = useState(false);
     const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
     const vnCache   = useRef<Map<string, PEChartData[]>>(new Map());
-    const liveVnRef = useRef<{ time: UTCTime; value: number } | null>(null);
+    const liveVnRef = useRef<{ time: BusinessDay; value: number } | null>(null);
 
     // ── Chart refs ────────────────────────────────────────────────────────────
     const wrapRef   = useRef<HTMLDivElement>(null);
@@ -237,24 +238,24 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         if (isVN) {
             return vnRows
                 .filter(d => d.vnindex !== null && (!cutoff || dateToISO(d.date) >= cutoff))
-                .map(d => ({ time: toUTCTime(dateToISO(d.date)), value: d.vnindex!, volume: d.volume ?? 0 }));
+                .map(d => ({ time: toBusinessDay(dateToISO(d.date)), value: d.vnindex!, volume: d.volume ?? 0 }));
         }
         return idxBars
             .filter(d => !cutoff || d.date >= cutoff)
-            .map(d => ({ time: toUTCTime(d.date), value: d.close, volume: d.volume }));
+            .map(d => ({ time: toBusinessDay(d.date), value: d.close, volume: d.volume }));
     }, [isVN, vnRows, idxBars, cutoff]);
 
     const peTV = useMemo(() =>
         vnRows
             .filter(d => d.pe !== null && (!cutoff || dateToISO(d.date) >= cutoff))
-            .map(d => ({ time: toUTCTime(dateToISO(d.date)), value: d.pe! })),
+            .map(d => ({ time: toBusinessDay(dateToISO(d.date)), value: d.pe! })),
         [vnRows, cutoff],
     );
 
     const pbTV = useMemo(() =>
         vnRows
             .filter(d => d.pb !== null && (!cutoff || dateToISO(d.date) >= cutoff))
-            .map(d => ({ time: toUTCTime(dateToISO(d.date)), value: d.pb! })),
+            .map(d => ({ time: toBusinessDay(dateToISO(d.date)), value: d.pb! })),
         [vnRows, cutoff],
     );
 
@@ -273,7 +274,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             width:  wrapRef.current.clientWidth,
             height: ch,
             layout: {
-                background:  { type: 'solid', color: 'transparent' },
+                background:  { type: ColorType.Solid, color: 'transparent' },
                 textColor:   t0.text,
                 fontSize:    11,
                 fontFamily:  "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -326,10 +327,11 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         const vol = chart.addSeries(HistogramSeries, {
             priceFormat:      { type: 'volume' },
             priceScaleId:     '',
-            // @ts-expect-error scaleMargins works at runtime in lightweight-charts v5.
-            scaleMargins:     { top: 0.90, bottom: 0 },
             priceLineVisible: false,
             lastValueVisible: false,
+        });
+        vol.priceScale().applyOptions({
+            scaleMargins: { top: 0.90, bottom: 0 },
         });
 
         const pe = chart.addSeries(LineSeries, {
@@ -363,11 +365,11 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             const areaVal = param.seriesData.get(area);
             if (!areaVal) { setTooltip(null); return; }
 
-            const close  = areaVal.value as number;
+            const close  = (areaVal as { value: number }).value;
             const volVal = param.seriesData.get(vol);
             const peVal  = param.seriesData.get(pe);
             const pbVal  = param.seriesData.get(pb);
-            const t      = param.time as UTCTime;
+            const t      = param.time as BusinessDay;
             const k      = dayKey(t);
             const keys   = Array.from(closeMap.current.keys());
             const idx    = keys.indexOf(k);
@@ -383,9 +385,9 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 time:   fmtDate(t),
                 close:  close.toLocaleString('en-US', { maximumFractionDigits: 2 }),
                 change,
-                volume: fmtVol((volVal?.value as number) ?? 0),
-                pe:     peVal ? ((peVal.value as number).toFixed(2) + 'x') : null,
-                pb:     pbVal ? ((pbVal.value as number).toFixed(2) + 'x') : null,
+                volume: fmtVol((volVal as { value?: number } | undefined)?.value ?? 0),
+                pe:     peVal ? (((peVal as { value: number }).value).toFixed(2) + 'x') : null,
+                pb:     pbVal ? (((pbVal as { value: number }).value).toFixed(2) + 'x') : null,
                 x: param.point?.x ?? 0,
                 y: param.point?.y ?? 0,
             });
@@ -488,7 +490,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         const vnMs = now.getTime() + now.getTimezoneOffset() * 60_000 + 7 * 3_600_000;
         const vn = new Date(vnMs);
         liveVnRef.current = {
-            time:  { year: vn.getFullYear(), month: vn.getMonth() + 1, day: vn.getDate() } as UTCTime,
+            time:  { year: vn.getFullYear(), month: vn.getMonth() + 1, day: vn.getDate() } as BusinessDay,
             value: vnidx.value,
         };
         try { areaRef.current.update(liveVnRef.current); } catch {}

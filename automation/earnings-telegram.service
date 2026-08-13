@@ -1,0 +1,14 @@
+[Unit]
+Description=Telegram alerts for newly published financial statements
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/valuation
+Environment="PATH=/var/www/valuation/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/var/www/valuation/.venv/bin/python3 /var/www/valuation/automation/notify_earnings_releases.py
+StandardOutput=journal
+StandardError=journal

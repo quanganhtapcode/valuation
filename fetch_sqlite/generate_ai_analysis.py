@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
 
 from backend.services.gemma_client import build_combined_prompt, generate
+from backend.services.ai_providers import ProvidersUnavailableError
 from backend.db_path import (
     resolve_vci_technical_db_path,
 )
@@ -60,7 +61,8 @@ STATS_FINANCIAL_DB = os.environ.get(
 )
 
 LISTED_EXCHANGES = ("HSX", "HNX", "UPCOM")
-RATE_LIMIT_DELAY = 4.0  # seconds between API calls — respects ~15 RPM limit
+RATE_LIMIT_DELAY = 4.0  # seconds between non-Groq API calls
+GROQ_RATE_LIMIT_DELAY = float(os.environ.get("GROQ_RATE_LIMIT_DELAY", "15"))
 NEWS_REFRESH_THRESHOLD = 3  # re-analyze if this many new news items since last analysis
 PRICE_MOVE_REFRESH_THRESHOLD = float(os.environ.get("AI_NEWS_PRICE_MOVE_THRESHOLD", "5"))
 PRICE_MOVE_COOLDOWN_HOURS = int(os.environ.get("AI_NEWS_PRICE_MOVE_COOLDOWN_HOURS", "24"))
@@ -732,6 +734,7 @@ def run(
     regen_missing: bool = False,
     force_news_refresh: bool = False,
     refresh_on_signals: bool = False,
+    retry_ai_fallbacks: bool = False,
     notify_telegram_results: bool | None = None,
 ) -> None:
     fin = sqlite3.connect(f"file:{FINANCIALS_DB}?mode=ro", uri=True)
@@ -757,6 +760,24 @@ def run(
 
     if tickers_override:
         candidates = [t for t in tickers_override if t in listed_tickers]
+    elif retry_ai_fallbacks:
+        rows = cache.execute(
+            """
+            WITH ranked AS (
+                SELECT ticker, model,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY ticker
+                           ORDER BY year_report DESC, quarter_report DESC, generated_at DESC
+                       ) AS row_number
+                FROM ai_financial_analysis
+            )
+            SELECT ticker
+            FROM ranked
+            WHERE row_number = 1
+              AND model IN ('rule-based-fallback', 'rule-based-deferred')
+            """
+        ).fetchall()
+        candidates = sorted(t for (t,) in rows if t in listed_tickers)
     elif force_news_refresh or refresh_on_signals:
         # A news refresh must cover every listed stock, not only the subset
         # that has already reported the latest market-wide quarter.
@@ -776,6 +797,9 @@ def run(
         last_at = get_last_analysis(cache, t, year, q)
         # Only analyze companies for which the platform has actual news; this
         # prevents an LLM from fabricating an investment thesis for no-news names.
+        if retry_ai_fallbacks:
+            refresh_tickers.append(t)
+            continue
         if force_news_refresh:
             # Initial backfill must leave every listed ticker with an insight
             # record. Tickers without company news take the deterministic path
@@ -826,7 +850,7 @@ def run(
 
     for ticker in pending:
         analysis_year, analysis_q = year, q
-        if tickers_override or force_news_refresh or refresh_on_signals:
+        if tickers_override or force_news_refresh or refresh_on_signals or retry_ai_fallbacks:
             ticker_period = detect_latest_ticker_period(fin, ticker)
             if ticker_period:
                 analysis_year, analysis_q = ticker_period
@@ -899,10 +923,14 @@ def run(
                                 ticker, name, ticker_quarter_label, news_thesis,
                             )
                         )
-                    time.sleep(RATE_LIMIT_DELAY)
+                    delay = GROQ_RATE_LIMIT_DELAY if model_used.startswith("groq:") else RATE_LIMIT_DELAY
+                    time.sleep(delay)
                     ai_ok = True
                     break
                 except Exception as e:
+                    if isinstance(e, ProvidersUnavailableError):
+                        print(f"  [{ticker}] AI providers unavailable for this batch — using rule-based")
+                        break
                     if attempt == 0:
                         print(f"  [{ticker}] AI error (attempt 1): {e} — retrying in 30s")
                         time.sleep(30)
@@ -978,6 +1006,8 @@ if __name__ == "__main__":
                         help="Backfill an insight record for every listed ticker; use AI when company news exists")
     parser.add_argument("--refresh-on-signals", action="store_true",
                         help="Refresh only when a ticker has 3 new news items or a daily move of at least 5%")
+    parser.add_argument("--retry-ai-fallbacks", action="store_true",
+                        help="Retry tickers whose prior AI call fell back to deterministic analysis")
     notification_group = parser.add_mutually_exclusive_group()
     notification_group.add_argument(
         "--notify-telegram",
@@ -1000,5 +1030,6 @@ if __name__ == "__main__":
         regen_missing=args.regen_missing,
         force_news_refresh=args.force_news_refresh,
         refresh_on_signals=args.refresh_on_signals,
+        retry_ai_fallbacks=args.retry_ai_fallbacks,
         notify_telegram_results=args.notify_telegram,
     )

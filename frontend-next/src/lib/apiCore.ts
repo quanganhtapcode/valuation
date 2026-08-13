@@ -11,7 +11,6 @@ export const REALTIME_API_BASE =
 export const API = {
     // Market Data
     PE_CHART: `${API_BASE}/market/pe-chart`,
-    EMA50_BREADTH: `${API_BASE}/market/ema50-breadth`,
     SCREENER: `${API_BASE}/market/screener`,
     VCI_INDICES: `${REALTIME_API_BASE}/market/vci-indices`,
     NEWS: `${API_BASE}/market/news`,

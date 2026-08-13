@@ -1,5 +1,8 @@
 # Secrets & local config
 .env
+runtime/
+backups/
+automation/data/
 .env.local
 .telegram_uptime.env
 .claude/

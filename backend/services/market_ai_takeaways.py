@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.db_path import resolve_valuation_cache_db_path
-from backend.services.ai_providers import generate_openrouter
+from backend.services.ai_providers import generate
 from backend.services.vci_news_sqlite import (
     compact_news_item,
     default_news_db_path,
@@ -22,6 +22,12 @@ _CACHE_KEY = "market_ai_takeaways_v2"
 _MOVE_LIMIT = 5
 _NEWS_LIMIT_PER_SYMBOL = 3
 _RECENT_NEWS_LIMIT = 30
+# Keep the request safely below the smallest configured Groq context/rate limit.
+# These limits apply only to the LLM input; the complete news payload remains
+# available to API consumers in the persisted snapshot.
+_LLM_NEWS_LIMIT = 12
+_LLM_TITLE_MAX_CHARS = 220
+_LLM_INPUT_JSON_MAX_CHARS = 6_000
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS market_ai_takeaways (
     cache_key TEXT PRIMARY KEY,
@@ -88,6 +94,76 @@ def _load_recent_market_news() -> list[dict[str, Any]]:
         limit=_RECENT_NEWS_LIMIT,
     )
     return [compact_news_item(item) for item in rows]
+
+
+def _llm_news_item(item: dict[str, Any]) -> dict[str, str] | None:
+    """Project one article to the small set of fields useful for summarization."""
+    title = " ".join(str(item.get("title") or "").split())
+    if not title:
+        return None
+    return {
+        "symbol": str(item.get("symbol") or "").strip().upper(),
+        "title": title[:_LLM_TITLE_MAX_CHARS],
+        "source": str(item.get("source") or "").strip()[:80],
+        "published_at": str(item.get("publish_date") or "").strip()[:40],
+        "sentiment": str(item.get("sentiment") or "").strip()[:24],
+    }
+
+
+def _llm_input(
+    movers: list[dict[str, Any]], recent_news: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Build a bounded, de-duplicated input payload for the AI provider."""
+    compact_movers = [
+        {
+            "symbol": str(mover.get("symbol") or "").upper(),
+            "price": mover.get("price"),
+            "change_pct": mover.get("change_pct"),
+            "direction": mover.get("direction"),
+        }
+        for mover in movers
+        if mover.get("symbol")
+    ]
+
+    # Put one article per notable mover first, then fill remaining capacity with
+    # broader market news. A single article can appear in both source lists.
+    candidates: list[dict[str, Any]] = []
+    for mover in movers:
+        news = mover.get("news")
+        if isinstance(news, list) and news:
+            candidates.append(news[0])
+    candidates.extend(recent_news)
+
+    selected: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in candidates:
+        if not isinstance(item, dict):
+            continue
+        article = _llm_news_item(item)
+        if article is None:
+            continue
+        identity = str(item.get("id") or item.get("url") or "").strip()
+        if not identity:
+            identity = f"{article['symbol']}:{article['title']}"
+        if identity in seen:
+            continue
+        seen.add(identity)
+        if len(selected) >= _LLM_NEWS_LIMIT:
+            break
+        candidate_payload = {
+            "market_scope": "Vietnam listed stocks, market snapshot and news published in the last 24 hours",
+            "movers": compact_movers,
+            "recent_news_24h": selected + [article],
+        }
+        if len(json.dumps(candidate_payload, ensure_ascii=False)) > _LLM_INPUT_JSON_MAX_CHARS:
+            break
+        selected.append(article)
+
+    return {
+        "market_scope": "Vietnam listed stocks, market snapshot and news published in the last 24 hours",
+        "movers": compact_movers,
+        "recent_news_24h": selected,
+    }
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
@@ -161,11 +237,12 @@ def _fallback_takeaways(
 
 
 def _build_prompt(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]]) -> str:
-    payload = {
-        "market_scope": "Vietnam listed stocks, market snapshot and news published in the last 24 hours",
-        "movers": movers,
-        "recent_news_24h": recent_news,
-    }
+    payload = _llm_input(movers, recent_news)
+    input_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    logger.info(
+        "Market AI input: %d movers, %d articles, %d characters",
+        len(payload["movers"]), len(payload["recent_news_24h"]), len(input_json),
+    )
     return (
         "Summarize notable Vietnam-stock news and market moves from the past 24 hours.\n"
         "Dua CHI tren JSON dau vao. Uu tien ma co phieu xuat hien trong tin noi bat, "
@@ -179,7 +256,7 @@ def _build_prompt(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]
         "\"news_summary\":[\"2-3 English bullets that summarize the provided news only\"],\"news_summary_vi\":[\"matching Vietnamese bullets\"],"
         "\"watchlist\":[{\"symbol\":\"AAA\",\"takeaway\":\"English string, max 140 characters\",\"takeaway_vi\":\"Vietnamese equivalent\","
         "\"direction\":\"up|down|neutral\"}]}\n\n"
-        f"INPUT_JSON:\n{json.dumps(payload, ensure_ascii=False)}"
+        f"INPUT_JSON:\n{input_json}"
     )
 
 
@@ -189,7 +266,7 @@ def compute_ai_takeaways() -> dict[str, Any]:
     if not movers and not recent_news:
         return _fallback_takeaways(movers, recent_news)
     try:
-        text, model = generate_openrouter(_build_prompt(movers, recent_news))
+        text, model = generate(_build_prompt(movers, recent_news))
         parsed = _extract_json_object(text)
         def bullets(key: str) -> list[str]:
             return [str(item).strip() for item in parsed.get(key, []) if str(item).strip()]
@@ -235,17 +312,15 @@ def read_market_ai_takeaways() -> dict[str, Any] | None:
     """Read the latest persisted snapshot. This path never calls an AI provider."""
     db_path = resolve_valuation_cache_db_path()
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        table = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'market_ai_takeaways'"
-        ).fetchone()
-        if table is None:
-            conn.close()
-            return None
-        row = conn.execute(
-            "SELECT payload_json FROM market_ai_takeaways WHERE cache_key = ?", (_CACHE_KEY,)
-        ).fetchone()
-        conn.close()
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+            table = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'market_ai_takeaways'"
+            ).fetchone()
+            if table is None:
+                return None
+            row = conn.execute(
+                "SELECT payload_json FROM market_ai_takeaways WHERE cache_key = ?", (_CACHE_KEY,)
+            ).fetchone()
         return json.loads(row[0]) if row else None
     except (OSError, sqlite3.Error, json.JSONDecodeError) as exc:
         logger.warning("Unable to read market AI takeaways cache: %s", exc)
