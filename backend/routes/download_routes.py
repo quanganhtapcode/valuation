@@ -48,6 +48,12 @@ BANK_INCOME_FIELDS = (
     "isb41", "isa16", "isa19", "isa17", "isa18", "isa20", "isa21", "isa22",
     "isa23", "isa24",
 )
+NORMAL_INCOME_FIELDS = (
+    "isa1", "isa2", "isa3", "isa4", "isa5", "isa6", "isa7", "isa8",
+    "isa102", "isa9", "isa10", "isa11", "isa14", "isa12", "isa13", "isa15",
+    "isa16", "isa19", "isa17", "isa18", "isa20", "isa21", "isa22", "isa23",
+    "isa24",
+)
 
 
 def _quote_identifier(identifier: str) -> str:
@@ -199,20 +205,75 @@ def _all_selected_tickers_are_banks(connection: sqlite3.Connection) -> bool:
     return bool(tickers) and all(str(ticker).upper() in BANK_SYMBOLS for ticker in tickers)
 
 
+def _selected_financial_tickers(connection: sqlite3.Connection) -> list[str]:
+    return [str(row[0]).upper() for row in connection.execute(
+        "SELECT ticker FROM selected_financial_tickers ORDER BY ticker"
+    )]
+
+
 def _export_fields(connection: sqlite3.Connection, table: str, period_clause: str, period_params: list[int | str]) -> list[str]:
     fields = [
         row[1] for row in connection.execute(f"PRAGMA table_info({table})")
         if row[1] not in FINANCIAL_META_COLUMNS
     ]
-    if table == "income_statement" and _all_selected_tickers_are_banks(connection):
+    selected_tickers = _selected_financial_tickers(connection)
+    if table == "income_statement" and len(selected_tickers) == 1:
         available = set(fields)
-        # Preserve the official bank template (including legitimate zeroes such
-        # as diluted EPS) instead of treating its standard variables as noise.
-        return [field for field in BANK_INCOME_FIELDS if field in available]
+        template = BANK_INCOME_FIELDS if _all_selected_tickers_are_banks(connection) else NORMAL_INCOME_FIELDS
+        # Match the original Vietcap workbook: show its canonical income rows,
+        # including legitimate zeroes such as diluted EPS.
+        return [field for field in template if field in available]
     return _visible_financial_fields(connection, table, fields, period_clause, period_params)
 
 
+def _write_single_ticker_income_csv(
+    connection: sqlite3.Connection,
+    fields: list[str],
+    labels: dict[str, str],
+    period_clause: str,
+    period_params: list[int | str],
+    output: io.TextIOBase,
+) -> int:
+    """Write Income Statement in the row-oriented layout of Vietcap's workbook."""
+    ticker = _selected_financial_tickers(connection)[0]
+    quoted_fields = ", ".join(f'f.{_quote_identifier(field)}' for field in fields)
+    rows = connection.execute(
+        f"""
+        SELECT f.year_report, f.quarter_report, {quoted_fields}
+        FROM income_statement f
+        WHERE f.ticker = ? AND {period_clause}
+        ORDER BY CASE f.period_kind WHEN 'YEAR' THEN 0 ELSE 1 END,
+                 f.year_report, f.quarter_report
+        """,
+        [ticker, *period_params],
+    ).fetchall()
+    writer = csv.writer(output)
+    has_annual = any(not quarter for _, quarter, *_ in rows)
+    has_quarterly = any(quarter for _, quarter, *_ in rows)
+    period_label = "Năm, Quý" if has_annual and has_quarterly else "Năm" if has_annual else "Quý"
+    writer.writerow(["Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")])
+    writer.writerow(["Mã", ticker])
+    writer.writerow(["Thời gian", period_label])
+    writer.writerow(["Tiền tệ", "VND"])
+    writer.writerow([])
+    periods = [
+        str(year) if not quarter else f"Q{quarter}/{year}"
+        for year, quarter, *_ in rows
+    ]
+    writer.writerow(["Chỉ tiêu", *periods])
+    for index, field in enumerate(fields):
+        writer.writerow([
+            labels.get(field.lower(), field),
+            *(row[index + 2] if row[index + 2] is not None else "" for row in rows),
+        ])
+    return len(fields)
+
+
 def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: list[str], labels: dict[str, str], period_clause: str, period_params: list[int | str], output: io.TextIOBase) -> int:
+    if table == "income_statement" and len(_selected_financial_tickers(connection)) == 1:
+        return _write_single_ticker_income_csv(
+            connection, fields, labels, period_clause, period_params, output,
+        )
     writer = csv.writer(output)
     metadata = FINANCIAL_METADATA_HEADERS
     if table == "note":
