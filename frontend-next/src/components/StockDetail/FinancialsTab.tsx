@@ -258,27 +258,32 @@ const BANK_INCOME_SECTIONS = [
     {
         title: 'Kết quả kinh doanh ngân hàng',
         rows: [
-            { key: 'isb25', label: 'Interest and Similar Income' },
-            { key: 'isb26', label: 'Interest and Similar Expenses' },
             { key: 'isb27', label: 'Net Interest Income', isTotal: true },
-            { key: 'isb28', label: 'Fee and Commission Income' },
-            { key: 'isb29', label: 'Fee and Commission Expenses' },
+            { key: 'isb25', label: 'Interest and Similar Income', indent: true },
+            { key: 'isb26', label: 'Interest and Similar Expenses', indent: true },
             { key: 'isb30', label: 'Net Fee and Commission Income', isTotal: true },
+            { key: 'isb28', label: 'Fee and Commission Income', indent: true },
+            { key: 'isb29', label: 'Fee and Commission Expenses', indent: true },
             { key: 'isb31', label: 'Net FX & Gold Gain/(Loss)' },
             { key: 'isb32', label: 'Net Gain from Trading Securities' },
             { key: 'isb33', label: 'Net Gain from Investment Securities' },
             { key: 'isb36', label: 'Net Other Operating Income' },
-            { key: 'isb37', label: 'Dividend Income' },
+            { key: 'isb34', label: 'Other Income', indent: true },
+            { key: 'isb35', label: 'Other Expenses', indent: true },
+            { key: 'isb37', label: 'Dividend Income', indent: true },
             { key: 'isb38', label: 'Total Operating Income', isTotal: true },
             { key: 'isb39', label: 'General and Admin Expenses' },
             { key: 'isb40', label: 'Operating Profit Before Provisions', isTotal: true },
             { key: 'isb41', label: 'Provision for Credit Losses' },
+            { key: 'isa16', label: 'Net Accounting Profit Before Tax', isTotal: true },
         ]
     },
     {
         title: 'Lợi nhuận',
         rows: [
-            { key: 'isa19', label: 'Corporate Income Tax' },
+            { key: 'isa19', label: 'Corporate Income Tax Expenses', isTotal: true },
+            { key: 'isa17', label: 'Business Income Tax - Current', indent: true },
+            { key: 'isa18', label: 'Business Income Tax - Deferred', indent: true },
             { key: 'isa20', label: 'Net Profit After Tax', isTotal: true },
             { key: 'isa21', label: 'Minority Interests' },
             { key: 'isa22', label: 'Net Profit (Parent)', isGrandTotal: true },
@@ -672,6 +677,10 @@ function SectionedTable({
     getRowLabel,
     getSectionTitle,
     divisor,
+    unitLabel,
+    showAllRows = false,
+    chronological = false,
+    showAllPeriods = false,
     lang = 'vi',
 }: {
     sections: { title: string; rows: { key: string; label: string; isTotal?: boolean; isGrandTotal?: boolean; isPct?: boolean; isMultiple?: boolean; indent?: boolean }[]; isPctSection?: boolean }[];
@@ -679,6 +688,10 @@ function SectionedTable({
     getRowLabel?: (key: string, fallback: string) => string;
     getSectionTitle?: (rawTitle: string) => string;
     divisor?: number;
+    unitLabel?: string;
+    showAllRows?: boolean;
+    chronological?: boolean;
+    showAllPeriods?: boolean;
     lang?: 'vi' | 'en';
 }) {
     const copy = translations[lang].financials;
@@ -687,20 +700,23 @@ function SectionedTable({
     }
 
     const sortedRows = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
-    const displayRows = sortedRows.slice(0, 8);
+    const recentRows = showAllPeriods ? sortedRows : sortedRows.slice(0, 8);
+    const displayRows = chronological ? [...recentRows].reverse() : recentRows;
 
     const getDisplayValue = (row: any, key: string, forcePct?: boolean, forceMultiple?: boolean): string => {
-        const v = Number(row[key]);
+        const rawValue = row[key];
+        if (rawValue === null || rawValue === undefined || rawValue === '') return '-';
+        const v = Number(rawValue);
         if (Number.isNaN(v)) return '-';
         if (forcePct) {
             if (Math.abs(v) < 0.0001) return '-';
             return fmtPct(v);
         }
         if (forceMultiple) {
-            if (Math.abs(v) < 0.001) return '-';
+            if (Math.abs(v) < 0.001) return showAllRows ? '0' : '-';
             return v % 1 === 0 ? v.toFixed(0) : v.toFixed(2);
         }
-        if (Math.abs(v) < 0.01) return '-';
+        if (Math.abs(v) < 0.01) return showAllRows ? '0' : '-';
         const effectiveDivisor = divisor ?? 1_000_000;
         return fmt(v / effectiveDivisor);
     };
@@ -710,8 +726,9 @@ function SectionedTable({
             <table className="min-w-[900px] w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                     <tr className="border-b border-gray-100 dark:border-slate-800">
-                        <th className="sticky left-0 z-10 min-w-[200px] bg-white px-4 py-2.5 text-left text-[12px] font-medium text-gray-500 dark:bg-[#111827] dark:text-slate-400">
-                            {copy.metric}
+                        <th className="sticky left-0 z-10 min-w-[230px] bg-white px-4 py-2.5 text-left text-[12px] font-medium text-gray-500 dark:bg-[#111827] dark:text-slate-400">
+                            <span>{copy.metric}</span>
+                            {unitLabel && <span className="ml-2 text-[10px] font-normal text-gray-400 dark:text-slate-500">{unitLabel}</span>}
                         </th>
                         {displayRows.map((row, i) => {
                             const { label, isForecast } = renderPeriod(row);
@@ -746,7 +763,7 @@ function SectionedTable({
                                     const v = Number(r[rowDef.key]);
                                     return !Number.isNaN(v) && Math.abs(v) > (isMultipleRow ? 0.001 : 0.01);
                                 });
-                                if (!hasData) return null;
+                                if (!hasData && !showAllRows) return null;
 
                                 const isGrandTotal = rowDef.isGrandTotal ?? false;
                                 const isTotal = rowDef.isTotal ?? false;
@@ -754,9 +771,11 @@ function SectionedTable({
                                 const isMultiple = (rowDef as any).isMultiple ?? false;
                                 const isIndented = rowDef.indent ?? false;
 
-                                const bgClass = isIndented
-                                    ? 'bg-gray-50 dark:bg-slate-800/40'
-                                    : 'bg-white dark:bg-[#111827]';
+                                const bgClass = isGrandTotal || isTotal
+                                    ? 'bg-slate-50 dark:bg-slate-800/50'
+                                    : isIndented
+                                        ? 'bg-gray-50/70 dark:bg-slate-800/25'
+                                        : 'bg-white dark:bg-[#111827]';
 
                                 return (
                                     <tr
@@ -1069,6 +1088,7 @@ export default function FinancialsTab({
         period === 'quarter' ? 'quarterly' : 'annual'
     );
     const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('billions');
+    const [showAllPeriods, setShowAllPeriods] = useState(false);
     const [overviewData, setOverviewData] = useState<any>(null);
     const [reportData, setReportData] = useState({
         income: [],
@@ -1170,6 +1190,7 @@ export default function FinancialsTab({
     // Keep parent period in sync when user changes mode
     const setDisplayMode = (m: DisplayMode) => {
         setDisplayModeState(m);
+        setShowAllPeriods(false);
         setPeriod?.(m === 'annual' ? 'year' : 'quarter');
     };
 
@@ -1223,6 +1244,14 @@ export default function FinancialsTab({
     const isBank = isBankStock(symbol, overviewData);
     const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Key Stats';
     const periodLabel = displayMode === 'annual' ? tFin.year : tFin.quarter;
+    const activeStatementRows = activeTab === 'income'
+        ? reportData.income
+        : activeTab === 'balance'
+            ? reportData.balance
+            : activeTab === 'cashflow'
+                ? reportData.cashflow
+                : [];
+    const canShowAllPeriods = activeStatementRows.length > 8;
 
     return (
         <div className="space-y-3">
@@ -1235,6 +1264,17 @@ export default function FinancialsTab({
                     <PillDropdown label={periodLabel}>
                         {([['annual', tFin.year], ['quarterly', tFin.quarter]] as [DisplayMode, string][]).map(([mode, label]) => <PillDropdownItem key={mode} active={displayMode === mode} onClick={() => setDisplayMode(mode)}>{label}</PillDropdownItem>)}
                     </PillDropdown>
+                    {canShowAllPeriods && (
+                        <button
+                            type="button"
+                            onClick={() => setShowAllPeriods(value => !value)}
+                            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
+                        >
+                            {showAllPeriods
+                                ? (lang === 'vi' ? 'Thu gọn' : 'Show recent')
+                                : (lang === 'vi' ? 'Xem toàn bộ' : 'Show all')}
+                        </button>
+                    )}
                     <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={tFin.displayUnit} />
                     {onDownloadExcel && <button onClick={onDownloadExcel} title={tFin.downloadExcel} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>}
                 </div>
@@ -1266,6 +1306,12 @@ export default function FinancialsTab({
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                unitLabel={displayUnit === 'billions'
+                                    ? (lang === 'vi' ? 'Đơn vị: tỷ VND' : 'Unit: VND bn')
+                                    : (lang === 'vi' ? 'Đơn vị: nghìn tỷ VND' : 'Unit: VND tn')}
+                                showAllRows={isBank}
+                                chronological={isBank && displayMode === 'annual'}
+                                showAllPeriods={showAllPeriods}
                                 lang={lang}
                             />
                         )}
@@ -1278,6 +1324,7 @@ export default function FinancialsTab({
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                showAllPeriods={showAllPeriods}
                                 lang={lang}
                             />
                         )}
@@ -1290,6 +1337,7 @@ export default function FinancialsTab({
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                showAllPeriods={showAllPeriods}
                                 lang={lang}
                             />
                         )}

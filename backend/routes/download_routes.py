@@ -32,6 +32,27 @@ FINANCIAL_META_COLUMNS = {
     "ticker", "period_kind", "year_report", "quarter_report", "length_report",
     "public_date", "create_date", "update_date", "fetched_at",
 }
+FINANCIAL_METADATA_HEADERS = [
+    "Mã cổ phiếu", "Loại kỳ", "Năm", "Quý", "Kỳ tính (tháng)", "Ngày công bố",
+]
+BANK_SYMBOLS = {
+    "VCB", "BID", "CTG", "TCB", "MBB", "ACB", "VPB", "HDB", "SHB", "STB",
+    "TPB", "LPB", "MSB", "OCB", "EIB", "ABB", "NAB", "PGB", "VAB", "VIB",
+    "SSB", "BAB", "KLB", "BVB", "KBS", "SGB", "NVB",
+}
+# Vietcap's standard income-statement hierarchy for banks. The order matches the
+# Financials tab, while zero-only fields are still excluded per export scope.
+BANK_INCOME_FIELDS = (
+    "isb27", "isb25", "isb26", "isb30", "isb28", "isb29", "isb31", "isb32",
+    "isb33", "isb36", "isb34", "isb35", "isb37", "isb38", "isb39", "isb40",
+    "isb41", "isa16", "isa19", "isa17", "isa18", "isa20", "isa21", "isa22",
+    "isa23", "isa24",
+)
+
+
+def _quote_identifier(identifier: str) -> str:
+    """Quote SQLite identifiers derived from a table schema."""
+    return f'"{identifier.replace(chr(34), chr(34) * 2)}"'
 
 
 def _financial_labels() -> dict[str, str]:
@@ -48,6 +69,24 @@ def _financial_labels() -> dict[str, str]:
             if field and title and title.upper() != field.upper():
                 labels[field] = title
     return labels
+
+
+def _database_financial_labels(connection: sqlite3.Connection) -> dict[str, str]:
+    """Use stored mapping labels for fields not covered by the static VCI map."""
+    try:
+        rows = connection.execute(
+            """
+            SELECT field, COALESCE(NULLIF(full_title_en, ''), NULLIF(title_en, ''), NULLIF(name, ''))
+            FROM statement_metrics
+            """
+        )
+        return {
+            str(field).lower(): str(label).strip()
+            for field, label in rows
+            if field and label and str(label).strip().lower() != str(field).strip().lower()
+        }
+    except sqlite3.Error:
+        return {}
 
 
 def _selected_market_tickers() -> list[str]:
@@ -131,9 +170,51 @@ def _is_empty_financial_value(value: object) -> bool:
     return value == 0
 
 
+def _visible_financial_fields(
+    connection: sqlite3.Connection,
+    table: str,
+    fields: list[str],
+    period_clause: str,
+    period_params: list[int | str],
+) -> list[str]:
+    """Keep only columns that contain at least one non-zero value in this export."""
+    if not fields:
+        return []
+    checks = ", ".join(
+        f"MAX(CASE WHEN f.{_quote_identifier(field)} IS NOT NULL "
+        f"AND f.{_quote_identifier(field)} != 0 THEN 1 ELSE 0 END)"
+        for field in fields
+    )
+    row = connection.execute(
+        f"SELECT {checks} FROM {table} f "
+        f"JOIN selected_financial_tickers t ON t.ticker = f.ticker "
+        f"WHERE {period_clause}",
+        period_params,
+    ).fetchone()
+    return [field for field, has_value in zip(fields, row or ()) if has_value]
+
+
+def _all_selected_tickers_are_banks(connection: sqlite3.Connection) -> bool:
+    tickers = [row[0] for row in connection.execute("SELECT ticker FROM selected_financial_tickers")]
+    return bool(tickers) and all(str(ticker).upper() in BANK_SYMBOLS for ticker in tickers)
+
+
+def _export_fields(connection: sqlite3.Connection, table: str, period_clause: str, period_params: list[int | str]) -> list[str]:
+    fields = [
+        row[1] for row in connection.execute(f"PRAGMA table_info({table})")
+        if row[1] not in FINANCIAL_META_COLUMNS
+    ]
+    if table == "income_statement" and _all_selected_tickers_are_banks(connection):
+        available = set(fields)
+        # Preserve the official bank template (including legitimate zeroes such
+        # as diluted EPS) instead of treating its standard variables as noise.
+        return [field for field in BANK_INCOME_FIELDS if field in available]
+    return _visible_financial_fields(connection, table, fields, period_clause, period_params)
+
+
 def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: list[str], labels: dict[str, str], period_clause: str, period_params: list[int | str], output: io.TextIOBase) -> int:
     writer = csv.writer(output)
-    metadata = ["ticker", "period_kind", "year_report", "quarter_report", "length_report", "public_date"]
+    metadata = FINANCIAL_METADATA_HEADERS
     if table == "note":
         writer.writerow(metadata + ["field_code", "field_name_en", "value"])
     else:
@@ -141,7 +222,7 @@ def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: lis
     params = list(period_params)
     sql = (
         f"SELECT f.ticker, f.period_kind, f.year_report, f.quarter_report, f.length_report, "
-        f"COALESCE(f.public_date, ''), {', '.join(f'f.{field}' for field in fields)} "
+        f"COALESCE(f.public_date, ''), {', '.join(f'f.{_quote_identifier(field)}' for field in fields)} "
         f"FROM {table} f JOIN selected_financial_tickers t ON t.ticker = f.ticker WHERE {period_clause} "
         "ORDER BY f.ticker, f.year_report, f.quarter_report"
     )
@@ -175,6 +256,7 @@ def financial_bulk_export():
         db_path = resolve_vci_financial_statement_db_path()
         connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         try:
+            labels = {**_database_financial_labels(connection), **labels}
             connection.execute("CREATE TEMP TABLE selected_financial_tickers (ticker TEXT PRIMARY KEY)")
             connection.executemany("INSERT INTO selected_financial_tickers(ticker) VALUES (?)", [(ticker,) for ticker in tickers])
             requested_format = (request.args.get("format") or "csv").lower()
@@ -195,7 +277,7 @@ def financial_bulk_export():
                 workbook = Workbook(write_only=True)
                 for _, table, sheet_name in selected_tables:
                     worksheet = workbook.create_sheet(sheet_name[:31])
-                    fields = [row[1] for row in connection.execute(f"PRAGMA table_info({table})") if row[1] not in FINANCIAL_META_COLUMNS]
+                    fields = _export_fields(connection, table, period_clause, period_params)
                     csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
                     temporary_paths.append(csv_path)
                     with open(csv_path, "w", encoding="utf-8", newline="") as handle:
@@ -211,7 +293,7 @@ def financial_bulk_export():
                 temporary_paths.append(output_path)
                 with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
                     for _, table, filename in selected_tables:
-                        fields = [row[1] for row in connection.execute(f"PRAGMA table_info({table})") if row[1] not in FINANCIAL_META_COLUMNS]
+                        fields = _export_fields(connection, table, period_clause, period_params)
                         csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
                         temporary_paths.append(csv_path)
                         with open(csv_path, "w", encoding="utf-8-sig", newline="") as handle:
