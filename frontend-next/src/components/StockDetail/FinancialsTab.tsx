@@ -680,7 +680,6 @@ function SectionedTable({
     unitLabel,
     showAllRows = false,
     chronological = false,
-    showAllPeriods = false,
     lang = 'vi',
 }: {
     sections: { title: string; rows: { key: string; label: string; isTotal?: boolean; isGrandTotal?: boolean; isPct?: boolean; isMultiple?: boolean; indent?: boolean }[]; isPctSection?: boolean }[];
@@ -691,7 +690,6 @@ function SectionedTable({
     unitLabel?: string;
     showAllRows?: boolean;
     chronological?: boolean;
-    showAllPeriods?: boolean;
     lang?: 'vi' | 'en';
 }) {
     const copy = translations[lang].financials;
@@ -700,8 +698,7 @@ function SectionedTable({
     }
 
     const sortedRows = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
-    const recentRows = showAllPeriods ? sortedRows : sortedRows.slice(0, 8);
-    const displayRows = chronological ? [...recentRows].reverse() : recentRows;
+    const displayRows = chronological ? [...sortedRows].reverse() : sortedRows;
 
     const getDisplayValue = (row: any, key: string, forcePct?: boolean, forceMultiple?: boolean): string => {
         const rawValue = row[key];
@@ -1088,7 +1085,6 @@ export default function FinancialsTab({
         period === 'quarter' ? 'quarterly' : 'annual'
     );
     const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('billions');
-    const [showAllPeriods, setShowAllPeriods] = useState(false);
     const [overviewData, setOverviewData] = useState<any>(null);
     const [reportData, setReportData] = useState({
         income: [],
@@ -1190,7 +1186,6 @@ export default function FinancialsTab({
     // Keep parent period in sync when user changes mode
     const setDisplayMode = (m: DisplayMode) => {
         setDisplayModeState(m);
-        setShowAllPeriods(false);
         setPeriod?.(m === 'annual' ? 'year' : 'quarter');
     };
 
@@ -1244,14 +1239,6 @@ export default function FinancialsTab({
     const isBank = isBankStock(symbol, overviewData);
     const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Key Stats';
     const periodLabel = displayMode === 'annual' ? tFin.year : tFin.quarter;
-    const activeStatementRows = activeTab === 'income'
-        ? reportData.income
-        : activeTab === 'balance'
-            ? reportData.balance
-            : activeTab === 'cashflow'
-                ? reportData.cashflow
-                : [];
-    const canShowAllPeriods = activeStatementRows.length > 8;
 
     return (
         <div className="space-y-3">
@@ -1264,17 +1251,6 @@ export default function FinancialsTab({
                     <PillDropdown label={periodLabel}>
                         {([['annual', tFin.year], ['quarterly', tFin.quarter]] as [DisplayMode, string][]).map(([mode, label]) => <PillDropdownItem key={mode} active={displayMode === mode} onClick={() => setDisplayMode(mode)}>{label}</PillDropdownItem>)}
                     </PillDropdown>
-                    {canShowAllPeriods && (
-                        <button
-                            type="button"
-                            onClick={() => setShowAllPeriods(value => !value)}
-                            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:text-blue-300"
-                        >
-                            {showAllPeriods
-                                ? (lang === 'vi' ? 'Thu gọn' : 'Show recent')
-                                : (lang === 'vi' ? 'Xem toàn bộ' : 'Show all')}
-                        </button>
-                    )}
                     <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={tFin.displayUnit} />
                     {onDownloadExcel && <button onClick={onDownloadExcel} title={tFin.downloadExcel} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>}
                 </div>
@@ -1311,7 +1287,6 @@ export default function FinancialsTab({
                                     : (lang === 'vi' ? 'Đơn vị: nghìn tỷ VND' : 'Unit: VND tn')}
                                 showAllRows={isBank}
                                 chronological={isBank && displayMode === 'annual'}
-                                showAllPeriods={showAllPeriods}
                                 lang={lang}
                             />
                         )}
@@ -1324,7 +1299,6 @@ export default function FinancialsTab({
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
-                                showAllPeriods={showAllPeriods}
                                 lang={lang}
                             />
                         )}
@@ -1337,7 +1311,6 @@ export default function FinancialsTab({
                                 getRowLabel={rowLabel}
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
-                                showAllPeriods={showAllPeriods}
                                 lang={lang}
                             />
                         )}
