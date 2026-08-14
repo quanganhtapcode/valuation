@@ -693,12 +693,16 @@ function SectionedTable({
     lang?: 'vi' | 'en';
 }) {
     const copy = translations[lang].financials;
+    const [mobilePeriodKey, setMobilePeriodKey] = useState('');
     if (!rows || rows.length === 0) {
         return <div className="text-center py-8 text-gray-400 text-sm">{copy.noData}</div>;
     }
 
     const sortedRows = [...rows].sort((a, b) => periodSortKey(b) - periodSortKey(a));
     const displayRows = chronological ? [...sortedRows].reverse() : sortedRows;
+    const periodKey = (row: any) => `${row?.year ?? row?.year_report ?? ''}-${row?.quarter ?? row?.quarter_report ?? 0}`;
+    const latestMobileRow = [...displayRows].sort((a, b) => periodSortKey(b) - periodSortKey(a))[0];
+    const mobileRow = displayRows.find(row => periodKey(row) === mobilePeriodKey) ?? latestMobileRow ?? displayRows[0];
 
     const getDisplayValue = (row: any, key: string, forcePct?: boolean, forceMultiple?: boolean): string => {
         const rawValue = row[key];
@@ -719,13 +723,64 @@ function SectionedTable({
     };
 
     return (
-        <div className="-mx-4">
-            <div className="flex items-center justify-end gap-1 px-4 pb-1 text-[10px] text-gray-400 dark:text-slate-500 md:hidden">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /><path d="M3 12h12" /></svg>
-                Vuốt ngang để xem các kỳ
+        <>
+            <div className="space-y-2 px-1 pb-1 md:hidden">
+                <div className="flex items-center justify-between gap-3 px-3 pt-2">
+                    <span className="text-xs text-gray-400 dark:text-slate-500">{unitLabel}</span>
+                    {mobileRow && (
+                        <label className="sr-only" htmlFor="financial-mobile-period">Kỳ báo cáo</label>
+                    )}
+                    {mobileRow && (
+                        <select
+                            id="financial-mobile-period"
+                            value={mobilePeriodKey || periodKey(mobileRow)}
+                            onChange={event => setMobilePeriodKey(event.target.value)}
+                            className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-800 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        >
+                            {displayRows.map(row => <option key={periodKey(row)} value={periodKey(row)}>{renderPeriod(row).label}</option>)}
+                        </select>
+                    )}
+                </div>
+                {sections.map((section, sectionIdx) => (
+                    <React.Fragment key={`mobile-${sectionIdx}`}>
+                        <div className="border-y border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/40">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{getSectionTitle ? getSectionTitle(section.title) : section.title}</span>
+                        </div>
+                        {section.rows.map((rowDef, rowIdx) => {
+                            const isMultiple = rowDef.isMultiple ?? false;
+                            const hasData = displayRows.some(row => {
+                                const value = row[rowDef.key];
+                                return value !== null && value !== undefined && value !== '' && Math.abs(Number(value)) > (isMultiple ? 0.001 : 0.01);
+                            });
+                            if (!hasData && !showAllRows) return null;
+                            const isTotal = rowDef.isTotal ?? false;
+                            const isGrandTotal = rowDef.isGrandTotal ?? false;
+                            const isIndented = rowDef.indent ?? false;
+                            const isPct = rowDef.isPct ?? section.isPctSection ?? false;
+                            const label = getRowLabel ? getRowLabel(rowDef.key, rowDef.label) : rowDef.label;
+                            return (
+                                <div key={`mobile-${sectionIdx}-${rowIdx}`} className={cx(
+                                    'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gray-100 px-3 py-3 dark:border-slate-800/60',
+                                    isGrandTotal || isTotal ? 'bg-slate-50 dark:bg-slate-800/50' : '',
+                                )}>
+                                    <span className={cx(
+                                        'min-w-0 text-sm leading-5 text-gray-700 dark:text-slate-300',
+                                        isTotal || isGrandTotal ? 'font-semibold text-gray-900 dark:text-white' : '',
+                                        isIndented ? 'pl-4 italic text-gray-500 dark:text-slate-400' : '',
+                                    )}>{label}</span>
+                                    <span className={cx(
+                                        'whitespace-nowrap text-right text-sm tabular-nums text-gray-800 dark:text-slate-100',
+                                        isTotal || isGrandTotal ? 'font-semibold' : '',
+                                    )}>{mobileRow ? getDisplayValue(mobileRow, rowDef.key, isPct, isMultiple) : '-'}</span>
+                                </div>
+                            );
+                        })}
+                    </React.Fragment>
+                ))}
             </div>
-            <div className="overflow-x-auto overscroll-x-contain">
-            <table className="min-w-[620px] w-full text-[13px] md:min-w-[900px]" style={{ borderCollapse: 'collapse' }}>
+            <div className="hidden md:block -mx-4">
+                <div className="overflow-x-auto overscroll-x-contain">
+                    <table className="min-w-[620px] w-full text-[13px] md:min-w-[900px]" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                     <tr className="border-b border-gray-100 dark:border-slate-800">
                         <th className="sticky left-0 z-10 w-[208px] min-w-[208px] max-w-[208px] bg-white px-3 py-2.5 text-left text-[12px] font-medium text-gray-500 dark:bg-[#111827] dark:text-slate-400 md:min-w-[230px] md:max-w-none md:px-4">
@@ -814,9 +869,10 @@ function SectionedTable({
                         </React.Fragment>
                     ))}
                 </tbody>
-            </table>
+                    </table>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
 
