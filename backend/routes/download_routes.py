@@ -8,6 +8,7 @@ import json
 import sqlite3
 import tempfile
 import zipfile
+from functools import lru_cache
 from collections import defaultdict
 from functools import wraps
 from datetime import datetime
@@ -54,6 +55,26 @@ NORMAL_INCOME_FIELDS = (
     "isa16", "isa19", "isa17", "isa18", "isa20", "isa21", "isa22", "isa23",
     "isa24",
 )
+BANK_BALANCE_FIELDS = (
+    "bsa53",
+    *(f"bsb{code}" for code in range(97, 111)),
+    "bsa43", "bsa44", "bsa45", "bsa46", "bsa47",
+    "bsa29", "bsa30", "bsa31", "bsa32", "bsa33", "bsa34", "bsa35",
+    "bsa36", "bsa37", "bsa38", "bsa40", "bsa41", "bsa42",
+    "bsa49", "bsa50", "bsa51", "bsa52",
+    "bsa54",
+    *(f"bsb{code}" for code in range(111, 118)),
+    "bsa78", *(f"bsb{code}" for code in range(118, 122)),
+    "bsa80", "bsa81", "bsa82", "bsa83", "bsa84", "bsa85", "bsa90",
+    "bsa210", "bsa96",
+)
+BANK_CASH_FLOW_FIELDS = (
+    *(f"cfb{code}" for code in range(75, 82)), "cfb106",
+    "cfa43", "cfa9",
+    *(f"cfb{code}" for code in range(48, 65)), "cfa18",
+    "cfa19", "cfa20", "cfb67", "cfb68", "cfb69", "cfa23", "cfa24", "cfa25", "cfa26",
+    "cfa27", "cfa28", "cfa29", "cfa30", "cfa31", "cfa32", "cfa34", "cfa35", "cfa36", "cfa37", "cfa38",
+)
 
 
 def _quote_identifier(identifier: str) -> str:
@@ -75,6 +96,21 @@ def _financial_labels() -> dict[str, str]:
             if field and title and title.upper() != field.upper():
                 labels[field] = title
     return labels
+
+
+@lru_cache(maxsize=1)
+def _vietcap_field_order() -> dict[str, list[str]]:
+    """Read the same statement-field ordering used by Vietcap's workbooks."""
+    path = PROJECT_ROOT / "fetch_sqlite" / "vci_field_codes.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {
+        section: [str(entry.get("field") or "").lower() for entry in entries if entry.get("field")]
+        for section, entries in payload.items()
+        if isinstance(entries, list)
+    }
 
 
 def _database_financial_labels(connection: sqlite3.Connection) -> dict[str, str]:
@@ -223,24 +259,33 @@ def _export_fields(connection: sqlite3.Connection, table: str, period_clause: st
         # Match the original Vietcap workbook: show its canonical income rows,
         # including legitimate zeroes such as diluted EPS.
         return [field for field in template if field in available]
+    if len(selected_tickers) == 1 and table in {"balance_sheet", "cash_flow"}:
+        is_bank = _all_selected_tickers_are_banks(connection)
+        if table == "balance_sheet":
+            official_order = BANK_BALANCE_FIELDS if is_bank else _vietcap_field_order().get("BALANCE_SHEET", [])
+        else:
+            official_order = BANK_CASH_FLOW_FIELDS if is_bank else _vietcap_field_order().get("CASH_FLOW", [])
+        visible = set(_visible_financial_fields(connection, table, fields, period_clause, period_params))
+        return [field for field in official_order if field in visible and field in fields]
     return _visible_financial_fields(connection, table, fields, period_clause, period_params)
 
 
-def _write_single_ticker_income_csv(
+def _write_single_ticker_statement_csv(
     connection: sqlite3.Connection,
+    table: str,
     fields: list[str],
     labels: dict[str, str],
     period_clause: str,
     period_params: list[int | str],
     output: io.TextIOBase,
 ) -> int:
-    """Write Income Statement in the row-oriented layout of Vietcap's workbook."""
+    """Write a statement in the row-oriented layout of Vietcap's workbook."""
     ticker = _selected_financial_tickers(connection)[0]
     quoted_fields = ", ".join(f'f.{_quote_identifier(field)}' for field in fields)
     rows = connection.execute(
         f"""
         SELECT f.year_report, f.quarter_report, {quoted_fields}
-        FROM income_statement f
+        FROM {table} f
         WHERE f.ticker = ? AND {period_clause}
         ORDER BY CASE f.period_kind WHEN 'YEAR' THEN 0 ELSE 1 END,
                  f.year_report, f.quarter_report
@@ -270,9 +315,9 @@ def _write_single_ticker_income_csv(
 
 
 def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: list[str], labels: dict[str, str], period_clause: str, period_params: list[int | str], output: io.TextIOBase) -> int:
-    if table == "income_statement" and len(_selected_financial_tickers(connection)) == 1:
-        return _write_single_ticker_income_csv(
-            connection, fields, labels, period_clause, period_params, output,
+    if table in {"income_statement", "balance_sheet", "cash_flow"} and len(_selected_financial_tickers(connection)) == 1:
+        return _write_single_ticker_statement_csv(
+            connection, table, fields, labels, period_clause, period_params, output,
         )
     writer = csv.writer(output)
     metadata = FINANCIAL_METADATA_HEADERS
