@@ -1272,11 +1272,11 @@ export default function FinancialsTab({
         });
 
         Promise.allSettled([
-            fetch(`/api/stock/${symbol}/financial-report?type=income&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report?type=balance&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report?type=cashflow&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report?type=ratio&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report?type=note&period=${effectivePeriod}&limit=40`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=income&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=balance&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=cashflow&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=ratio&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
+            fetch(`/api/stock/${symbol}/financial-report?type=note&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
         ]).then(([income, balance, cashflow, ratio, notes]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
