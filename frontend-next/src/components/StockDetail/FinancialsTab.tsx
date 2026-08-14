@@ -719,18 +719,23 @@ function SectionedTable({
     };
 
     return (
-        <div className="overflow-x-auto -mx-4">
-            <table className="min-w-[900px] w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
+        <div className="-mx-4">
+            <div className="flex items-center justify-end gap-1 px-4 pb-1 text-[10px] text-gray-400 dark:text-slate-500 md:hidden">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /><path d="M3 12h12" /></svg>
+                Vuốt ngang để xem các kỳ
+            </div>
+            <div className="overflow-x-auto overscroll-x-contain">
+            <table className="min-w-[620px] w-full text-[13px] md:min-w-[900px]" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                     <tr className="border-b border-gray-100 dark:border-slate-800">
-                        <th className="sticky left-0 z-10 min-w-[230px] bg-white px-4 py-2.5 text-left text-[12px] font-medium text-gray-500 dark:bg-[#111827] dark:text-slate-400">
+                        <th className="sticky left-0 z-10 w-[208px] min-w-[208px] max-w-[208px] bg-white px-3 py-2.5 text-left text-[12px] font-medium text-gray-500 dark:bg-[#111827] dark:text-slate-400 md:min-w-[230px] md:max-w-none md:px-4">
                             <span>{copy.metric}</span>
                             {unitLabel && <span className="ml-2 text-[10px] font-normal text-gray-400 dark:text-slate-500">{unitLabel}</span>}
                         </th>
                         {displayRows.map((row, i) => {
                             const { label, isForecast } = renderPeriod(row);
                             return (
-                                <th key={i} className={cx('min-w-[100px] px-4 py-2.5 text-right text-[12px] font-medium text-gray-500 dark:text-slate-400', i === 0 ? 'text-blue-600 dark:text-blue-400' : '')}>
+                                <th key={i} className={cx('min-w-[104px] px-3 py-2.5 text-right text-[12px] font-medium text-gray-500 dark:text-slate-400 md:px-4', i === 0 ? 'text-blue-600 dark:text-blue-400' : '')}>
                                     <span className="inline-flex items-center justify-end gap-1">
                                         {label}
                                         {isForecast && (
@@ -774,6 +779,8 @@ function SectionedTable({
                                         ? 'bg-gray-50/70 dark:bg-slate-800/25'
                                         : 'bg-white dark:bg-[#111827]';
 
+                                const label = getRowLabel ? getRowLabel(rowDef.key, rowDef.label) : rowDef.label;
+
                                 return (
                                     <tr
                                         key={`${sectionIdx}-${rowIdx}`}
@@ -783,18 +790,18 @@ function SectionedTable({
                                         )}
                                     >
                                         <td className={cx(
-                                            'sticky left-0 z-10 px-4 py-2.5 whitespace-nowrap',
+                                            'sticky left-0 z-10 w-[208px] min-w-[208px] max-w-[208px] px-3 py-2.5 md:min-w-[230px] md:max-w-none md:px-4',
                                             bgClass,
                                             isGrandTotal ? 'font-semibold text-gray-900 dark:text-white' : '',
                                             isTotal ? 'font-medium text-gray-800 dark:text-slate-100' : '',
                                             !isTotal && !isGrandTotal ? 'text-gray-700 dark:text-slate-300' : '',
                                             isIndented ? 'pl-8 italic text-gray-500 dark:text-slate-400' : '',
                                         )}>
-                                            {getRowLabel ? getRowLabel(rowDef.key, rowDef.label) : rowDef.label}
+                                            <span className="block truncate md:whitespace-nowrap" title={label}>{label}</span>
                                         </td>
                                         {displayRows.map((row, i) => (
                                             <td key={i} className={cx(
-                                                'px-4 py-2.5 text-right tabular-nums whitespace-nowrap',
+                                                'min-w-[104px] px-3 py-2.5 text-right tabular-nums whitespace-nowrap md:px-4',
                                                 bgClass,
                                                 isGrandTotal ? 'font-semibold text-gray-900 dark:text-white' : i === 0 ? 'text-gray-800 dark:text-slate-100' : 'text-gray-700 dark:text-slate-300',
                                             )}>
@@ -808,6 +815,7 @@ function SectionedTable({
                     ))}
                 </tbody>
             </table>
+            </div>
         </div>
     );
 }
