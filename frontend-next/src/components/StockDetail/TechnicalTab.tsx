@@ -5,6 +5,7 @@ import { formatNumber } from '@/lib/api';
 import { useLanguage } from '@/lib/languageContext';
 import { fetchCurrentPrice } from '@/lib/stockApi';
 import { translations } from '@/lib/translations';
+import { StockTabDropdown } from './StockTabControls';
 
 type TechnicalTimeframe = 'ONE_HOUR' | 'ONE_DAY' | 'ONE_WEEK';
 
@@ -390,29 +391,24 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
-                        {TIMEFRAMES.map((frame) => {
-                            const isActive = frame === activeFrame;
-                            const snapshot = snapshots[frame];
-                            return (
-                                <button
-                                    key={frame}
-                                    type="button"
-                                    onClick={() => setActiveFrame(frame)}
-                                    className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-                                        isActive
-                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400/50 dark:bg-emerald-500/10 dark:text-emerald-300'
-                                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                                    }`}
-                                >
-                                    {TIMEFRAME_LABELS[frame]}
-                                    {snapshot?.data?.gaugeSummary?.rating ? (
-                                        <span className="ml-1.5 text-[10px] font-medium opacity-80">
-                                            {snapshot.data.gaugeSummary.rating.replaceAll('_', ' ')}
-                                        </span>
-                                    ) : null}
-                                </button>
-                            );
+                    <StockTabDropdown
+                        label={TIMEFRAME_LABELS[activeFrame]}
+                        value={activeFrame}
+                        onChange={(frame) => setActiveFrame(frame as TechnicalTimeframe)}
+                        options={TIMEFRAMES.map((frame) => {
+                            const rating = snapshots[frame]?.data?.gaugeSummary?.rating;
+                            return {
+                                id: frame,
+                                label: (
+                                    <span className="flex items-center justify-between gap-3">
+                                        {TIMEFRAME_LABELS[frame]}
+                                        {rating ? <span className="text-[10px] capitalize opacity-70">{rating.replaceAll('_', ' ')}</span> : null}
+                                    </span>
+                                ),
+                            };
                         })}
+                        ariaLabel="Technical analysis timeframe"
+                    />
                 </div>
             </div>
 

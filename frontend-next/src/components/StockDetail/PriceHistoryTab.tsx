@@ -6,6 +6,7 @@ import { formatNumber } from '@/lib/api';
 import type { PriceData } from '@/lib/types';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
+import { DownloadIcon, StockTabDropdown, StockTabIconButton } from './StockTabControls';
 
 interface PriceHistoryTabProps {
     symbol: string;
@@ -21,7 +22,7 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [period, setPeriod] = useState<PeriodType>('1Y'); // visual (instant)
     const [deferredPeriod, setDeferredPeriod] = useState<PeriodType>('1Y'); // table filter (deferred)
-    const [isPending, startTransition] = useTransition();
+    const [, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
@@ -123,43 +124,12 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
                     </p>
                 </div>
                 {/* Toolbar */}
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <div className="flex items-center gap-0">
-                        {periodButtons.map((item, index) => (
-                            <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => handlePeriodChange(item.id)}
-                                className={[
-                                    'border border-tremor-border px-3 py-1.5 text-sm font-medium focus:z-10 focus:outline-none transition-colors dark:border-dark-tremor-border',
-                                    index === 0 ? 'rounded-l-tremor-small' : '-ml-px',
-                                    index === periodButtons.length - 1 ? 'rounded-r-tremor-small' : '',
-                                    period === item.id
-                                        ? 'bg-tremor-brand-muted text-tremor-brand dark:bg-dark-tremor-brand-muted dark:text-dark-tremor-brand font-bold'
-                                        : 'bg-white text-tremor-content-strong hover:bg-tremor-background-muted dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong hover:dark:bg-gray-950/50',
-                                    isPending && deferredPeriod !== item.id && period === item.id ? 'opacity-75' : '',
-                                ].join(' ')}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                        <StockTabDropdown label={period} value={period} onChange={(value) => handlePeriodChange(value as PeriodType)} options={periodButtons} ariaLabel="Price history period" />
+                        <StockTabIconButton onClick={handleDownload} title={copy.exportCsv}>
+                            <DownloadIcon />
+                        </StockTabIconButton>
                     </div>
-
-                    {/* Download Button */}
-                    <button
-                        type="button"
-                        onClick={handleDownload}
-                        className="inline-flex items-center justify-center gap-2 rounded-tremor-small border border-tremor-border bg-white px-3 py-2 text-tremor-default font-medium text-tremor-content-strong shadow-sm hover:bg-tremor-background-muted dark:border-dark-tremor-border dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong"
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                        <span className="hidden sm:inline">{copy.exportCsv}</span>
-                        <span className="sm:hidden">CSV</span>
-                    </button>
-                </div>
             </div>
 
             {/* Data table */}

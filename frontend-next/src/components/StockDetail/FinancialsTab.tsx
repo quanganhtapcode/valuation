@@ -7,6 +7,7 @@ import { useLanguage } from "@/lib/languageContext"
 import { translations } from "@/lib/translations"
 import { getFieldCodes } from "@/lib/fieldCodesCache"
 import ValuationHistoryChart from './ValuationHistoryChart'
+import { DownloadIcon, StockTabDropdown, StockTabIconButton } from './StockTabControls'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -584,33 +585,6 @@ const NOTE_LABELS_EN: Record<string, string> = {
     nob88: 'Interest income from customer loans', nob89: 'Interest income from deposits', nob90: 'Interest income from debt securities', nob87: 'Total interest income',
     nob96: 'Interest expense on deposits', nob97: 'Interest expense on borrowings', nob98: 'Interest expense on bonds', nob95: 'Total interest expense',
 };
-
-function PillDropdown({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const onClickOutside = (event: MouseEvent) => {
-            if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
-        };
-        if (open) document.addEventListener('mousedown', onClickOutside);
-        return () => document.removeEventListener('mousedown', onClickOutside);
-    }, [open]);
-
-    return (
-        <div ref={ref} className="relative">
-            <button onClick={() => setOpen(value => !value)} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-                {label}
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0 text-gray-400"><polyline points="6 9 12 15 18 9" /></svg>
-            </button>
-            {open && <div className="absolute left-0 top-full z-50 mt-1.5 min-w-[160px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">{children}</div>}
-        </div>
-    );
-}
-
-function PillDropdownItem({ active, onClick, children }: { active?: boolean; onClick: () => void; children: React.ReactNode }) {
-    return <button onClick={onClick} className={cx('w-full px-3 py-2 text-left text-[13px] transition-colors', active ? 'bg-gray-100 font-medium text-gray-900 dark:bg-slate-700 dark:text-white' : 'text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-700/60')}>{children}</button>;
-}
 
 // ── Settings Popover ──────────────────────────────────────────────────────────
 
@@ -1309,14 +1283,10 @@ export default function FinancialsTab({
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
                 <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{tFin.title}</h3>
                 <div className="flex flex-wrap items-center gap-2">
-                    <PillDropdown label={activeTabLabel}>
-                        {TABS.map(tab => <PillDropdownItem key={tab.id} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>{tab.label}</PillDropdownItem>)}
-                    </PillDropdown>
-                    <PillDropdown label={periodLabel}>
-                        {([['annual', tFin.year], ['quarterly', tFin.quarter]] as [DisplayMode, string][]).map(([mode, label]) => <PillDropdownItem key={mode} active={displayMode === mode} onClick={() => setDisplayMode(mode)}>{label}</PillDropdownItem>)}
-                    </PillDropdown>
+                    <StockTabDropdown label={activeTabLabel} value={activeTab} onChange={(tab) => setActiveTab(tab as ReportType)} options={TABS} ariaLabel={tFin.title} />
+                    <StockTabDropdown label={periodLabel} value={displayMode} onChange={(mode) => setDisplayMode(mode as DisplayMode)} options={[{ id: 'annual', label: tFin.year }, { id: 'quarterly', label: tFin.quarter }]} ariaLabel={tFin.year} />
                     <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={tFin.displayUnit} />
-                    {onDownloadExcel && <button onClick={onDownloadExcel} title={tFin.downloadExcel} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>}
+                    {onDownloadExcel && <StockTabIconButton onClick={onDownloadExcel} title={tFin.downloadExcel}><DownloadIcon /></StockTabIconButton>}
                 </div>
             </div>
 

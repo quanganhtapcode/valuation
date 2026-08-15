@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { API_BASE } from '@/lib/api';
+import { DownloadIcon, StockTabDropdown, StockTabIconButton } from './StockTabControls';
 
 type HolderView = 'institutional' | 'individuals';
 
@@ -190,21 +191,20 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         <div className="space-y-4">
             <div className="rounded-tremor-default border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
                 <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setActiveView('institutional')}
-                            className={`rounded-full px-3 py-1 text-sm ${activeView === 'institutional' ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
-                        >
-                            Institutional ({institutional.length})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveView('individuals')}
-                            className={`rounded-full px-3 py-1 text-sm ${activeView === 'individuals' ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
-                        >
-                            Regular Shareholders ({individuals.length})
-                        </button>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <StockTabDropdown
+                            label={activeView === 'institutional' ? `Institutional (${institutional.length})` : `Regular Shareholders (${individuals.length})`}
+                            value={activeView}
+                            onChange={(view) => setActiveView(view as HolderView)}
+                            options={[
+                                { id: 'institutional', label: `Institutional (${institutional.length})` },
+                                { id: 'individuals', label: `Regular Shareholders (${individuals.length})` },
+                            ]}
+                            ariaLabel="Shareholder type"
+                        />
+                        <StockTabIconButton onClick={downloadCsv} title="Download all shareholders" disabled={allRowsForDownload.length === 0}>
+                            <DownloadIcon />
+                        </StockTabIconButton>
                     </div>
 
                     <div className="mt-3">
@@ -214,17 +214,6 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
                             placeholder={activeView === 'individuals' ? 'Find regular shareholders' : 'Find institutional holders'}
                             className="w-full rounded-tremor-default border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-950"
                         />
-                    </div>
-
-                    <div className="mt-3 flex justify-end">
-                        <button
-                            type="button"
-                            onClick={downloadCsv}
-                            disabled={allRowsForDownload.length === 0}
-                            className="rounded-tremor-default border border-gray-200 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:hover:bg-gray-800"
-                        >
-                            Download All Shareholders
-                        </button>
                     </div>
                 </div>
 
