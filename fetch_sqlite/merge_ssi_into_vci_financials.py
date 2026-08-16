@@ -3,6 +3,10 @@
 
 VCI is never overwritten: an SSI row is inserted only when the same
 ``ticker, period_kind, year_report, quarter_report`` does not exist in VCI.
+
+Notes are intentionally excluded: SSI currently supplies no note rows. Their
+fallback is handled by ``fetch_vci_financial_statement.py``, which preserves
+the last successful VCI notes snapshot in a separate SQLite archive.
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# SSI-backed sections only. NOTE is VCI-only and has its own historical archive.
 TABLES = ("balance_sheet", "income_statement", "cash_flow")
 KEY_COLUMNS = ("ticker", "period_kind", "year_report", "quarter_report")
 

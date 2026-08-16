@@ -55,6 +55,121 @@ SECTION_TABLE_MAP: dict[str, str] = {
     "NOTE": "note",
 }
 
+NOTE_KEY_COLUMNS = ("ticker", "period_kind", "year_report", "quarter_report")
+
+
+def _identifier(name: str) -> str:
+    """Quote a SQLite identifier originating from a trusted schema lookup."""
+    return f'"{name.replace(chr(34), chr(34) * 2)}"'
+
+
+def _table_columns(conn: sqlite3.Connection, schema: str, table: str) -> list[str]:
+    return [row[1] for row in conn.execute(f"PRAGMA {schema}.table_info({_identifier(table)})")]
+
+
+def _archive_notes(conn: sqlite3.Connection, archive_path: Path) -> None:
+    """Keep a durable snapshot of VCI-only notes before the next fetch.
+
+    SSI has no note rows, so it cannot be the fallback source for this section.
+    The archive is intentionally separate from the main DB: it also survives a
+    full rebuild of ``vci_financials.sqlite``.
+    """
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='note'"
+    ).fetchone():
+        return
+    note_columns = _table_columns(conn, "main", "note")
+    if not note_columns or not conn.execute("SELECT 1 FROM note LIMIT 1").fetchone():
+        return
+
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    conn.execute("ATTACH DATABASE ? AS notes_archive", (str(archive_path),))
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS notes_archive.note AS SELECT * FROM main.note WHERE 0")
+        archive_columns = set(_table_columns(conn, "notes_archive", "note"))
+        for column in note_columns:
+            if column not in archive_columns:
+                conn.execute(f"ALTER TABLE notes_archive.note ADD COLUMN {_identifier(column)}")
+        fields = ", ".join(_identifier(column) for column in note_columns)
+        conn.execute("DELETE FROM notes_archive.note")
+        conn.execute(f"INSERT INTO notes_archive.note ({fields}) SELECT {fields} FROM main.note")
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS notes_archive.note_periods AS "
+            "SELECT * FROM main.statement_periods WHERE section = 'NOTE' AND 0"
+        )
+        conn.execute("DELETE FROM notes_archive.note_periods")
+        conn.execute(
+            "INSERT INTO notes_archive.note_periods "
+            "SELECT * FROM main.statement_periods WHERE section = 'NOTE'"
+        )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS notes_archive.note_metrics AS "
+            "SELECT * FROM main.statement_metrics WHERE section = 'NOTE' AND 0"
+        )
+        conn.execute("DELETE FROM notes_archive.note_metrics")
+        conn.execute(
+            "INSERT INTO notes_archive.note_metrics "
+            "SELECT * FROM main.statement_metrics WHERE section = 'NOTE'"
+        )
+        conn.commit()
+        log.info("Notes fallback snapshot saved: %s", archive_path)
+    finally:
+        conn.execute("DETACH DATABASE notes_archive")
+
+
+def _restore_missing_notes(conn: sqlite3.Connection, archive_path: Path) -> int:
+    """Restore only note periods absent from the latest VCI response."""
+    if not archive_path.is_file():
+        return 0
+    conn.execute("ATTACH DATABASE ? AS notes_archive", (f"file:{archive_path}?mode=ro",))
+    try:
+        if not conn.execute(
+            "SELECT 1 FROM notes_archive.sqlite_master WHERE type='table' AND name='note'"
+        ).fetchone():
+            return 0
+        source_columns = _table_columns(conn, "notes_archive", "note")
+        if not source_columns:
+            return 0
+        fields = [column for column in source_columns if column not in {""}]
+        _ensure_wide_table(conn, "note", [
+            column for column in fields
+            if column not in {
+                "ticker", "period_kind", "year_report", "quarter_report", "length_report",
+                "public_date", "create_date", "update_date", "fetched_at",
+            }
+        ])
+        target_columns = set(_table_columns(conn, "main", "note"))
+        fields = [column for column in fields if column in target_columns]
+        if not all(column in fields for column in NOTE_KEY_COLUMNS):
+            return 0
+        field_sql = ", ".join(_identifier(column) for column in fields)
+        missing_where = " AND ".join(
+            f"v.{_identifier(column)} = s.{_identifier(column)}" for column in NOTE_KEY_COLUMNS
+        )
+        before = conn.execute(
+            f"SELECT COUNT(*) FROM notes_archive.note AS s WHERE NOT EXISTS "
+            f"(SELECT 1 FROM main.note AS v WHERE {missing_where})"
+        ).fetchone()[0]
+        if before:
+            conn.execute(
+                f"INSERT INTO main.note ({field_sql}) SELECT {field_sql} FROM notes_archive.note AS s "
+                f"WHERE NOT EXISTS (SELECT 1 FROM main.note AS v WHERE {missing_where})"
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO statement_periods "
+                "SELECT * FROM notes_archive.note_periods AS s "
+                "WHERE NOT EXISTS (SELECT 1 FROM main.statement_periods AS v "
+                "WHERE v.ticker=s.ticker AND v.section=s.section "
+                "AND v.period_kind=s.period_kind AND v.year_report=s.year_report "
+                "AND v.quarter_report=s.quarter_report)"
+            )
+            conn.execute("INSERT OR IGNORE INTO statement_metrics SELECT * FROM notes_archive.note_metrics")
+            conn.commit()
+        return int(before)
+    finally:
+        conn.execute("DETACH DATABASE notes_archive")
+
 
 def _headers() -> dict[str, str]:
     return {
@@ -827,6 +942,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", default="", help="Output folder. Default: <repo>/vci_financial_statement_data")
     parser.add_argument("--db-path", default="", help="SQLite DB path. Default: <out-dir>/vci_financial_statements.sqlite")
     parser.add_argument(
+        "--notes-fallback-db",
+        default="",
+        help="Durable VCI-only notes fallback SQLite path. Default: next to --db-path.",
+    )
+    parser.add_argument(
         "--mapping-file",
         default="",
         help="Mapping JSON path. Default: <out-dir>/financial_statement_metrics.json",
@@ -864,11 +984,17 @@ def main() -> int:
     out_dir = Path(args.out_dir).resolve() if args.out_dir else _default_out_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
     db_path = Path(args.db_path).resolve() if args.db_path else _default_db_path(out_dir)
+    notes_fallback_path = (
+        Path(args.notes_fallback_db).resolve()
+        if args.notes_fallback_db
+        else db_path.with_name(f"{db_path.stem}_notes_fallback.sqlite")
+    )
     mapping_path = Path(args.mapping_file).resolve() if args.mapping_file else _default_mapping_path(out_dir)
     symbols_path = Path(args.symbols_file).resolve() if args.symbols_file else _default_symbols_path(out_dir)
 
     conn = sqlite3.connect(str(db_path))
     ensure_schema(conn)
+    _archive_notes(conn, notes_fallback_path)
     fetched_at = dt.datetime.now(dt.timezone.utc).isoformat()
 
     # --convert-only: skip all fetching, just rebuild wide tables from existing data
@@ -1047,6 +1173,10 @@ def main() -> int:
         # runs VACUUM to compact the WAL and reclaim any fragmented pages.
         if not args.keep_normalized_values:
             cleanup_normalized_values(conn)
+
+    restored_notes = _restore_missing_notes(conn, notes_fallback_path)
+    if restored_notes:
+        log.warning("Restored %d missing VCI-only note periods from %s", restored_notes, notes_fallback_path)
 
     try:
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
