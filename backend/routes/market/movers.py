@@ -29,7 +29,7 @@ def register(market_bp: Blueprint) -> None:
             resp = jsonify(data)
             resp.headers["X-Cache"] = "HIT" if is_cached else "MISS"
             resp.headers["X-Source"] = "VCI_SQLITE"
-            resp.headers["X-DB"] = "fetch_sqlite/vci_screening.sqlite"
+            resp.headers["X-DB"] = "data/sqlite/vci_screening.sqlite"
             return resp
         except Exception as e:
             logger.error(f"Top movers proxy error: {e}")

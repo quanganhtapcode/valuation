@@ -85,7 +85,11 @@ Browser
 | `frontend-next/` | Ứng dụng Next.js: routes, components, API clients và giao diện |
 | `backend/` | Flask API, nghiệp vụ định giá và các dịch vụ dữ liệu |
 | `automation/` | Tác vụ cập nhật dữ liệu, xuất báo cáo và vận hành định kỳ |
-| `fetch_sqlite/` | Các công cụ thu thập và xử lý dữ liệu SQLite |
+| `scripts/fetchers/` | Các công cụ thu thập và xử lý dữ liệu thị trường |
+| `data/sqlite/` | Cơ sở dữ liệu SQLite, WAL/SHM và backup runtime (không commit) |
+| `data/financial-statements/` | Dữ liệu báo cáo tài chính đã tải về (không commit) |
+| `config/` | Cấu hình và metadata được quản lý theo Git |
+| `runtime/`, `logs/` | Trạng thái tạm thời và nhật ký vận hành (không commit) |
 | `docs/` | Tài liệu kỹ thuật và vận hành |
 
 ## Kiểm tra chất lượng

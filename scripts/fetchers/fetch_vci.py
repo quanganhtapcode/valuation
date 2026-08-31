@@ -5,7 +5,7 @@ Default behavior (no args): fetch VNINDEX pages 0..45 (size=50) and upsert into
 `vci_market_indices.sqlite` for fast re-runs and queries.
 
 Example:
-  python fetch_vci.py --index VNINDEX --start-page 0 --end-page 45 --size 50 --db vci.sqlite
+  python scripts/fetchers/fetch_vci.py --index VNINDEX --start-page 0 --end-page 45 --size 50 --db data/sqlite/vci.sqlite
 """
 
 from __future__ import annotations
@@ -586,7 +586,7 @@ def parse_args() -> argparse.Namespace:
 	)
 	p.add_argument(
 		"--db-dir",
-		default=".",
+		default="data/sqlite",
 		help="Directory to write per-index SQLite files when fetching multiple indexes",
 	)
 	p.add_argument(
@@ -662,4 +662,3 @@ def main() -> int:
 
 if __name__ == "__main__":
 	raise SystemExit(main())
-

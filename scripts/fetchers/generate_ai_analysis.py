@@ -5,9 +5,9 @@ Generate AI analysis for new quarterly financial reports.
 Run after fetch_vci_financial_statement.py to analyze newly added tickers.
 
 Usage:
-    python fetch_sqlite/generate_ai_analysis.py
-    python fetch_sqlite/generate_ai_analysis.py --ticker VNM
-    python fetch_sqlite/generate_ai_analysis.py --limit 20 --dry-run
+    python scripts/fetchers/generate_ai_analysis.py
+    python scripts/fetchers/generate_ai_analysis.py --ticker VNM
+    python scripts/fetchers/generate_ai_analysis.py --limit 20 --dry-run
 """
 from __future__ import annotations
 
@@ -22,7 +22,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).parent.parent
+ROOT = Path(__file__).resolve().parents[2]
+SQLITE_DIR = ROOT / "data" / "sqlite"
 sys.path.insert(0, str(ROOT))
 logger = logging.getLogger(__name__)
 
@@ -39,25 +40,25 @@ from backend.services.valuation_service import calculate_valuation
 
 FINANCIALS_DB = os.environ.get(
     "VCI_FINANCIAL_STATEMENT_DB_PATH",
-    str(ROOT / "fetch_sqlite" / "vci_financials.sqlite"),
+    str(SQLITE_DIR / "vci_financials.sqlite"),
 )
-SCREENING_DB = str(ROOT / "fetch_sqlite" / "vci_screening.sqlite")
+SCREENING_DB = str(SQLITE_DIR / "vci_screening.sqlite")
 COMPANY_DB = os.environ.get(
     "VCI_COMPANY_DB_PATH",
-    str(ROOT / "fetch_sqlite" / "vci_company.sqlite"),
+    str(SQLITE_DIR / "vci_company.sqlite"),
 )
 CACHE_DB = os.environ.get(
     "VALUATION_CACHE_DB_PATH",
-    str(ROOT / "fetch_sqlite" / "valuation_cache.sqlite"),
+    str(SQLITE_DIR / "valuation_cache.sqlite"),
 )
 
 MARKET_NEWS_DB = os.environ.get(
     "VCI_MARKET_NEWS_DB_PATH",
-    str(ROOT / "fetch_sqlite" / "vci_market_news.sqlite"),
+    str(SQLITE_DIR / "vci_market_news.sqlite"),
 )
 STATS_FINANCIAL_DB = os.environ.get(
     "VCI_STATS_FINANCIAL_DB_PATH",
-    str(ROOT / "fetch_sqlite" / "vci_stats_financial.sqlite"),
+    str(SQLITE_DIR / "vci_stats_financial.sqlite"),
 )
 
 LISTED_EXCHANGES = ("HSX", "HNX", "UPCOM")
@@ -1005,7 +1006,7 @@ if __name__ == "__main__":
     parser.add_argument("--force-news-refresh", action="store_true",
                         help="Backfill an insight record for every listed ticker; use AI when company news exists")
     parser.add_argument("--refresh-on-signals", action="store_true",
-                        help="Refresh only when a ticker has 3 new news items or a daily move of at least 5%")
+                        help="Refresh only when a ticker has 3 new news items or a daily move of at least 5%%")
     parser.add_argument("--retry-ai-fallbacks", action="store_true",
                         help="Retry tickers whose prior AI call fell back to deterministic analysis")
     notification_group = parser.add_mutually_exclusive_group()

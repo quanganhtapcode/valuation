@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 # SSI-backed sections only. NOTE is VCI-only and has its own historical archive.
 TABLES = ("balance_sheet", "income_statement", "cash_flow")
 KEY_COLUMNS = ("ticker", "period_kind", "year_report", "quarter_report")
@@ -26,10 +26,10 @@ KEY_COLUMNS = ("ticker", "period_kind", "year_report", "quarter_report")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--vci-db", default="fetch_sqlite/vci_financials.sqlite")
+    parser.add_argument("--vci-db", default="data/sqlite/vci_financials.sqlite")
     parser.add_argument(
         "--ssi-db",
-        default="vci_financial_statement_data/vci_financial_statements.sqlite",
+        default="data/financial-statements/vci_financial_statement_data/vci_financial_statements.sqlite",
     )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--no-backup", action="store_true")

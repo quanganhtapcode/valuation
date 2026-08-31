@@ -5,7 +5,7 @@ Source:
   GET https://iq.vietcap.com.vn/api/iq-insight-service/v2/company/search-bar?language=1
 
 Output:
-  fetch_sqlite/vci_company.sqlite   (default)
+  data/sqlite/vci_company.sqlite   (default)
 
 Tables:
   companies        – one row per ticker (upsert on re-run)
@@ -395,7 +395,7 @@ def _write_companies(
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def _default_db_path() -> Path:
-    return Path(__file__).resolve().parent / DEFAULT_DB_NAME
+    return Path(__file__).resolve().parents[2] / "data" / "sqlite" / DEFAULT_DB_NAME
 
 
 def fetch_and_store(db_path: Path, *, dry_run: bool = False) -> None:
@@ -474,7 +474,7 @@ def _refresh_security_master(company_db: Path) -> None:
     import subprocess
     import sys
 
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
         [sys.executable, "-m", "backend.security_master", "--company-db", str(company_db)],
         capture_output=True,
@@ -492,7 +492,7 @@ def _refresh_security_master(company_db: Path) -> None:
 def _regenerate_ticker_data(company_db: Path) -> None:
     """Regenerate frontend-next/public/ticker_data.json from the updated SQLite."""
     import sys
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     gen = root / "scripts" / "generate_ticker_data.py"
     if not gen.exists():
         log.warning("generate_ticker_data.py not found at %s — skipping", gen)

@@ -83,7 +83,7 @@ def _quote_identifier(identifier: str) -> str:
 
 
 def _financial_labels() -> dict[str, str]:
-    path = PROJECT_ROOT / "fetch_sqlite" / "vci_field_codes.json"
+    path = PROJECT_ROOT / "config" / "vci_field_codes.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
@@ -101,7 +101,7 @@ def _financial_labels() -> dict[str, str]:
 @lru_cache(maxsize=1)
 def _vietcap_field_order() -> dict[str, list[str]]:
     """Read the same statement-field ordering used by Vietcap's workbooks."""
-    path = PROJECT_ROOT / "fetch_sqlite" / "vci_field_codes.json"
+    path = PROJECT_ROOT / "config" / "vci_field_codes.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except Exception:

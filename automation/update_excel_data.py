@@ -892,7 +892,7 @@ def listen_mode() -> int:
                                 bot_token, chat_id,
                                 "📊 Bắt đầu thu thập forecast EPS/ROE/P-E/P-B cho toàn bộ cổ phiếu (~1.550 mã)...",
                             )
-                            from fetch_sqlite.fetch_vci_financial_data import run as run_forecast
+                            from scripts.fetchers.fetch_vci_financial_data import run as run_forecast
                             run_forecast(tickers_override=None, limit=0, dry_run=False, bearer=tkn)
                             send_telegram_message(
                                 bot_token, chat_id,

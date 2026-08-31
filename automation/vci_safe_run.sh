@@ -7,15 +7,15 @@ Usage:
   vci_safe_run.sh --name <job-name> --db <db-path> --command "<cmd>" [options]
 
 Options:
-  --backup-dir <dir>        Backup directory (default: fetch_sqlite/backups/runtime)
+  --backup-dir <dir>        Backup directory (default: data/sqlite/backups/runtime)
   --retries <n>             Retry whole command on non-zero exit (default: 2)
   --retry-sleep <seconds>   Base retry sleep seconds (default: 10)
   --drop-total-pct <float>  Max allowed total-row drop vs old run (default: 0.25)
   --keep-ratio <float>      Min allowed keep ratio for quality metric vs old run (default: 0.70)
   --notify-telegram <0|1>   Send Telegram summary if script exists (default: 0)
   --notify-script <path>    Telegram sender script (default: scripts/send_telegram_message.sh)
-  --keep-local <n>          Number of timestamped backups to keep locally (default: 2)
-  --keep-remote <n>         Number of backups to keep on rclone remote (default: 5)
+  --keep-local <n>          Number of timestamped backups to keep locally (default: 1)
+  --keep-remote <n>         Number of backups to keep on rclone remote (default: 30)
   --rclone-remote <remote>  rclone remote:path to upload backups before local pruning (e.g. onedrive:valuation-backups)
 EOF
 }
@@ -23,15 +23,15 @@ EOF
 JOB_NAME=""
 DB_PATH=""
 RUN_CMD=""
-BACKUP_DIR="fetch_sqlite/backups/runtime"
+BACKUP_DIR="data/sqlite/backups/runtime"
 RETRIES=2
 RETRY_SLEEP=10
 DROP_TOTAL_PCT=0.25
 KEEP_RATIO=0.70
 NOTIFY_TELEGRAM=0
 NOTIFY_SCRIPT="scripts/send_telegram_message.sh"
-KEEP_LOCAL=2
-KEEP_REMOTE=5
+KEEP_LOCAL=1
+KEEP_REMOTE=30
 RCLONE_REMOTE=""
 
 while [[ $# -gt 0 ]]; do

@@ -24,7 +24,7 @@ def resolve_vci_screening_db_path(explicit_path: Optional[str] = None) -> str:
     1) explicit_path argument
     2) env VCI_SCREENING_DB_PATH
     3) known on-disk locations (repo + common VPS paths)
-    4) default to <project_root>/fetch_sqlite/vci_screening.sqlite (even if missing)
+    4) default to <project_root>/data/sqlite/vci_screening.sqlite (even if missing)
     """
 
     candidates: list[Path] = []
@@ -37,10 +37,10 @@ def resolve_vci_screening_db_path(explicit_path: Optional[str] = None) -> str:
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
-    candidates.append(root / "fetch_sqlite" / "vci_screening.sqlite")
+    candidates.append(root / "data" / "sqlite" / "vci_screening.sqlite")
 
     # Common VPS locations
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_screening.sqlite"))
+    candidates.append(Path("/var/www/valuation/data/sqlite/vci_screening.sqlite"))
     candidates.append(Path("/var/www/store/fetch_sqlite/vci_screening.sqlite"))
 
     for path in candidates:
@@ -51,7 +51,7 @@ def resolve_vci_screening_db_path(explicit_path: Optional[str] = None) -> str:
         if path.exists():
             return str(path)
 
-    return str((root / "fetch_sqlite" / "vci_screening.sqlite").resolve())
+    return str((root / "data" / "sqlite" / "vci_screening.sqlite").resolve())
 
 
 def resolve_vci_stats_financial_db_path(explicit_path: Optional[str] = None) -> str:
@@ -61,7 +61,7 @@ def resolve_vci_stats_financial_db_path(explicit_path: Optional[str] = None) -> 
     1) explicit_path argument
     2) env VCI_STATS_FINANCIAL_DB_PATH
     3) known on-disk locations (repo + common VPS paths)
-    4) default to <project_root>/fetch_sqlite/vci_stats_financial.sqlite (even if missing)
+    4) default to <project_root>/data/sqlite/vci_stats_financial.sqlite (even if missing)
     """
 
     candidates: list[Path] = []
@@ -74,10 +74,10 @@ def resolve_vci_stats_financial_db_path(explicit_path: Optional[str] = None) -> 
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
-    candidates.append(root / "fetch_sqlite" / "vci_stats_financial.sqlite")
+    candidates.append(root / "data" / "sqlite" / "vci_stats_financial.sqlite")
 
     # Common VPS locations
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_stats_financial.sqlite"))
+    candidates.append(Path("/var/www/valuation/data/sqlite/vci_stats_financial.sqlite"))
     candidates.append(Path("/var/www/store/fetch_sqlite/vci_stats_financial.sqlite"))
 
     for path in candidates:
@@ -88,7 +88,7 @@ def resolve_vci_stats_financial_db_path(explicit_path: Optional[str] = None) -> 
         if path.exists():
             return str(path)
 
-    return str((root / "fetch_sqlite" / "vci_stats_financial.sqlite").resolve())
+    return str((root / "data" / "sqlite" / "vci_stats_financial.sqlite").resolve())
 
 
 def resolve_vci_shareholders_db_path(explicit_path: Optional[str] = None) -> str:
@@ -103,8 +103,8 @@ def resolve_vci_shareholders_db_path(explicit_path: Optional[str] = None) -> str
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
-    candidates.append(root / "fetch_sqlite" / "vci_shareholders.sqlite")
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_shareholders.sqlite"))
+    candidates.append(root / "data" / "sqlite" / "vci_shareholders.sqlite")
+    candidates.append(Path("/var/www/valuation/data/sqlite/vci_shareholders.sqlite"))
     candidates.append(Path("/var/www/store/fetch_sqlite/vci_shareholders.sqlite"))
 
     for path in candidates:
@@ -115,7 +115,7 @@ def resolve_vci_shareholders_db_path(explicit_path: Optional[str] = None) -> str
         if path.exists():
             return str(path)
 
-    return str((root / "fetch_sqlite" / "vci_shareholders.sqlite").resolve())
+    return str((root / "data" / "sqlite" / "vci_shareholders.sqlite").resolve())
 
 
 def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
@@ -128,7 +128,7 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
     1) explicit_path argument
     2) env PRICE_HISTORY_DB_PATH
     3) known on-disk locations
-    4) default to <project_root>/fetch_sqlite/vci_price_history.sqlite (even if missing)
+    4) default to <project_root>/data/sqlite/vci_price_history.sqlite (even if missing)
     """
     candidates: list[Path] = []
 
@@ -140,10 +140,10 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
-    candidates.append(root / "fetch_sqlite" / "vci_price_history.sqlite")
-    candidates.append(root / "fetch_sqlite" / "price_history.sqlite")
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_price_history.sqlite"))
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/price_history.sqlite"))
+    candidates.append(root / "data" / "sqlite" / "vci_price_history.sqlite")
+    candidates.append(root / "data" / "sqlite" / "price_history.sqlite")
+    candidates.append(Path("/var/www/valuation/data/sqlite/vci_price_history.sqlite"))
+    candidates.append(Path("/var/www/valuation/data/sqlite/price_history.sqlite"))
     candidates.append(Path("/var/www/store/vci_price_history.sqlite"))
     candidates.append(Path("/var/www/store/price_history.sqlite"))
 
@@ -155,7 +155,7 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
         if path.exists():
             return str(path)
 
-    return str((root / "fetch_sqlite" / "vci_price_history.sqlite").resolve())
+    return str((root / "data" / "sqlite" / "vci_price_history.sqlite").resolve())
 
 
 def resolve_valuation_cache_db_path(explicit_path: Optional[str] = None) -> str:
@@ -170,8 +170,8 @@ def resolve_valuation_cache_db_path(explicit_path: Optional[str] = None) -> str:
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
-    candidates.append(root / "fetch_sqlite" / "valuation_cache.sqlite")
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/valuation_cache.sqlite"))
+    candidates.append(root / "data" / "sqlite" / "valuation_cache.sqlite")
+    candidates.append(Path("/var/www/valuation/data/sqlite/valuation_cache.sqlite"))
     candidates.append(Path("/var/www/store/fetch_sqlite/valuation_cache.sqlite"))
 
     for path in candidates:
@@ -182,7 +182,7 @@ def resolve_valuation_cache_db_path(explicit_path: Optional[str] = None) -> str:
         if path.exists():
             return str(path)
 
-    return str((root / "fetch_sqlite" / "valuation_cache.sqlite").resolve())
+    return str((root / "data" / "sqlite" / "valuation_cache.sqlite").resolve())
 
 
 def resolve_vci_ratio_daily_db_path(explicit_path: Optional[str] = None) -> str:
@@ -197,8 +197,8 @@ def resolve_vci_ratio_daily_db_path(explicit_path: Optional[str] = None) -> str:
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
-    candidates.append(root / "fetch_sqlite" / "vci_ratio_daily.sqlite")
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_ratio_daily.sqlite"))
+    candidates.append(root / "data" / "sqlite" / "vci_ratio_daily.sqlite")
+    candidates.append(Path("/var/www/valuation/data/sqlite/vci_ratio_daily.sqlite"))
     candidates.append(Path("/var/www/store/fetch_sqlite/vci_ratio_daily.sqlite"))
 
     for path in candidates:
@@ -209,7 +209,7 @@ def resolve_vci_ratio_daily_db_path(explicit_path: Optional[str] = None) -> str:
         if path.exists():
             return str(path)
 
-    return str((root / "fetch_sqlite" / "vci_ratio_daily.sqlite").resolve())
+    return str((root / "data" / "sqlite" / "vci_ratio_daily.sqlite").resolve())
 
 
 def resolve_vci_technical_db_path(explicit_path: Optional[str] = None) -> str:
@@ -224,8 +224,8 @@ def resolve_vci_technical_db_path(explicit_path: Optional[str] = None) -> str:
         candidates.append(Path(env_path).expanduser())
 
     root = _project_root()
-    candidates.append(root / "fetch_sqlite" / "vci_technical.sqlite")
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_technical.sqlite"))
+    candidates.append(root / "data" / "sqlite" / "vci_technical.sqlite")
+    candidates.append(Path("/var/www/valuation/data/sqlite/vci_technical.sqlite"))
     candidates.append(Path("/var/www/store/fetch_sqlite/vci_technical.sqlite"))
 
     for path in candidates:
@@ -236,7 +236,7 @@ def resolve_vci_technical_db_path(explicit_path: Optional[str] = None) -> str:
         if path.exists():
             return str(path)
 
-    return str((root / "fetch_sqlite" / "vci_technical.sqlite").resolve())
+    return str((root / "data" / "sqlite" / "vci_technical.sqlite").resolve())
 
 
 def resolve_vci_financial_statement_db_path(explicit_path: Optional[str] = None) -> str:
@@ -252,13 +252,12 @@ def resolve_vci_financial_statement_db_path(explicit_path: Optional[str] = None)
 
     root = _project_root()
     # Wide-format SQLite (preferred — fetched by fetch_vci_financials.py)
-    candidates.append(root / "fetch_sqlite" / "vci_financials.sqlite")
-    candidates.append(Path("/var/www/valuation/fetch_sqlite/vci_financials.sqlite"))
+    candidates.append(root / "data" / "sqlite" / "vci_financials.sqlite")
+    candidates.append(Path("/var/www/valuation/data/sqlite/vci_financials.sqlite"))
     # Legacy long-format SQLite
-    candidates.append(root / "vci_financial_statement_data" / "hose_only" / "vci_financial_statements.sqlite")
-    candidates.append(root / "vci_financial_statement_data" / "vci_financial_statements.sqlite")
-    candidates.append(Path("/var/www/valuation/vci_financial_statement_data/hose_only/vci_financial_statements.sqlite"))
-    candidates.append(Path("/var/www/valuation/vci_financial_statement_data/vci_financial_statements.sqlite"))
+    financial_data_dir = root / "data" / "financial-statements" / "vci_financial_statement_data"
+    candidates.append(financial_data_dir / "hose_only" / "vci_financial_statements.sqlite")
+    candidates.append(financial_data_dir / "vci_financial_statements.sqlite")
     candidates.append(Path("/var/www/store/vci_financial_statement_data/hose_only/vci_financial_statements.sqlite"))
     candidates.append(Path("/var/www/store/vci_financial_statement_data/vci_financial_statements.sqlite"))
 
@@ -270,7 +269,7 @@ def resolve_vci_financial_statement_db_path(explicit_path: Optional[str] = None)
         if path.exists():
             return str(path)
 
-    return str((root / "vci_financial_statement_data" / "hose_only" / "vci_financial_statements.sqlite").resolve())
+    return str((financial_data_dir / "hose_only" / "vci_financial_statements.sqlite").resolve())
 
 
 def _resolve_db_path(
@@ -314,9 +313,9 @@ def resolve_vci_company_db_path(explicit_path: Optional[str] = None) -> str:
     return _resolve_db_path(
         explicit_path,
         "VCI_COMPANY_DB_PATH",
-        Path("fetch_sqlite") / "vci_company.sqlite",
+        Path("data") / "sqlite" / "vci_company.sqlite",
         extra_candidates=[
-            Path("/var/www/valuation/fetch_sqlite/vci_company.sqlite"),
+            Path("/var/www/valuation/data/sqlite/vci_company.sqlite"),
             Path("/var/www/store/fetch_sqlite/vci_company.sqlite"),
         ],
     )
@@ -327,9 +326,9 @@ def resolve_fireant_macro_db_path(explicit_path: Optional[str] = None) -> str:
     return _resolve_db_path(
         explicit_path,
         "FIREANT_MACRO_DB_PATH",
-        Path("fetch_sqlite") / "fireant_macro.sqlite",
+        Path("data") / "sqlite" / "fireant_macro.sqlite",
         extra_candidates=[
-            Path("/var/www/valuation/fetch_sqlite/fireant_macro.sqlite"),
+            Path("/var/www/valuation/data/sqlite/fireant_macro.sqlite"),
             Path("/var/www/store/fetch_sqlite/fireant_macro.sqlite"),
         ],
     )
@@ -340,9 +339,9 @@ def resolve_index_history_db_path(explicit_path: Optional[str] = None) -> str:
     return _resolve_db_path(
         explicit_path,
         "INDEX_HISTORY_DB_PATH",
-        Path("fetch_sqlite") / "vci_index_history.sqlite",
+        Path("data") / "sqlite" / "vci_index_history.sqlite",
         extra_candidates=[
-            Path("/var/www/valuation/fetch_sqlite/vci_index_history.sqlite"),
+            Path("/var/www/valuation/data/sqlite/vci_index_history.sqlite"),
             Path("/var/www/store/fetch_sqlite/vci_index_history.sqlite"),
         ],
     )
@@ -353,9 +352,9 @@ def resolve_vci_news_events_db_path(explicit_path: Optional[str] = None) -> str:
     return _resolve_db_path(
         explicit_path,
         "VCI_NEWS_EVENTS_DB_PATH",
-        Path("fetch_sqlite") / "vci_news_events.sqlite",
+        Path("data") / "sqlite" / "vci_news_events.sqlite",
         extra_candidates=[
-            Path("/var/www/valuation/fetch_sqlite/vci_news_events.sqlite"),
+            Path("/var/www/valuation/data/sqlite/vci_news_events.sqlite"),
             Path("/var/www/store/fetch_sqlite/vci_news_events.sqlite"),
         ],
     )
@@ -366,9 +365,9 @@ def resolve_vci_valuation_db_path(explicit_path: Optional[str] = None) -> str:
     return _resolve_db_path(
         explicit_path,
         "VCI_VALUATION_DB_PATH",
-        Path("fetch_sqlite") / "vci_valuation.sqlite",
+        Path("data") / "sqlite" / "vci_valuation.sqlite",
         extra_candidates=[
-            Path("/var/www/valuation/fetch_sqlite/vci_valuation.sqlite"),
+            Path("/var/www/valuation/data/sqlite/vci_valuation.sqlite"),
             Path("/var/www/store/fetch_sqlite/vci_valuation.sqlite"),
         ],
     )

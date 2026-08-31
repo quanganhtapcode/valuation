@@ -306,7 +306,7 @@ def fetch_to_sqlite(
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Fetch VCI market news and store into SQLite")
-    p.add_argument("--db", default="fetch_sqlite/vci_market_news.sqlite", help="SQLite db file path")
+    p.add_argument("--db", default="data/sqlite/vci_market_news.sqlite", help="SQLite db file path")
     p.add_argument("--ticker", default="", help="Ticker symbol (empty for general market news)")
     p.add_argument("--pages", type=int, default=5, help="Number of pages to fetch (starting from page=1)")
     p.add_argument("--page-size", type=int, default=50, help="Page size")

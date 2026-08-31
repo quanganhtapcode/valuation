@@ -3,8 +3,8 @@ Fetch beta values from FireAnt /symbols/{ticker}/fundamental for all stocks.
 Stores results in fireant_macro.sqlite → beta_cache table.
 
 Run:
-    python fetch_sqlite/fetch_fireant_beta.py --db fetch_sqlite/fireant_macro.sqlite
-    python fetch_sqlite/fetch_fireant_beta.py --db fetch_sqlite/fireant_macro.sqlite --workers 5
+    python scripts/fetchers/fetch_fireant_beta.py --db data/sqlite/fireant_macro.sqlite
+    python scripts/fetchers/fetch_fireant_beta.py --db data/sqlite/fireant_macro.sqlite --workers 5
 """
 from __future__ import annotations
 
@@ -17,12 +17,14 @@ import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-_DB_PATH = os.path.join(os.path.dirname(__file__), "fireant_macro.sqlite")
-_SCREENING_DB = os.path.join(os.path.dirname(__file__), "vci_screening.sqlite")
+_SQLITE_DIR = Path(__file__).resolve().parents[2] / "data" / "sqlite"
+_DB_PATH = str(_SQLITE_DIR / "fireant_macro.sqlite")
+_SCREENING_DB = str(_SQLITE_DIR / "vci_screening.sqlite")
 
 _BEARER = (
     "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IkdYdExONzViZlZQakdvNERWdjV4QkRI"

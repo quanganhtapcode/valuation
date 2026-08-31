@@ -10,8 +10,8 @@ Derived VND pairs (computed from USD crosses + USDVND):
   CNYVND=X  = USDVND / USDCNY
 
 Run daily via cron:
-  0 1 * * * cd /var/www/valuation && .venv/bin/python fetch_sqlite/fetch_macro_history.py \
-            --db fetch_sqlite/macro_history.sqlite >> fetch_sqlite/cron_macro_history.log 2>&1
+  0 1 * * * cd /var/www/valuation && .venv/bin/python scripts/fetchers/fetch_macro_history.py \
+            --db data/sqlite/macro_history.sqlite >> logs/cron_macro_history.log 2>&1
 """
 from __future__ import annotations
 
@@ -156,7 +156,7 @@ def prune(conn: sqlite3.Connection) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--db', default='fetch_sqlite/macro_history.sqlite')
+    parser.add_argument('--db', default='data/sqlite/macro_history.sqlite')
     parser.add_argument('--range', default='3y', dest='range_str')
     parser.add_argument('--workers', type=int, default=4)
     args = parser.parse_args()

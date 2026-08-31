@@ -1,6 +1,6 @@
 # SQLite Databases — Reference
 
-All canonical databases live in `fetch_sqlite/`. No feature should depend on the
+All canonical databases live in `data/sqlite/`. No feature should depend on the
 legacy root-level databases (`stocks_optimized.db`, `vietnam_stocks.db`).
 
 ---
@@ -34,10 +34,10 @@ legacy root-level databases (`stocks_optimized.db`, `vietnam_stocks.db`).
 
 **Nguồn:** VCI IQ API — `iq.vietcap.com.vn`  
 **Tần suất update:** Hàng tuần và khi có IPO / hủy niêm yết. Sau mỗi lần fetch thành công, cron cũng chạy `scripts/generate_ticker_data.py` để đồng bộ `frontend-next/public/ticker_data.json`; mã active mới sẽ xuất hiện trong tìm kiếm và watchlist.
-**Fetcher:** `fetch_sqlite/fetch_vci_company.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_company.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite
+python scripts/fetchers/fetch_vci_company.py --db data/sqlite/vci_company.sqlite
 ```
 
 ### Schema chính: `companies`
@@ -85,14 +85,14 @@ dịch từ `vci_screening.sqlite`. Các pipeline chỉ nên lấy danh sách m�
 
 **Nguồn:** VCI API financial statements  
 **Tần suất update:** Hàng quý (sau mùa công bố BCTC, ~3–6 tuần sau khi kết thúc quý)  
-**Fetcher:** `fetch_sqlite/fetch_vci_financial_statement.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_financial_statement.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_financial_statement.py \
-  --db-path fetch_sqlite/vci_financials.sqlite \
+python scripts/fetchers/fetch_vci_financial_statement.py \
+  --db-path data/sqlite/vci_financials.sqlite \
   --tickers VNM ACB VCB
 # Toàn bộ thị trường (~8–12 giờ):
-python fetch_sqlite/fetch_vci_financial_statement.py --db-path fetch_sqlite/vci_financials.sqlite
+python scripts/fetchers/fetch_vci_financial_statement.py --db-path data/sqlite/vci_financials.sqlite
 ```
 
 ### Schema chính: `balance_sheet`, `income_statement`, `cash_flow`
@@ -146,10 +146,10 @@ ORDER BY year_report DESC, quarter_report DESC LIMIT 4;
 
 **Nguồn:** VCI screener API  
 **Tần suất update:** Hàng ngày (sau 17:00)  
-**Fetcher:** `fetch_sqlite/fetch_vci_screener.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_screener.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_screener.py --db fetch_sqlite/vci_screening.sqlite
+python scripts/fetchers/fetch_vci_screener.py --db data/sqlite/vci_screening.sqlite
 ```
 
 ### Schema chính: `screening_data`
@@ -183,10 +183,10 @@ python fetch_sqlite/fetch_vci_screener.py --db fetch_sqlite/vci_screening.sqlite
 
 **Nguồn:** VCI stats API  
 **Tần suất update:** Hàng tuần  
-**Fetcher:** `fetch_sqlite/fetch_vci_stats_financial.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_stats_financial.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_stats_financial.py --db fetch_sqlite/vci_stats_financial.sqlite
+python scripts/fetchers/fetch_vci_stats_financial.py --db data/sqlite/vci_stats_financial.sqlite
 ```
 
 ### Schema chính: `stats_financial_history`
@@ -223,10 +223,10 @@ python fetch_sqlite/fetch_vci_stats_financial.py --db fetch_sqlite/vci_stats_fin
 
 **Nguồn:** VCI ratio API  
 **Tần suất update:** Hàng ngày (sau 17:00)  
-**Fetcher:** `fetch_sqlite/fetch_vci_ratio_daily.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_ratio_daily.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_ratio_daily.py --db fetch_sqlite/vci_ratio_daily.sqlite
+python scripts/fetchers/fetch_vci_ratio_daily.py --db data/sqlite/vci_ratio_daily.sqlite
 ```
 
 ### Schema chính: `ratio_daily_history`
@@ -255,10 +255,10 @@ python fetch_sqlite/fetch_vci_ratio_daily.py --db fetch_sqlite/vci_ratio_daily.s
 
 **Nguồn:** VCI shareholders API  
 **Tần suất update:** Hàng tháng  
-**Fetcher:** `fetch_sqlite/fetch_vci_shareholders.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_shareholders.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_shareholders.py --db fetch_sqlite/vci_shareholders.sqlite
+python scripts/fetchers/fetch_vci_shareholders.py --db data/sqlite/vci_shareholders.sqlite
 ```
 
 ### Schema chính: `shareholders`
@@ -284,11 +284,11 @@ python fetch_sqlite/fetch_vci_shareholders.py --db fetch_sqlite/vci_shareholders
 
 **Nguồn:** VCI market news API  
 **Tần suất update:** Hàng ngày (fetch thêm trang mới)  
-**Fetcher:** `fetch_sqlite/fetch_vci_market_news.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_market_news.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_market_news.py \
-  --db fetch_sqlite/vci_market_news.sqlite \
+python scripts/fetchers/fetch_vci_market_news.py \
+  --db data/sqlite/vci_market_news.sqlite \
   --pages 5 --page-size 50
 ```
 
@@ -316,7 +316,7 @@ python fetch_sqlite/fetch_vci_market_news.py \
 
 **Nguồn:** VCI news/events API (per-ticker)  
 **Tần suất update:** Hàng ngày  
-**Fetcher:** được populate từ job riêng (không có script độc lập trong `fetch_sqlite/`)
+**Fetcher:** được populate từ job riêng (không có script độc lập trong `data/sqlite/`)
 
 ### Schema chính: `items`
 
@@ -343,10 +343,10 @@ python fetch_sqlite/fetch_vci_market_news.py \
 
 **Nguồn:** VCI foreign trading API  
 **Tần suất update:** Hàng ngày  
-**Fetcher:** `fetch_sqlite/fetch_vci_foreign.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_foreign.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_foreign.py --db fetch_sqlite/vci_foreign.sqlite
+python scripts/fetchers/fetch_vci_foreign.py --db data/sqlite/vci_foreign.sqlite
 ```
 
 ### Bảng `foreign_net_snapshot`
@@ -378,10 +378,10 @@ python fetch_sqlite/fetch_vci_foreign.py --db fetch_sqlite/vci_foreign.sqlite
 
 **Nguồn:** VCI valuation API  
 **Tần suất update:** Hàng ngày  
-**Fetcher:** `fetch_sqlite/fetch_vci_valuation.py`
+**Fetcher:** `scripts/fetchers/fetch_vci_valuation.py`
 
 ```bash
-python fetch_sqlite/fetch_vci_valuation.py --db fetch_sqlite/vci_valuation.sqlite
+python scripts/fetchers/fetch_vci_valuation.py --db data/sqlite/vci_valuation.sqlite
 ```
 
 ### Bảng `valuation_history`
@@ -418,12 +418,12 @@ Tỷ lệ cổ phiếu đang giao dịch trên EMA50. Từ **2000-08-11 → nay*
 
 **Nguồn:** VCI market indices API  
 **Tần suất update:** Hàng ngày  
-**Fetcher:** `fetch_sqlite/fetch_vci.py`
+**Fetcher:** `scripts/fetchers/fetch_vci.py`
 
 ```bash
-python fetch_sqlite/fetch_vci.py \
+python scripts/fetchers/fetch_vci.py \
   --index VNINDEX --start-page 0 --end-page 45 \
-  --db fetch_sqlite/vci_index_history.sqlite
+  --db data/sqlite/vci_index_history.sqlite
 ```
 
 ### Schema chính: `market_index_history`
@@ -488,10 +488,10 @@ python -m backend.updater.update_price_history --full
 
 **Nguồn:** Yahoo Finance (qua `yfinance`)  
 **Tần suất update:** Hàng ngày  
-**Fetcher:** `fetch_sqlite/fetch_macro_history.py`
+**Fetcher:** `scripts/fetchers/fetch_macro_history.py`
 
 ```bash
-python fetch_sqlite/fetch_macro_history.py --db fetch_sqlite/macro_history.sqlite
+python scripts/fetchers/fetch_macro_history.py --db data/sqlite/macro_history.sqlite
 ```
 
 ### Schema: `macro_prices`
@@ -525,11 +525,11 @@ python fetch_sqlite/fetch_macro_history.py --db fetch_sqlite/macro_history.sqlit
 
 **Nguồn:** FireAnt API  
 **Tần suất update:** Hàng tuần (macro); beta tính lại theo yêu cầu  
-**Fetcher:** `fetch_sqlite/fetch_fireant_macro.py`, `fetch_sqlite/fetch_fireant_beta.py`
+**Fetcher:** `scripts/fetchers/fetch_fireant_macro.py`, `scripts/fetchers/fetch_fireant_beta.py`
 
 ```bash
-python fetch_sqlite/fetch_fireant_macro.py --db fetch_sqlite/fireant_macro.sqlite
-python fetch_sqlite/fetch_fireant_beta.py   --db fetch_sqlite/fireant_macro.sqlite
+python scripts/fetchers/fetch_fireant_macro.py --db data/sqlite/fireant_macro.sqlite
+python scripts/fetchers/fetch_fireant_beta.py   --db data/sqlite/fireant_macro.sqlite
 ```
 
 ### Bảng `macro_indicators`
@@ -634,16 +634,16 @@ vci_company  (profile, ICB đầy đủ)
 Tất cả path được resolve qua `backend/db_path.py` với fallback tự động. Đặt trong `.env`:
 
 ```
-VCI_COMPANY_DB_PATH=/var/www/valuation/fetch_sqlite/vci_company.sqlite
-VCI_FINANCIAL_STATEMENT_DB_PATH=/var/www/valuation/fetch_sqlite/vci_financials.sqlite
-VCI_SCREENING_DB_PATH=/var/www/valuation/fetch_sqlite/vci_screening.sqlite
-VCI_STATS_FINANCIAL_DB_PATH=/var/www/valuation/fetch_sqlite/vci_stats_financial.sqlite
-VCI_RATIO_DAILY_DB_PATH=/var/www/valuation/fetch_sqlite/vci_ratio_daily.sqlite
-VCI_SHAREHOLDERS_DB_PATH=/var/www/valuation/fetch_sqlite/vci_shareholders.sqlite
-VCI_MARKET_NEWS_DB_PATH=/var/www/valuation/fetch_sqlite/vci_market_news.sqlite
-VCI_NEWS_EVENTS_DB_PATH=/var/www/valuation/fetch_sqlite/vci_news_events.sqlite
-VCI_VALUATION_DB_PATH=/var/www/valuation/fetch_sqlite/vci_valuation.sqlite
-INDEX_HISTORY_DB_PATH=/var/www/valuation/fetch_sqlite/vci_index_history.sqlite
-PRICE_HISTORY_DB_PATH=/var/www/valuation/fetch_sqlite/vci_price_history.sqlite
-VALUATION_CACHE_DB_PATH=/var/www/valuation/fetch_sqlite/valuation_cache.sqlite
+VCI_COMPANY_DB_PATH=/var/www/valuation/data/sqlite/vci_company.sqlite
+VCI_FINANCIAL_STATEMENT_DB_PATH=/var/www/valuation/data/sqlite/vci_financials.sqlite
+VCI_SCREENING_DB_PATH=/var/www/valuation/data/sqlite/vci_screening.sqlite
+VCI_STATS_FINANCIAL_DB_PATH=/var/www/valuation/data/sqlite/vci_stats_financial.sqlite
+VCI_RATIO_DAILY_DB_PATH=/var/www/valuation/data/sqlite/vci_ratio_daily.sqlite
+VCI_SHAREHOLDERS_DB_PATH=/var/www/valuation/data/sqlite/vci_shareholders.sqlite
+VCI_MARKET_NEWS_DB_PATH=/var/www/valuation/data/sqlite/vci_market_news.sqlite
+VCI_NEWS_EVENTS_DB_PATH=/var/www/valuation/data/sqlite/vci_news_events.sqlite
+VCI_VALUATION_DB_PATH=/var/www/valuation/data/sqlite/vci_valuation.sqlite
+INDEX_HISTORY_DB_PATH=/var/www/valuation/data/sqlite/vci_index_history.sqlite
+PRICE_HISTORY_DB_PATH=/var/www/valuation/data/sqlite/vci_price_history.sqlite
+VALUATION_CACHE_DB_PATH=/var/www/valuation/data/sqlite/valuation_cache.sqlite
 ```

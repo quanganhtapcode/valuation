@@ -34,7 +34,7 @@ _VCI_INDEX_VALUATION_URL = (
 _VCI_OHLC_URL = "https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart"
 _VCI_BREADTH_URL = "https://iq.vietcap.com.vn/api/iq-insight-service/v1/market-watch/breadth"
 
-# SQLite written daily by fetch_sqlite/fetch_vci_valuation.py
+# SQLite written daily by scripts/fetchers/fetch_vci_valuation.py
 _VALUATION_SQLITE = Path(resolve_vci_valuation_db_path())
 
 

@@ -2,7 +2,7 @@
 
 Operational notes for the valuation VPS at `/var/www/valuation`.
 
-> Canonical data is in `fetch_sqlite/*.sqlite`. Legacy monolithic DBs
+> Canonical data is in `data/sqlite/*.sqlite`. Legacy monolithic DBs
 > `stocks_optimized.db`, `stocks_optimized.new.db` and `vietnam_stocks.db` are
 > not production sources.
 
@@ -56,23 +56,23 @@ Active cron entries:
 
 | Schedule | DB | Log |
 |---|---|---|
-| `*/7 * * * *` | `vci_screening.sqlite` | `fetch_sqlite/cron_screener.log` |
-| `5 * * * *` | `vci_stats_financial.sqlite` | `fetch_sqlite/cron_stats_financial.log` |
-| `*/10 * * * *` | `vci_market_news.sqlite` | `fetch_sqlite/cron_vci_market_news.log` |
-| `30 11 * * *` | `fetch_sqlite/vci_price_history.sqlite` | `logs/price_history_update.log` |
-| `10 13 * * *` | `vci_shareholders.sqlite` | `fetch_sqlite/cron_shareholders.log` |
-| `35 13 * * *` | `vci_ratio_daily.sqlite` | `fetch_sqlite/cron_ratio_daily.log` |
-| `30 18 * * *` | `vci_valuation.sqlite` | `fetch_sqlite/cron_valuation.log` |
-| `*/2 9-15 * * 1-5` | `vci_foreign.sqlite` | `fetch_sqlite/cron_foreign.log` |
-| Sunday 02:00 even ISO weeks | `vci_company.sqlite` | `fetch_sqlite/cron_vci_company.log` |
+| `*/7 * * * *` | `vci_screening.sqlite` | `logs/cron_screener.log` |
+| `5 * * * *` | `vci_stats_financial.sqlite` | `logs/cron_stats_financial.log` |
+| `*/10 * * * *` | `vci_market_news.sqlite` | `logs/cron_vci_market_news.log` |
+| `30 11 * * *` | `data/sqlite/vci_price_history.sqlite` | `logs/price_history_update.log` |
+| `10 13 * * *` | `vci_shareholders.sqlite` | `logs/cron_shareholders.log` |
+| `35 13 * * *` | `vci_ratio_daily.sqlite` | `logs/cron_ratio_daily.log` |
+| `30 18 * * *` | `vci_valuation.sqlite` | `logs/cron_valuation.log` |
+| `*/2 9-15 * * 1-5` | `vci_foreign.sqlite` | `logs/cron_foreign.log` |
+| Sunday 02:00 even ISO weeks | `vci_company.sqlite` | `logs/cron_vci_company.log` |
 
 If index or macro pages need freshness guarantees, add explicit cron entries for:
 
 ```bash
-fetch_sqlite/fetch_vci.py
-fetch_sqlite/fetch_macro_history.py
-fetch_sqlite/fetch_fireant_macro.py
-fetch_sqlite/fetch_vci_financial_statement.py
+scripts/fetchers/fetch_vci.py
+scripts/fetchers/fetch_macro_history.py
+scripts/fetchers/fetch_fireant_macro.py
+scripts/fetchers/fetch_vci_financial_statement.py
 ```
 
 ## Manual Fetches
@@ -81,15 +81,15 @@ fetch_sqlite/fetch_vci_financial_statement.py
 cd /var/www/valuation
 source .venv/bin/activate
 
-python fetch_sqlite/fetch_vci_screener.py --db fetch_sqlite/vci_screening.sqlite
-python fetch_sqlite/fetch_vci_stats_financial.py --db fetch_sqlite/vci_stats_financial.sqlite --workers 4 --delay 0.12
-python fetch_sqlite/fetch_vci_ratio_daily.py --db fetch_sqlite/vci_ratio_daily.sqlite --workers 4 --delay 0.12
-python fetch_sqlite/fetch_vci_shareholders.py --db fetch_sqlite/vci_shareholders.sqlite --workers 4 --delay 0.12
-python fetch_sqlite/fetch_vci_market_news.py --db fetch_sqlite/vci_market_news.sqlite --pages 5 --page-size 50 --days-back 30 --prune-days 90 --workers 2 --insecure
-python fetch_sqlite/fetch_vci_company.py --db fetch_sqlite/vci_company.sqlite
-python fetch_sqlite/fetch_vci_valuation.py --db fetch_sqlite/vci_valuation.sqlite
-python fetch_sqlite/fetch_vci_foreign.py --db fetch_sqlite/vci_foreign.sqlite
-PRICE_HISTORY_DB_PATH=fetch_sqlite/vci_price_history.sqlite python -m backend.updater.update_price_history
+python scripts/fetchers/fetch_vci_screener.py --db data/sqlite/vci_screening.sqlite
+python scripts/fetchers/fetch_vci_stats_financial.py --db data/sqlite/vci_stats_financial.sqlite --workers 4 --delay 0.12
+python scripts/fetchers/fetch_vci_ratio_daily.py --db data/sqlite/vci_ratio_daily.sqlite --workers 4 --delay 0.12
+python scripts/fetchers/fetch_vci_shareholders.py --db data/sqlite/vci_shareholders.sqlite --workers 4 --delay 0.12
+python scripts/fetchers/fetch_vci_market_news.py --db data/sqlite/vci_market_news.sqlite --pages 5 --page-size 50 --days-back 30 --prune-days 90 --workers 2 --insecure
+python scripts/fetchers/fetch_vci_company.py --db data/sqlite/vci_company.sqlite
+python scripts/fetchers/fetch_vci_valuation.py --db data/sqlite/vci_valuation.sqlite
+python scripts/fetchers/fetch_vci_foreign.py --db data/sqlite/vci_foreign.sqlite
+PRICE_HISTORY_DB_PATH=data/sqlite/vci_price_history.sqlite python -m backend.updater.update_price_history
 ```
 
 ## SQLite Checks
@@ -97,18 +97,18 @@ PRICE_HISTORY_DB_PATH=fetch_sqlite/vci_price_history.sqlite python -m backend.up
 Freshness/count checks:
 
 ```bash
-sqlite3 fetch_sqlite/vci_company.sqlite "SELECT COUNT(*) FROM companies;"
-sqlite3 fetch_sqlite/vci_screening.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM screening_data;"
-sqlite3 fetch_sqlite/vci_stats_financial.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM stats_financial;"
-sqlite3 fetch_sqlite/vci_ratio_daily.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM ratio_daily;"
-sqlite3 fetch_sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta ORDER BY key;"
-sqlite3 fetch_sqlite/vci_price_history.sqlite "SELECT COUNT(*), MAX(time) FROM stock_price_history;"
+sqlite3 data/sqlite/vci_company.sqlite "SELECT COUNT(*) FROM companies;"
+sqlite3 data/sqlite/vci_screening.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM screening_data;"
+sqlite3 data/sqlite/vci_stats_financial.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM stats_financial;"
+sqlite3 data/sqlite/vci_ratio_daily.sqlite "SELECT COUNT(*), MAX(fetched_at) FROM ratio_daily;"
+sqlite3 data/sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta ORDER BY key;"
+sqlite3 data/sqlite/vci_price_history.sqlite "SELECT COUNT(*), MAX(time) FROM stock_price_history;"
 ```
 
 Integrity checks:
 
 ```bash
-for db in fetch_sqlite/*.sqlite; do
+for db in data/sqlite/*.sqlite; do
   echo "$db"
   sqlite3 "$db" "PRAGMA integrity_check;"
 done
@@ -117,20 +117,20 @@ done
 Disk usage:
 
 ```bash
-du -sh fetch_sqlite/*.sqlite 2>/dev/null | sort -rh
+du -sh data/sqlite/*.sqlite 2>/dev/null | sort -rh
 df -h /var/www/valuation
 ```
 
 ## Logs
 
 ```bash
-tail -50 fetch_sqlite/cron_screener.log
-tail -50 fetch_sqlite/cron_stats_financial.log
-tail -50 fetch_sqlite/cron_vci_market_news.log
-tail -50 fetch_sqlite/cron_ratio_daily.log
-tail -50 fetch_sqlite/cron_shareholders.log
-tail -50 fetch_sqlite/cron_foreign.log
-tail -50 fetch_sqlite/cron_valuation.log
+tail -50 logs/cron_screener.log
+tail -50 logs/cron_stats_financial.log
+tail -50 logs/cron_vci_market_news.log
+tail -50 logs/cron_ratio_daily.log
+tail -50 logs/cron_shareholders.log
+tail -50 logs/cron_foreign.log
+tail -50 logs/cron_valuation.log
 tail -50 logs/price_history_update.log
 ```
 
@@ -138,7 +138,7 @@ tail -50 logs/price_history_update.log
 
 ### Backend reads old monolithic DB
 
-Symptom: API returns empty/stale fields even though `fetch_sqlite` DBs are fresh.
+Symptom: API returns empty/stale fields even though the `data/sqlite` DBs are fresh.
 
 Check:
 
@@ -146,7 +146,7 @@ Check:
 rg -n "stocks_optimized|stocks_optimized\\.new|vietnam_stocks|STOCKS_DB_PATH|VIETNAM_STOCK_DB_PATH|overview|ratio_wide|fin_stmt"
 ```
 
-Fix: migrate the route/service to the specific `fetch_sqlite` DB documented in
+Fix: migrate the route/service to the specific `data/sqlite` DB documented in
 `docs/SQLITE_DATABASES.md`.
 
 ### Cron not running
@@ -154,7 +154,7 @@ Fix: migrate the route/service to the specific `fetch_sqlite` DB documented in
 ```bash
 crontab -l
 grep CRON /var/log/syslog | tail -50
-tail -100 fetch_sqlite/cron_screener.log
+tail -100 logs/cron_screener.log
 ```
 
 If line endings are broken:
@@ -171,25 +171,25 @@ and protects against severe row-count drops.
 Check:
 
 ```bash
-tail -100 fetch_sqlite/cron_screener.log
-tail -100 fetch_sqlite/cron_stats_financial.log
-tail -100 fetch_sqlite/cron_vci_market_news.log
+tail -100 logs/cron_screener.log
+tail -100 logs/cron_stats_financial.log
+tail -100 logs/cron_vci_market_news.log
 ```
 
 Rerun with fewer workers and delay:
 
 ```bash
-python fetch_sqlite/fetch_vci_stats_financial.py \
-  --db fetch_sqlite/vci_stats_financial.sqlite \
+python scripts/fetchers/fetch_vci_stats_financial.py \
+  --db data/sqlite/vci_stats_financial.sqlite \
   --workers 2 --delay 0.25 --retries 5
 ```
 
 ### News cache stale
 
 ```bash
-sqlite3 fetch_sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta;"
-python fetch_sqlite/fetch_vci_market_news.py \
-  --db fetch_sqlite/vci_market_news.sqlite \
+sqlite3 data/sqlite/vci_market_news.sqlite "SELECT key, value FROM news_meta;"
+python scripts/fetchers/fetch_vci_market_news.py \
+  --db data/sqlite/vci_market_news.sqlite \
   --pages 5 --page-size 50 --days-back 30 --prune-days 90 --workers 2 --insecure
 ```
 
@@ -213,25 +213,25 @@ Backup a DB before manual replacement:
 
 ```bash
 mkdir -p backups
-cp fetch_sqlite/vci_screening.sqlite backups/vci_screening_$(date +%Y%m%d_%H%M%S).sqlite
+cp data/sqlite/vci_screening.sqlite backups/vci_screening_$(date +%Y%m%d_%H%M%S).sqlite
 ```
 
 Vacuum during quiet hours:
 
 ```bash
-sqlite3 fetch_sqlite/vci_market_news.sqlite "VACUUM;"
-sqlite3 fetch_sqlite/vci_price_history.sqlite "VACUUM;"
+sqlite3 data/sqlite/vci_market_news.sqlite "VACUUM;"
+sqlite3 data/sqlite/vci_price_history.sqlite "VACUUM;"
 ```
 
 Delete old logs:
 
 ```bash
-find logs fetch_sqlite -name "*.log" -mtime +30 -delete
+find logs -name "*.log" -mtime +30 -delete
 ```
 
 ## Adding a New SQLite Source
 
-1. Put the fetcher under `fetch_sqlite/`.
+1. Put the fetcher under `scripts/fetchers/`.
 2. Add a `--db` argument.
 3. Store full upstream payload in `raw_json` if schema may change.
 4. Add a resolver/env var if backend needs configurable paths.

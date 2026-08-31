@@ -40,12 +40,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--db-path",
-        default="vci_financial_statement_data/vci_financial_statements.sqlite",
+        default="data/financial-statements/vci_financial_statement_data/vci_financial_statements.sqlite",
         help="Destination SQLite path.",
     )
     parser.add_argument(
         "--mapping-file",
-        default="vci_financial_statement_data/financial_statement_metrics.json",
+        default="data/financial-statements/vci_financial_statement_data/financial_statement_metrics.json",
         help="Existing VCI metrics JSON used for labels and base columns.",
     )
     parser.add_argument(
@@ -101,7 +101,7 @@ def field_codes(records: list[dict[str, Any]]) -> set[str]:
 
 def main() -> int:
     args = parse_args()
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     db_path = (root / args.db_path).resolve() if not Path(args.db_path).is_absolute() else Path(args.db_path)
     mapping_path = (
         (root / args.mapping_file).resolve()

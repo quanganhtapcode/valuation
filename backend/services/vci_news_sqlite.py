@@ -22,8 +22,8 @@ def default_news_db_path() -> str:
 
     candidates.extend(
         [
-            os.path.join(root, "fetch_sqlite", "vci_market_news.sqlite"),
-            "/var/www/valuation/fetch_sqlite/vci_market_news.sqlite",
+            os.path.join(root, "data", "sqlite", "vci_market_news.sqlite"),
+            "/var/www/valuation/data/sqlite/vci_market_news.sqlite",
             "/var/www/store/fetch_sqlite/vci_market_news.sqlite",
         ]
     )
@@ -33,7 +33,7 @@ def default_news_db_path() -> str:
             return path
 
     # Keep deterministic fallback for callers that may create/populate the DB later.
-    return os.path.join(root, "fetch_sqlite", "vci_market_news.sqlite")
+    return os.path.join(root, "data", "sqlite", "vci_market_news.sqlite")
 
 
 def _connect(db_path: str) -> sqlite3.Connection:

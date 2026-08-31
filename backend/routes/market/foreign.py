@@ -24,7 +24,7 @@ _VCI_FOREIGN_VOLUME_URL = (
 )
 
 _FOREIGN_SQLITE = (
-    Path(__file__).resolve().parents[3] / "fetch_sqlite" / "vci_foreign.sqlite"
+    Path(__file__).resolve().parents[3] / "data" / "sqlite" / "vci_foreign.sqlite"
 )
 
 _MAX_SQLITE_AGE_S = 90  # treat SQLite data stale after 90 seconds

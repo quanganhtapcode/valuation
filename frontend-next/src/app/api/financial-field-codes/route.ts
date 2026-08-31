@@ -4,7 +4,7 @@ import path from 'node:path';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    const filePath = path.resolve(process.cwd(), '..', 'fetch_sqlite', 'vci_field_codes.json');
+    const filePath = path.resolve(process.cwd(), '..', 'config', 'vci_field_codes.json');
     try {
         const body = await fs.readFile(filePath, 'utf8');
         return new Response(body, {

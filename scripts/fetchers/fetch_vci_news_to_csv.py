@@ -5,7 +5,7 @@ Fetch từng tháng, mỗi tháng lấy hết các page, sleep giữa các reque
 để tránh bị rate-limit từ VCI.
 
 Dùng:
-    python fetch_sqlite/fetch_vci_news_to_csv.py --out exports/vci_news_2023_2026.csv
+    python scripts/fetchers/fetch_vci_news_to_csv.py --out exports/vci_news_2023_2026.csv
 """
 
 from __future__ import annotations

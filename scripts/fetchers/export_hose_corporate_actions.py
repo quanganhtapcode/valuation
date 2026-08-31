@@ -2,8 +2,8 @@
 """Export HOSE corporate actions (2016-04-2026) from vci_news_events.sqlite to CSV.
 
 Usage:
-    python fetch_sqlite/export_hose_corporate_actions.py
-    python fetch_sqlite/export_hose_corporate_actions.py --out exports/my_file.csv
+    python scripts/fetchers/export_hose_corporate_actions.py
+    python scripts/fetchers/export_hose_corporate_actions.py --out exports/my_file.csv
 """
 from __future__ import annotations
 
@@ -14,13 +14,14 @@ import os
 import sqlite3
 from pathlib import Path
 
-BASE = Path(__file__).parent
+ROOT = Path(__file__).resolve().parents[2]
+SQLITE_DIR = ROOT / "data" / "sqlite"
 
 NEWS_EVENTS_DB = os.environ.get(
-    "VCI_NEWS_EVENTS_DB_PATH", str(BASE / "vci_news_events.sqlite")
+    "VCI_NEWS_EVENTS_DB_PATH", str(SQLITE_DIR / "vci_news_events.sqlite")
 )
 COMPANY_DB = os.environ.get(
-    "VCI_COMPANY_DB_PATH", str(BASE / "vci_company.sqlite")
+    "VCI_COMPANY_DB_PATH", str(SQLITE_DIR / "vci_company.sqlite")
 )
 
 DATE_FROM = "2016-01-01"
@@ -150,7 +151,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--out",
-        default=str(Path(__file__).parent.parent / "exports" / "hose_corporate_actions.csv"),
+        default=str(ROOT / "exports" / "hose_corporate_actions.csv"),
     )
     args = ap.parse_args()
 

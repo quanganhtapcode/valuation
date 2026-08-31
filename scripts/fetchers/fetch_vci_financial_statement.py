@@ -342,7 +342,12 @@ def _to_float(v: Any) -> float | None:
 
 
 def _default_out_dir() -> Path:
-    return Path(__file__).resolve().parents[1] / "vci_financial_statement_data"
+    return (
+        Path(__file__).resolve().parents[2]
+        / "data"
+        / "financial-statements"
+        / "vci_financial_statement_data"
+    )
 
 
 def _default_db_path(out_dir: Path) -> Path:
@@ -939,7 +944,11 @@ def _parse_args() -> argparse.Namespace:
         default="",
         help="Comma-separated symbols to merge metrics mapping from (e.g. FPT,TCB).",
     )
-    parser.add_argument("--out-dir", default="", help="Output folder. Default: <repo>/vci_financial_statement_data")
+    parser.add_argument(
+        "--out-dir",
+        default="",
+        help="Output folder. Default: <repo>/data/financial-statements/vci_financial_statement_data",
+    )
     parser.add_argument("--db-path", default="", help="SQLite DB path. Default: <out-dir>/vci_financial_statements.sqlite")
     parser.add_argument(
         "--notes-fallback-db",

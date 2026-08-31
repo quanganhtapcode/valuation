@@ -7,7 +7,7 @@ Two tables in vci_foreign.sqlite:
 
 Run every minute during trading hours (09:00–15:05 VN, Mon–Fri).
 Cron example:
-  */1 9-15 * * 1-5 cd /var/www/valuation && .venv/bin/python fetch_sqlite/fetch_vci_foreign.py >> fetch_sqlite/cron_foreign.log 2>&1
+  */1 9-15 * * 1-5 cd /var/www/valuation && .venv/bin/python scripts/fetchers/fetch_vci_foreign.py >> logs/cron_foreign.log 2>&1
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from typing import Any
 
 _NET_URL   = "https://trading.vietcap.com.vn/api/market-watch/v3/ForeignNetValue/top"
 _VOL_URL   = "https://trading.vietcap.com.vn/api/market-watch/v3/ForeignVolumeChart/getAll"
-_DEFAULT_DB = "fetch_sqlite/vci_foreign.sqlite"
+_DEFAULT_DB = "data/sqlite/vci_foreign.sqlite"
 
 
 # ─── HTTP helpers ─────────────────────────────────────────────────────────────

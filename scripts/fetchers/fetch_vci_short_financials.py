@@ -5,7 +5,7 @@ Source endpoint:
   GET https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/{SYMBOL}/short-financial?lengthReport=N
 
 Default output:
-  fetch_sqlite/vci_short_financials.sqlite
+  data/sqlite/vci_short_financials.sqlite
 """
 
 from __future__ import annotations
@@ -157,7 +157,7 @@ def _fetch_symbol(
 
 
 def _default_db_path() -> str:
-    return str(Path(__file__).resolve().parent / "vci_short_financials.sqlite")
+    return str(Path(__file__).resolve().parents[2] / "data" / "sqlite" / "vci_short_financials.sqlite")
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
@@ -514,10 +514,10 @@ def collect_symbols(args: argparse.Namespace) -> list[str]:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Fetch VCI short-financial for HOSE stocks into SQLite")
-    p.add_argument("--db", default=None, help="Output SQLite path (default: fetch_sqlite/vci_short_financials.sqlite)")
+    p.add_argument("--db", default=None, help="Output SQLite path (default: data/sqlite/vci_short_financials.sqlite)")
     p.add_argument(
         "--company-db",
-        default=str(Path(__file__).resolve().parent / "vci_company.sqlite"),
+        default=str(Path(__file__).resolve().parents[2] / "data" / "sqlite" / "vci_company.sqlite"),
         help="Path to vci_company.sqlite used to select HOSE stocks",
     )
     p.add_argument("--tickers-csv", default=None, help="Optional CSV with ticker column")

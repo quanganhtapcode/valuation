@@ -513,7 +513,7 @@ def parse_args() -> argparse.Namespace:
         help="Optional end page (inclusive). If omitted, fetch until API returns last=true.",
     )
     p.add_argument("--page-size", type=int, default=50, help="Page size")
-    p.add_argument("--db", default="vci_screening.sqlite", help="SQLite db file path")
+    p.add_argument("--db", default="data/sqlite/vci_screening.sqlite", help="SQLite db file path")
     p.add_argument("--device-id", default=None, help="Optional device-id header")
     p.add_argument("--timeout", type=int, default=30, help="HTTP timeout in seconds")
     p.add_argument("--retries", type=int, default=6, help="Retry count for transient errors")

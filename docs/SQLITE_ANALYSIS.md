@@ -1,6 +1,6 @@
 # SQLite Analysis
 
-> Last updated: 2026-04-26. The canonical architecture is now `fetch_sqlite`
+> Last updated: 2026-08-31. The canonical database directory is now `data/sqlite`
 > first. `stocks_optimized.db` and `stocks_optimized.new.db` are deprecated.
 
 ## Target Architecture
@@ -12,10 +12,10 @@ External APIs
   optional vnstock legacy jobs
         |
         v
-fetch_sqlite/*.py
+scripts/fetchers/*.py
         |
         v
-fetch_sqlite/*.sqlite
+data/sqlite/*.sqlite
         |
         v
 Flask services/routes
@@ -36,7 +36,7 @@ its own SQLite file, which makes refresh, backup and rollback easier.
 | Current market snapshot | `vci_screening.sqlite` | Freshest broad ticker snapshot with price, sector and market cap |
 | TTM ratios | `vci_stats_financial.sqlite` | Richest current ratio dataset including banking KPIs |
 | Daily PE/PB | `vci_ratio_daily.sqlite` | Highest-priority daily valuation multiples |
-| Historical price | `fetch_sqlite/vci_price_history.sqlite` | Dedicated OHLCV store with upsert by symbol/date |
+| Historical price | `data/sqlite/vci_price_history.sqlite` | Dedicated OHLCV store with upsert by symbol/date |
 | News cache | `vci_market_news.sqlite` | Fast market news reads without hitting upstream per request |
 | News/events/dividends by symbol | `vci_news_events.sqlite` | Per-symbol tab data |
 | Shareholders | `vci_shareholders.sqlite` | Holder list by ticker |
@@ -85,12 +85,12 @@ The following names should be treated as legacy:
 
 | Name | Action |
 |---|---|
-| `stocks_optimized.db` | Do not use. Replace with domain-specific `fetch_sqlite` DB reads. |
+| `stocks_optimized.db` | Do not use. Replace with domain-specific `data/sqlite` DB reads. |
 | `stocks_optimized.new.db` | Do not use. Rebuild temp DBs per domain instead. |
 | `vietnam_stocks.db` | Do not introduce new references. |
 | `STOCKS_DB_PATH` | Legacy compatibility only. |
 | `VIETNAM_STOCK_DB_PATH` | Legacy compatibility only. |
-| `overview`, `ratio_wide`, `company`, `fin_stmt` compatibility views | Replace route dependencies with direct `fetch_sqlite` queries where practical. |
+| `overview`, `ratio_wide`, `company`, `fin_stmt` compatibility views | Replace route dependencies with direct `data/sqlite` queries where practical. |
 
 Suggested search:
 
@@ -113,7 +113,7 @@ rg -n "stocks_optimized|stocks_optimized\\.new|vietnam_stocks|STOCKS_DB_PATH|VIE
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Backend route still reads legacy monolithic DB | Empty or stale API fields | Migrate route/service to specific `fetch_sqlite` DB |
+| Backend route still reads legacy monolithic DB | Empty or stale API fields | Migrate route/service to a domain-specific DB in `data/sqlite` |
 | DB path resolver still prefers legacy files | Accidental recreation of removed DB | Remove legacy fallback in code or mark compatibility path clearly |
 | Missing cron for a canonical DB | Stale market page | Add explicit cron in `automation/setup_cron_vps.sh` |
 | Large SQLite file grows unbounded | Disk pressure | Add retention and scheduled `VACUUM` |
@@ -124,33 +124,33 @@ rg -n "stocks_optimized|stocks_optimized\\.new|vietnam_stocks|STOCKS_DB_PATH|VIE
 Freshness:
 
 ```bash
-sqlite3 /var/www/valuation/fetch_sqlite/vci_screening.sqlite \
+sqlite3 /var/www/valuation/data/sqlite/vci_screening.sqlite \
   "SELECT COUNT(*), MAX(fetched_at) FROM screening_data;"
 
-sqlite3 /var/www/valuation/fetch_sqlite/vci_stats_financial.sqlite \
+sqlite3 /var/www/valuation/data/sqlite/vci_stats_financial.sqlite \
   "SELECT COUNT(*), MAX(fetched_at) FROM stats_financial;"
 
-sqlite3 /var/www/valuation/fetch_sqlite/vci_ratio_daily.sqlite \
+sqlite3 /var/www/valuation/data/sqlite/vci_ratio_daily.sqlite \
   "SELECT COUNT(*), MAX(fetched_at) FROM ratio_daily;"
 
-sqlite3 /var/www/valuation/fetch_sqlite/vci_market_news.sqlite \
+sqlite3 /var/www/valuation/data/sqlite/vci_market_news.sqlite \
   "SELECT key, value FROM news_meta ORDER BY key;"
 ```
 
 Cron logs:
 
 ```bash
-tail -50 /var/www/valuation/fetch_sqlite/cron_screener.log
-tail -50 /var/www/valuation/fetch_sqlite/cron_stats_financial.log
-tail -50 /var/www/valuation/fetch_sqlite/cron_vci_market_news.log
-tail -50 /var/www/valuation/fetch_sqlite/cron_ratio_daily.log
-tail -50 /var/www/valuation/fetch_sqlite/cron_shareholders.log
+tail -50 /var/www/valuation/logs/cron_screener.log
+tail -50 /var/www/valuation/logs/cron_stats_financial.log
+tail -50 /var/www/valuation/logs/cron_vci_market_news.log
+tail -50 /var/www/valuation/logs/cron_ratio_daily.log
+tail -50 /var/www/valuation/logs/cron_shareholders.log
 ```
 
 Integrity:
 
 ```bash
-for db in /var/www/valuation/fetch_sqlite/*.sqlite; do
+for db in /var/www/valuation/data/sqlite/*.sqlite; do
   echo "$db"
   sqlite3 "$db" "PRAGMA integrity_check;"
 done

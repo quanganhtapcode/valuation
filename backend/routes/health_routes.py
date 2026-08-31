@@ -3,7 +3,7 @@
 
 Checks:
   - vci_price_history.sqlite : OHLCV data freshness
-  - fetch_sqlite/        : index_history, screening, news freshness
+  - data/sqlite/         : index_history, screening, news freshness
   - logs/pipeline.log    : lần chạy cuối + kết quả
   - systemd timer         : lần trigger cuối / tiếp theo (đọc qua subprocess)
 """
@@ -31,7 +31,7 @@ VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 
 def _fetch_sqlite_dir() -> Path:
-    return BASE_DIR / "fetch_sqlite"
+    return BASE_DIR / "data" / "sqlite"
 
 
 def _logs_dir() -> Path:
@@ -108,7 +108,7 @@ def _check_sqlite_file(
     freshness_minutes: int,
     freshness_sql: str | None = None,
 ) -> dict:
-    """Generic checker cho các SQLite files trong fetch_sqlite/."""
+    """Generic checker cho các SQLite files trong data/sqlite/."""
     age = _file_age_minutes(db)
 
     if not db.exists():

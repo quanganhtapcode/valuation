@@ -373,7 +373,7 @@ def upsert_ema_breadth(conn: sqlite3.Connection, rows: list[dict]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch VCI valuation data into SQLite")
-    parser.add_argument("--db", default="fetch_sqlite/vci_valuation.sqlite")
+    parser.add_argument("--db", default="data/sqlite/vci_valuation.sqlite")
     args = parser.parse_args()
 
     ts = lambda: _dt.datetime.now().strftime("%H:%M:%S")

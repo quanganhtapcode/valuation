@@ -65,7 +65,7 @@ class PriceHistoryUpdater:
         delay: float = 1.2,
         pages_per_symbol: int = 5,
         incremental: bool = True,
-        recent_page_size: int = 50,
+        recent_page_size: int = 250,
         retries: int = 2,
         retry_backoff: float = 1.5,
     ):

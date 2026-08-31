@@ -1,7 +1,7 @@
 """Batch valuation updater.
 
 Computes intrinsic value for every stock that has sufficient financial data
-and caches the results in fetch_sqlite/valuation_cache.sqlite.
+and caches the results in data/sqlite/valuation_cache.sqlite.
 
 Run after the daily pipeline:
     python -m backend.updater.batch_valuations
@@ -16,7 +16,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_CACHE_DB = Path(__file__).resolve().parents[2] / "fetch_sqlite" / "valuation_cache.sqlite"
+_CACHE_DB = Path(__file__).resolve().parents[2] / "data" / "sqlite" / "valuation_cache.sqlite"
 
 _CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS valuations (

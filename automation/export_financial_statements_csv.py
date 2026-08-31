@@ -11,9 +11,9 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DATABASE = PROJECT_ROOT / "fetch_sqlite" / "vci_financials.sqlite"
-STATS_DATABASE = PROJECT_ROOT / "fetch_sqlite" / "vci_stats_financial.sqlite"
-FIELD_CODES = PROJECT_ROOT / "fetch_sqlite" / "vci_field_codes.json"
+DATABASE = PROJECT_ROOT / "data" / "sqlite" / "vci_financials.sqlite"
+STATS_DATABASE = PROJECT_ROOT / "data" / "sqlite" / "vci_stats_financial.sqlite"
+FIELD_CODES = PROJECT_ROOT / "config" / "vci_field_codes.json"
 OUTPUT_DIR = PROJECT_ROOT / "exports" / "bao_cao_tai_chinh_2022_2026"
 YEAR_RANGE = (2022, 2026)
 

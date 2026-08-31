@@ -28,7 +28,7 @@ SERVICE_NAME="valuation"
 SERVICE_STATUS="$(systemctl is-active "$SERVICE_NAME" 2>/dev/null || echo 'unknown')"
 
 PROJECT_ROOT="/var/www/valuation"
-SCREENING_DB="${PROJECT_ROOT}/fetch_sqlite/vci_screening.sqlite"
+SCREENING_DB="${PROJECT_ROOT}/data/sqlite/vci_screening.sqlite"
 SCREENER_LOG="${PROJECT_ROOT}/logs/cron_screener.log"
 HEALTH_URL="http://localhost:8000/health"
 HEALTH_RAW="$(curl -sS --max-time 8 "$HEALTH_URL" 2>/dev/null || true)"

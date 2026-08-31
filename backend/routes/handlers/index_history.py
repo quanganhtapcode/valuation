@@ -36,15 +36,15 @@ def _index_aliases(index: str) -> list[str]:
 def resolve_index_db_path(*, base_dir: str, index: str) -> str | None:
     # Preferred unified DB (all indices in one file)
     unified_candidates = [
-        os.path.join(base_dir, "fetch_sqlite", "vci_index_history.sqlite"),
-        os.path.join(base_dir, "fetch_sqlite", "index_history.sqlite"),
-        os.path.join(base_dir, "fetch_sqlite", "vci_market_indices.sqlite"),
+        os.path.join(base_dir, "data", "sqlite", "vci_index_history.sqlite"),
+        os.path.join(base_dir, "data", "sqlite", "index_history.sqlite"),
+        os.path.join(base_dir, "data", "sqlite", "vci_market_indices.sqlite"),
     ]
     for unified in unified_candidates:
         if os.path.exists(unified):
             return unified
 
-    fetch_dir = os.path.join(base_dir, "fetch_sqlite")
+    fetch_dir = os.path.join(base_dir, "data", "sqlite")
     for token in _index_aliases(index):
         db_path = os.path.join(fetch_dir, f"{token}.sqlite")
         if os.path.exists(db_path):

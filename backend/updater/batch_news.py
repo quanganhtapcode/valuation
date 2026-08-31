@@ -1,5 +1,5 @@
 """
-Batch-fetch VCI IQ news + events for all symbols → fetch_sqlite/vci_news_events.sqlite
+Batch-fetch VCI IQ news + events for all symbols → data/sqlite/vci_news_events.sqlite
 
 Run:
     python -m backend.updater.batch_news            # full refresh
@@ -55,8 +55,8 @@ def _db_path() -> str:
     if env:
         return env
     candidates = [
-        Path(__file__).parent.parent.parent / "fetch_sqlite" / "vci_news_events.sqlite",
-        Path("/var/www/valuation/fetch_sqlite/vci_news_events.sqlite"),
+        Path(__file__).parent.parent.parent / "data" / "sqlite" / "vci_news_events.sqlite",
+        Path("/var/www/valuation/data/sqlite/vci_news_events.sqlite"),
     ]
     for c in candidates:
         if c.parent.exists():

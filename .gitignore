@@ -2,6 +2,7 @@
 .env
 runtime/
 backups/
+data/
 automation/data/
 .env.local
 .telegram_uptime.env

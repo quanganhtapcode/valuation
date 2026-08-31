@@ -5,9 +5,9 @@ Fetches 9 data types: GDP, Prices, Business, Trade, Labour, Money, Consumer, Tax
 Each /info endpoint returns metadata + historicalValue embedded — no separate historical endpoint needed.
 
 Usage:
-    python3 fetch_sqlite/fetch_fireant_macro.py          # update all
-    python3 fetch_sqlite/fetch_fireant_macro.py --types GDP,Trade
-    python3 fetch_sqlite/fetch_fireant_macro.py --dry-run
+    python3 scripts/fetchers/fetch_fireant_macro.py          # update all
+    python3 scripts/fetchers/fetch_fireant_macro.py --types GDP,Trade
+    python3 scripts/fetchers/fetch_fireant_macro.py --dry-run
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-_DB_PATH = os.path.join(os.path.dirname(__file__), 'fireant_macro.sqlite')
+_DB_PATH = str(Path(__file__).resolve().parents[2] / 'data' / 'sqlite' / 'fireant_macro.sqlite')
 
 _BEARER = (
     "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IkdYdExONzViZlZQakdvNERWdjV4QkRI"

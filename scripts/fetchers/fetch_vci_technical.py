@@ -10,11 +10,11 @@ Default behavior:
   - Upsert raw upstream JSON into vci_technical.sqlite
 
 Usage:
-  python fetch_sqlite/fetch_vci_technical.py
-  python fetch_sqlite/fetch_vci_technical.py --symbols FPT,VCB,SSI
-  python fetch_sqlite/fetch_vci_technical.py --timeframes ONE_DAY
-  python fetch_sqlite/fetch_vci_technical.py --db /path/to/vci_technical.sqlite
-  python fetch_sqlite/fetch_vci_technical.py --screening-db /path/to/vci_screening.sqlite
+  python scripts/fetchers/fetch_vci_technical.py
+  python scripts/fetchers/fetch_vci_technical.py --symbols FPT,VCB,SSI
+  python scripts/fetchers/fetch_vci_technical.py --timeframes ONE_DAY
+  python scripts/fetchers/fetch_vci_technical.py --db /path/to/vci_technical.sqlite
+  python scripts/fetchers/fetch_vci_technical.py --screening-db /path/to/vci_screening.sqlite
 """
 
 from __future__ import annotations
@@ -42,7 +42,8 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-_HERE = Path(__file__).resolve().parent
+_ROOT = Path(__file__).resolve().parents[2]
+_SQLITE_DIR = _ROOT / "data" / "sqlite"
 
 API_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1/company"
 DEFAULT_TIMEFRAMES = ("ONE_HOUR", "ONE_DAY", "ONE_WEEK")
@@ -166,7 +167,7 @@ def collect_symbols(args: argparse.Namespace) -> list[str]:
         return _normalize_symbols(args.symbols.split(","))
 
     # 1. vci_screening.sqlite — most reliable, refreshed every 5 min
-    screening_db = getattr(args, "screening_db", None) or str(_HERE / "vci_screening.sqlite")
+    screening_db = getattr(args, "screening_db", None) or str(_SQLITE_DIR / "vci_screening.sqlite")
     symbols = _symbols_from_screening(screening_db)
     if symbols:
         log.info("Loaded %d symbols from screening DB", len(symbols))
@@ -174,9 +175,9 @@ def collect_symbols(args: argparse.Namespace) -> list[str]:
 
     # 2. vci_company.sqlite fallback
     for candidate in [
-        _HERE / "vci_company.sqlite",
-        Path("/var/www/valuation/fetch_sqlite/vci_company.sqlite"),
-        Path("/var/www/store/fetch_sqlite/vci_company.sqlite"),
+        _SQLITE_DIR / "vci_company.sqlite",
+        Path("/var/www/valuation/data/sqlite/vci_company.sqlite"),
+        Path("/var/www/store/data/sqlite/vci_company.sqlite"),
     ]:
         symbols = _symbols_from_company_db(str(candidate))
         if symbols:
@@ -195,7 +196,7 @@ def _default_db_path() -> str:
     env = os.getenv("VCI_TECHNICAL_DB_PATH", "")
     if env and os.path.exists(env):
         return env
-    return str(_HERE / "vci_technical.sqlite")
+    return str(_SQLITE_DIR / "vci_technical.sqlite")
 
 
 # ---------------------------------------------------------------------------

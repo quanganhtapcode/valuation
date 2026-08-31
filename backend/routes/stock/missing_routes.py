@@ -35,6 +35,7 @@ from backend.extensions import get_provider, get_stock_service, get_financial_se
 from backend.utils import validate_stock_symbol
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 # Simple in-memory cache (reuse pattern from stock_routes)
 _cache: dict = {}
@@ -491,7 +492,7 @@ def register(stock_bp: Blueprint) -> None:
 
             if not has_metrics_table:
                 # Wide-format DB: read from bundled JSON file
-                json_path = Path(fs_db_path).parent / "vci_field_codes.json"
+                json_path = PROJECT_ROOT / "config" / "vci_field_codes.json"
                 if not json_path.exists():
                     return jsonify({"data": [], "field_map": {}})
                 with open(json_path, encoding="utf-8") as f:

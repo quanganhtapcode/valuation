@@ -6,7 +6,7 @@ for each listed symbol, extracts the most recent TTM entry, and upserts it into
 vci_stats_financial.sqlite.
 
 Run periodically (e.g. every 60 minutes) to keep financial ratios fresh:
-    python fetch_sqlite/fetch_vci_stats_financial.py
+    python scripts/fetchers/fetch_vci_stats_financial.py
 
 All ratio values from the API are in decimal form (0.19 = 19%); stored as-is.
 Use _normalize_percent_value() in source_priority.py to convert at read time.
@@ -120,8 +120,7 @@ def _fetch_symbol(
 # ---------------------------------------------------------------------------
 
 def _default_db_path() -> str:
-    here = Path(__file__).resolve().parent
-    return str(here / "vci_stats_financial.sqlite")
+    return str(Path(__file__).resolve().parents[2] / "data" / "sqlite" / "vci_stats_financial.sqlite")
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
@@ -555,13 +554,13 @@ def collect_symbols(args: argparse.Namespace) -> list[str]:
         return [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
 
     # 1. VCI screening SQLite (most reliable — refreshed every 5 min)
-    here = Path(__file__).resolve().parent
-    screening_db = getattr(args, "screening_db", None) or str(here / "vci_screening.sqlite")
+    root = Path(__file__).resolve().parents[2]
+    sqlite_dir = root / "data" / "sqlite"
+    screening_db = getattr(args, "screening_db", None) or str(sqlite_dir / "vci_screening.sqlite")
     symbols = _get_symbols_from_screening(screening_db)
 
     if not symbols:
         # 2. Fallback: vietnam_stocks.db
-        root = here.parent
         for candidate in [
             root / "vietnam_stocks.db",
             root / "stocks.db",
@@ -584,7 +583,7 @@ def collect_symbols(args: argparse.Namespace) -> list[str]:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Fetch VCI statistics-financial per symbol into SQLite")
-    p.add_argument("--db", default=None, help="Output SQLite path (default: fetch_sqlite/vci_stats_financial.sqlite)")
+    p.add_argument("--db", default=None, help="Output SQLite path (default: data/sqlite/vci_stats_financial.sqlite)")
     p.add_argument("--screening-db", default=None, help="Path to vci_screening.sqlite for symbol list")
     p.add_argument("--symbols", default=None, help="Comma-separated symbol list (overrides auto-discovery)")
     p.add_argument("--workers", type=int, default=20, help="Concurrent HTTP workers (default: 20)")

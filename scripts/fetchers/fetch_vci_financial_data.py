@@ -4,9 +4,9 @@
 Requires a Vietcap bearer token obtained via Telegram (same flow as update_excel_data.py).
 
 Usage:
-    python fetch_sqlite/fetch_vci_financial_data.py
-    python fetch_sqlite/fetch_vci_financial_data.py --ticker ACB VCB
-    python fetch_sqlite/fetch_vci_financial_data.py --dry-run
+    python scripts/fetchers/fetch_vci_financial_data.py
+    python scripts/fetchers/fetch_vci_financial_data.py --ticker ACB VCB
+    python scripts/fetchers/fetch_vci_financial_data.py --dry-run
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from pathlib import Path
 import requests
 from dotenv import dotenv_values, load_dotenv
 
-ROOT = Path(__file__).parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 load_dotenv(ROOT / ".env")
 

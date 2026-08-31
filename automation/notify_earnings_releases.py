@@ -17,8 +17,8 @@ from typing import Any
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-FINANCIALS_DB = PROJECT_ROOT / "fetch_sqlite" / "vci_financials.sqlite"
-COMPANY_DB = PROJECT_ROOT / "fetch_sqlite" / "vci_company.sqlite"
+FINANCIALS_DB = PROJECT_ROOT / "data" / "sqlite" / "vci_financials.sqlite"
+COMPANY_DB = PROJECT_ROOT / "data" / "sqlite" / "vci_company.sqlite"
 STATE_FILE = PROJECT_ROOT / "runtime" / "earnings_telegram_state.json"
 TELEGRAM_ENV_FILE = PROJECT_ROOT / ".telegram_uptime.env"
 # Leave room for Telegram's UTF-16 accounting and future header changes.

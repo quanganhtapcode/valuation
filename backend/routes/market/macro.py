@@ -16,10 +16,10 @@ from flask import Blueprint, jsonify, request
 from .deps import cache_func
 
 _MACRO_HISTORY_DB = os.path.join(
-    os.path.dirname(__file__), '..', '..', '..', 'fetch_sqlite', 'macro_history.sqlite'
+    os.path.dirname(__file__), '..', '..', '..', 'data', 'sqlite', 'macro_history.sqlite'
 )
 _FIREANT_MACRO_DB = os.path.join(
-    os.path.dirname(__file__), '..', '..', '..', 'fetch_sqlite', 'fireant_macro.sqlite'
+    os.path.dirname(__file__), '..', '..', '..', 'data', 'sqlite', 'fireant_macro.sqlite'
 )
 
 # FireAnt static public token (expires 2030, used by fireant.tradestation client)
@@ -458,7 +458,7 @@ def register(market_bp: Blueprint) -> None:
         """All FireAnt macro indicators from SQLite, grouped by type.
         ?types=GDP,Trade  — filter by type
         ?full=1           — return all indicators (no _FA_EXPOSED filter)
-        Cache 6h — refreshed by fetch_sqlite/fetch_fireant_macro.py cron."""
+        Cache 6h — refreshed by scripts/fetchers/fetch_fireant_macro.py cron."""
         try:
             types_param = request.args.get('types', '')
             full = request.args.get('full', '0') == '1'
