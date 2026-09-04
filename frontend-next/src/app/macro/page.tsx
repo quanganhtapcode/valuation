@@ -357,6 +357,18 @@ function formatMacroChartDate(date: string, frequency: 'daily' | 'monthly' | 'an
     return `${month}/${year.slice(2)}`;
 }
 
+function formatMacroAxisValue(value: number, sym: string) {
+    const unit = TV_CONFIGS[sym].unitLabel;
+    if (unit.includes('%')) return `${value.toFixed(1)}%`;
+    if (unit.includes('nghìn tỷ')) return (value / 1e12).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    if (unit.includes('tỷ $')) return (value / 1e9).toLocaleString('en-US', { maximumFractionDigits: 1 });
+    if (unit.includes('triệu ₫')) return (value / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 });
+    if (unit.includes('triệu người')) return (value / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 });
+    if (unit === 'USD') return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    if (unit.includes('USD/lít')) return `$${value.toFixed(2)}`;
+    return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
 function VietnamTrendChart({ sym, points }: { sym: string; points: PricePoint[] | null }) {
     const { lang } = useLanguage();
     const copy = translations[lang].macro;
@@ -393,9 +405,11 @@ function VietnamTrendChart({ sym, points }: { sym: string; points: PricePoint[] 
                     ? <div className="flex h-48 items-center justify-center text-sm text-slate-500 dark:text-slate-400">{copy.noData}</div>
                     : cfg.barChart
                         ? <BarChart data={chartData} index={copy.dateAxis} categories={[label]} colors={[chartColor]}
-                            valueFormatter={cfg.fmt} showLegend={false} showAnimation={false} autoMinValue tickGap={56} className="h-48" />
+                            valueFormatter={(value) => formatMacroAxisValue(value, sym)} yAxisWidth={64}
+                            showLegend={false} showAnimation={false} autoMinValue tickGap={56} className="h-48" />
                         : <AreaChart data={chartData} index={copy.dateAxis} categories={[label]} colors={[chartColor]}
-                            valueFormatter={cfg.fmt} showLegend={false} showGradient showAnimation={false} autoMinValue tickGap={56} className="h-48" />}
+                            valueFormatter={(value) => formatMacroAxisValue(value, sym)} yAxisWidth={64}
+                            showLegend={false} showGradient showAnimation={false} autoMinValue tickGap={56} className="h-48" />}
             </div>
         </Panel>
     );
