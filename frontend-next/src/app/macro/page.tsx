@@ -33,6 +33,10 @@ const AreaChart = dynamic(() => import('@tremor/react').then((module) => module.
     ssr: false,
     loading: () => <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
 });
+const BarChart = dynamic(() => import('@tremor/react').then((module) => module.BarChart), {
+    ssr: false,
+    loading: () => <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
+});
 
 // Keep one in-memory request per symbol/range for the summary cards.
 const historyRequestCache = new Map<string, Promise<PricePoint[]>>();
@@ -346,6 +350,57 @@ function VietnamTvRow({ sym, points }: { sym: string; points: PricePoint[] | nul
     return <tr className="border-b border-slate-100 dark:border-slate-800"><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{macroLabel(sym, cfg.titleVN, lang)}</p><p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${macroValue(Math.abs(summary.delta), sym, lang)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
 }
 
+function formatMacroChartDate(date: string, frequency: 'daily' | 'monthly' | 'annual') {
+    const [year, month, day] = date.split('-');
+    if (frequency === 'annual') return year;
+    if (frequency === 'daily') return `${day}/${month}`;
+    return `${month}/${year.slice(2)}`;
+}
+
+function VietnamTrendChart({ sym, points }: { sym: string; points: PricePoint[] | null }) {
+    const { lang } = useLanguage();
+    const copy = translations[lang].macro;
+    const cfg = TV_CONFIGS[sym];
+    const label = macroLabel(sym, cfg.titleVN, lang);
+    const chartData = (points ?? []).map((point) => ({
+        [copy.dateAxis]: formatMacroChartDate(point.date, cfg.freq),
+        [label]: point.close,
+    }));
+    const latest = points?.at(-1)?.close;
+    const previous = points && points.length > 1 ? points.at(-2)?.close : undefined;
+    const delta = latest !== undefined && previous !== undefined ? latest - previous : null;
+    const up = delta === null || delta >= 0;
+    const chartColor = cfg.color === 'amber' ? 'yellow' : cfg.color;
+
+    return (
+        <Panel className="overflow-hidden">
+            <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-900 dark:text-slate-100">{label}</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{macroUnit(cfg.unitLabel, lang)}</p>
+                    </div>
+                    {latest !== undefined && (
+                        <div className="shrink-0 text-right">
+                            <p className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">{macroValue(latest, sym, lang)}</p>
+                            {delta !== null && <p className={`mt-0.5 text-xs font-medium tabular-nums ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{delta >= 0 ? '+' : ''}{macroValue(delta, sym, lang)}</p>}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="px-2 pb-2 pt-3">
+                {points === null ? <Spinner h="h-48" /> : chartData.length === 0
+                    ? <div className="flex h-48 items-center justify-center text-sm text-slate-500 dark:text-slate-400">{copy.noData}</div>
+                    : cfg.barChart
+                        ? <BarChart data={chartData} index={copy.dateAxis} categories={[label]} colors={[chartColor]}
+                            valueFormatter={cfg.fmt} showLegend={false} showAnimation={false} autoMinValue tickGap={56} className="h-48" />
+                        : <AreaChart data={chartData} index={copy.dateAxis} categories={[label]} colors={[chartColor]}
+                            valueFormatter={cfg.fmt} showLegend={false} showGradient showAnimation={false} autoMinValue tickGap={56} className="h-48" />}
+            </div>
+        </Panel>
+    );
+}
+
 function VietnamMacroTab() {
     const { lang } = useLanguage();
     const copy = translations[lang].macro;
@@ -384,6 +439,10 @@ function VietnamMacroTab() {
                 </div>
 
                 <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{copy.indicator}</th><th className="px-3 py-3 text-right md:px-4">{copy.latest}</th><th className="px-3 py-3 text-right md:px-4">{copy.change}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{copy.comparison}</th><th className="px-3 py-3 text-right md:px-4">{copy.date}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
+
+                <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    {activeSymbols.map((sym) => <VietnamTrendChart key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}
+                </div>
             </section>
         </div>
     );

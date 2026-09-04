@@ -35,7 +35,7 @@ export interface FAIndicator {
 }
 
 export type FAData = Record<string, FAIndicator[]>;
-export type VietnamSubTabId = 'growth' | 'prices' | 'trade' | 'money' | 'labour' | 'taxes';
+export type VietnamSubTabId = 'growth' | 'prices' | 'trade' | 'money' | 'labour';
 export type DetailSelection = { kind: 'tv'; key: string } | { kind: 'fa'; key: number; type: string };
 export type TremorColor = 'blue' | 'cyan' | 'emerald' | 'gray' | 'green' | 'indigo' | 'lime' | 'orange' | 'pink' | 'purple' | 'red' | 'rose' | 'sky' | 'slate' | 'teal' | 'violet' | 'yellow';
 
@@ -178,7 +178,7 @@ export const TV_CONFIGS: Record<string, TVConfig> = {
     'ECONOMICS:VNGDPA': { titleVN: 'GDP - Nông Nghiệp', source: 'TradingView / GSO · nghìn tỷ ₫', fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 1825, color: 'lime', freq: 'monthly', compareLag: 4, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNGDPPC': { titleVN: 'GDP Bình Quân Đầu Người', source: 'TradingView / WB · USD', fmt: fmtUSD, unitLabel: 'USD', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     'ECONOMICS:VNGNP': { titleVN: 'GNP', source: 'TradingView / WB · nghìn tỷ ₫', fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    'ECONOMICS:VNGFCF': { titleVN: 'Đầu Tư Tài Sản Cố Định', source: 'TradingView / WB · nghìn tỷ ₫', fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'amber', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
+    'ECONOMICS:VNGFCF': { titleVN: 'Đầu Tư Tài Sản Cố Định', source: 'TradingView / WB · nghìn tỷ ₫', fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'amber', barChart: true, freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
     'ECONOMICS:VNIRYY': { titleVN: 'Lạm Phát (YoY)', source: 'TradingView / GSO · %/năm', fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'rose', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNCPI': { titleVN: 'Chỉ Số Giá Tiêu Dùng (CPI)', source: 'TradingView / GSO · chỉ số', fmt: fmtIdx, unitLabel: 'chỉ số', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNFI': { titleVN: 'Lạm Phát Thực Phẩm', source: 'TradingView / GSO · %/năm', fmt: fmtPct, unitLabel: '%/năm', defaultDays: 1825, color: 'amber', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
@@ -186,10 +186,10 @@ export const TV_CONFIGS: Record<string, TVConfig> = {
     'ECONOMICS:VNGASP': { titleVN: 'Giá Xăng Dầu', source: 'TradingView / VN · USD/lít', fmt: fmtUSDL, unitLabel: 'USD/lít', defaultDays: 1095, color: 'yellow', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNFER': { titleVN: 'Dự Trữ Ngoại Hối', source: 'TradingView / NHNN · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1825, color: 'emerald', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNM2': { titleVN: 'Cung Tiền M2', source: 'TradingView / WB · nghìn tỷ ₫', fmt: fmtTrVND, unitLabel: 'nghìn tỷ ₫', defaultDays: 3650, color: 'violet', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
-    'ECONOMICS:VNEXP': { titleVN: 'Xuất Khẩu', source: 'TradingView / Hải quan VN · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'emerald', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNIMP': { titleVN: 'Nhập Khẩu', source: 'TradingView / Hải quan VN · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'rose', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNBOT': { titleVN: 'Cán Cân Thương Mại', source: 'TradingView / Hải quan VN · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'blue', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
-    'ECONOMICS:VNFDI': { titleVN: 'Đầu Tư Trực Tiếp Nước Ngoài (FDI)', source: 'TradingView / MPI · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'indigo', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
+    'ECONOMICS:VNEXP': { titleVN: 'Xuất Khẩu', source: 'TradingView / Hải quan VN · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'emerald', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
+    'ECONOMICS:VNIMP': { titleVN: 'Nhập Khẩu', source: 'TradingView / Hải quan VN · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'rose', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
+    'ECONOMICS:VNBOT': { titleVN: 'Cán Cân Thương Mại', source: 'TradingView / Hải quan VN · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'blue', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
+    'ECONOMICS:VNFDI': { titleVN: 'Đầu Tư Trực Tiếp Nước Ngoài (FDI)', source: 'TradingView / MPI · tỷ $', fmt: fmtBillUSD, unitLabel: 'tỷ $', defaultDays: 1095, color: 'indigo', barChart: true, freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNUR': { titleVN: 'Tỷ Lệ Thất Nghiệp', source: 'TradingView / GSO · %', fmt: fmtPct, unitLabel: '%', defaultDays: 1825, color: 'orange', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNWAG': { titleVN: 'Lương Bình Quân', source: 'TradingView / GSO · triệu ₫/tháng', fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 1825, color: 'cyan', freq: 'monthly', compareLag: 12, compareLabel: 'cùng kỳ' },
     'ECONOMICS:VNMW': { titleVN: 'Lương Tối Thiểu', source: 'TradingView / MoLISA · triệu ₫/tháng', fmt: fmtMilVND, unitLabel: 'triệu ₫/tháng', defaultDays: 3650, color: 'teal', freq: 'annual', compareLag: 1, compareLabel: 'năm trước' },
@@ -207,7 +207,6 @@ export const FA_COLORS: Record<string, string> = {
     Consumer: 'cyan',
     Business: 'orange',
     InterestRate: 'indigo',
-    Taxes: 'gray',
 };
 
 export const VIETNAM_SUBTABS: { id: VietnamSubTabId; label: string; subtitle: string }[] = [
@@ -216,7 +215,6 @@ export const VIETNAM_SUBTABS: { id: VietnamSubTabId; label: string; subtitle: st
     { id: 'trade', label: 'Thương mại', subtitle: 'Xuất nhập khẩu, cán cân, FDI' },
     { id: 'money', label: 'Tiền tệ', subtitle: 'Lãi suất, M2, dự trữ ngoại hối' },
     { id: 'labour', label: 'Lao động', subtitle: 'Việc làm, thu nhập, dân số' },
-    { id: 'taxes', label: 'Thuế', subtitle: 'Ngân sách và thuế' },
 ];
 
 export const VIETNAM_TAB_TV: Record<VietnamSubTabId, string[]> = {
@@ -225,7 +223,6 @@ export const VIETNAM_TAB_TV: Record<VietnamSubTabId, string[]> = {
     trade: ['ECONOMICS:VNBOT', 'ECONOMICS:VNEXP', 'ECONOMICS:VNIMP', 'ECONOMICS:VNFDI'],
     money: ['ECONOMICS:VNINBR', 'ECONOMICS:VNINTR', 'ECONOMICS:VNFER', 'ECONOMICS:VNM2', 'ECONOMICS:VNDIR'],
     labour: ['ECONOMICS:VNUR', 'ECONOMICS:VNWAG', 'ECONOMICS:VNMW', 'ECONOMICS:VNPOP', 'ECONOMICS:VNIPYY', 'ECONOMICS:VNRSYY'],
-    taxes: [],
 };
 
 export const VIETNAM_TAB_FA: Record<VietnamSubTabId, string[]> = {
@@ -234,7 +231,6 @@ export const VIETNAM_TAB_FA: Record<VietnamSubTabId, string[]> = {
     trade: [],
     money: ['Money', 'InterestRate'],
     labour: ['Labour'],
-    taxes: ['Taxes'],
 };
 
 export const KEY_STATS: { sym: string; tab: VietnamSubTabId }[] = [
