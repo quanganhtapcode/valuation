@@ -49,6 +49,9 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                         {displayPrices.map((item) => {
                             const isSilver = item.TypeName.toLowerCase().includes('bạc');
                             const badgeText = isSilver ? 'Ag' : 'Au';
+                            const displayName = item.TypeName === 'Vàng PQ 9999 (Miếng)'
+                                ? 'Vàng PQ 9999'
+                                : item.TypeName;
 
                             return (
                             <div key={item.Id} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800/50 last:border-0 group">
@@ -63,7 +66,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                                         </div>
                                         <div className="flex flex-col min-w-0">
                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-                                                {item.TypeName}
+                                                {displayName}
                                             </span>
                                             <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">
                                                 {item.BranchName || sourceLabel}
