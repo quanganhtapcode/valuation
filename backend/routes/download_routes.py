@@ -72,6 +72,24 @@ FINANCIAL_META_COLUMNS = {
 FINANCIAL_METADATA_HEADERS = [
     "Mã cổ phiếu", "Loại kỳ", "Năm", "Quý", "Kỳ tính (tháng)", "Ngày công bố",
 ]
+CSV_METADATA_HEADERS = [
+    "ticker", "period_kind", "year", "quarter", "period_months", "public_date",
+]
+# Stable, analyst-friendly names for the most commonly used income-statement
+# variables. Other source fields retain their short Vietcap code (e.g. bsa2).
+CSV_FIELD_ALIASES = {
+    "isa1": "rev", "isa2": "sales_ded", "isa3": "net_rev", "isa4": "cogs",
+    "isa5": "gross_profit", "isa6": "fin_income", "isa7": "fin_exp",
+    "isa8": "interest_exp", "isa102": "jv_profit", "isa9": "selling_exp",
+    "isa10": "ga_exp", "isa11": "ebit", "isa12": "other_income",
+    "isa13": "other_exp", "isa14": "other_income_net", "isa15": "associate_profit",
+    "isa16": "ebt", "isa17": "current_tax", "isa18": "deferred_tax",
+    "isa19": "income_tax", "isa20": "net_income", "isa21": "minority_int",
+    "isa22": "ni_parent", "isa23": "eps_basic", "isa24": "eps_diluted",
+    "isb27": "net_interest_income", "isb25": "interest_income", "isb26": "interest_exp",
+    "isb30": "net_fee_income", "isb31": "fx_income", "isb36": "opex",
+    "isb41": "net_income", "bsa53": "total_assets", "bsa54": "total_liabilities",
+}
 BANK_SYMBOLS = {
     "VCB", "BID", "CTG", "TCB", "MBB", "ACB", "VPB", "HDB", "SHB", "STB",
     "TPB", "LPB", "MSB", "OCB", "EIB", "ABB", "NAB", "PGB", "VAB", "VIB",
@@ -408,6 +426,57 @@ def _column_headers(fields: list[str], labels: dict[str, str]) -> list[str]:
     return headers
 
 
+def _csv_variable_names(fields: list[str]) -> list[str]:
+    """Return unique compact column names for analytics-friendly CSV exports."""
+    used: set[str] = set()
+    names: list[str] = []
+    for field in fields:
+        base = CSV_FIELD_ALIASES.get(field.lower(), field.lower())
+        name = base
+        suffix = 2
+        while name in used:
+            name = f"{base}_{suffix}"
+            suffix += 1
+        names.append(name)
+        used.add(name)
+    return names
+
+
+def _csv_readme_section(table: str, fields: list[str], labels: dict[str, str]) -> str:
+    """Describe a CSV file and map compact headers back to their source fields."""
+    variable_names = _csv_variable_names(fields)
+    lines = [f"## {table}.csv", "", "| CSV column | Source field | Original name |", "| --- | --- | --- |"]
+    for variable_name, field in zip(variable_names, fields):
+        original = labels.get(field.lower(), field).replace("|", "\\|")
+        lines.append(f"| `{variable_name}` | `{field}` | {original} |")
+    lines.extend(["", "Shared identifier columns: `ticker`, `period_kind`, `year`, `quarter`, `period_months`, `public_date`.", ""])
+    return "\n".join(lines)
+
+
+def _csv_readme(metric_tables: list[str], statement_sections: list[str]) -> str:
+    lines = [
+        "# Financial data export", "",
+        "All statement CSV files use wide format: one row represents one ticker and reporting period; each financial item is a separate column.",
+        "Values are reported in VND unless otherwise noted. Blank values mean the source did not provide a value for that period.",
+        "For annual rows, `quarter` is empty. In `Stock Metrics History.csv`, annual observations use `quarter = 5`.",
+        "",
+        "## Stock metrics", "",
+        "`Stock Metrics.csv` contains the latest available snapshot. `Stock Metrics History.csv` contains the selected annual and/or quarterly history.",
+        "Multiples such as `pe` and `pb` are expressed in x. Rate fields such as `roe`, `roa`, margins, NIM, CIR, CAR, CASA, NPL and LDR are decimal ratios (for example `0.15` means 15%).",
+        "",
+    ]
+    metric_labels = {field: label for field, label, _ in STOCK_METRIC_COLUMNS}
+    if "stock_metrics" in metric_tables:
+        lines.extend(["### Stock Metrics.csv", "", "Current snapshot fields include `ticker` and the following fields when available:", "", "| CSV column | Original name |", "| --- | --- |"])
+        lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items())
+        lines.append("")
+    if "stock_metrics_history" in metric_tables:
+        lines.extend(["### Stock Metrics History.csv", "", "Historical fields include `ticker`, `year_report`, `quarter_report`, and the following fields when available:", "", "| CSV column | Original name |", "| --- | --- |"])
+        lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items())
+        lines.append("")
+    return "\n".join(lines + statement_sections)
+
+
 def _is_empty_financial_value(value: object) -> bool:
     """Treat numeric zeroes returned as numbers or text as empty cells."""
     if value is None:
@@ -526,16 +595,9 @@ def _write_single_ticker_statement_csv(
 
 
 def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: list[str], labels: dict[str, str], period_clause: str, period_params: list[int | str], output: io.TextIOBase) -> int:
-    if table in {"income_statement", "balance_sheet", "cash_flow"} and len(_selected_financial_tickers(connection)) == 1:
-        return _write_single_ticker_statement_csv(
-            connection, table, fields, labels, period_clause, period_params, output,
-        )
+    """Write every financial dataset as one ticker-period observation per row."""
     writer = csv.writer(output)
-    metadata = FINANCIAL_METADATA_HEADERS
-    if table == "note":
-        writer.writerow(metadata + ["field_code", "field_name_en", "value"])
-    else:
-        writer.writerow(metadata + _column_headers(fields, labels))
+    writer.writerow(CSV_METADATA_HEADERS + _csv_variable_names(fields))
     params = list(period_params)
     sql = (
         f"SELECT f.ticker, f.period_kind, f.year_report, f.quarter_report, f.length_report, "
@@ -547,17 +609,10 @@ def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: lis
     for row in connection.execute(sql, params):
         metadata_values = list(row[:6])
         values = row[6:]
-        if table == "note":
-            for field, value in zip(fields, values):
-                if _is_empty_financial_value(value):
-                    continue
-                writer.writerow(metadata_values + [field, labels.get(field.lower(), field), value])
-                count += 1
-        else:
-            if not any(not _is_empty_financial_value(value) for value in values):
-                continue
-            writer.writerow(metadata_values + list(values))
-            count += 1
+        if not any(not _is_empty_financial_value(value) for value in values):
+            continue
+        writer.writerow(metadata_values + list(values))
+        count += 1
     return count
 
 
@@ -761,9 +816,8 @@ def _write_stock_metrics_worksheet(worksheet, tickers: list[str], single_ticker:
 
 def _write_stock_metrics_csv(handle, tickers: list[str]) -> int:
     fields, rows = _stats_financial_rows(tickers)
-    labels = {field: label for field, label, _ in STOCK_METRIC_COLUMNS}
     writer = csv.writer(handle)
-    writer.writerow(["Mã"] + [labels[field] for field in fields])
+    writer.writerow(["ticker"] + fields)
     for row in rows:
         writer.writerow([row["ticker"]] + [row[field] for field in fields])
     return len(rows)
@@ -839,9 +893,8 @@ def _write_stock_metrics_history_worksheet(worksheet, tickers: list[str]) -> Non
 
 def _write_stock_metrics_history_csv(handle, tickers: list[str]) -> int:
     fields, rows = _stats_financial_history_rows(tickers)
-    labels = {field: label for field, label, _ in STOCK_METRIC_COLUMNS}
     writer = csv.writer(handle)
-    writer.writerow(["Mã", "Năm", "Quý"] + [labels[field] for field in fields])
+    writer.writerow(["ticker", "year_report", "quarter_report"] + fields)
     for row in rows:
         writer.writerow([row["ticker"], row["year_report"], row["quarter_report"]] + [row[field] for field in fields])
     return len(rows)
@@ -944,18 +997,24 @@ def financial_bulk_export():
                 output_path = tempfile.NamedTemporaryFile(prefix="financial-export-", suffix=".zip", delete=False).name
                 temporary_paths.append(output_path)
                 with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+                    statement_sections: list[str] = []
+                    metric_tables: list[str] = []
                     for _, table, filename in selected_tables:
                         csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
                         temporary_paths.append(csv_path)
                         with open(csv_path, "w", encoding="utf-8-sig", newline="") as handle:
                             if table == "stock_metrics":
                                 _write_stock_metrics_csv(handle, tickers)
+                                metric_tables.append(table)
                             elif table == "stock_metrics_history":
                                 _write_stock_metrics_history_csv(handle, tickers)
+                                metric_tables.append(table)
                             else:
                                 fields = _export_fields(connection, table, period_clause, period_params)
                                 _write_financial_csv(connection, table, fields, labels, period_clause, period_params, handle)
+                                statement_sections.append(_csv_readme_section(filename, fields, labels))
                         archive.write(csv_path, f"{filename}.csv")
+                    archive.writestr("README.md", _csv_readme(metric_tables, statement_sections).encode("utf-8"))
                 download_name = "financial-statements.zip"
                 mimetype = "application/zip"
         finally:
