@@ -112,7 +112,7 @@ def _query_ratio_daily_history(db_path: str, symbol: str, limit: int) -> list[di
                     """
                     SELECT ticker, trading_date, pe, pb, fetched_at
                     FROM ratio_daily_history
-                    WHERE UPPER(ticker) = UPPER(?)
+                    WHERE ticker = ?
                       AND (pe IS NOT NULL OR pb IS NOT NULL)
                     ORDER BY trading_date DESC
                     LIMIT ?
@@ -127,7 +127,7 @@ def _query_ratio_daily_history(db_path: str, symbol: str, limit: int) -> list[di
                         """
                         SELECT ticker, trading_date, pe, pb, fetched_at
                         FROM ratio_daily
-                        WHERE UPPER(ticker) = UPPER(?)
+                        WHERE ticker = ?
                           AND (pe IS NOT NULL OR pb IS NOT NULL)
                         ORDER BY trading_date DESC
                         LIMIT ?
@@ -229,4 +229,3 @@ def _query_vci_history(db_path: str, symbol: str, period: str) -> list[dict]:
     except Exception as e:
         logger.warning(f"VCI history query failed for {symbol}: {e}")
         return []
-

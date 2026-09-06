@@ -5,6 +5,7 @@ import time
 import io
 import csv
 import json
+import re
 import sqlite3
 import tempfile
 import zipfile
@@ -23,12 +24,13 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FINANCIAL_TABLES = (
-    ("income_statement", "income_statement", "income_statement"),
-    ("balance_sheet", "balance_sheet", "balance_sheet"),
-    ("cash_flow", "cash_flow", "cash_flow"),
-    ("note", "note", "note"),
+    ("balance_sheet", "balance_sheet", "Balance Sheet"),
+    ("income_statement", "income_statement", "Income Statement"),
+    ("cash_flow", "cash_flow", "Cash Flow"),
+    ("note", "note", "Note"),
 )
 FINANCIAL_TABLE_BY_ID = {item[0]: item for item in FINANCIAL_TABLES}
+VIETCAP_TEMPLATE_FIELDS_CACHE: dict[str, dict[str, tuple[tuple[str, str, int], ...]]] = {}
 FINANCIAL_META_COLUMNS = {
     "ticker", "period_kind", "year_report", "quarter_report", "length_report",
     "public_date", "create_date", "update_date", "fetched_at",
@@ -92,10 +94,185 @@ def _financial_labels() -> dict[str, str]:
     for entries in payload.values():
         for entry in entries:
             field = str(entry.get("field") or "").lower()
-            title = str(entry.get("titleEn") or "").strip()
+            title = str(entry.get("titleVi") or entry.get("titleEn") or "").strip()
             if field and title and title.upper() != field.upper():
                 labels[field] = title
     return labels
+
+
+@lru_cache(maxsize=1)
+def _vietcap_field_hierarchy() -> dict[str, dict[str, int]]:
+    """Return Vietcap's statement nesting levels keyed by statement field."""
+    path = PROJECT_ROOT / "config" / "vci_field_codes.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {
+        section: {
+            str(entry.get("field") or "").lower(): int(entry.get("level") or 1)
+            for entry in entries
+            if entry.get("field")
+        }
+        for section, entries in payload.items()
+        if isinstance(entries, list)
+    }
+
+
+def _vietcap_template_fields(
+    connection: sqlite3.Connection,
+    ticker: str,
+    use_data_matching: bool,
+) -> dict[str, tuple[tuple[str, str, int], ...]]:
+    """Read the exact visible field sequence from Vietcap's source workbook.
+
+    The schema includes many conditional fields.  A source workbook is the only
+    reliable way to know which of those Vietcap exposes for a given company.
+    """
+    ticker = ticker.upper()
+    cached = VIETCAP_TEMPLATE_FIELDS_CACHE.get(ticker)
+    if cached is not None:
+        return cached
+
+    r2_client = get_r2_client()
+    if not r2_client.is_configured:
+        return {}
+    downloaded = r2_client.download_excel(ticker)
+    content = downloaded.get("content") if downloaded.get("success") else None
+    if not isinstance(content, bytes):
+        return {}
+
+    try:
+        from openpyxl import load_workbook
+
+        # Matching rows to database fields requires random cell access; these
+        # source workbooks are small enough to keep in memory.
+        workbook = load_workbook(io.BytesIO(content), read_only=False, data_only=False)
+    except Exception:
+        logger.warning("Could not use Vietcap workbook as template for %s", ticker)
+        return {}
+
+    try:
+        payload = json.loads((PROJECT_ROOT / "config" / "vci_field_codes.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    template_sheets = {
+        "balance_sheet": ("Balance Sheet", "BALANCE_SHEET"),
+        "income_statement": ("Income Statement", "INCOME_STATEMENT"),
+        "cash_flow": ("Cash Flow", "CASH_FLOW"),
+        "note": ("Note", "NOTE"),
+    }
+    result: dict[str, tuple[tuple[str, str, int], ...]] = {}
+    try:
+        for table, (sheet_name, section) in template_sheets.items():
+            if sheet_name not in workbook.sheetnames:
+                continue
+            entries = payload.get(section, [])
+            if not isinstance(entries, list):
+                continue
+            worksheet = workbook[sheet_name]
+            fields_by_label: dict[str, list[str]] = {}
+            for entry in entries:
+                label = str(entry.get("titleVi") or "").strip()
+                field = str(entry.get("field") or "").lower()
+                if label and field:
+                    fields_by_label.setdefault(label, []).append(field)
+
+            fields = [
+                row[1] for row in connection.execute(f"PRAGMA table_info({table})")
+                if row[1] not in FINANCIAL_META_COLUMNS
+            ]
+            quoted_fields = ", ".join(f"{_quote_identifier(field)}" for field in fields)
+            db_rows = connection.execute(
+                f"SELECT year_report, quarter_report, {quoted_fields} FROM {table} "
+                "WHERE ticker = ?",
+                [ticker],
+            ).fetchall()
+            db_values = {
+                (int(row[0]), int(row[1] or 0)): dict(zip(fields, row[2:]))
+                for row in db_rows
+            }
+            period_columns: list[tuple[int, tuple[int, int]]] = []
+            for column in range(2, worksheet.max_column + 1):
+                value = worksheet.cell(11, column).value
+                if isinstance(value, (int, float)):
+                    period_columns.append((column, (int(value), 0)))
+                    continue
+                match = re.fullmatch(r"Q([1-4])\s+(\d{4})", str(value or "").strip())
+                if match:
+                    period_columns.append((column, (int(match.group(2)), int(match.group(1)))))
+
+            last_template_row = next(
+                (
+                    row_index - 1 for row_index in range(12, worksheet.max_row + 1)
+                    if str(worksheet.cell(row_index, 1).value or "").strip() == "Liên Hệ"
+                ),
+                worksheet.max_row,
+            )
+            rows: list[tuple[str, str, int]] = []
+            used_fields: set[str] = set()
+            label_occurrences: dict[str, int] = {}
+            for row_index in range(12, worksheet.max_row + 1):
+                label = str(worksheet.cell(row_index, 1).value or "").strip()
+                if not label:
+                    continue
+                candidates = fields_by_label.get(label, [])
+                occurrence = label_occurrences.get(label, 0)
+                label_occurrences[label] = occurrence + 1
+                source_values = {
+                    period: worksheet.cell(row_index, column).value
+                    for column, period in period_columns
+                }
+                has_source_data = any(value is not None for value in source_values.values())
+                if not has_source_data and not candidates:
+                    continue
+                field = candidates[occurrence] if occurrence < len(candidates) else None
+
+                best_field = None
+                best_score = 0
+                # Bank workbooks use several labels that differ from the shared
+                # field map. Match those statements by historical data vectors.
+                # Note labels already map one-to-one, so avoid a costly scan of
+                # its 1,400-column schema.
+                if use_data_matching and table != "note":
+                    for candidate in fields:
+                        if candidate in used_fields:
+                            continue
+                        matches = comparisons = mismatches = 0
+                        for period, source_value in source_values.items():
+                            db_row = db_values.get(period)
+                            if db_row is None or source_value is None:
+                                continue
+                            db_value = db_row.get(candidate)
+                            comparisons += 1
+                            try:
+                                equal = abs(float(source_value or 0) - float(db_value or 0)) < 0.5
+                            except (TypeError, ValueError):
+                                equal = source_value == db_value
+                            if equal:
+                                matches += 1
+                            else:
+                                mismatches += 1
+                        if comparisons and not mismatches and matches > best_score:
+                            best_field, best_score = candidate, matches
+                if best_field is not None:
+                    field = best_field
+                if field and field not in used_fields:
+                    rows.append((field, label, 0))
+                    used_fields.add(field)
+                elif use_data_matching and row_index <= last_template_row:
+                    style = worksheet.cell(row_index, 1)
+                    indent = int(style.alignment.indent or 0)
+                    level = 1 if style.font.bold else max(2, indent // 2 + 1)
+                    rows.append((f"__template_blank_{table}_{row_index}", label, level))
+            if rows:
+                result[table] = tuple(rows)
+    finally:
+        workbook.close()
+    if result:
+        VIETCAP_TEMPLATE_FIELDS_CACHE[ticker] = result
+    return result
 
 
 @lru_cache(maxsize=1)
@@ -350,6 +527,123 @@ def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: lis
     return count
 
 
+def _style_single_ticker_worksheet(connection: sqlite3.Connection, worksheet, ticker: str, table: str, fields: list[str], labels: dict[str, str], period_clause: str, period_params: list[int | str], field_levels: dict[str, int] | None = None) -> None:
+    """Render one statement with the period hierarchy used by Vietcap workbooks."""
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    data_fields = [field for field in fields if not field.startswith("__template_blank_")]
+    quoted_fields = ", ".join(f'f.{_quote_identifier(field)}' for field in data_fields)
+    selected_fields = f", {quoted_fields}" if quoted_fields else ""
+    rows = connection.execute(
+        f"""
+        SELECT f.year_report, f.quarter_report{selected_fields}
+        FROM {table} f
+        WHERE f.ticker = ? AND {period_clause}
+        ORDER BY CASE f.period_kind WHEN 'YEAR' THEN 0 ELSE 1 END,
+                 f.year_report, f.quarter_report
+        """,
+        [ticker, *period_params],
+    ).fetchall()
+    annual_rows = [row for row in rows if not row[1]]
+    quarterly_rows = [row for row in rows if row[1]]
+
+    dark_blue = "00308C"
+    white = "FFFFFF"
+    thin_blue = Side(style="thin", color=dark_blue)
+    # Match the source Vietcap workbook rather than a compact web-export style.
+    header_font = Font(name="Calibri", size=12, bold=True, color=white)
+    metadata_label_font = Font(name="Calibri", size=12, bold=True, color=dark_blue)
+    body_font = Font(name="Calibri", size=11)
+    label_font = Font(name="Calibri", size=11, bold=True)
+    child_label_font = Font(name="Calibri", size=11)
+    header_fill = PatternFill("solid", fgColor=dark_blue)
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    number_alignment = Alignment(horizontal="right", vertical="center")
+    header_border = Border(left=thin_blue, right=thin_blue, top=thin_blue, bottom=thin_blue)
+
+    worksheet.freeze_panes = None
+    worksheet.sheet_properties.pageSetUpPr.fitToPage = True
+    worksheet.page_setup.orientation = "landscape"
+    worksheet.page_setup.fitToWidth = 1
+    worksheet.page_setup.fitToHeight = 0
+    worksheet.print_title_rows = "1:11"
+    worksheet.column_dimensions["A"].width = 50.83203125
+    data_column_width = {
+        "balance_sheet": 16.89453125,
+        "note": 15.89453125,
+    }.get(table, 16.4609375)
+
+    metadata = (("Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")), ("Mã", ticker), ("Thời gian", "Năm, Quý" if annual_rows and quarterly_rows else "Năm" if annual_rows else "Quý"), ("Tiền tệ", "VND"))
+    for row_index, (label, value) in enumerate(metadata, start=4):
+        worksheet.cell(row_index, 1, label).font = metadata_label_font
+        worksheet.cell(row_index, 2, value).font = body_font
+        worksheet.row_dimensions[row_index].height = 16
+
+    annual_start = 2
+    annual_end = annual_start + len(annual_rows) - 1
+    quarterly_start = annual_end + 2 if annual_rows and quarterly_rows else (2 if quarterly_rows else None)
+    quarterly_end = quarterly_start + len(quarterly_rows) - 1 if quarterly_start else None
+    last_column = quarterly_end or annual_end or 2
+
+    if annual_rows:
+        worksheet.merge_cells(start_row=10, start_column=annual_start, end_row=10, end_column=annual_end)
+        cell = worksheet.cell(10, annual_start, "Năm")
+        cell.font, cell.fill, cell.alignment, cell.border = header_font, header_fill, header_alignment, header_border
+    if quarterly_rows:
+        worksheet.merge_cells(start_row=10, start_column=quarterly_start, end_row=10, end_column=quarterly_end)
+        cell = worksheet.cell(10, quarterly_start, "Quý")
+        cell.font, cell.fill, cell.alignment, cell.border = header_font, header_fill, header_alignment, header_border
+    for column in range(2, last_column + 1):
+        letter = get_column_letter(column)
+        worksheet.column_dimensions[letter].width = data_column_width
+        if annual_rows and quarterly_rows and column == quarterly_start - 1:
+            worksheet.column_dimensions[letter].width = 3
+            continue
+        period = annual_rows[column - annual_start] if annual_rows and annual_start <= column <= annual_end else quarterly_rows[column - quarterly_start] if quarterly_rows and quarterly_start <= column <= quarterly_end else None
+        if period:
+            value = period[0] if not period[1] else f"Q{period[1]} {period[0]}"
+            cell = worksheet.cell(11, column, value)
+            cell.font, cell.fill, cell.alignment, cell.border = header_font, header_fill, header_alignment, header_border
+    worksheet.row_dimensions[10].height = 16
+    worksheet.row_dimensions[11].height = 16
+
+    hierarchy = {**_vietcap_field_hierarchy().get(table.upper(), {}), **(field_levels or {})}
+    field_value_index = {field: index + 2 for index, field in enumerate(data_fields)}
+    for field_index, field in enumerate(fields):
+        row_index = field_index + 12
+        label_cell = worksheet.cell(row_index, 1, labels.get(field.lower(), field))
+        level = hierarchy.get(field.lower(), 1)
+        label_cell.font = label_font if level <= 1 else child_label_font
+        label_cell.alignment = Alignment(
+            horizontal="left",
+            vertical="center",
+            wrap_text=True,
+            indent=max(0, (level - 1) * 2),
+        )
+        periods: list[tuple[int, sqlite3.Row | tuple]] = []
+        periods.extend((annual_start + index, row) for index, row in enumerate(annual_rows))
+        if quarterly_start is not None:
+            periods.extend((quarterly_start + index, row) for index, row in enumerate(quarterly_rows))
+        for column, period in periods:
+            value_index = field_value_index.get(field)
+            value = period[value_index] if value_index is not None else None
+            cell = worksheet.cell(row_index, column, value)
+            cell.font, cell.alignment = body_font, number_alignment
+            if isinstance(value, (int, float)):
+                cell.number_format = "#,##0"
+
+
+def _generic_worksheet_styles(worksheet):
+    """Apply a compact, readable baseline to multi-company data sheets."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    header_fill = PatternFill("solid", fgColor="00308C")
+    header_font = Font(name="Calibri", size=12, bold=True, color="FFFFFF")
+    body_font = Font(name="Calibri", size=11)
+    return header_font, header_fill, body_font, Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+
 def financial_bulk_export():
     """Export selected financial statements without sending thousands of API requests from the browser."""
     temporary_paths: list[str] = []
@@ -380,17 +674,54 @@ def financial_bulk_export():
                 from openpyxl import Workbook
                 output_path = tempfile.NamedTemporaryFile(prefix="financial-export-", suffix=".xlsx", delete=False).name
                 temporary_paths.append(output_path)
-                workbook = Workbook(write_only=True)
+                single_ticker = len(tickers) == 1
+                workbook = Workbook(write_only=not single_ticker)
+                if single_ticker:
+                    workbook.remove(workbook.active)
+                template_fields = (
+                    _vietcap_template_fields(
+                        connection, tickers[0], _all_selected_tickers_are_banks(connection),
+                    )
+                    if single_ticker
+                    else {}
+                )
                 for _, table, sheet_name in selected_tables:
                     worksheet = workbook.create_sheet(sheet_name[:31])
-                    fields = _export_fields(connection, table, period_clause, period_params)
-                    csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
-                    temporary_paths.append(csv_path)
-                    with open(csv_path, "w", encoding="utf-8", newline="") as handle:
-                        _write_financial_csv(connection, table, fields, labels, period_clause, period_params, handle)
-                    with open(csv_path, encoding="utf-8", newline="") as handle:
-                        for row in csv.reader(handle):
-                            worksheet.append(row)
+                    template_rows = template_fields.get(table, ())
+                    fields = [field for field, _, _ in template_rows] or _export_fields(
+                        connection, table, period_clause, period_params,
+                    )
+                    if single_ticker:
+                        sheet_labels = {
+                            **labels,
+                            **{field: label for field, label, _ in template_rows},
+                        }
+                        template_levels = {
+                            field: level for field, _, level in template_rows if level
+                        }
+                        _style_single_ticker_worksheet(
+                            connection, worksheet, tickers[0], table, fields, sheet_labels,
+                            period_clause, period_params, template_levels,
+                        )
+                    else:
+                        from openpyxl.cell import WriteOnlyCell
+
+                        header_font, header_fill, body_font, header_alignment = _generic_worksheet_styles(worksheet)
+                        csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
+                        temporary_paths.append(csv_path)
+                        with open(csv_path, "w", encoding="utf-8", newline="") as handle:
+                            _write_financial_csv(connection, table, fields, labels, period_clause, period_params, handle)
+                        with open(csv_path, encoding="utf-8", newline="") as handle:
+                            for row_index, row in enumerate(csv.reader(handle), start=1):
+                                styled_row = []
+                                for value in row:
+                                    cell = WriteOnlyCell(worksheet, value=value)
+                                    cell.font = header_font if row_index == 1 else body_font
+                                    if row_index == 1:
+                                        cell.fill = header_fill
+                                        cell.alignment = header_alignment
+                                    styled_row.append(cell)
+                                worksheet.append(styled_row)
                 workbook.save(output_path)
                 download_name = "financial-statements.xlsx"
                 mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

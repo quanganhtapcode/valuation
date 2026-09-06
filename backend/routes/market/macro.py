@@ -480,7 +480,7 @@ def register(market_bp: Blueprint) -> None:
             return jsonify({'error': 'unknown symbol'}), 400
         full = request.args.get('full', '0') == '1'
         try:
-            days = None if full else min(int(request.args.get('days', 365)), 3 * 365)
+            days = None if full else min(int(request.args.get('days', 365)), 10 * 365)
         except ValueError:
             days = 365
 
@@ -521,7 +521,7 @@ def register(market_bp: Blueprint) -> None:
         if not symbols or len(symbols) > 12 or any(symbol not in _ALLOWED_SYMBOLS for symbol in symbols):
             return jsonify({'error': 'unknown or invalid symbols'}), 400
         try:
-            days = min(int(request.args.get('days', 365)), 3 * 365)
+            days = min(int(request.args.get('days', 365)), 10 * 365)
         except ValueError:
             days = 365
 

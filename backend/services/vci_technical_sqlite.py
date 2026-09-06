@@ -34,7 +34,7 @@ def query_technical_snapshot(db_path: str, symbol: str, timeframe: str) -> Optio
                 """
                 SELECT raw_json, fetched_at_utc
                 FROM technical_snapshots
-                WHERE UPPER(ticker) = ? AND UPPER(timeframe) = ?
+                WHERE ticker = ? AND timeframe = ?
                 LIMIT 1
                 """,
                 (clean_symbol, clean_timeframe),

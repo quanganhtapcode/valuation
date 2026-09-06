@@ -36,17 +36,18 @@ def _connect(db_path: str):
     if not db_path or not os.path.exists(db_path):
         yield None
         return
+    conn = None
     try:
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
         yield conn
     except Exception as e:
         logger.warning(f"SQLite connect failed for {db_path}: {e}")
         yield None
     finally:
         try:
-            conn.close()
+            if conn is not None:
+                conn.close()
         except Exception:
             pass
 
@@ -281,6 +282,7 @@ class VCIDataAccess:
                         "roa": d.get("roa"),
                         "eps": d.get("eps"),
                         "bvps": d.get("bvps"),
+                        "shares_outstanding": d.get("shares"),
                         "net_margin": d.get("after_tax_margin"),
                         "gross_margin": d.get("gross_margin"),
                         "current_ratio": d.get("current_ratio"),

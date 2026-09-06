@@ -276,7 +276,7 @@ def register(stock_bp: Blueprint) -> None:
                                     "quarter": rd.get("quarter_report", 0),
                                 }
                                 for k, v in rd.items():
-                                    if k not in _WIDE_EXCLUDE_COLS:
+                                    if k not in _WIDE_EXCLUDE_COLS and v is not None:
                                         out[k] = v
                                 data.append(out)
                             _cache_set(cache_key, data)

@@ -153,7 +153,7 @@ class StockDataProvider:
             logger.warning(f"Failed to fetch metadata from DB for {symbol}: {e}")
         return None
 
-    def _get_data_from_db(self, symbol, period):
+    def _get_data_from_db(self, symbol, period, include_history=True):
         """Fetch stock data from VCI SQLite databases (replaces stocks_optimized.db).
         
         Data sources:
@@ -167,22 +167,18 @@ class StockDataProvider:
         try:
             data = {'symbol': symbol, 'data_source': 'VCI_SQLite', 'data_period': period}
 
-            # 1. Company info (name, sector, exchange, logo) - BASE layer
-            company = self.vci.get_company_info(symbol)
-            if company:
-                data.update({
-                    'name': company.get('name'),
-                    'sector': company.get('sector'),
-                    'industry': company.get('sector'),
-                    'exchange': company.get('exchange'),
-                    'floor': company.get('floor'),
-                    'logo_url': company.get('logo_url'),
-                    'isbank': company.get('isbank', False),
-                })
-
-            # 2. Overview data (stats/company primary, screening fallback)
+            # 1. Overview data (stats/company primary, screening fallback)
             overview = self.vci.get_overview_data(symbol)
             if overview:
+                data.update({
+                    'name': overview.get('name'),
+                    'sector': overview.get('sector'),
+                    'industry': overview.get('industry') or overview.get('sector'),
+                    'exchange': overview.get('exchange'),
+                    'floor': overview.get('floor'),
+                    'logo_url': overview.get('logo_url'),
+                    'isbank': overview.get('isbank', False),
+                })
                 # Snapshot market fields (screening only when primary sources are missing)
                 for key in ['current_price', 'ref_price', 'ceiling', 'floor_price', 'market_cap',
                             'price_change_pct', 'accumulated_volume', 'accumulated_value']:
@@ -205,10 +201,8 @@ class StockDataProvider:
                 if not data.get('exchange') and overview.get('exchange'):
                     data['exchange'] = overview['exchange']
 
-            # 3. Shares outstanding from stats_financial
-            ratios = self.vci.get_current_ratios(symbol)
-            if ratios and ratios.get('shares'):
-                data['shares_outstanding'] = ratios['shares']
+                if overview.get('shares_outstanding'):
+                    data['shares_outstanding'] = overview['shares_outstanding']
 
             # 3b. Calculate EPS and BVPS from PE/PB + current price
             # EPS = Price / PE, BVPS = Price / PB
@@ -222,7 +216,7 @@ class StockDataProvider:
                     data['bvps'] = round(price / pb, 0)
 
             # 4. Chart series from ratio history (for frontend charts)
-            ratio_history = self.vci.get_ratio_history(symbol)
+            ratio_history = self.vci.get_ratio_history(symbol) if include_history else []
             if ratio_history:
                 # Filter by period type and take last 12
                 if period == 'year':
@@ -323,10 +317,10 @@ class StockDataProvider:
             logger.error(f"Error reading VCI data for {symbol}: {e}")
             return None
 
-    def get_stock_data(self, symbol: str, period: str = "year", fetch_current_price: bool = False, symbols_override=None) -> dict:
+    def get_stock_data(self, symbol: str, period: str = "year", fetch_current_price: bool = False, symbols_override=None, include_history: bool = True) -> dict:
         """Get stock data: Primary: DB (SQLite), Fallback: Live API (Parallel)"""
         symbol = symbol.upper()
-        cache_key = f"{symbol}:{period}"
+        cache_key = f"{symbol}:{period}:{'full' if include_history else 'lean'}"
         _CACHE_TTL = 15  # seconds
 
         # Check TTL cache before hitting the DB
@@ -346,7 +340,7 @@ class StockDataProvider:
                 return result
 
         # 1. Try DB first
-        data = self._get_data_from_db(symbol, period)
+        data = self._get_data_from_db(symbol, period, include_history=include_history)
         if data:
             logger.info(f"✓ Found {symbol} in DB")
             # Store in cache without live price so cached copy stays price-neutral

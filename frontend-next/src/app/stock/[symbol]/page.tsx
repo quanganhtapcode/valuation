@@ -174,7 +174,7 @@ export default function StockDetailPage() {
                 // data are non-critical and load after the first render.
                 const [tickerData, stockRes] = await Promise.all([
                     getTickerData(),
-                    fetch(API.STOCK_SUMMARY(symbol), { signal: controller.signal })
+                    fetch(`${API.STOCK_SUMMARY(symbol)}?realtime=0`, { signal: controller.signal })
                         .then(r => r.ok ? r.json() : null)
                         .catch(() => null),
                 ]);

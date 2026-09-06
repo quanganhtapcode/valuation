@@ -1118,6 +1118,7 @@ export default function FinancialsTab({
 }: FinancialsTabProps) {
     const [reportLoading, setReportLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<ReportType>('ratios');
+    const [loadedNotesKey, setLoadedNotesKey] = useState<string | null>(null);
     // Initialise from parent prop; 'year' maps to 'annual', 'quarter' to 'quarterly'
     const [displayMode, setDisplayModeState] = useState<DisplayMode>(
         period === 'quarter' ? 'quarterly' : 'annual'
@@ -1250,27 +1251,65 @@ export default function FinancialsTab({
             fetch(`/api/stock/${symbol}/financial-report?type=balance&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/stock/${symbol}/financial-report?type=cashflow&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
             fetch(`/api/stock/${symbol}/financial-report?type=ratio&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report?type=note&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
-        ]).then(([income, balance, cashflow, ratio, notes]) => {
+        ]).then(([income, balance, cashflow, ratio]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
                 if (res.status !== 'fulfilled') return [];
                 const payload = res.value;
                 return Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
             };
-            setReportData({
+            setReportData(prev => ({
                 income: unwrap(income).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
                 balance: unwrap(balance).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
                 cashflow: unwrap(cashflow).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
                 ratios: unwrap(ratio).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
-                notes: unwrap(notes).sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
-            });
+                notes: prev.notes,
+            }));
         }).catch(() => {}).finally(() => {
             if (!controller.signal.aborted) setReportLoading(false);
         });
 
         return () => controller.abort();
     }, [symbol, effectivePeriod]);
+
+    // Notes are exceptionally wide (more than 1,400 possible fields), so only
+    // load them when the user opens the Notes tab.
+    useEffect(() => {
+        if (activeTab !== 'notes') return;
+
+        const notesKey = `${symbol}:${effectivePeriod}`;
+        if (loadedNotesKey === notesKey) return;
+
+        const controller = new AbortController();
+        queueMicrotask(() => {
+            if (!controller.signal.aborted) {
+                setReportLoading(true);
+                setReportData(prev => ({ ...prev, notes: [] }));
+            }
+        });
+
+        fetch(`/api/stock/${symbol}/financial-report?type=note&period=${effectivePeriod}&limit=160`, {
+            signal: controller.signal,
+        })
+            .then(r => r.json())
+            .then(payload => {
+                if (controller.signal.aborted) return;
+                const rows = Array.isArray(payload?.data)
+                    ? payload.data
+                    : (Array.isArray(payload) ? payload : []);
+                setReportData(prev => ({
+                    ...prev,
+                    notes: rows.sort((a: any, b: any) => periodSortKey(b) - periodSortKey(a)),
+                }));
+                setLoadedNotesKey(notesKey);
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (!controller.signal.aborted) setReportLoading(false);
+            });
+
+        return () => controller.abort();
+    }, [activeTab, effectivePeriod, loadedNotesKey, symbol]);
 
     // ── Render ────────────────────────────────────────────────────────────────
 

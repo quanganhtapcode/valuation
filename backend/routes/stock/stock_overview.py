@@ -60,10 +60,21 @@ def _convert_nan_to_none(obj):
     return obj
 
 
-def _fetch_raw(symbol: str, period: str = "year") -> dict:
+def _fetch_raw(
+    symbol: str,
+    period: str = "year",
+    *,
+    fetch_current_price: bool = False,
+    include_history: bool = True,
+) -> dict:
     """Fetch raw stock data from provider, cleaned of NaN."""
     provider = get_provider()
-    raw = provider.get_stock_data(symbol, period, fetch_current_price=True)
+    raw = provider.get_stock_data(
+        symbol,
+        period,
+        fetch_current_price=fetch_current_price,
+        include_history=include_history,
+    )
     return _convert_nan_to_none(raw)
 
 
@@ -198,7 +209,14 @@ def register(stock_bp: Blueprint) -> None:
         """Lightweight stock summary: identity + price + key ratios (~500 B)."""
         try:
             sym = symbol.upper()
-            raw = _fetch_raw(sym)
+            realtime = request.args.get("realtime", "1").strip().lower() not in {
+                "0", "false", "no",
+            }
+            raw = _fetch_raw(
+                sym,
+                fetch_current_price=realtime,
+                include_history=False,
+            )
             if not raw.get("success"):
                 return jsonify({"success": False, "error": "Symbol not found"}), 404
             result = _build_summary(raw)
@@ -216,7 +234,7 @@ def register(stock_bp: Blueprint) -> None:
         """Company profile: description, established date, employees (~1.5 KB)."""
         try:
             sym = symbol.upper()
-            raw = _fetch_raw(sym)
+            raw = _fetch_raw(sym, include_history=False)
             if not raw.get("success"):
                 return jsonify({"success": False, "error": "Symbol not found"}), 404
             result = _build_profile(raw)
@@ -233,7 +251,7 @@ def register(stock_bp: Blueprint) -> None:
     def api_stock_ratio_history(symbol: str):
         """12-year PE/PB/ROE/ROA/Debt ratio history (~1.5 KB)."""
         try:
-            raw = _fetch_raw(symbol.upper())
+            raw = _fetch_raw(symbol.upper(), include_history=True)
             if not raw.get("success"):
                 return jsonify({"success": False, "error": "Symbol not found"}), 404
             return jsonify(_build_ratio_history(raw))
@@ -245,7 +263,7 @@ def register(stock_bp: Blueprint) -> None:
     def api_stock_ratio_series(symbol: str):
         """Quarterly/annual ratio arrays for mini-charts (~500 B)."""
         try:
-            raw = _fetch_raw(symbol.upper())
+            raw = _fetch_raw(symbol.upper(), include_history=True)
             if not raw.get("success"):
                 return jsonify({"success": False, "error": "Symbol not found"}), 404
             return jsonify(_build_ratio_series(raw))
@@ -257,7 +275,11 @@ def register(stock_bp: Blueprint) -> None:
     def api_stock_overview_full(symbol: str):
         """Full overview: summary + profile + ratio-history + ratio-series (~4 KB, legacy compat)."""
         try:
-            raw = _fetch_raw(symbol.upper())
+            raw = _fetch_raw(
+                symbol.upper(),
+                fetch_current_price=True,
+                include_history=True,
+            )
             if not raw.get("success"):
                 return jsonify({"success": False, "error": "Symbol not found"}), 404
             return jsonify(_build_full_overview(raw))
