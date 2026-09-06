@@ -17,7 +17,10 @@ from pathlib import Path
 from backend.utils import get_client_ip, validate_stock_symbol
 from backend.r2_client import get_r2_client
 from backend.extensions import get_provider
-from backend.db_path import resolve_vci_financial_statement_db_path
+from backend.db_path import (
+    resolve_vci_financial_statement_db_path,
+    resolve_vci_stats_financial_db_path,
+)
 
 download_bp = Blueprint('download', __name__)
 logger = logging.getLogger(__name__)
@@ -30,6 +33,37 @@ FINANCIAL_TABLES = (
     ("note", "note", "Note"),
 )
 FINANCIAL_TABLE_BY_ID = {item[0]: item for item in FINANCIAL_TABLES}
+STOCK_METRICS_TABLE = ("stock_metrics", "stock_metrics", "Stock Metrics")
+STOCK_METRICS_HISTORY_TABLE = ("stock_metrics_history", "stock_metrics_history", "Stock Metrics History")
+STOCK_METRIC_COLUMNS = (
+    ("period_date", "Kỳ dữ liệu", "text"),
+    ("pe", "P/E", "multiple"),
+    ("pb", "P/B", "multiple"),
+    ("ps", "P/S", "multiple"),
+    ("price_to_cash_flow", "P/CF", "multiple"),
+    ("ev_to_ebitda", "EV/EBITDA", "multiple"),
+    ("roe", "ROE", "percent"),
+    ("roa", "ROA", "percent"),
+    ("gross_margin", "Biên lợi nhuận gộp", "percent"),
+    ("pre_tax_margin", "Biên lợi nhuận trước thuế", "percent"),
+    ("after_tax_margin", "Biên lợi nhuận sau thuế", "percent"),
+    ("debt_to_equity", "Nợ/Vốn chủ sở hữu", "multiple"),
+    ("financial_leverage", "Đòn bẩy tài chính", "multiple"),
+    ("current_ratio", "Hệ số thanh toán hiện hành", "multiple"),
+    ("quick_ratio", "Hệ số thanh toán nhanh", "multiple"),
+    ("cash_ratio", "Hệ số tiền mặt", "multiple"),
+    ("asset_turnover", "Vòng quay tài sản", "multiple"),
+    ("market_cap", "Vốn hóa thị trường", "number"),
+    ("shares", "Số cổ phiếu lưu hành", "number"),
+    ("net_interest_margin", "NIM", "percent"),
+    ("cir", "CIR", "percent"),
+    ("car", "CAR", "percent"),
+    ("casa_ratio", "CASA", "percent"),
+    ("npl", "Nợ xấu (NPL)", "percent"),
+    ("ldr", "LDR", "percent"),
+    ("loans_growth", "Tăng trưởng tín dụng", "percent"),
+    ("deposit_growth", "Tăng trưởng tiền gửi", "percent"),
+)
 VIETCAP_TEMPLATE_FIELDS_CACHE: dict[str, dict[str, tuple[tuple[str, str, int], ...]]] = {}
 FINANCIAL_META_COLUMNS = {
     "ticker", "period_kind", "year_report", "quarter_report", "length_report",
@@ -567,7 +601,7 @@ def _style_single_ticker_worksheet(connection: sqlite3.Connection, worksheet, ti
     worksheet.page_setup.orientation = "landscape"
     worksheet.page_setup.fitToWidth = 1
     worksheet.page_setup.fitToHeight = 0
-    worksheet.print_title_rows = "1:11"
+    worksheet.print_title_rows = "1:8"
     worksheet.column_dimensions["A"].width = 50.83203125
     data_column_width = {
         "balance_sheet": 16.89453125,
@@ -575,9 +609,11 @@ def _style_single_ticker_worksheet(connection: sqlite3.Connection, worksheet, ti
     }.get(table, 16.4609375)
 
     metadata = (("Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")), ("Mã", ticker), ("Thời gian", "Năm, Quý" if annual_rows and quarterly_rows else "Năm" if annual_rows else "Quý"), ("Tiền tệ", "VND"))
-    for row_index, (label, value) in enumerate(metadata, start=4):
-        worksheet.cell(row_index, 1, label).font = metadata_label_font
-        worksheet.cell(row_index, 2, value).font = body_font
+    for row_index, (label, value) in enumerate(metadata, start=1):
+        label_cell = worksheet.cell(row_index, 1, label)
+        value_cell = worksheet.cell(row_index, 2, value)
+        label_cell.font, label_cell.fill, label_cell.border = metadata_label_font, header_fill, header_border
+        value_cell.font, value_cell.border = body_font, header_border
         worksheet.row_dimensions[row_index].height = 16
 
     annual_start = 2
@@ -587,12 +623,12 @@ def _style_single_ticker_worksheet(connection: sqlite3.Connection, worksheet, ti
     last_column = quarterly_end or annual_end or 2
 
     if annual_rows:
-        worksheet.merge_cells(start_row=10, start_column=annual_start, end_row=10, end_column=annual_end)
-        cell = worksheet.cell(10, annual_start, "Năm")
+        worksheet.merge_cells(start_row=7, start_column=annual_start, end_row=7, end_column=annual_end)
+        cell = worksheet.cell(7, annual_start, "Năm")
         cell.font, cell.fill, cell.alignment, cell.border = header_font, header_fill, header_alignment, header_border
     if quarterly_rows:
-        worksheet.merge_cells(start_row=10, start_column=quarterly_start, end_row=10, end_column=quarterly_end)
-        cell = worksheet.cell(10, quarterly_start, "Quý")
+        worksheet.merge_cells(start_row=7, start_column=quarterly_start, end_row=7, end_column=quarterly_end)
+        cell = worksheet.cell(7, quarterly_start, "Quý")
         cell.font, cell.fill, cell.alignment, cell.border = header_font, header_fill, header_alignment, header_border
     for column in range(2, last_column + 1):
         letter = get_column_letter(column)
@@ -603,15 +639,15 @@ def _style_single_ticker_worksheet(connection: sqlite3.Connection, worksheet, ti
         period = annual_rows[column - annual_start] if annual_rows and annual_start <= column <= annual_end else quarterly_rows[column - quarterly_start] if quarterly_rows and quarterly_start <= column <= quarterly_end else None
         if period:
             value = period[0] if not period[1] else f"Q{period[1]} {period[0]}"
-            cell = worksheet.cell(11, column, value)
+            cell = worksheet.cell(8, column, value)
             cell.font, cell.fill, cell.alignment, cell.border = header_font, header_fill, header_alignment, header_border
-    worksheet.row_dimensions[10].height = 16
-    worksheet.row_dimensions[11].height = 16
+    worksheet.row_dimensions[7].height = 16
+    worksheet.row_dimensions[8].height = 16
 
     hierarchy = {**_vietcap_field_hierarchy().get(table.upper(), {}), **(field_levels or {})}
     field_value_index = {field: index + 2 for index, field in enumerate(data_fields)}
     for field_index, field in enumerate(fields):
-        row_index = field_index + 12
+        row_index = field_index + 9
         label_cell = worksheet.cell(row_index, 1, labels.get(field.lower(), field))
         level = hierarchy.get(field.lower(), 1)
         label_cell.font = label_font if level <= 1 else child_label_font
@@ -644,6 +680,173 @@ def _generic_worksheet_styles(worksheet):
     return header_font, header_fill, body_font, Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 
+def _stats_financial_rows(tickers: list[str]) -> tuple[list[str], list[sqlite3.Row]]:
+    """Read the latest stock metrics collected by fetch_vci_stats_financial.py."""
+    db_path = resolve_vci_stats_financial_db_path()
+    if not db_path or not os.path.exists(db_path):
+        return [], []
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as connection:
+            connection.row_factory = sqlite3.Row
+            available = {row[1] for row in connection.execute("PRAGMA table_info(stats_financial)")}
+            fields = [field for field, _, _ in STOCK_METRIC_COLUMNS if field in available]
+            if not fields:
+                return [], []
+            placeholders = ",".join("?" for _ in tickers)
+            rows = connection.execute(
+                f"SELECT ticker, {', '.join(_quote_identifier(field) for field in fields)} "
+                f"FROM stats_financial WHERE UPPER(ticker) IN ({placeholders}) ORDER BY ticker",
+                [ticker.upper() for ticker in tickers],
+            ).fetchall()
+        return fields, rows
+    except sqlite3.Error as exc:
+        logger.warning("Could not include stock metrics in export: %s", exc)
+        return [], []
+
+
+def _write_stock_metrics_worksheet(worksheet, tickers: list[str], single_ticker: bool) -> None:
+    """Write current valuation and financial ratios into a dedicated export sheet."""
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    fields, rows = _stats_financial_rows(tickers)
+    labels = {field: (label, kind) for field, label, kind in STOCK_METRIC_COLUMNS}
+    dark_blue, white = "00308C", "FFFFFF"
+    side = Side(style="thin", color=dark_blue)
+    border = Border(left=side, right=side, top=side, bottom=side)
+    header_fill = PatternFill("solid", fgColor=dark_blue)
+    header_font = Font(name="Calibri", size=12, bold=True, color=white)
+    body_font = Font(name="Calibri", size=11)
+
+    if single_ticker:
+        ticker = tickers[0]
+        metadata = (("Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")), ("Mã", ticker), ("Thời gian", "TTM / mới nhất"), ("Tiền tệ", "VND"))
+        for row_index, (label, value) in enumerate(metadata, start=1):
+            label_cell, value_cell = worksheet.cell(row_index, 1, label), worksheet.cell(row_index, 2, value)
+            label_cell.font, label_cell.fill, label_cell.border = header_font, header_fill, border
+            value_cell.font, value_cell.border = body_font, border
+        worksheet.column_dimensions["A"].width = 34
+        worksheet.column_dimensions["B"].width = 24
+        value_by_field = dict(rows[0]) if rows else {}
+        for row_index, field in enumerate(fields, start=7):
+            label, kind = labels[field]
+            label_cell, value_cell = worksheet.cell(row_index, 1, label), worksheet.cell(row_index, 2, value_by_field.get(field))
+            label_cell.font = Font(name="Calibri", size=11, bold=True)
+            value_cell.font = body_font
+            value_cell.alignment = Alignment(horizontal="right")
+            if kind == "percent":
+                value_cell.number_format = "0.00%"
+            elif kind == "number":
+                value_cell.number_format = "#,##0"
+            elif kind == "multiple":
+                value_cell.number_format = "0.00x"
+        worksheet.freeze_panes = "A7"
+        return
+
+    header = ["Mã"] + [labels[field][0] for field in fields]
+    for column, value in enumerate(header, start=1):
+        cell = worksheet.cell(1, column, value)
+        cell.font, cell.fill, cell.border = header_font, header_fill, border
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        worksheet.column_dimensions[get_column_letter(column)].width = 18
+    for row_index, row in enumerate(rows, start=2):
+        for column, field in enumerate(["ticker", *fields], start=1):
+            cell = worksheet.cell(row_index, column, row[field])
+            cell.font = body_font
+            if field in labels:
+                kind = labels[field][1]
+                cell.number_format = "0.00%" if kind == "percent" else "#,##0" if kind == "number" else "0.00x" if kind == "multiple" else "General"
+    worksheet.freeze_panes = "B2"
+
+
+def _write_stock_metrics_csv(handle, tickers: list[str]) -> int:
+    fields, rows = _stats_financial_rows(tickers)
+    labels = {field: label for field, label, _ in STOCK_METRIC_COLUMNS}
+    writer = csv.writer(handle)
+    writer.writerow(["Mã"] + [labels[field] for field in fields])
+    for row in rows:
+        writer.writerow([row["ticker"]] + [row[field] for field in fields])
+    return len(rows)
+
+
+def _stats_financial_history_rows(tickers: list[str]) -> tuple[list[str], list[sqlite3.Row]]:
+    """Read quarterly and annual metric history selected by the export period."""
+    db_path = resolve_vci_stats_financial_db_path()
+    if not db_path or not os.path.exists(db_path):
+        return [], []
+    kind = (request.args.get("period_kind") or "year").strip().lower()
+    try:
+        from_year = int(request.args.get("from_year") or 2020)
+        to_year = int(request.args.get("to_year") or datetime.utcnow().year)
+        from_quarter = int(request.args.get("from_quarter") or 1)
+        to_quarter = int(request.args.get("to_quarter") or 4)
+    except ValueError:
+        return [], []
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as connection:
+            connection.row_factory = sqlite3.Row
+            available = {row[1] for row in connection.execute("PRAGMA table_info(stats_financial_history)")}
+            fields = [field for field, _, _ in STOCK_METRIC_COLUMNS if field in available]
+            if not fields:
+                return [], []
+            placeholders = ",".join("?" for _ in tickers)
+            where = [f"UPPER(ticker) IN ({placeholders})", "year_report BETWEEN ? AND ?"]
+            params: list[object] = [ticker.upper() for ticker in tickers] + [from_year, to_year]
+            if kind == "year":
+                where.append("quarter_report = 5")
+            elif kind == "quarter":
+                where.append("quarter_report BETWEEN 1 AND 4")
+                where.append("(year_report * 4 + quarter_report) BETWEEN ? AND ?")
+                params.extend([from_year * 4 + from_quarter, to_year * 4 + to_quarter])
+            rows = connection.execute(
+                f"SELECT ticker, year_report, quarter_report, {', '.join(_quote_identifier(field) for field in fields)} "
+                f"FROM stats_financial_history WHERE {' AND '.join(where)} "
+                "ORDER BY ticker, year_report, quarter_report",
+                params,
+            ).fetchall()
+        return fields, rows
+    except sqlite3.Error as exc:
+        logger.warning("Could not include stock-metric history in export: %s", exc)
+        return [], []
+
+
+def _write_stock_metrics_history_worksheet(worksheet, tickers: list[str]) -> None:
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    fields, rows = _stats_financial_history_rows(tickers)
+    labels = {field: (label, kind) for field, label, kind in STOCK_METRIC_COLUMNS}
+    side = Side(style="thin", color="00308C")
+    border = Border(left=side, right=side, top=side, bottom=side)
+    header_fill = PatternFill("solid", fgColor="00308C")
+    header_font = Font(name="Calibri", size=12, bold=True, color="FFFFFF")
+    body_font = Font(name="Calibri", size=11)
+    header = ["Mã", "Năm", "Quý"] + [labels[field][0] for field in fields]
+    for column, value in enumerate(header, start=1):
+        cell = worksheet.cell(1, column, value)
+        cell.font, cell.fill, cell.border = header_font, header_fill, border
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        worksheet.column_dimensions[get_column_letter(column)].width = 18
+    for row_index, row in enumerate(rows, start=2):
+        for column, field in enumerate(["ticker", "year_report", "quarter_report", *fields], start=1):
+            cell = worksheet.cell(row_index, column, row[field])
+            cell.font = body_font
+            if field in labels:
+                kind = labels[field][1]
+                cell.number_format = "0.00%" if kind == "percent" else "#,##0" if kind == "number" else "0.00x" if kind == "multiple" else "General"
+    worksheet.freeze_panes = "D2"
+
+
+def _write_stock_metrics_history_csv(handle, tickers: list[str]) -> int:
+    fields, rows = _stats_financial_history_rows(tickers)
+    labels = {field: label for field, label, _ in STOCK_METRIC_COLUMNS}
+    writer = csv.writer(handle)
+    writer.writerow(["Mã", "Năm", "Quý"] + [labels[field] for field in fields])
+    for row in rows:
+        writer.writerow([row["ticker"], row["year_report"], row["quarter_report"]] + [row[field] for field in fields])
+    return len(rows)
+
+
 def financial_bulk_export():
     """Export selected financial statements without sending thousands of API requests from the browser."""
     temporary_paths: list[str] = []
@@ -665,11 +868,17 @@ def financial_bulk_export():
                 for item in (request.args.get("tables") or "").split(",")
                 if item.strip()
             ]
-            selected_tables = tuple(
+            selected_tables = [
                 FINANCIAL_TABLE_BY_ID[item]
                 for item in requested_tables
                 if item in FINANCIAL_TABLE_BY_ID
-            ) or FINANCIAL_TABLES
+            ]
+            if "stock_metrics" in requested_tables:
+                selected_tables.append(STOCK_METRICS_TABLE)
+            if "stock_metrics_history" in requested_tables:
+                selected_tables.append(STOCK_METRICS_HISTORY_TABLE)
+            if not selected_tables:
+                selected_tables = list(FINANCIAL_TABLES)
             if requested_format == "xlsx":
                 from openpyxl import Workbook
                 output_path = tempfile.NamedTemporaryFile(prefix="financial-export-", suffix=".xlsx", delete=False).name
@@ -687,6 +896,12 @@ def financial_bulk_export():
                 )
                 for _, table, sheet_name in selected_tables:
                     worksheet = workbook.create_sheet(sheet_name[:31])
+                    if table == "stock_metrics":
+                        _write_stock_metrics_worksheet(worksheet, tickers, single_ticker)
+                        continue
+                    if table == "stock_metrics_history":
+                        _write_stock_metrics_history_worksheet(worksheet, tickers)
+                        continue
                     template_rows = template_fields.get(table, ())
                     fields = [field for field, _, _ in template_rows] or _export_fields(
                         connection, table, period_clause, period_params,
@@ -730,11 +945,16 @@ def financial_bulk_export():
                 temporary_paths.append(output_path)
                 with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
                     for _, table, filename in selected_tables:
-                        fields = _export_fields(connection, table, period_clause, period_params)
                         csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
                         temporary_paths.append(csv_path)
                         with open(csv_path, "w", encoding="utf-8-sig", newline="") as handle:
-                            _write_financial_csv(connection, table, fields, labels, period_clause, period_params, handle)
+                            if table == "stock_metrics":
+                                _write_stock_metrics_csv(handle, tickers)
+                            elif table == "stock_metrics_history":
+                                _write_stock_metrics_history_csv(handle, tickers)
+                            else:
+                                fields = _export_fields(connection, table, period_clause, period_params)
+                                _write_financial_csv(connection, table, fields, labels, period_clause, period_params, handle)
                         archive.write(csv_path, f"{filename}.csv")
                 download_name = "financial-statements.zip"
                 mimetype = "application/zip"
