@@ -25,7 +25,11 @@ const REALTIME_PATH_PREFIXES = [
     'price/',
     'batch-price',
     'stock/excel/',
+    'stock/excel-bulk',
     'download/',
+    // Exports are generated files. Caching them can serve an older ZIP after
+    // the backend schema changes or after the user changes a selected range.
+    'financial-bulk-export',
     'market/vci-indices',
     'market/top-movers',
     'market/heatmap',
