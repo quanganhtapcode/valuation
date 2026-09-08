@@ -27,6 +27,15 @@ def register(market_bp: Blueprint) -> None:
 
         try:
             data = read_index_history(db_path=db_path, days=days, index=index)
+            if request.args.get("compact") == "1":
+                data = [
+                    {
+                        "tradingDate": row.get("tradingDate"),
+                        "closeIndex": row.get("closeIndex"),
+                        "totalVolume": row.get("totalVolume") or row.get("totalMatchVolume") or 0,
+                    }
+                    for row in data
+                ]
             return jsonify(data)
         except Exception as e:
             logger.error(f"Error reading {index} history: {e}")

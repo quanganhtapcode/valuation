@@ -39,8 +39,6 @@ interface HeroIndexCardProps {
     indices: IndexData[];
 }
 
-type Range = '3M' | '6M' | '1Y' | 'MAX';
-
 interface SimpleBar { date: string; close: number; volume: number }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -57,14 +55,6 @@ const PB_COLOR  = '#34d399';
 const AREA_COLOR = '#0E6BFF';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function cutoffISO(range: Range): string | null {
-    if (range === 'MAX') return null;
-    const months = { '3M': 3, '6M': 6, '1Y': 12 }[range];
-    const d = new Date();
-    d.setMonth(d.getMonth() - months);
-    return d.toISOString().slice(0, 10);
-}
 
 function dateToISO(d: Date): string {
     return d.toISOString().slice(0, 10);
@@ -149,7 +139,6 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
     // ── UI state ──────────────────────────────────────────────────────────────
     const [selectedId, setSelectedId] = useState('vnindex');
-    const [range,      setRange]      = useState<Range>('1Y');
     const [showPE,     setShowPE]     = useState(false);
     const [showPB,     setShowPB]     = useState(false);
     const [modalOpen,  setModalOpen]  = useState(false);
@@ -170,7 +159,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const volRef    = useRef<ISeriesApi<'Histogram'> | null>(null);
     const peRef     = useRef<ISeriesApi<'Line'> | null>(null);
     const pbRef     = useRef<ISeriesApi<'Line'> | null>(null);
-    const closeMap  = useRef<Map<string, number>>(new Map());
+    const previousCloseMap = useRef<Map<string, number>>(new Map());
     const [tooltip, setTooltip]       = useState<any>(null);
     const [cw,      setContainerW]    = useState(800);
     const [ch,      setContainerH]    = useState(380);
@@ -178,8 +167,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const isVN     = selectedId === 'vnindex';
     const selected = indices.find(i => i.id === selectedId) || indices[0];
 
-    // ── Fetch only the history needed by the selected range ───────────────────
-    const vnTimeframe = range === 'MAX' ? 'ALL' : range === '1Y' ? '1Y' : '6M';
+    // ── Fetch full history once; retain it when switching index tabs ──────────
+    const vnTimeframe = 'ALL';
     useEffect(() => {
         const cached = vnCache.current.get(vnTimeframe);
         if (cached) {
@@ -212,7 +201,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
         setIdxLoad(true);
         setIdxBars([]);
-        fetch(`${API_BASE}/market/index-history?index=${info.vciSymbol}&days=2500`)
+        fetch(`${API_BASE}/market/index-history?index=${info.vciSymbol}&days=-1&compact=1`)
             .then(r => r.json())
             .then((rows: any[]) => {
                 if (!Array.isArray(rows)) return;
@@ -231,32 +220,30 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             .finally(() => setIdxLoad(false));
     }, [selectedId, isVN]);
 
-    // ── Derive chart series from data + range ─────────────────────────────────
-    const cutoff = cutoffISO(range);
+    // ── Derive full-history chart series ─────────────────────────────────────
 
     const priceTV = useMemo(() => {
         if (isVN) {
             return vnRows
-                .filter(d => d.vnindex !== null && (!cutoff || dateToISO(d.date) >= cutoff))
+                .filter(d => d.vnindex !== null)
                 .map(d => ({ time: toBusinessDay(dateToISO(d.date)), value: d.vnindex!, volume: d.volume ?? 0 }));
         }
         return idxBars
-            .filter(d => !cutoff || d.date >= cutoff)
             .map(d => ({ time: toBusinessDay(d.date), value: d.close, volume: d.volume }));
-    }, [isVN, vnRows, idxBars, cutoff]);
+    }, [isVN, vnRows, idxBars]);
 
     const peTV = useMemo(() =>
         vnRows
-            .filter(d => d.pe !== null && (!cutoff || dateToISO(d.date) >= cutoff))
+            .filter(d => d.pe !== null)
             .map(d => ({ time: toBusinessDay(dateToISO(d.date)), value: d.pe! })),
-        [vnRows, cutoff],
+        [vnRows],
     );
 
     const pbTV = useMemo(() =>
         vnRows
-            .filter(d => d.pb !== null && (!cutoff || dateToISO(d.date) >= cutoff))
+            .filter(d => d.pb !== null)
             .map(d => ({ time: toBusinessDay(dateToISO(d.date)), value: d.pb! })),
-        [vnRows, cutoff],
+        [vnRows],
     );
 
     // Latest stats for header display
@@ -304,6 +291,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 timeVisible:           false,
                 rightOffset:           5,
                 barSpacing:            6,
+                minBarSpacing:         0.01,
                 rightBarStaysOnScroll: true,
             },
             handleScroll: { vertTouchDrag: false },
@@ -371,11 +359,9 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             const pbVal  = param.seriesData.get(pb);
             const t      = param.time as BusinessDay;
             const k      = dayKey(t);
-            const keys   = Array.from(closeMap.current.keys());
-            const idx    = keys.indexOf(k);
-            let change   = '';
-            if (idx > 0) {
-                const prev = closeMap.current.get(keys[idx - 1]) ?? 0;
+            const prev = previousCloseMap.current.get(k);
+            let change = '';
+            if (prev !== undefined) {
                 const ch   = close - prev;
                 const pct  = prev > 0 ? (ch / prev) * 100 : 0;
                 change = `${ch >= 0 ? '+' : ''}${Math.abs(ch).toFixed(2)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
@@ -431,7 +417,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     useEffect(() => {
         if (!areaRef.current || !volRef.current || !priceTV.length) return;
         areaRef.current.setData(priceTV.map(d => ({ time: d.time, value: d.value })));
-        closeMap.current = new Map(priceTV.map(d => [dayKey(d.time), d.value]));
+        previousCloseMap.current = new Map(priceTV.slice(1).map((d, i) => [dayKey(d.time), priceTV[i].value]));
         volRef.current.setData(priceTV.map((d, i) => ({
             time:  d.time,
             value: d.volume,
@@ -477,9 +463,6 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         }
         queueMicrotask(() => setTooltip(null));
     }, [isVN, selectedId]);
-
-    // ── Fit on range change ───────────────────────────────────────────────────
-    useEffect(() => { chartRef.current?.timeScale().fitContent(); }, [range]);
 
     // ── Live VNINDEX today-point via indices prop (shared WebSocket from OverviewClient) ──
     useEffect(() => {
@@ -600,21 +583,6 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
                     {/* Right: controls */}
                     <div className="flex flex-col gap-2 items-end flex-shrink-0 pt-1">
-                        {/* Range selector */}
-                        <div className="flex p-0.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700/60 rounded-lg">
-                            {(['3M', '6M', '1Y', 'MAX'] as Range[]).map(r => (
-                                <button key={r} onClick={() => setRange(r)}
-                                    className={cx(
-                                        'px-2.5 py-1.5 rounded-md text-[11px] font-medium tabular-nums transition-all cursor-pointer',
-                                        range === r
-                                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                                            : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300',
-                                    )}>
-                                    {r}
-                                </button>
-                            ))}
-                        </div>
-
                         {/* PE / PB toggles (VN-Index only) + History */}
                         <div className="flex gap-1.5">
                             {isVN && (
