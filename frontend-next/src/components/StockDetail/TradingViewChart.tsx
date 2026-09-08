@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
     createChart,
     IChartApi,
     ISeriesApi,
-    CandlestickSeries,
+    AreaSeries,
     HistogramSeries,
     Time,
     BusinessDay,
@@ -23,18 +23,14 @@ interface HistoricalData {
     volume: number;
 }
 
-type Interval = 'D' | 'W' | 'M';
-type ChartRange = '1D' | '1W' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | '5Y';
-
-const INTERVAL_LABELS: Record<Interval, string> = { D: '1D', W: '1W', M: '1M' };
-const RANGE_LABELS: ChartRange[] = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '5Y'];
+const AREA_COLOR = '#0E6BFF';
 
 interface TradingViewChartProps {
     data: HistoricalData[];
     isLoading: boolean;
 }
 
-// ── Displayed bar (latest OR hovered candle) ──────────────────────────────────
+// ── Displayed bar (hovered trading day) ──────────────────────────────────
 interface BarDisplay {
     time: string;
     open: number;
@@ -50,9 +46,9 @@ function buildTheme(isDark: boolean) {
     return {
         isDark,
         text:      isDark ? '#9ca3af' : '#6b7280',
-        border:    isDark ? '#374151' : '#e5e7eb',
-        gridLine:  isDark ? 'rgba(55,65,81,0.25)' : 'rgba(229,231,235,0.7)',
-        crosshair: isDark ? '#4b5563' : '#cbd5e1',
+        border:    isDark ? '#1f2937' : '#e5e7eb',
+        gridLine:  isDark ? 'rgba(55,65,81,0.3)' : 'rgba(229,231,235,0.6)',
+        crosshair: isDark ? '#4b5563' : '#d1d5db',
     };
 }
 
@@ -129,112 +125,17 @@ function normalizeData(data: HistoricalData[]): HistoricalData[] {
     return Array.from(byDate.values()).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 }
 
-function aggregateData(data: HistoricalData[], interval: Interval): HistoricalData[] {
-    if (interval === 'D') return data;
-    const groups = new Map<string, HistoricalData[]>();
-    data.forEach((d) => {
-        const date = new Date(d.time);
-        let key: string;
-        if (interval === 'W') {
-            const ws = new Date(date);
-            ws.setDate(date.getDate() - date.getDay());
-            key = `${ws.getFullYear()}-W${String(Math.ceil((ws.getTime() - new Date(ws.getFullYear(), 0, 1).getTime()) / (7 * 86400000)) + 1).padStart(2, '0')}`;
-        } else {
-            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        }
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push(d);
-    });
-    const result: HistoricalData[] = [];
-    groups.forEach((items) => {
-        if (!items.length) return;
-        result.push({
-            time:   items[0].time,
-            open:   items[0].open,
-            high:   Math.max(...items.map(i => i.high)),
-            low:    Math.min(...items.map(i => i.low)),
-            close:  items[items.length - 1].close,
-            volume: items.reduce((s, i) => s + i.volume, 0),
-        });
-    });
-    return result;
-}
-
-function filterRange(data: HistoricalData[], range: ChartRange): HistoricalData[] {
-    if (!data.length) return data;
-    const latest = new Date(data[data.length - 1].time);
-    const from = new Date(latest);
-
-    if (range === '1D') return data.slice(-1);
-    if (range === '1W') from.setDate(from.getDate() - 7);
-    if (range === '1M') from.setMonth(from.getMonth() - 1);
-    if (range === '3M') from.setMonth(from.getMonth() - 3);
-    if (range === '6M') from.setMonth(from.getMonth() - 6);
-    if (range === 'YTD') from.setMonth(0, 1);
-    if (range === '1Y') from.setFullYear(from.getFullYear() - 1);
-    if (range === '5Y') from.setFullYear(from.getFullYear() - 5);
-
-    return data.filter((item) => new Date(item.time) >= from);
-}
-
-// ── Interval selector ─────────────────────────────────────────────────────────
-function ChartControls({ range, setRange, interval, setInterval }: {
-    range: ChartRange;
-    setRange: (range: ChartRange) => void;
-    interval: Interval;
-    setInterval: (interval: Interval) => void;
-}) {
-    return (
-        <div className="flex min-w-0 items-center gap-3">
-            <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto scrollbar-hide">
-                {RANGE_LABELS.map((item) => (
-                    <button
-                        key={item}
-                        type="button"
-                        onClick={() => setRange(item)}
-                        className={`shrink-0 rounded px-2 py-1 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
-                            range === item
-                                ? 'bg-blue-600 text-white'
-                                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
-                        }`}
-                    >
-                        {item}
-                    </button>
-                ))}
-            </div>
-            <div className="hidden shrink-0 items-center gap-0.5 border-l border-slate-200 pl-2 dark:border-slate-700 sm:flex">
-                {(['D', 'W', 'M'] as Interval[]).map((iv) => (
-                <button
-                    key={iv}
-                    type="button"
-                    onClick={() => setInterval(iv)}
-                    aria-label={`Gom nhóm biểu đồ theo ${INTERVAL_LABELS[iv]}`}
-                    className={`inline-flex rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
-                        interval === iv
-                            ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white'
-                            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
-                    }`}
-                >
-                    {INTERVAL_LABELS[iv]}
-                </button>
-            ))}
-            </div>
-        </div>
-    );
-}
-
 // ── OHLCV overlay tooltip (only shown while hovering/touching) ────────────────
 function OHLCVOverlay({ bar }: { bar: BarDisplay | null }) {
     if (!bar) return null;
     const isUp = bar.change >= 0;
     return (
         <div className="absolute top-2 left-2 z-20 pointer-events-none">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg px-2.5 py-1.5 text-[11px]"
-                style={{ background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(6px)' }}>
-                <span className="text-slate-300 font-medium">{bar.time}</span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-[11px] shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">{bar.time}</span>
                 <span className="flex items-center gap-1">
                     <span className="text-slate-400">O</span>
-                    <span className="font-semibold text-white tabular-nums">{formatPrice(bar.open)}</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 tabular-nums">{formatPrice(bar.open)}</span>
                 </span>
                 <span className="flex items-center gap-1">
                     <span className="text-slate-400">H</span>
@@ -246,14 +147,14 @@ function OHLCVOverlay({ bar }: { bar: BarDisplay | null }) {
                 </span>
                 <span className="flex items-center gap-1">
                     <span className="text-slate-400">C</span>
-                    <span className="font-semibold text-white tabular-nums">{formatPrice(bar.close)}</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 tabular-nums">{formatPrice(bar.close)}</span>
                 </span>
                 <span className="flex items-center gap-1">
                     <span className="text-slate-400">Vol</span>
-                    <span className="font-semibold text-white tabular-nums">{formatVolume(bar.volume)}</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 tabular-nums">{formatVolume(bar.volume)}</span>
                 </span>
                 <span className={`font-semibold tabular-nums ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isUp ? '+' : ''}{formatPrice(Math.abs(bar.change))} ({isUp ? '+' : ''}{bar.changePct.toFixed(2)}%)
+                    {isUp ? '+' : '-'}{formatPrice(Math.abs(bar.change))} ({isUp ? '+' : ''}{bar.changePct.toFixed(2)}%)
                 </span>
             </div>
         </div>
@@ -264,12 +165,9 @@ function OHLCVOverlay({ bar }: { bar: BarDisplay | null }) {
 export default function TradingViewChart({ data, isLoading }: TradingViewChartProps) {
     const chartContainerRef    = useRef<HTMLDivElement>(null);
     const chartRef             = useRef<IChartApi | null>(null);
-    const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+    const areaSeriesRef        = useRef<ISeriesApi<'Area'> | null>(null);
+    const barsByDateRef        = useRef<Map<string, BarDisplay>>(new Map());
     const volumeSeriesRef      = useRef<ISeriesApi<'Histogram'> | null>(null);
-    const [interval, setIntervalState] = useState<Interval>('D');
-    const [range, setRange] = useState<ChartRange>('1Y');
-    const intervalRef = useRef<Interval>('D');
-
     // Bar displayed in the OHLCV overlay (null = hidden, only shown while hovering/touching)
     const [hoveredBar, setHoveredBar] = useState<BarDisplay | null>(null);
 
@@ -278,11 +176,6 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
     const theme  = useMemo(() => buildTheme(isDark), [isDark]);
 
     const normalizedData = useMemo(() => normalizeData(data), [data]);
-    const rangedData = useMemo(() => filterRange(normalizedData, range), [normalizedData, range]);
-    const aggregatedData = useMemo(() => aggregateData(rangedData, interval), [rangedData, interval]);
-    // keep intervalRef in sync for use inside effects
-    useEffect(() => { intervalRef.current = interval; }, [interval]);
-
     // ── Chart init (once) ────────────────────────────────────────────────────
     useEffect(() => {
         if (!chartContainerRef.current || chartRef.current) return;
@@ -291,7 +184,7 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
 
         const chart = createChart(chartContainerRef.current, {
             width:  chartContainerRef.current.clientWidth,
-            height: 400,
+            height: 380,
             layout: {
                 background: { type: ColorType.Solid, color: 'transparent' },
                 textColor:  initTheme.text,
@@ -304,73 +197,66 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             },
             crosshair: {
                 mode:     CrosshairMode.Normal,
-                vertLine: { color: initTheme.crosshair, width: 1, style: 0, labelBackgroundColor: '#2563eb' },
-                horzLine: { color: initTheme.crosshair, width: 1, style: 0, labelBackgroundColor: '#2563eb' },
+                vertLine: { color: initTheme.crosshair, width: 1, style: 2, labelBackgroundColor: AREA_COLOR },
+                horzLine: { color: initTheme.crosshair, width: 1, style: 2, labelBackgroundColor: AREA_COLOR },
             },
             rightPriceScale: {
                 borderColor:  initTheme.border,
-                scaleMargins: { top: 0.06, bottom: 0.22 },
+                scaleMargins: { top: 0.08, bottom: 0.25 },
             },
             timeScale: {
                 borderColor:           initTheme.border,
                 timeVisible:           false,
-                rightOffset:           2,
+                rightOffset:           5,
                 barSpacing:            6,
+                minBarSpacing:         0.01,
                 rightBarStaysOnScroll: true,
             },
             handleScroll: { vertTouchDrag: false },
         });
 
-        const candlestickSeries = chart.addSeries(CandlestickSeries, {
-            upColor:        '#16a34a',
-            downColor:      '#dc2626',
-            borderUpColor:  '#16a34a',
-            borderDownColor:'#dc2626',
-            wickUpColor:    '#16a34a',
-            wickDownColor:  '#dc2626',
+        const areaSeries = chart.addSeries(AreaSeries, {
+            topColor: `${AREA_COLOR}38`,
+            bottomColor: `${AREA_COLOR}03`,
+            lineColor: AREA_COLOR,
+            lineWidth: 2,
+            lineType: 2,
+            crosshairMarkerRadius: 4,
+            crosshairMarkerBackgroundColor: AREA_COLOR,
+            crosshairMarkerBorderColor: '#ffffff',
+            crosshairMarkerBorderWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
             priceFormat: { type: 'price', precision: 0, minMove: 1 },
         });
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
             priceFormat:  { type: 'volume' },
             priceScaleId: '',
+            priceLineVisible: false,
+            lastValueVisible: false,
         });
         volumeSeries.priceScale().applyOptions({
-            scaleMargins: { top: 0.84, bottom: 0.02 },
+            scaleMargins: { top: 0.90, bottom: 0 },
         });
 
-        // Crosshair: update footer bar instead of floating tooltip
+        // Look up OHLCV in constant time without scanning the full history on hover.
         chart.subscribeCrosshairMove((param: MouseEventParams) => {
-            if (!param?.time || !param?.seriesData) {
+            if (!param.time || !param.point || !param.seriesData.get(areaSeries)) {
                 setHoveredBar(null);
                 return;
             }
-            const candle = param.seriesData.get(candlestickSeries);
-            const vol    = param.seriesData.get(volumeSeries);
-            if (!candle) { setHoveredBar(null); return; }
-
-            const open   = (candle as { open: number }).open;
-            const high   = (candle as { high: number }).high;
-            const low    = (candle as { low: number }).low;
-            const close  = (candle as { close: number }).close;
-            const volume = (vol as { value?: number })?.value ?? 0;
-            const change    = close - open;
-            const changePct = open > 0 ? (change / open) * 100 : 0;
-
-            setHoveredBar({
-                time: formatDate(param.time),
-                open, high, low, close, volume, change, changePct,
-            });
+            setHoveredBar(barsByDateRef.current.get(formatDate(param.time)) ?? null);
         });
 
         chartRef.current           = chart;
-        candlestickSeriesRef.current = candlestickSeries;
+        areaSeriesRef.current      = areaSeries;
         volumeSeriesRef.current    = volumeSeries;
 
         const ro = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const w = entry.contentRect.width;
-                chart.applyOptions({ width: w, height: w < 640 ? 320 : 400 });
+                chart.applyOptions({ width: w, height: w < 640 ? 300 : 380 });
             }
         });
         ro.observe(chartContainerRef.current);
@@ -385,7 +271,7 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             el.removeEventListener('touchend', clearOnTouchEnd);
             chart.remove();
             chartRef.current = null;
-            candlestickSeriesRef.current = null;
+            areaSeriesRef.current = null;
             volumeSeriesRef.current = null;
         };
     }, []);
@@ -408,39 +294,41 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
 
     // ── Push data ─────────────────────────────────────────────────────────────
     useEffect(() => {
-        if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current) return;
-        if (!aggregatedData.length) return;
-
-        candlestickSeriesRef.current.setData(aggregatedData.map(d => ({
-            time:  toBusinessDay(d.time),
-            open:  d.open,
-            high:  d.high,
-            low:   d.low,
-            close: d.close,
+        if (!chartRef.current || !areaSeriesRef.current || !volumeSeriesRef.current) return;
+        barsByDateRef.current = new Map(normalizedData.map((d, i) => {
+            const previousClose = i > 0 ? normalizedData[i - 1].close : d.open;
+            const change = d.close - previousClose;
+            const time = formatDate(toBusinessDay(d.time));
+            return [time, {
+                ...d,
+                time,
+                change,
+                changePct: previousClose > 0 ? (change / previousClose) * 100 : 0,
+            }];
+        }));
+        queueMicrotask(() => setHoveredBar(null));
+        areaSeriesRef.current.setData(normalizedData.map(d => ({
+            time: toBusinessDay(d.time),
+            value: d.close,
         })));
-
-        volumeSeriesRef.current.setData(aggregatedData.map(d => ({
-            time:  toBusinessDay(d.time),
+        volumeSeriesRef.current.setData(normalizedData.map((d, i) => ({
+            time: toBusinessDay(d.time),
             value: d.volume,
-            color: d.close >= d.open ? 'rgba(22,163,74,0.28)' : 'rgba(220,38,38,0.28)',
+            color: i === 0 || d.close >= normalizedData[i - 1].close
+                ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
         })));
+        if (!normalizedData.length) return;
 
-        const total = aggregatedData.length;
-        chartRef.current.timeScale().setVisibleLogicalRange({
-            from: Math.max(0, total - 1) - total,
-            to:   total + 2,
+        // Load all available sessions; only the initial viewport is limited to one year.
+        const latest = toBusinessDay(normalizedData[normalizedData.length - 1].time);
+        const from = new Date(Date.UTC(latest.year - 1, latest.month - 1, latest.day))
+            .toISOString().slice(0, 10);
+        const first = dayKey(normalizedData[0].time);
+        chartRef.current.timeScale().setVisibleRange({
+            from: toBusinessDay(from < first ? first : from),
+            to: latest,
         });
-    }, [aggregatedData]);
-
-    const setInterval = useCallback((iv: Interval) => {
-        setIntervalState(iv);
-        setHoveredBar(null);
-    }, []);
-
-    const handleRangeChange = useCallback((nextRange: ChartRange) => {
-        setRange(nextRange);
-        setHoveredBar(null);
-    }, []);
+    }, [normalizedData]);
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
@@ -474,13 +362,8 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
 
                 <div
                     ref={chartContainerRef}
-                    className="h-[320px] w-full rounded-lg sm:h-[400px]"
+                    className="h-[300px] w-full rounded-lg sm:h-[380px]"
                 />
-            </div>
-
-            <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 px-1 pt-3 dark:border-slate-800">
-                <span className="hidden text-[11px] font-medium text-slate-400 sm:inline">Khoảng thời gian</span>
-                <ChartControls range={range} setRange={handleRangeChange} interval={interval} setInterval={setInterval} />
             </div>
         </div>
     );
