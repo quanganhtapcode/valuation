@@ -61,6 +61,6 @@ migration or immediate full-market refetch is required. Numerical field meanings
 and units remain unchanged; supplemental SSI fields are not automatically
 blended into existing Vietcap rows without a verified mapping.
 
-Verification: `python -m unittest discover -s tests -v` exercises source priority,
+Verification before removal of the test files covered source priority,
 partial/empty responses, zero values, stale updates, repeated merges, transaction
 rollback, notes retention, import periods, and SQLite backup/restore behavior.
