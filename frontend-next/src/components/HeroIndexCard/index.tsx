@@ -424,11 +424,21 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             color: i === 0 || d.value >= priceTV[i - 1].value
                 ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
         })));
-        chartRef.current?.timeScale().fitContent();
         // Re-apply live today-point if already received
         if (liveVnRef.current && isVN) {
             try { areaRef.current.update(liveVnRef.current); } catch {}
         }
+        // Keep all history available for panning, but initially show the latest year.
+        const latest = isVN && liveVnRef.current
+            ? liveVnRef.current.time
+            : priceTV[priceTV.length - 1].time;
+        const from = new Date(Date.UTC(latest.year - 1, latest.month - 1, latest.day));
+        const firstDate = dayKey(priceTV[0].time);
+        const startDate = dateToISO(from);
+        chartRef.current?.timeScale().setVisibleRange({
+            from: toBusinessDay(startDate < firstDate ? firstDate : startDate),
+            to: latest,
+        });
     }, [priceTV]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Push PE/PB data ───────────────────────────────────────────────────────
@@ -455,7 +465,6 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     // ── On index switch: hide overlays if leaving VN-Index ────────────────────
     useEffect(() => {
         if (!chartRef.current) return;
-        chartRef.current.timeScale().fitContent();
         if (!isVN) {
             peRef.current?.applyOptions({ visible: false });
             pbRef.current?.applyOptions({ visible: false });
