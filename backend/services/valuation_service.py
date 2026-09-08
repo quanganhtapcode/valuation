@@ -9,7 +9,6 @@ from backend.data_sources.financial_repository import FinancialRepository
 from backend.services.vci_financial_adapter import (
     has_vci_financial_db,
     load_eps_history_yearly as vci_load_eps_history,
-    load_latest_net_income as vci_load_latest_net_income,
     load_latest_financial_components as vci_load_financial_components,
     load_ttm_eps as vci_load_ttm_eps,
     load_ttm_financial_components as vci_load_ttm_financial_components,
@@ -275,19 +274,6 @@ def _load_eps_history_yearly(symbol: str, limit: int = 10) -> list[dict]:
         except Exception as exc:
             logger.debug(f"VCI EPS history failed for {symbol}: {exc}")
     return []
-
-
-def _load_latest_net_income(symbol: str) -> tuple[float, str]:
-    """Return (net_income, source) from VCI financial statements."""
-    symbol = symbol.upper()
-    if has_vci_financial_db():
-        try:
-            val, source = vci_load_latest_net_income(symbol)
-            if val > 0:
-                return val, source
-        except Exception as exc:
-            logger.debug(f"VCI net_income failed for {symbol}: {exc}")
-    return 0.0, 'missing'
 
 
 def _load_latest_financial_components(symbol: str) -> dict:

@@ -20,7 +20,6 @@ from backend.db_path import (
     resolve_vci_valuation_db_path,
     resolve_valuation_cache_db_path,
 )
-from backend.data_sources.vci import VCIClient
 
 from .deps import cache_func, cache_ttl
 from .http_headers import VCI_HEADERS
@@ -91,21 +90,6 @@ _SCREENER_NUMERIC_FILTER_COLUMNS = {
 }
 
 
-def _find_vci_index_item(vci_symbol: str) -> dict | None:
-    try:
-        items = VCIClient.get_market_indices() or []
-    except Exception:
-        return None
-    vci_symbol_u = str(vci_symbol).upper()
-    for it in items:
-        try:
-            if str(it.get('symbol') or '').upper() == vci_symbol_u:
-                return it
-        except Exception:
-            continue
-    return None
-
-
 def _normalize_metric(metric: str | None) -> str:
     value = str(metric or "both").strip().lower()
     if value in {"pe", "pb", "both"}:
@@ -144,18 +128,6 @@ def _time_frame_to_cutoff(time_frame: str) -> date | None:
     if frame == "5Y":
         return date(today.year - 5, today.month, min(today.day, 28))
     return None
-
-
-def _apply_time_frame(
-    series: list[dict[str, Any]],
-    time_frame: str,
-) -> list[dict[str, Any]]:
-    """Filter a [{date, ...}] list by time frame (used for live VCI fallback only)."""
-    cutoff = _time_frame_to_cutoff(time_frame)
-    if cutoff is None:
-        return series
-    cutoff_str = cutoff.isoformat()
-    return [item for item in series if str(item.get("date") or "") >= cutoff_str]
 
 
 def _fetch_vci_index_valuation_series(

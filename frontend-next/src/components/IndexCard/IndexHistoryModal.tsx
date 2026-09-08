@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, Title, Select, SelectItem, Button, Icon } from '@tremor/react';
 import { RiCloseLine, RiDownloadLine } from '@remixicon/react';
 import { cx } from '@/lib/utils';

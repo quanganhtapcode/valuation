@@ -43,10 +43,6 @@ def _sqlite_connect() -> sqlite3.Connection | None:
         return None
 
 
-def _vn_today() -> str:
-    return dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).strftime("%Y-%m-%d")
-
-
 def _is_fresh(fetched_at: str | None, max_age: int = _MAX_SQLITE_AGE_S) -> bool:
     if not fetched_at:
         return False

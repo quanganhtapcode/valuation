@@ -130,22 +130,6 @@ def _to_float(v: Any) -> float | None:
 	return None
 
 
-def _to_percent(v: Any) -> float | None:
-	"""Convert various percent formats to percent units.
-
-	Vietcap `percentIndexChange` appears to be fractional (e.g. 0.0055 == 0.55%).
-	We store pct_change in percent units for easier display.
-	"""
-
-	x = _to_float(v)
-	if x is None:
-		return None
-	# Heuristic: treat values in [-1, 1] as fraction-of-1.
-	if -1.0 <= x <= 1.0:
-		return x * 100.0
-	return x
-
-
 def ensure_schema(conn: sqlite3.Connection) -> None:
 	conn.execute("PRAGMA journal_mode=WAL;")
 	conn.execute("PRAGMA synchronous=NORMAL;")

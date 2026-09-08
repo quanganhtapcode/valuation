@@ -17,12 +17,12 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from fetch_vci_financial_statement import (
-    SECTION_TABLE_MAP,
-    _ensure_wide_table,
-    ensure_schema,
-    upsert_metrics,
-)
+if __package__:
+    from .fetch_vci_financial_statement import SECTION_TABLE_MAP, _ensure_wide_table, ensure_schema, upsert_metrics
+    from .financial_statement_storage import write_statement
+else:
+    from fetch_vci_financial_statement import SECTION_TABLE_MAP, _ensure_wide_table, ensure_schema, upsert_metrics
+    from financial_statement_storage import write_statement
 
 
 log = logging.getLogger(__name__)
@@ -38,6 +38,8 @@ FIELD_CODE_RE = re.compile(r"^[a-z]{3}\d+$", re.IGNORECASE)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-dir", type=Path, default=Path(__file__).resolve().parents[2],
+                        help="Directory containing the three SSI JSONL exports.")
     parser.add_argument(
         "--db-path",
         default="data/financial-statements/vci_financial_statement_data/vci_financial_statements.sqlite",
@@ -117,14 +119,21 @@ def main() -> int:
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path))
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table'").fetchone():
+        marker = conn.execute("SELECT v FROM meta WHERE k='data_source'").fetchone()
+        if marker != ("SSI JSONL",):
+            conn.close()
+            raise ValueError("Refusing to import SSI into a database not marked SSI JSONL")
     ensure_schema(conn)
+    conn.execute("INSERT OR REPLACE INTO meta(k,v) VALUES ('data_source','SSI JSONL')")
+    conn.commit()
     imported_at = dt.datetime.now(dt.timezone.utc).isoformat()
     fields_by_section = upsert_metrics(conn, metrics, imported_at)
     source_files = (
         {args.section: SOURCE_FILES[args.section]} if args.section else SOURCE_FILES
     )
     records_by_section = {
-        section: read_jsonl(root / filename) for section, filename in source_files.items()
+        section: read_jsonl(args.source_dir / filename) for section, filename in source_files.items()
     }
     wide_columns: dict[str, set[str]] = {}
     for section, table in SECTION_TABLE_MAP.items():
@@ -138,26 +147,16 @@ def main() -> int:
         fields = sorted(fields_by_section.get(section, set()))
         _ensure_wide_table(conn, table, fields)
         wide_columns[section] = set(fields)
+        # This separate archive is explicitly SSI-only; the mixed runtime DB is not.
+        conn.execute(f"""INSERT OR IGNORE INTO statement_provenance
+            (ticker,section,period_kind,year_report,quarter_report,data_source,fetched_at)
+            SELECT ticker,?,period_kind,year_report,quarter_report,'SSI',fetched_at FROM {table}""",
+            (section,))
 
     total_symbols = total_periods = total_rows = 0
     with conn:
         for section, records in records_by_section.items():
-            table = SECTION_TABLE_MAP[section]
             fields = sorted(wide_columns[section])
-            field_columns = ", ".join(f'"{field}"' for field in fields)
-            placeholders = ", ".join("?" for _ in fields)
-            wide_sql = (
-                f"INSERT OR REPLACE INTO {table} "
-                f"(ticker, period_kind, year_report, quarter_report, length_report, public_date, "
-                f"create_date, update_date, fetched_at, {field_columns}) "
-                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {placeholders})"
-            )
-            period_sql = """
-                INSERT OR REPLACE INTO statement_periods(
-                  ticker, section, period_kind, year_report, quarter_report, length_report,
-                  public_date, create_date, update_date, values_json, fetched_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """
             for record in records:
                 symbol = str(record.get("symbol") or "").strip().upper()
                 if not symbol:
@@ -167,22 +166,21 @@ def main() -> int:
                 payload = period_payload(record)
                 for period_kind, rows in (("YEAR", payload["years"]), ("QUARTER", payload["quarters"])):
                     for row in rows:
+                        if not isinstance(row, dict):
+                            continue
                         year = row.get("yearReport")
                         quarter = 0 if period_kind == "YEAR" else row.get("quarterReport")
                         if not isinstance(year, int) or year <= 0 or not isinstance(quarter, int):
                             continue
+                        if period_kind == "QUARTER" and not 1 <= quarter <= 4:
+                            continue
                         raw_fields = {key.lower(): value for key, value in row.items() if isinstance(key, str)}
-                        conn.execute(
-                            period_sql,
-                            (symbol, section, period_kind, year, quarter, None, None, None, None, "{}", fetched_at),
-                        )
-                        conn.execute(
-                            wide_sql,
-                            [symbol, period_kind, year, quarter, None, None, None, None, fetched_at]
-                            + [raw_fields.get(field) for field in fields],
-                        )
-                        total_periods += 1
-                        total_rows += 1
+                        changed = write_statement(conn, section, dict(
+                            ticker=symbol, period_kind=period_kind, year_report=year,
+                            quarter_report=quarter, fetched_at=fetched_at),
+                            {field: raw_fields.get(field) for field in fields}, "SSI")
+                        total_periods += int(changed)
+                        total_rows += int(changed)
 
     conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES (?, ?)", ("data_source", "SSI JSONL"))
     conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES (?, ?)", ("imported_at", imported_at))

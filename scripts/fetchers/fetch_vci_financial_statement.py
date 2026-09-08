@@ -32,6 +32,11 @@ from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
 
+if __package__:
+    from .financial_statement_storage import ensure_provenance, write_statement
+else:
+    from financial_statement_storage import ensure_provenance, write_statement
+
 log = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
@@ -91,14 +96,17 @@ def _archive_notes(conn: sqlite3.Connection, archive_path: Path) -> None:
             if column not in archive_columns:
                 conn.execute(f"ALTER TABLE notes_archive.note ADD COLUMN {_identifier(column)}")
         fields = ", ".join(_identifier(column) for column in note_columns)
-        conn.execute("DELETE FROM notes_archive.note")
+        matches = " AND ".join(f"current.{key}=archived.{key}" for key in NOTE_KEY_COLUMNS)
+        conn.execute(f"DELETE FROM notes_archive.note AS archived WHERE EXISTS "
+                     f"(SELECT 1 FROM main.note AS current WHERE {matches})")
         conn.execute(f"INSERT INTO notes_archive.note ({fields}) SELECT {fields} FROM main.note")
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS notes_archive.note_periods AS "
             "SELECT * FROM main.statement_periods WHERE section = 'NOTE' AND 0"
         )
-        conn.execute("DELETE FROM notes_archive.note_periods")
+        conn.execute(f"DELETE FROM notes_archive.note_periods AS archived WHERE EXISTS "
+                     f"(SELECT 1 FROM main.statement_periods AS current WHERE current.section='NOTE' AND {matches})")
         conn.execute(
             "INSERT INTO notes_archive.note_periods "
             "SELECT * FROM main.statement_periods WHERE section = 'NOTE'"
@@ -107,7 +115,9 @@ def _archive_notes(conn: sqlite3.Connection, archive_path: Path) -> None:
             "CREATE TABLE IF NOT EXISTS notes_archive.note_metrics AS "
             "SELECT * FROM main.statement_metrics WHERE section = 'NOTE' AND 0"
         )
-        conn.execute("DELETE FROM notes_archive.note_metrics")
+        conn.execute("DELETE FROM notes_archive.note_metrics AS archived WHERE EXISTS "
+                     "(SELECT 1 FROM main.statement_metrics AS current WHERE current.section='NOTE' "
+                     "AND current.section=archived.section AND current.field=archived.field)")
         conn.execute(
             "INSERT INTO notes_archive.note_metrics "
             "SELECT * FROM main.statement_metrics WHERE section = 'NOTE'"
@@ -350,8 +360,8 @@ def _default_out_dir() -> Path:
     )
 
 
-def _default_db_path(out_dir: Path) -> Path:
-    return out_dir / "vci_financial_statements.sqlite"
+def _default_db_path() -> Path:
+    return Path(__file__).resolve().parents[2] / "data/sqlite/vci_financials.sqlite"
 
 
 def _default_mapping_path(out_dir: Path) -> Path:
@@ -366,6 +376,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
     conn.execute("PRAGMA temp_store=MEMORY;")
+    ensure_provenance(conn)
 
     conn.execute(
         """
@@ -560,6 +571,28 @@ def upsert_symbol_statements(
                     if year_report <= 0:
                         continue
 
+                    if period_kind == "QUARTER" and not 1 <= quarter_report <= 4:
+                        continue
+                    if write_wide and wide_columns is not None:
+                        row_key_map = {k.lower(): k for k in row if isinstance(k, str)}
+                        metadata = dict(
+                            ticker=ticker, period_kind=period_kind,
+                            year_report=year_report, quarter_report=quarter_report,
+                            length_report=_to_int(row.get("lengthReport"), 0) or None,
+                            public_date=str(row.get("publicDate") or "").strip() or None,
+                            create_date=str(row.get("createDate") or "").strip() or None,
+                            update_date=str(row.get("updateDate") or "").strip() or None,
+                            fetched_at=fetched_at,
+                        )
+                        changed = write_statement(
+                            conn, section, metadata,
+                            {f: row.get(row_key_map.get(f)) for f in wide_columns.get(section, set())},
+                            "VCI", json.dumps(row, ensure_ascii=False) if store_values_json else "{}",
+                        )
+                        period_rows += int(changed)
+                        value_rows += int(changed)
+                        continue
+
                     conn.execute(
                         """
                         INSERT OR REPLACE INTO statement_periods(
@@ -591,82 +624,46 @@ def upsert_symbol_statements(
                         k.lower(): k for k in row.keys() if isinstance(k, str)
                     }
 
-                    if write_wide and wide_columns is not None:
-                        # Write directly to wide table — no statement_values intermediate
-                        wcols = wide_columns.get(section, set())
-                        meta: list[Any] = [
-                            ticker, period_kind, year_report, quarter_report,
-                            _to_int(row.get("lengthReport"), 0) or None,
-                            str(row.get("publicDate") or "").strip() or None,
-                            str(row.get("createDate") or "").strip() or None,
-                            str(row.get("updateDate") or "").strip() or None,
-                            fetched_at,
-                        ]
-                        if wcols:
-                            all_cols = list(wcols)
-                            field_cols = ", ".join(f'"{f}"' for f in all_cols)
-                            placeholders = ", ".join("?" for _ in all_cols)
-                            fvs = [
-                                _to_float(row.get(row_key_map[f])) if f in row_key_map else None
-                                for f in all_cols
-                            ]
-                            conn.execute(
-                                f"INSERT OR REPLACE INTO {table} "
-                                f"(ticker, period_kind, year_report, quarter_report, "
-                                f"length_report, public_date, create_date, update_date, fetched_at, "
-                                f"{field_cols}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {placeholders})",
-                                [*meta, *fvs],
-                            )
-                        else:
-                            conn.execute(
-                                f"INSERT OR REPLACE INTO {table} "
-                                f"(ticker, period_kind, year_report, quarter_report, "
-                                f"length_report, public_date, create_date, update_date, fetched_at) "
-                                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                meta,
-                            )
-                        value_rows += 1
-                    else:
-                        # Legacy path: write to statement_values (used for --no-wide-convert or --convert-only)
-                        dynamic_fields = {
-                            key for key in row_key_map.keys() if FIELD_CODE_RE.fullmatch(key)
-                        }
-                        fields = fields_by_section.setdefault(section, set())
-                        missing_fields = dynamic_fields - fields
-                        for mf in missing_fields:
-                            conn.execute(
-                                """
-                                INSERT OR IGNORE INTO statement_metrics(
-                                  section, field, name, fetched_at
-                                ) VALUES (?, ?, ?, ?)
-                                """,
-                                (section, mf, mf.upper(), fetched_at),
-                            )
-                        fields.update(dynamic_fields)
+                    # Legacy path: write to statement_values (used for --no-wide-convert or --convert-only)
+                    dynamic_fields = {
+                        key for key in row_key_map.keys() if FIELD_CODE_RE.fullmatch(key)
+                    }
+                    fields = fields_by_section.setdefault(section, set())
+                    missing_fields = dynamic_fields - fields
+                    for mf in missing_fields:
+                        conn.execute(
+                            """
+                            INSERT OR IGNORE INTO statement_metrics(
+                              section, field, name, fetched_at
+                            ) VALUES (?, ?, ?, ?)
+                            """,
+                            (section, mf, mf.upper(), fetched_at),
+                        )
+                    fields.update(dynamic_fields)
 
-                        for field in fields:
-                            raw_key = row_key_map.get(field)
-                            if not raw_key:
-                                continue
-                            fv = _to_float(row.get(raw_key))
-                            conn.execute(
-                                """
-                                INSERT OR REPLACE INTO statement_values(
-                                  ticker, section, period_kind, year_report, quarter_report, field, value, fetched_at
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                                """,
-                                (
-                                    ticker,
-                                    section,
-                                    period_kind,
-                                    year_report,
-                                    quarter_report,
-                                    field,
-                                    fv,
-                                    fetched_at,
-                                ),
-                            )
-                            value_rows += 1
+                    for field in fields:
+                        raw_key = row_key_map.get(field)
+                        if not raw_key:
+                            continue
+                        fv = _to_float(row.get(raw_key))
+                        conn.execute(
+                            """
+                            INSERT OR REPLACE INTO statement_values(
+                              ticker, section, period_kind, year_report, quarter_report, field, value, fetched_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                ticker,
+                                section,
+                                period_kind,
+                                year_report,
+                                quarter_report,
+                                field,
+                                fv,
+                                fetched_at,
+                            ),
+                        )
+                        value_rows += 1
     return period_rows, value_rows
 
 
@@ -733,7 +730,7 @@ def _ensure_wide_table(conn: sqlite3.Connection, table: str, fields: list[str]) 
           create_date    TEXT,
           update_date    TEXT,
           fetched_at     TEXT NOT NULL,
-          {col_defs},
+          {col_defs + ',' if col_defs else ''}
           PRIMARY KEY (ticker, period_kind, year_report, quarter_report)
         )
         """
@@ -785,16 +782,6 @@ def convert_normalized_to_wide(conn: sqlite3.Connection) -> None:
 
         log.info("  [%s] loading values for %d periods …", table, len(periods))
 
-        field_cols = ", ".join(f'"{f}"' for f in fields)
-        placeholders = ", ".join("?" for _ in fields)
-        insert_sql = (
-            f"INSERT OR REPLACE INTO {table} "
-            f"(ticker, period_kind, year_report, quarter_report, "
-            f"length_report, public_date, create_date, update_date, fetched_at, "
-            f"{field_cols}) "
-            f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {placeholders})"
-        )
-
         # Process in ticker batches to avoid loading millions of rows into RAM at once
         TICKER_BATCH = 200
         tickers_in_section = list({row[0] for row in periods})
@@ -818,10 +805,15 @@ def convert_normalized_to_wide(conn: sqlite3.Connection) -> None:
                 if ticker not in ticker_batch:
                     continue
                 fvs = val_map.get((ticker, pk, yr, qr), {})
-                batch.append([ticker, pk, yr, qr, lr, pub, cre, upd, fat, *[fvs.get(f) for f in fields]])
+                if any(value is not None for value in fvs.values()):
+                    batch.append([ticker, pk, yr, qr, lr, pub, cre, upd, fat, *[fvs.get(f) for f in fields]])
 
             if batch:
-                conn.executemany(insert_sql, batch)
+                for values in batch:
+                    metadata = dict(zip(
+                        ("ticker", "period_kind", "year_report", "quarter_report", "length_report",
+                         "public_date", "create_date", "update_date", "fetched_at"), values[:9]))
+                    write_statement(conn, section, metadata, dict(zip(fields, values[9:])), "VCI")
                 conn.commit()
                 upserted += len(batch)
 
@@ -934,7 +926,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--resume-missing",
         action="store_true",
-        help="When enabled, skip symbols already marked ok/error in fetch_log and fetch only missing.",
+        help="When enabled, skip symbols already marked ok; retry previously failed symbols.",
     )
     parser.add_argument("--retry", type=int, default=3, help="HTTP retries per request.")
     parser.add_argument("--timeout", type=int, default=20, help="HTTP timeout seconds.")
@@ -949,7 +941,9 @@ def _parse_args() -> argparse.Namespace:
         default="",
         help="Output folder. Default: <repo>/data/financial-statements/vci_financial_statement_data",
     )
-    parser.add_argument("--db-path", default="", help="SQLite DB path. Default: <out-dir>/vci_financial_statements.sqlite")
+    parser.add_argument("--db-path", default="", help="SQLite DB path. Default: data/sqlite/vci_financials.sqlite")
+    parser.add_argument("--ssi-fallback-db", default="",
+                        help="SSI archive to merge after fetching; defaults to the local SSI archive for the canonical runtime DB.")
     parser.add_argument(
         "--notes-fallback-db",
         default="",
@@ -992,7 +986,7 @@ def main() -> int:
 
     out_dir = Path(args.out_dir).resolve() if args.out_dir else _default_out_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
-    db_path = Path(args.db_path).resolve() if args.db_path else _default_db_path(out_dir)
+    db_path = Path(args.db_path).resolve() if args.db_path else _default_db_path()
     notes_fallback_path = (
         Path(args.notes_fallback_db).resolve()
         if args.notes_fallback_db
@@ -1001,7 +995,12 @@ def main() -> int:
     mapping_path = Path(args.mapping_file).resolve() if args.mapping_file else _default_mapping_path(out_dir)
     symbols_path = Path(args.symbols_file).resolve() if args.symbols_file else _default_symbols_path(out_dir)
 
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path))
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta'").fetchone():
+        if conn.execute("SELECT v FROM meta WHERE k='data_source'").fetchone() == ("SSI JSONL",):
+            conn.close()
+            raise ValueError("Refusing to fetch Vietcap into the separate SSI archive")
     ensure_schema(conn)
     _archive_notes(conn, notes_fallback_path)
     fetched_at = dt.datetime.now(dt.timezone.utc).isoformat()
@@ -1070,7 +1069,7 @@ def main() -> int:
         symbols = symbols[: args.limit]
 
     if args.resume_missing:
-        done_rows = conn.execute("SELECT DISTINCT ticker FROM fetch_log WHERE status IN ('ok','error')").fetchall()
+        done_rows = conn.execute("SELECT DISTINCT ticker FROM fetch_log WHERE status = 'ok'").fetchall()
         done = {r[0] for r in done_rows if r and r[0]}
         symbols = [s for s in symbols if s not in done]
 
@@ -1186,6 +1185,17 @@ def main() -> int:
     restored_notes = _restore_missing_notes(conn, notes_fallback_path)
     if restored_notes:
         log.warning("Restored %d missing VCI-only note periods from %s", restored_notes, notes_fallback_path)
+
+    if not args.no_wide_convert:
+        if __package__:
+            from .merge_ssi_into_vci_financials import DEFAULT_SSI_DB, merge_ssi
+        else:
+            from merge_ssi_into_vci_financials import DEFAULT_SSI_DB, merge_ssi
+        fallback = Path(args.ssi_fallback_db).resolve() if args.ssi_fallback_db else DEFAULT_SSI_DB
+        if args.ssi_fallback_db or (db_path == _default_db_path() and fallback.is_file()):
+            if fallback.resolve() == db_path.resolve():
+                raise ValueError("SSI fallback and Vietcap target must be different databases")
+            log.info("SSI fallback inserts/updates: %s", merge_ssi(conn, fallback))
 
     try:
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")

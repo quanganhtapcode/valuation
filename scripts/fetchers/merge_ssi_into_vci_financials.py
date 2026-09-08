@@ -1,122 +1,103 @@
 #!/usr/bin/env python3
-"""Merge SSI fallback periods into the website's preferred VCI SQLite cache.
-
-VCI is never overwritten: an SSI row is inserted only when the same
-``ticker, period_kind, year_report, quarter_report`` does not exist in VCI.
-
-Notes are intentionally excluded: SSI currently supplies no note rows. Their
-fallback is handled by ``fetch_vci_financial_statement.py``, which preserves
-the last successful VCI notes snapshot in a separate SQLite archive.
-"""
+"""Add missing SSI periods and refresh explicitly SSI-owned rows; protect VCI/legacy rows."""
 
 from __future__ import annotations
 
 import argparse
-import shutil
+import fcntl
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
+if __package__:
+    from .financial_statement_storage import META, TABLES, ensure_provenance, write_statement
+else:
+    from financial_statement_storage import META, TABLES, ensure_provenance, write_statement
 
 ROOT = Path(__file__).resolve().parents[2]
-# SSI-backed sections only. NOTE is VCI-only and has its own historical archive.
-TABLES = ("balance_sheet", "income_statement", "cash_flow")
-KEY_COLUMNS = ("ticker", "period_kind", "year_report", "quarter_report")
+DEFAULT_SSI_DB = ROOT / "data/financial-statements/vci_financial_statement_data/vci_financial_statements.sqlite"
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--vci-db", default="data/sqlite/vci_financials.sqlite")
-    parser.add_argument(
-        "--ssi-db",
-        default="data/financial-statements/vci_financial_statement_data/vci_financial_statements.sqlite",
-    )
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--no-backup", action="store_true")
-    return parser.parse_args()
-
-
-def columns(connection: sqlite3.Connection, schema: str, table: str) -> list[str]:
-    return [row[1] for row in connection.execute(f"PRAGMA {schema}.table_info({table})")]
-
-
-def missing_count(connection: sqlite3.Connection, table: str) -> int:
-    return connection.execute(
-        f"""
-        SELECT COUNT(*) FROM ssi.{table} AS s
-        WHERE NOT EXISTS (
-          SELECT 1 FROM main.{table} AS v
-          WHERE {" AND ".join(f"v.{key} = s.{key}" for key in KEY_COLUMNS)}
-        )
-        """
-    ).fetchone()[0]
+def merge_ssi(conn: sqlite3.Connection, ssi_db: Path) -> dict[str, int]:
+    """Caller owns the target write lock. Source is read-only; writes are atomic."""
+    if conn.in_transaction:
+        raise ValueError("Commit the caller transaction before merging SSI")
+    conn.execute("ATTACH DATABASE ? AS ssi", (ssi_db.resolve(strict=True).as_uri() + "?mode=ro",))
+    counts = {}
+    try:
+        if conn.execute("SELECT v FROM ssi.meta WHERE k='data_source'").fetchone() != ("SSI JSONL",):
+            raise ValueError("Fallback database must be explicitly marked SSI JSONL")
+        conn.execute("BEGIN IMMEDIATE")
+        ensure_provenance(conn)
+        for section, table in TABLES.items():
+            if section == "NOTE":
+                continue
+            source_fields = [r[1] for r in conn.execute(f"PRAGMA ssi.table_info({table})")]
+            target_fields = {r[1] for r in conn.execute(f"PRAGMA main.table_info({table})")}
+            if not set(META).issubset(source_fields) or not set(META).issubset(target_fields):
+                raise ValueError(f"Missing required columns in {table}")
+            for field in sorted(set(source_fields) - target_fields):
+                quoted = '"' + field.replace('"', '""') + '"'
+                conn.execute(f"ALTER TABLE main.{table} ADD COLUMN {quoted} REAL")
+            # Legacy rows are protected even if their timestamps happen to match SSI.
+            cursor = conn.execute(f"""SELECT s.* FROM ssi.{table} s
+                LEFT JOIN main.{table} v USING(ticker,period_kind,year_report,quarter_report)
+                LEFT JOIN main.statement_provenance p ON p.ticker=v.ticker AND p.section=?
+                  AND p.period_kind=v.period_kind AND p.year_report=v.year_report
+                  AND p.quarter_report=v.quarter_report
+                WHERE v.ticker IS NULL OR (p.data_source='SSI'
+                  AND julianday(s.fetched_at)>julianday(p.fetched_at))""", (section,))
+            counts[table] = 0
+            for row in cursor:
+                payload = dict(zip(source_fields, row))
+                counts[table] += int(write_statement(
+                    conn, section, {f: payload[f] for f in META},
+                    {f: v for f, v in payload.items() if f not in META}, "SSI"))
+        # Explicit columns allow schema evolution and avoid SELECT * order coupling.
+        fields = [r[1] for r in conn.execute("PRAGMA main.table_info(statement_metrics)")]
+        source_fields = {r[1] for r in conn.execute("PRAGMA ssi.table_info(statement_metrics)")}
+        shared = ','.join('"' + f.replace('"', '""') + '"' for f in fields if f in source_fields)
+        conn.execute(f"""INSERT OR IGNORE INTO statement_metrics ({shared})
+            SELECT {shared} FROM ssi.statement_metrics WHERE section != 'NOTE'""")
+        conn.execute("INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)",
+                     ("ssi_fallback_merged_at", datetime.now(timezone.utc).isoformat()))
+        conn.commit()
+        return counts
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute("DETACH DATABASE ssi")
 
 
 def main() -> int:
-    args = parse_args()
-    vci_db = (ROOT / args.vci_db).resolve() if not Path(args.vci_db).is_absolute() else Path(args.vci_db)
-    ssi_db = (ROOT / args.ssi_db).resolve() if not Path(args.ssi_db).is_absolute() else Path(args.ssi_db)
-    if not vci_db.is_file() or not ssi_db.is_file():
-        raise FileNotFoundError("Both --vci-db and --ssi-db must exist")
-
-    connection = sqlite3.connect(vci_db)
-    connection.execute("ATTACH DATABASE ? AS ssi", (f"file:{ssi_db}?mode=ro",))
-    counts = {table: missing_count(connection, table) for table in TABLES}
-    print("SSI fallback periods to insert:", counts, "total=", sum(counts.values()))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--vci-db", type=Path, default=ROOT / "data/sqlite/vci_financials.sqlite")
+    parser.add_argument("--ssi-db", type=Path, default=DEFAULT_SSI_DB)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--no-backup", action="store_true")
+    args = parser.parse_args()
+    target, source = args.vci_db.resolve(strict=True), args.ssi_db.resolve(strict=True)
+    if target.samefile(source):
+        raise ValueError("SSI source and VCI target must be different databases")
     if args.dry_run:
-        connection.close()
+        # Run the exact merge against an isolated in-memory snapshot.
+        with closing(sqlite3.connect(target.as_uri() + "?mode=ro", uri=True)) as reader:
+            with closing(sqlite3.connect(":memory:")) as preview:
+                reader.backup(preview)
+                print("Dry-run SSI inserts/updates:", merge_ssi(preview, source))
         return 0
-
-    if not args.no_backup:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        backup = vci_db.with_name(f"{vci_db.stem}.pre-ssi-merge-{stamp}{vci_db.suffix}")
-        shutil.copy2(vci_db, backup)
-        print(f"Backup created: {backup}")
-
-    with connection:
-        for table in TABLES:
-            target_columns = columns(connection, "main", table)
-            source_columns = set(columns(connection, "ssi", table))
-            for field in sorted(source_columns - set(target_columns)):
-                connection.execute(f'ALTER TABLE main.{table} ADD COLUMN "{field}" REAL')
-            target_columns = columns(connection, "main", table)
-            shared = [column for column in target_columns if column in source_columns]
-            fields_sql = ", ".join(f'"{column}"' for column in shared)
-            select_sql = ", ".join(f's."{column}"' for column in shared)
-            connection.execute(
-                f"""
-                INSERT INTO main.{table} ({fields_sql})
-                SELECT {select_sql} FROM ssi.{table} AS s
-                WHERE NOT EXISTS (
-                  SELECT 1 FROM main.{table} AS v
-                  WHERE {" AND ".join(f"v.{key} = s.{key}" for key in KEY_COLUMNS)}
-                )
-                """
-            )
-
-        connection.execute(
-            """
-            INSERT OR IGNORE INTO statement_periods
-            SELECT s.* FROM ssi.statement_periods AS s
-            WHERE s.section IN ('BALANCE_SHEET', 'INCOME_STATEMENT', 'CASH_FLOW')
-              AND NOT EXISTS (
-                SELECT 1 FROM main.statement_periods AS v
-                WHERE v.ticker = s.ticker AND v.section = s.section
-                  AND v.period_kind = s.period_kind AND v.year_report = s.year_report
-                  AND v.quarter_report = s.quarter_report
-              )
-            """
-        )
-        connection.execute(
-            "INSERT OR IGNORE INTO statement_metrics SELECT * FROM ssi.statement_metrics"
-        )
-        connection.execute(
-            "INSERT OR REPLACE INTO meta(k, v) VALUES (?, ?)",
-            ("ssi_fallback_merged_at", datetime.now(timezone.utc).isoformat()),
-        )
-    connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-    connection.close()
-    print("Merge complete.")
+    with Path(f"{target}.safe-run.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with closing(sqlite3.connect(target)) as conn:
+            if not args.no_backup:
+                stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+                backup = target.with_name(f"{target.stem}.pre-ssi-merge-{stamp}{target.suffix}")
+                with closing(sqlite3.connect(backup)) as destination:
+                    conn.backup(destination)
+                print("Backup created:", backup)
+            print("SSI inserts/updates:", merge_ssi(conn, source))
     return 0
 
 

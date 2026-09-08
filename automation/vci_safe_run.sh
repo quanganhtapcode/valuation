@@ -60,9 +60,22 @@ if [[ -z "$JOB_NAME" || -z "$DB_PATH" || -z "$RUN_CMD" ]]; then
   exit 2
 fi
 
+if [[ ! "$KEEP_LOCAL" =~ ^[0-9]+$ || ! "$KEEP_REMOTE" =~ ^[1-9][0-9]*$ ]]; then
+  echo "[safe-run] keep-local must be non-negative and keep-remote must be positive" >&2
+  exit 2
+fi
+
 mkdir -p "$BACKUP_DIR"
 mkdir -p "$(dirname "$DB_PATH")"
 
+# Serialize jobs sharing a database (including fireant_macro/fireant_beta).
+exec 9>"${DB_PATH}.safe-run.lock"
+if ! flock -n 9; then
+  echo "[safe-run][$JOB_NAME] another job is using $DB_PATH; skipping"
+  exit 0
+fi
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 db_basename="$(basename "$DB_PATH")"
 ts="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_file="$BACKUP_DIR/${db_basename}.${ts}.bak"
@@ -159,28 +172,30 @@ calc_metrics() {
 
 prune_backups() {
   # Find all timestamped backups for this DB (excludes last_good.bak)
-  local pattern="${BACKUP_DIR}/${db_basename}.20*.bak"
-  # shellcheck disable=SC2207
-  local files=( $(ls -t ${pattern} 2>/dev/null) )
-  local count=${#files[@]}
+  local files=()
+  mapfile -t files < <(find "$BACKUP_DIR" -maxdepth 1 -type f -name "${db_basename}.20*.bak" | sort -r)
 
-  if [[ $count -le $KEEP_LOCAL ]]; then
-    echo "[safe-run][$JOB_NAME] prune: $count backup(s) found, keeping all (keep-local=$KEEP_LOCAL)"
+  if [[ -n "$RCLONE_REMOTE" ]] && ! command -v rclone &>/dev/null; then
+    echo "[safe-run][$JOB_NAME] prune: rclone missing; retaining all local backups"
     return 0
   fi
 
-  local to_delete=( "${files[@]:$KEEP_LOCAL}" )
-  echo "[safe-run][$JOB_NAME] prune: $count backups, keeping $KEEP_LOCAL, removing $((count - KEEP_LOCAL))"
-
-  for f in "${to_delete[@]}"; do
-    if [[ -n "$RCLONE_REMOTE" ]] && command -v rclone &>/dev/null; then
+  # Upload every snapshot, including the newest retained local file.
+  # Only remove excess files after their own upload succeeds.
+  local index=0
+  for f in "${files[@]}"; do
+    index=$((index + 1))
+    if [[ -n "$RCLONE_REMOTE" ]]; then
       local remote_path="${RCLONE_REMOTE}/$(basename "$f")"
-      if rclone copyto "$f" "$remote_path" --no-check-dest 2>/dev/null; then
+      if rclone copyto "$f" "$remote_path" 2>/dev/null; then
         echo "[safe-run][$JOB_NAME] prune: uploaded $(basename "$f") -> $remote_path"
       else
         echo "[safe-run][$JOB_NAME] prune: warning: rclone upload failed for $(basename "$f"), skipping delete"
         continue
       fi
+    fi
+    if [[ $index -le $KEEP_LOCAL ]]; then
+      continue
     fi
     rm -f "$f"
     echo "[safe-run][$JOB_NAME] prune: deleted $(basename "$f")"
@@ -242,8 +257,7 @@ before_quality=0
 after_total=0
 after_quality=0
 if [[ -f "$DB_PATH" ]]; then
-  cp -f "$DB_PATH" "$backup_file"
-  cp -f "$DB_PATH" "$last_backup"
+  python3 "$SCRIPT_DIR/sqlite_backup.py" "$DB_PATH" "$backup_file" "$last_backup"
   IFS='|' read -r before_total before_quality <<< "$(calc_metrics "$DB_PATH" "$db_basename")"
   echo "[safe-run][$JOB_NAME] before total=$before_total quality=$before_quality backup=$backup_file"
 else
@@ -256,7 +270,7 @@ run_ok=0
 while [[ $attempt -le $max_attempts ]]; do
   echo "[safe-run][$JOB_NAME] attempt=$attempt/$max_attempts"
   if [[ $attempt -gt 1 && -f "$last_backup" ]]; then
-    cp -f "$last_backup" "$DB_PATH"
+    python3 "$SCRIPT_DIR/sqlite_backup.py" --restore "$last_backup" "$DB_PATH"
     echo "[safe-run][$JOB_NAME] restored last backup before retry: $last_backup"
   fi
   if bash -lc "$RUN_CMD"; then
@@ -274,7 +288,7 @@ done
 if [[ $run_ok -ne 1 ]]; then
   echo "[safe-run][$JOB_NAME] all attempts failed"
   if [[ -f "$last_backup" ]]; then
-    cp -f "$last_backup" "$DB_PATH"
+    python3 "$SCRIPT_DIR/sqlite_backup.py" --restore "$last_backup" "$DB_PATH"
     echo "[safe-run][$JOB_NAME] rollback applied from $last_backup"
   fi
   prune_backups
@@ -304,7 +318,7 @@ fi
 
 if [[ $should_rollback -eq 1 ]]; then
   if [[ -f "$last_backup" ]]; then
-    cp -f "$last_backup" "$DB_PATH"
+    python3 "$SCRIPT_DIR/sqlite_backup.py" --restore "$last_backup" "$DB_PATH"
     echo "[safe-run][$JOB_NAME] rollback applied due to health check"
   else
     echo "[safe-run][$JOB_NAME] rollback requested but no last backup found"

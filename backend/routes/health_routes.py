@@ -79,10 +79,6 @@ def _run(cmd: str) -> str:
         return ""
 
 
-def _status(ok: bool) -> str:
-    return "ok" if ok else "warn"
-
-
 def _is_vn_market_session() -> bool:
     """True during the automated intraday fetch window for Vietnamese trading days."""
     now = datetime.now(tz=VN_TZ)

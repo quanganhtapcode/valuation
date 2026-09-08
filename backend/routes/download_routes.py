@@ -415,17 +415,6 @@ def _period_sql(alias: str = "f") -> tuple[str, list[int | str]]:
     return f"{alias}.period_kind = 'YEAR' AND {alias}.year_report BETWEEN ? AND ?", [from_year, to_year]
 
 
-def _column_headers(fields: list[str], labels: dict[str, str]) -> list[str]:
-    used: set[str] = set()
-    headers: list[str] = []
-    for field in fields:
-        base = labels.get(field.lower(), field)
-        header = base if base not in used else f"{base} [{field}]"
-        used.add(header)
-        headers.append(header)
-    return headers
-
-
 def _csv_variable_names(fields: list[str]) -> list[str]:
     """Return unique compact column names for analytics-friendly CSV exports."""
     used: set[str] = set()
@@ -548,50 +537,6 @@ def _export_fields(connection: sqlite3.Connection, table: str, period_clause: st
         visible = set(_visible_financial_fields(connection, table, fields, period_clause, period_params))
         return [field for field in official_order if field in visible and field in fields]
     return _visible_financial_fields(connection, table, fields, period_clause, period_params)
-
-
-def _write_single_ticker_statement_csv(
-    connection: sqlite3.Connection,
-    table: str,
-    fields: list[str],
-    labels: dict[str, str],
-    period_clause: str,
-    period_params: list[int | str],
-    output: io.TextIOBase,
-) -> int:
-    """Write a statement in the row-oriented layout of Vietcap's workbook."""
-    ticker = _selected_financial_tickers(connection)[0]
-    quoted_fields = ", ".join(f'f.{_quote_identifier(field)}' for field in fields)
-    rows = connection.execute(
-        f"""
-        SELECT f.year_report, f.quarter_report, {quoted_fields}
-        FROM {table} f
-        WHERE f.ticker = ? AND {period_clause}
-        ORDER BY CASE f.period_kind WHEN 'YEAR' THEN 0 ELSE 1 END,
-                 f.year_report, f.quarter_report
-        """,
-        [ticker, *period_params],
-    ).fetchall()
-    writer = csv.writer(output)
-    has_annual = any(not quarter for _, quarter, *_ in rows)
-    has_quarterly = any(quarter for _, quarter, *_ in rows)
-    period_label = "Năm, Quý" if has_annual and has_quarterly else "Năm" if has_annual else "Quý"
-    writer.writerow(["Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")])
-    writer.writerow(["Mã", ticker])
-    writer.writerow(["Thời gian", period_label])
-    writer.writerow(["Tiền tệ", "VND"])
-    writer.writerow([])
-    periods = [
-        str(year) if not quarter else f"Q{quarter}/{year}"
-        for year, quarter, *_ in rows
-    ]
-    writer.writerow(["Chỉ tiêu", *periods])
-    for index, field in enumerate(fields):
-        writer.writerow([
-            labels.get(field.lower(), field),
-            *(row[index + 2] if row[index + 2] is not None else "" for row in rows),
-        ])
-    return len(fields)
 
 
 def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: list[str], labels: dict[str, str], period_clause: str, period_params: list[int | str], output: io.TextIOBase) -> int:

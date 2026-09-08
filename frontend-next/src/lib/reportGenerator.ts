@@ -260,9 +260,8 @@ export class ReportGenerator {
         }
         try {
             this.showStatus('Fetching historical financial statements…', 'info');
-            const [historical, incomeRow, cashflowRow] = await Promise.all([
+            const [historical, cashflowRow] = await Promise.all([
                 this.fetchHistoricalStatements(symbol),
-                this.fetchLatestFinancialReportRow(symbol, 'income'),
                 this.fetchLatestFinancialReportRow(symbol, 'cashflow'),
             ]);
 
@@ -299,7 +298,7 @@ export class ReportGenerator {
             // Inputs / Assumptions sheet (yellow cells)
             this.createAssumptionsSheet(
                 wsAssump, stockData, valuationResults, assumptions, modelWeights,
-                symbol, incomeRow, cashflowRow, historical
+                symbol, cashflowRow, historical
             );
 
             // DCF sheets
@@ -881,7 +880,6 @@ export class ReportGenerator {
         assumptions: Record<string, unknown>,
         modelWeights: Record<string, unknown>,
         symbol: string,
-        incomeRow: Record<string, unknown> | null,
         cashflowRow: Record<string, unknown> | null,
         historical: HistoricalData
     ) {
