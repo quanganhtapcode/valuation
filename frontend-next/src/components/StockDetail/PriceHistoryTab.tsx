@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState, useTransition } from 'react';
-import { fetchPriceHistory } from '@/lib/stockApi';
 import { formatNumber } from '@/lib/api';
 import type { PriceData } from '@/lib/types';
 import { useLanguage } from '@/lib/languageContext';
@@ -10,20 +9,21 @@ import { DownloadIcon, StockTabDropdown, StockTabIconButton } from './StockTabCo
 
 interface PriceHistoryTabProps {
     symbol: string;
-    initialData?: any[];
+    data: PriceData[];
+    isLoading: boolean;
+    hasError: boolean;
+    onLoadOlderHistory?: () => void;
 }
 
 type PeriodType = '1M' | '6M' | '1Y' | '3Y' | '5Y';
 
-function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
+function PriceHistoryTab({ symbol, data: allPriceData, isLoading, hasError, onLoadOlderHistory }: PriceHistoryTabProps) {
     const { lang } = useLanguage();
     const copy = translations[lang].detail.priceHistory;
-    const [allPriceData, setAllPriceData] = useState<PriceData[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [period, setPeriod] = useState<PeriodType>('1Y'); // visual (instant)
     const [deferredPeriod, setDeferredPeriod] = useState<PeriodType>('1Y'); // table filter (deferred)
     const [, startTransition] = useTransition();
-    const [error, setError] = useState<string | null>(null);
+    const error = hasError ? copy.failed : null;
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
 
@@ -33,41 +33,10 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
         startTransition(() => { setDeferredPeriod(p); setCurrentPage(1); }); // defer: filter table in background
     };
 
+    // The page owns the single history request shared with the chart.
     useEffect(() => {
-        if (initialData && initialData.length > 0) {
-            setAllPriceData(initialData as PriceData[]);
-            setIsLoading(false);
-            return;
-        }
-
-        async function loadPrices() {
-            setIsLoading(true);
-            setError(null);
-            try {
-                const data = await fetchPriceHistory(symbol, 'ALL');
-
-                // Helper to normalize price (x1000 if in thousands)
-                const normalize = (val: number) => (val > 0 && val < 500) ? val * 1000 : val;
-
-                const normalized = data.map((item: any) => ({
-                    time: item.time || item.date || item.Date,
-                    open: normalize(item.open || item.Open || 0),
-                    high: normalize(item.high || item.High || 0),
-                    low: normalize(item.low || item.Low || 0),
-                    close: normalize(item.close || item.Close || 0),
-                    volume: item.volume || item.Volume || 0,
-                }));
-                normalized.sort((a: any, b: any) => new Date(String(a.time).replace(' ', 'T')).getTime() - new Date(String(b.time).replace(' ', 'T')).getTime());
-                setAllPriceData(normalized);
-            } catch (err) {
-                setError(copy.failed);
-                console.error(err);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        loadPrices();
-    }, [copy.failed, symbol, initialData]);
+        if (period === '3Y' || period === '5Y') onLoadOlderHistory?.();
+    }, [period, onLoadOlderHistory]);
 
     const priceData = React.useMemo(() => {
         if (!allPriceData || allPriceData.length === 0) return [];
@@ -233,5 +202,5 @@ function PriceHistoryTab({ symbol, initialData }: PriceHistoryTabProps) {
     );
 }
 
-// Memoize: only re-mounts when symbol changes, not on parent price updates
-export default React.memo(PriceHistoryTab, (prev, next) => prev.symbol === next.symbol);
+// Keep quote updates cheap while still accepting newly loaded history.
+export default React.memo(PriceHistoryTab);

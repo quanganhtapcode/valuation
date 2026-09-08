@@ -93,6 +93,8 @@ interface HistoricalData {
     volume: number;
 }
 
+const EMPTY_HISTORY: HistoricalData[] = [];
+
 interface FinancialData {
     pe?: number;
     pb?: number;
@@ -118,7 +120,12 @@ export default function StockDetailPage() {
     const [priceData, setPriceData] = useState<PriceData | null>(null);
     const [targetPrice, setTargetPrice] = useState<number | null>(null);
     const [financials, setFinancials] = useState<FinancialData | null>(null);
-    const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
+    const [history, setHistory] = useState<{ symbol: string; rows: HistoricalData[] }>({ symbol: '', rows: [] });
+    const historicalData = history.symbol === symbol ? history.rows : EMPTY_HISTORY;
+    const [olderHistorySymbol, setOlderHistorySymbol] = useState<string | null>(null);
+    const historyPeriod = olderHistorySymbol === symbol ? 'ALL' : '1Y';
+    const [historyError, setHistoryError] = useState(false);
+    const loadOlderHistory = useCallback(() => setOlderHistorySymbol(symbol), [symbol]);
     const [isDescExpanded, setIsDescExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -408,23 +415,21 @@ export default function StockDetailPage() {
         };
     }, [symbol]);
 
-    // State to hold full 5-year history for client-side filtering
-    const [fullHistoryData, setFullHistoryData] = useState<HistoricalData[]>([]);
-
-    // 1. Fetch FULL PRICE History Once (Independent)
+    // Load the visible year first; older sessions are requested only on demand.
     useEffect(() => {
         if (!symbol) return;
         const controller = new AbortController();
 
-        async function loadFullHistory() {
-            setIsChartLoading(true);
+        setIsChartLoading(true);
+        setHistoryError(false);
+        async function loadHistory() {
             try {
-                // Fetch ALL history (defaults to 5 years/ALL in backend)
-                const res = await fetch(`/api/stock/history/${symbol}?period=ALL`, { signal: controller.signal });
+                const res = await fetch(`/api/stock/history/${symbol}?period=${historyPeriod}`, { signal: controller.signal });
+                if (!res.ok) throw new Error(`History request failed: ${res.status}`);
                 if (res.ok) {
                     const json = await res.json();
                     const rawData = json.data || json.Data || json || [];
-                    if (Array.isArray(rawData)) {
+                    if (Array.isArray(rawData) && !controller.signal.aborted) {
                         const mapped = rawData.map((d: any) => ({
                             time: d.time || d.date,
                             open: d.open,
@@ -435,10 +440,10 @@ export default function StockDetailPage() {
                         }));
                         // Sort by date ascending to ensure proper charting
                         mapped.sort((a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime());
-                        setFullHistoryData(mapped);
+                        setHistory({ symbol, rows: mapped });
 
                         // Update priceData with latest session info (high, low, open, change)
-                        if (mapped.length > 0) {
+                        if (mapped.length > 0 && historyPeriod === '1Y') {
                             const latest = mapped[mapped.length - 1];
                             const prevClose = mapped.length > 1 ? mapped[mapped.length - 2].close : latest.open;
                             const histChange = latest.close - prevClose;
@@ -467,23 +472,20 @@ export default function StockDetailPage() {
                     }
                 }
             } catch (e) {
-                if (!controller.signal.aborted) console.error("Fetch full history failed", e);
+                if (!controller.signal.aborted) {
+                    console.error("Fetch history failed", e);
+                    setHistoryError(true);
+                }
             } finally {
-                setIsChartLoading(false);
+                if (!controller.signal.aborted) setIsChartLoading(false);
             }
         }
-        const cancelIdle = scheduleIdleWork(loadFullHistory, 900);
+        const cancelIdle = scheduleIdleWork(loadHistory, 900);
         return () => {
             cancelIdle();
             controller.abort();
         };
-    }, [symbol]);
-
-    // 2. Use all data (infinite range)
-    useEffect(() => {
-        if (fullHistoryData.length === 0) return;
-        setHistoricalData(fullHistoryData);
-    }, [fullHistoryData]);
+    }, [symbol, historyPeriod]);
 
     // Watchlist Logic (via global context — syncs across sidebar)
     const { toggle: toggleWatchlist, isWatched } = useWatchlist();
@@ -671,6 +673,7 @@ export default function StockDetailPage() {
                         isDescExpanded={isDescExpanded}
                         setIsDescExpanded={setIsDescExpanded}
                         historicalData={historicalData}
+                        onLoadOlderHistory={historyPeriod === '1Y' ? loadOlderHistory : undefined}
                         isLoading={isChartLoading}
                         news={news}
                         isBank={
@@ -712,8 +715,12 @@ export default function StockDetailPage() {
                 {visitedTabs.has('priceHistory') && (
                     <div className={activeTab === 'priceHistory' ? 'block' : 'hidden'}>
                         <PriceHistoryTab
+                            key={symbol}
                             symbol={symbol}
-                            initialData={fullHistoryData.length > 0 ? fullHistoryData : undefined}
+                            data={historicalData}
+                            isLoading={isChartLoading}
+                            hasError={historyError}
+                            onLoadOlderHistory={historyPeriod === '1Y' ? loadOlderHistory : undefined}
                         />
                     </div>
                 )}

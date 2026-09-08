@@ -153,6 +153,7 @@ interface OverviewTabProps {
     financials: FinancialData | null;
     targetPrice?: number | null;
     historicalData: HistoricalData[];
+    onLoadOlderHistory?: () => void;
     isDescExpanded: boolean;
     setIsDescExpanded: (v: boolean) => void;
     isLoading: boolean;
@@ -167,6 +168,7 @@ export default function OverviewTab({
     financials,
     targetPrice,
     historicalData,
+    onLoadOlderHistory,
     isDescExpanded,
     setIsDescExpanded,
     isLoading,
@@ -195,6 +197,8 @@ export default function OverviewTab({
 
                     <div>
                         <TradingViewChart
+                            key={_symbol}
+                            onLoadOlderHistory={onLoadOlderHistory}
                             data={historicalData}
                             isLoading={isLoading}
                         />

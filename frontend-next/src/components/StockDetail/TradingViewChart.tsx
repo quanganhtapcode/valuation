@@ -28,6 +28,7 @@ const AREA_COLOR = '#0E6BFF';
 interface TradingViewChartProps {
     data: HistoricalData[];
     isLoading: boolean;
+    onLoadOlderHistory?: () => void;
 }
 
 // ── Displayed bar (hovered trading day) ──────────────────────────────────
@@ -162,12 +163,16 @@ function OHLCVOverlay({ bar }: { bar: BarDisplay | null }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function TradingViewChart({ data, isLoading }: TradingViewChartProps) {
+export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }: TradingViewChartProps) {
     const chartContainerRef    = useRef<HTMLDivElement>(null);
     const chartRef             = useRef<IChartApi | null>(null);
     const areaSeriesRef        = useRef<ISeriesApi<'Area'> | null>(null);
     const barsByDateRef        = useRef<Map<string, BarDisplay>>(new Map());
     const volumeSeriesRef      = useRef<ISeriesApi<'Histogram'> | null>(null);
+    const loadOlderRef = useRef(onLoadOlderHistory);
+    const firstDateRef = useRef<string | null>(null);
+    const interactedRef = useRef(false);
+    useEffect(() => { loadOlderRef.current = onLoadOlderHistory; }, [onLoadOlderHistory]);
     // Bar displayed in the OHLCV overlay (null = hidden, only shown while hovering/touching)
     const [hoveredBar, setHoveredBar] = useState<BarDisplay | null>(null);
 
@@ -263,12 +268,22 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
 
         // Clear overlay when user lifts finger (mobile)
         const el = chartContainerRef.current;
+        const markInteraction = () => { interactedRef.current = true; };
+        el.addEventListener('pointerdown', markInteraction, { passive: true });
+        el.addEventListener('wheel', markInteraction, { passive: true });
+        chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+            if (interactedRef.current && range && range.from < -1) {
+                loadOlderRef.current?.();
+            }
+        });
         const clearOnTouchEnd = () => setHoveredBar(null);
         el.addEventListener('touchend', clearOnTouchEnd, { passive: true });
 
         return () => {
             ro.disconnect();
             el.removeEventListener('touchend', clearOnTouchEnd);
+            el.removeEventListener('pointerdown', markInteraction);
+            el.removeEventListener('wheel', markInteraction);
             chart.remove();
             chartRef.current = null;
             areaSeriesRef.current = null;
@@ -295,6 +310,11 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
     // ── Push data ─────────────────────────────────────────────────────────────
     useEffect(() => {
         if (!chartRef.current || !areaSeriesRef.current || !volumeSeriesRef.current) return;
+        const previousRange = firstDateRef.current ? chartRef.current.timeScale().getVisibleLogicalRange() : null;
+        const addedBars = firstDateRef.current
+            ? normalizedData.findIndex(d => dayKey(d.time) === firstDateRef.current)
+            : -1;
+        interactedRef.current = false;
         barsByDateRef.current = new Map(normalizedData.map((d, i) => {
             const previousClose = i > 0 ? normalizedData[i - 1].close : d.open;
             const change = d.close - previousClose;
@@ -317,9 +337,18 @@ export default function TradingViewChart({ data, isLoading }: TradingViewChartPr
             color: i === 0 || d.close >= normalizedData[i - 1].close
                 ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
         })));
+        firstDateRef.current = normalizedData.length ? dayKey(normalizedData[0].time) : null;
         if (!normalizedData.length) return;
+        if (previousRange && addedBars >= 0) {
+            // Prepending history must preserve the user's zoom and scroll position.
+            chartRef.current.timeScale().setVisibleLogicalRange({
+                from: previousRange.from + addedBars,
+                to: previousRange.to + addedBars,
+            });
+            return;
+        }
 
-        // Load all available sessions; only the initial viewport is limited to one year.
+        // Initially show one year; older sessions are fetched on pan/zoom demand.
         const latest = toBusinessDay(normalizedData[normalizedData.length - 1].time);
         const from = new Date(Date.UTC(latest.year - 1, latest.month - 1, latest.day))
             .toISOString().slice(0, 10);
