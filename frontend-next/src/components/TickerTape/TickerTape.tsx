@@ -1,5 +1,7 @@
 'use client';
 
+import { isStockDetailPath } from '@/lib/localePath';
+
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
@@ -31,7 +33,7 @@ const TAPE_ITEMS: TapeItem[] = [
 
 export default function TickerTape() {
   const pathname = usePathname();
-  const isStockPage = pathname?.startsWith('/stock/') ?? false;
+  const isStockPage = isStockDetailPath(pathname);
   const [prices, setPrices] = useState<Map<string, FFPrice>>(new Map());
 
   // Always call hooks in same order — skip subscription on stock pages

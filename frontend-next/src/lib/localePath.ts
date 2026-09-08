@@ -9,3 +9,8 @@ export function localizedPath(pathname: string, lang: Lang): string {
     const withoutLocale = path.replace(/^\/(vi|en)(?=\/|$)/, '') || '/';
     return `/${lang}${withoutLocale === '/' ? '' : withoutLocale}`;
 }
+
+/** Match stock details with or without the locale prefix. */
+export function isStockDetailPath(pathname: string | null | undefined): boolean {
+    return /^\/(?:vi\/|en\/)?stock\//.test(pathname || '');
+}
