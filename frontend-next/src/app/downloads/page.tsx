@@ -41,14 +41,17 @@ export default function DownloadsPage() {
     const { lang } = useLanguage();
     const c = translations[lang].downloads;
     const currentYear = new Date().getFullYear();
-    const years = useMemo(() => Array.from({ length: currentYear - 2010 + 1 }, (_, i) => currentYear - i), [currentYear]);
+    // Earliest verified local data is 2000; refresh from the export database.
+    const [firstYear, setFirstYear] = useState(2000);
+    const years = useMemo(() => Array.from({ length: currentYear - firstYear + 1 }, (_, i) => currentYear - i), [currentYear, firstYear]);
     const [tickers, setTickers] = useState<Ticker[]>([]);
     const [scope, setScope] = useState<Scope>('ticker');
     const [query, setQuery] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [exchanges, setExchanges] = useState<string[]>(EXCHANGES);
     const [sector, setSector] = useState('');
-    const [fromYear, setFromYear] = useState(2020);
+    const [selectedFromYear, setFromYear] = useState<number | null>(null);
+    const fromYear = selectedFromYear ?? firstYear;
     const [toYear, setToYear] = useState(currentYear);
     const [fromQuarter, setFromQuarter] = useState(1);
     const [toQuarter, setToQuarter] = useState(4);
@@ -64,6 +67,19 @@ export default function DownloadsPage() {
     const [fieldCodesLoading, setFieldCodesLoading] = useState(false);
     const [fieldCodesLoaded, setFieldCodesLoaded] = useState(false);
     const [fieldSection, setFieldSection] = useState<FieldCodeSection>('INCOME_STATEMENT');
+
+    useEffect(() => {
+        const controller = new AbortController();
+        void fetch('/api/financial-year-range', { signal: controller.signal })
+            .then((response) => { if (!response.ok) throw new Error(); return response.json() as Promise<{ first_year: number }>; })
+            .then(({ first_year }) => {
+                if (Number.isInteger(first_year) && first_year > 0 && first_year <= currentYear) {
+                    setFirstYear(first_year);
+                }
+            })
+            .catch(() => { /* Keep the verified historical range when unavailable. */ });
+        return () => controller.abort();
+    }, [currentYear]);
 
     useEffect(() => { void (async () => {
         try {

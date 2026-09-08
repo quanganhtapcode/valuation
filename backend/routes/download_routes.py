@@ -391,6 +391,30 @@ def _selected_market_tickers() -> list[str]:
     return sorted(set(result))
 
 
+@download_bp.route("/api/financial-year-range")
+def financial_year_range():
+    """Return the available statement years from the same DB used by exports."""
+    db_path = Path(resolve_vci_financial_statement_db_path()).resolve()
+    try:
+        with sqlite3.connect(db_path.as_uri() + "?mode=ro", uri=True) as connection:
+            queries = [
+                f"SELECT MIN(year_report) AS first_year, MAX(year_report) AS last_year "
+                f"FROM {table} WHERE year_report > 0"
+                for _, table, _ in FINANCIAL_TABLES
+            ]
+            first_year, last_year = connection.execute(
+                "SELECT MIN(first_year), MAX(last_year) FROM (" + " UNION ALL ".join(queries) + ")"
+            ).fetchone()
+        if first_year is None:
+            return jsonify({"error": "No financial statement years available"}), 404
+        response = jsonify({"first_year": first_year, "last_year": last_year})
+        response.headers["Cache-Control"] = "public, max-age=3600"
+        return response
+    except sqlite3.Error:
+        logger.exception("Unable to read financial statement year range")
+        return jsonify({"error": "Financial statement years temporarily unavailable"}), 503
+
+
 def _period_sql(alias: str = "f") -> tuple[str, list[int | str]]:
     kind = (request.args.get("period_kind") or "year").strip().lower()
     try:
