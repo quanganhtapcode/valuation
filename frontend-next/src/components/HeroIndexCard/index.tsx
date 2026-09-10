@@ -40,7 +40,7 @@ interface HeroIndexCardProps {
 }
 
 interface SimpleBar { date: string; close: number; volume: number }
-type VnTimeframe = '1Y' | '5Y' | 'ALL';
+type VnTimeframe = '1Y' | '2Y' | '5Y' | 'ALL';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -173,8 +173,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const isVN     = selectedId === 'vnindex';
     const selected = indices.find(i => i.id === selectedId) || indices[0];
 
-    // Start small for LCP, then expand history only when the visitor pans to
-    // the beginning of the currently loaded range.
+    // Start small for LCP, then progressively expand only when the visitor
+    // pans to the beginning of the range: 1Y → 2Y → 5Y → all history.
     useEffect(() => {
         const cached = vnCache.current.get(vnTimeframe);
         if (cached) {
@@ -410,11 +410,15 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         const onVisibleRangeChange = (range: { from: number; to: number } | null) => {
             if (!range || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex' || range.from > 8) return;
             // A range update also fires when new data is applied. Consume this
-            // gesture so one pan loads one larger range rather than jumping
-            // from 1Y straight to ALL.
+            // gesture so one pan loads exactly one additional history range.
             userChartInteractionRef.current = false;
             pendingVisibleRangeRef.current = chart.timeScale().getVisibleRange() as { from: BusinessDay; to: BusinessDay } | null;
-            setVnTimeframe(current => current === '1Y' ? '5Y' : current === '5Y' ? 'ALL' : current);
+            setVnTimeframe(current => {
+                if (current === '1Y') return '2Y';
+                if (current === '2Y') return '5Y';
+                if (current === '5Y') return 'ALL';
+                return current;
+            });
         };
         chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange);
 

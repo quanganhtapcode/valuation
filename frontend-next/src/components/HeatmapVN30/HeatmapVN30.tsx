@@ -85,16 +85,16 @@ function squarifyTile<T>(
 function changeColor(pct: number, isDark: boolean): string {
   if (pct === undefined || pct === null) return '#ffffff';
   if (isDark) {
-    // Muted emerald/rose tints that sit naturally on the slate dark theme.
-    // The strength changes with the move, without the neon appearance of
-    // full-saturation status colours.
-    if (pct <= -5) return '#6e3546';
-    if (pct <= -2) return '#593541';
-    if (pct < 0) return '#40313c';
+    // Brighter emerald/rose tones keep direction immediately recognisable
+    // against the slate canvas, while staying below the intensity of status
+    // badges elsewhere in the UI.
+    if (pct <= -5) return '#b65d72';
+    if (pct <= -2) return '#8c5061';
+    if (pct < 0) return '#694755';
     if (pct === 0) return '#334155';
-    if (pct < 2) return '#29473f';
-    if (pct < 5) return '#2f5c4c';
-    return '#36705a';
+    if (pct < 2) return '#2f6f5b';
+    if (pct < 5) return '#36866a';
+    return '#3da57a';
   }
   if (pct <= -5) return '#f4889a';
   if (pct <= -2) return '#f8a9b4';
