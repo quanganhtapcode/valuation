@@ -218,10 +218,10 @@ def register(stock_bp: Blueprint) -> None:
             try:
                 range_param = request.args.get("period", request.args.get("range", "6M")).upper()
                 # Map range to countBack (trading days, ~252/year)
-                count_map = {"1M": 25, "3M": 65, "6M": 130, "1Y": 260, "3Y": 780, "5Y": 1300, "ALL": 1825}
+                count_map = {"1M": 25, "3M": 65, "6M": 130, "1Y": 260, "2Y": 520, "3Y": 780, "5Y": 1300, "ALL": 2520}
                 count_back = count_map.get(range_param, 130)
 
-                days_map = {"1M": 30, "3M": 90, "6M": 180, "1Y": 365, "3Y": 1095, "5Y": 1825, "ALL": 1825}
+                days_map = {"1M": 30, "3M": 90, "6M": 180, "1Y": 365, "2Y": 730, "3Y": 1095, "5Y": 1825, "ALL": 3650}
                 days_back = days_map.get(range_param, 180)
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=days_back)

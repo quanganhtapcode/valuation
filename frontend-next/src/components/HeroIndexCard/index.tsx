@@ -157,6 +157,9 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const fittedViewForRef = useRef<string | null>(null);
     const selectedIdRef = useRef(selectedId);
     const pendingVisibleRangeRef = useRef<{ from: BusinessDay; to: BusinessDay } | null>(null);
+    const vnLoadingRef = useRef(vnLoad);
+
+    useEffect(() => { vnLoadingRef.current = vnLoad; }, [vnLoad]);
 
     // ── Chart refs ────────────────────────────────────────────────────────────
     const wrapRef   = useRef<HTMLDivElement>(null);
@@ -408,7 +411,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         ro.observe(wrapRef.current);
 
         const onVisibleRangeChange = (range: { from: number; to: number } | null) => {
-            if (!range || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex' || range.from > 8) return;
+            if (!range || vnLoadingRef.current || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex' || range.from > 8) return;
             // A range update also fires when new data is applied. Consume this
             // gesture so one pan loads exactly one additional history range.
             userChartInteractionRef.current = false;

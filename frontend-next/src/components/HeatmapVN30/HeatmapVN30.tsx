@@ -85,16 +85,15 @@ function squarifyTile<T>(
 function changeColor(pct: number, isDark: boolean): string {
   if (pct === undefined || pct === null) return '#ffffff';
   if (isDark) {
-    // Brighter emerald/rose tones keep direction immediately recognisable
-    // against the slate canvas, while staying below the intensity of status
-    // badges elsewhere in the UI.
-    if (pct <= -5) return '#b65d72';
-    if (pct <= -2) return '#8c5061';
-    if (pct < 0) return '#694755';
-    if (pct === 0) return '#334155';
-    if (pct < 2) return '#2f6f5b';
-    if (pct < 5) return '#36866a';
-    return '#3da57a';
+    // The medium-contrast green / wine palette used by the original dark
+    // heatmap: strong enough to read immediately, without neon saturation.
+    if (pct <= -5) return '#98596b';
+    if (pct <= -2) return '#805060';
+    if (pct < 0) return '#714a58';
+    if (pct === 0) return '#34435a';
+    if (pct < 2) return '#2d725e';
+    if (pct < 5) return '#347f67';
+    return '#3b8b70';
   }
   if (pct <= -5) return '#f4889a';
   if (pct <= -2) return '#f8a9b4';

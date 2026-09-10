@@ -92,6 +92,7 @@ interface HistoricalData {
 }
 
 const EMPTY_HISTORY: HistoricalData[] = [];
+type HistoryPeriod = '1Y' | '2Y' | '5Y' | 'ALL';
 
 interface FinancialData {
     pe?: number;
@@ -119,10 +120,19 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
     const [financials, setFinancials] = useState<FinancialData | null>({});
     const [history, setHistory] = useState<{ symbol: string; rows: HistoricalData[] }>({ symbol: '', rows: [] });
     const historicalData = history.symbol === symbol ? history.rows : EMPTY_HISTORY;
-    const [olderHistorySymbol, setOlderHistorySymbol] = useState<string | null>(null);
-    const historyPeriod = olderHistorySymbol === symbol ? 'ALL' : '1Y';
+    const [historyRequest, setHistoryRequest] = useState<{ symbol: string; period: HistoryPeriod }>({ symbol: '', period: '1Y' });
+    const historyPeriod: HistoryPeriod = historyRequest.symbol === symbol ? historyRequest.period : '1Y';
     const [historyError, setHistoryError] = useState(false);
-    const loadOlderHistory = useCallback(() => setOlderHistorySymbol(symbol), [symbol]);
+    const loadOlderHistory = useCallback(() => {
+        setHistoryRequest(previous => {
+            const current = previous.symbol === symbol ? previous.period : '1Y';
+            const next: HistoryPeriod = current === '1Y' ? '2Y'
+                : current === '2Y' ? '5Y'
+                : current === '5Y' ? 'ALL'
+                : 'ALL';
+            return { symbol, period: next };
+        });
+    }, [symbol]);
     const [isDescExpanded, setIsDescExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -634,7 +644,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         isDescExpanded={isDescExpanded}
                         setIsDescExpanded={setIsDescExpanded}
                         historicalData={historicalData}
-                        onLoadOlderHistory={historyPeriod === '1Y' ? loadOlderHistory : undefined}
+                        onLoadOlderHistory={loadOlderHistory}
                         isLoading={isChartLoading}
                         news={news}
                         isBank={
@@ -681,7 +691,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                             data={historicalData}
                             isLoading={isChartLoading}
                             hasError={historyError}
-                            onLoadOlderHistory={historyPeriod === '1Y' ? loadOlderHistory : undefined}
+                            onLoadOlderHistory={loadOlderHistory}
                         />
                     </div>
                 )}

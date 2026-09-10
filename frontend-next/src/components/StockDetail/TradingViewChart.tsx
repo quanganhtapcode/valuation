@@ -172,7 +172,9 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
     const loadOlderRef = useRef(onLoadOlderHistory);
     const firstDateRef = useRef<string | null>(null);
     const interactedRef = useRef(false);
+    const loadingRef = useRef(isLoading);
     useEffect(() => { loadOlderRef.current = onLoadOlderHistory; }, [onLoadOlderHistory]);
+    useEffect(() => { loadingRef.current = isLoading; }, [isLoading]);
     // Bar displayed in the OHLCV overlay (null = hidden, only shown while hovering/touching)
     const [hoveredBar, setHoveredBar] = useState<BarDisplay | null>(null);
 
@@ -272,7 +274,10 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
         el.addEventListener('pointerdown', markInteraction, { passive: true });
         el.addEventListener('wheel', markInteraction, { passive: true });
         chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-            if (interactedRef.current && range && range.from < -1) {
+            if (!loadingRef.current && interactedRef.current && range && range.from <= 8) {
+                // Applying a longer data set also changes this range. Consume
+                // the gesture so a single drag requests just one next period.
+                interactedRef.current = false;
                 loadOlderRef.current?.();
             }
         });
@@ -365,7 +370,7 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
             {/* Chart area — always mounted so chart instance is never destroyed */}
             <div className="relative">
                 {/* Loading overlay */}
-                {isLoading && (
+                {isLoading && !normalizedData.length && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg"
                         style={{ backgroundColor: isDark ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.6)' }}
                     >
