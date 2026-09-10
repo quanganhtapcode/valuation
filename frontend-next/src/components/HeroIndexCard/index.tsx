@@ -40,6 +40,7 @@ interface HeroIndexCardProps {
 }
 
 interface SimpleBar { date: string; close: number; volume: number }
+type VnTimeframe = '1Y' | '5Y' | 'ALL';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -145,12 +146,17 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
     // ── Data state ────────────────────────────────────────────────────────────
     const [vnRows,   setVnRows]   = useState<PEChartData[]>([]);
+    const [vnTimeframe, setVnTimeframe] = useState<VnTimeframe>('1Y');
     const [vnLoad,   setVnLoad]   = useState(false);
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
     const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
     const vnCache   = useRef<Map<string, PEChartData[]>>(new Map());
     const liveVnRef = useRef<{ time: BusinessDay; value: number } | null>(null);
+    const userChartInteractionRef = useRef(false);
+    const fittedViewForRef = useRef<string | null>(null);
+    const selectedIdRef = useRef(selectedId);
+    const pendingVisibleRangeRef = useRef<{ from: BusinessDay; to: BusinessDay } | null>(null);
 
     // ── Chart refs ────────────────────────────────────────────────────────────
     const wrapRef   = useRef<HTMLDivElement>(null);
@@ -167,10 +173,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const isVN     = selectedId === 'vnindex';
     const selected = indices.find(i => i.id === selectedId) || indices[0];
 
-    // The chart initially displays one year. Fetching every historical point
-    // (the old ALL request is ~271 KB) delayed its first meaningful paint and
-    // therefore the page LCP without improving the initial view.
-    const vnTimeframe = '1Y';
+    // Start small for LCP, then expand history only when the visitor pans to
+    // the beginning of the currently loaded range.
     useEffect(() => {
         const cached = vnCache.current.get(vnTimeframe);
         if (cached) {
@@ -191,6 +195,13 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             .finally(() => setVnLoad(false));
         return () => controller.abort();
     }, [vnTimeframe]);
+
+    useEffect(() => {
+        selectedIdRef.current = selectedId;
+        // Switching an index should fit that index once; extending its history
+        // must preserve the user's current pan position.
+        fittedViewForRef.current = null;
+    }, [selectedId]);
 
     // ── Fetch other indices on demand ─────────────────────────────────────────
     useEffect(() => {
@@ -396,8 +407,20 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         });
         ro.observe(wrapRef.current);
 
+        const onVisibleRangeChange = (range: { from: number; to: number } | null) => {
+            if (!range || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex' || range.from > 8) return;
+            // A range update also fires when new data is applied. Consume this
+            // gesture so one pan loads one larger range rather than jumping
+            // from 1Y straight to ALL.
+            userChartInteractionRef.current = false;
+            pendingVisibleRangeRef.current = chart.timeScale().getVisibleRange() as { from: BusinessDay; to: BusinessDay } | null;
+            setVnTimeframe(current => current === '1Y' ? '5Y' : current === '5Y' ? 'ALL' : current);
+        };
+        chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange);
+
         return () => {
             ro.disconnect();
+            chart.timeScale().unsubscribeVisibleLogicalRangeChange(onVisibleRangeChange);
             chart.remove();
             chartRef.current = areaRef.current = volRef.current = peRef.current = pbRef.current = null;
         };
@@ -430,7 +453,15 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         if (liveVnRef.current && isVN) {
             try { areaRef.current.update(liveVnRef.current); } catch {}
         }
-        // Keep all history available for panning, but initially show the latest year.
+        // Fit only a newly selected index. Do not snap the chart back to the
+        // latest year when older history arrives during a user pan.
+        if (pendingVisibleRangeRef.current) {
+            chartRef.current?.timeScale().setVisibleRange(pendingVisibleRangeRef.current);
+            pendingVisibleRangeRef.current = null;
+            fittedViewForRef.current = selectedId;
+            return;
+        }
+        if (fittedViewForRef.current === selectedId) return;
         const latest = isVN && liveVnRef.current
             ? liveVnRef.current.time
             : priceTV[priceTV.length - 1].time;
@@ -441,7 +472,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             from: toBusinessDay(startDate < firstDate ? firstDate : startDate),
             to: latest,
         });
-    }, [priceTV]); // eslint-disable-line react-hooks/exhaustive-deps
+        fittedViewForRef.current = selectedId;
+    }, [priceTV, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Push PE/PB data ───────────────────────────────────────────────────────
     useEffect(() => {
@@ -492,7 +524,9 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
     // ── Render ────────────────────────────────────────────────────────────────
     const isUp      = (selected?.change ?? 0) >= 0;
-    const isLoading = isVN ? vnLoad : idxLoad;
+    // Retain the existing chart during background history expansion; an overlay
+    // on every pan makes the interaction feel broken even though data is loading.
+    const isLoading = (isVN ? vnLoad : idxLoad) && priceTV.length === 0;
 
     return (
         <>
@@ -626,7 +660,13 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                         />
                     )}
 
-                    <div ref={wrapRef} className="w-full" style={{ height: ch }} />
+                    <div
+                        ref={wrapRef}
+                        className="w-full"
+                        style={{ height: ch }}
+                        onPointerDown={() => { userChartInteractionRef.current = true; }}
+                        onWheel={() => { userChartInteractionRef.current = true; }}
+                    />
                 </div>
 
                 {/* PE/PB legend strip */}

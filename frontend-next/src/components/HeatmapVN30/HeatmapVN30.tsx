@@ -85,15 +85,16 @@ function squarifyTile<T>(
 function changeColor(pct: number, isDark: boolean): string {
   if (pct === undefined || pct === null) return '#ffffff';
   if (isDark) {
-    // Dark, saturated tiles retain their direction at a glance while the
-    // white labels remain legible on every stop of the scale.
-    if (pct <= -5) return '#be123c';
-    if (pct <= -2) return '#e11d48';
-    if (pct < 0) return '#9f1239';
+    // Muted emerald/rose tints that sit naturally on the slate dark theme.
+    // The strength changes with the move, without the neon appearance of
+    // full-saturation status colours.
+    if (pct <= -5) return '#6e3546';
+    if (pct <= -2) return '#593541';
+    if (pct < 0) return '#40313c';
     if (pct === 0) return '#334155';
-    if (pct < 2) return '#166534';
-    if (pct < 5) return '#15803d';
-    return '#16a34a';
+    if (pct < 2) return '#29473f';
+    if (pct < 5) return '#2f5c4c';
+    return '#36705a';
   }
   if (pct <= -5) return '#f4889a';
   if (pct <= -2) return '#f8a9b4';
