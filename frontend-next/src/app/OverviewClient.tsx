@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import HeroIndexCard from '@/components/HeroIndexCard';
 import {
     fetchAllIndices,
     subscribeIndicesStream,
@@ -29,9 +30,9 @@ function PanelSkeleton({ height = 'h-40' }: { height?: string }) {
     );
 }
 
-const HeroIndexCard = dynamic(() => import('@/components/HeroIndexCard'), {
-    loading: () => <PanelSkeleton height="h-[440px]" />,
-});
+// The index card is the largest element above the fold.  Keeping it in the
+// initial route render avoids showing a large dynamic-import placeholder that
+// can become the page's LCP element.
 const NewsSection = dynamic(() => import('@/components/NewsSection'), {
     loading: () => <PanelSkeleton height="h-80" />,
 });

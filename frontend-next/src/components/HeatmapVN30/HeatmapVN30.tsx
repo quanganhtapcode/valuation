@@ -82,8 +82,19 @@ function squarifyTile<T>(
 }
 
 //  Color Scale
-function changeColor(pct: number): string {
+function changeColor(pct: number, isDark: boolean): string {
   if (pct === undefined || pct === null) return '#ffffff';
+  if (isDark) {
+    // Dark, saturated tiles retain their direction at a glance while the
+    // white labels remain legible on every stop of the scale.
+    if (pct <= -5) return '#be123c';
+    if (pct <= -2) return '#e11d48';
+    if (pct < 0) return '#9f1239';
+    if (pct === 0) return '#334155';
+    if (pct < 2) return '#166534';
+    if (pct < 5) return '#15803d';
+    return '#16a34a';
+  }
   if (pct <= -5) return '#f4889a';
   if (pct <= -2) return '#f8a9b4';
   if (pct < 0) return '#fce0e3';
@@ -93,14 +104,14 @@ function changeColor(pct: number): string {
   return '#8bd071';
 }
 
-function textColor(): string {
-  return '#0f172a';
+function textColor(isDark: boolean): string {
+  return isDark ? '#f8fafc' : '#0f172a';
 }
 
-function sectorTextColor(pct: number): string {
-  if (pct > 0) return '#065f46';
-  if (pct < 0) return '#991b1b';
-  return '#64748b';
+function sectorTextColor(pct: number, isDark: boolean): string {
+  if (pct > 0) return isDark ? '#86efac' : '#065f46';
+  if (pct < 0) return isDark ? '#fda4af' : '#991b1b';
+  return isDark ? '#94a3b8' : '#64748b';
 }
 
 const SECTOR_PAD = 4;
@@ -261,7 +272,7 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
                     <g transform={`translate(${sx}, ${sy})`} style={{ pointerEvents: 'none' }}>
                       <text x={0} y={15} fontSize={11} fontWeight="700" fill={labelText}>
                         {sector.shortName}
-                        <tspan dx={6} fill={sectorTextColor(sector.avgChange)} fontSize={10} fontWeight="600">{pct}</tspan>
+                        <tspan dx={6} fill={sectorTextColor(sector.avgChange, isDark)} fontSize={10} fontWeight="600">{pct}</tspan>
                       </text>
                     </g>
                   )}
@@ -273,8 +284,8 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
                     const ih = Math.max(0, r.h - STOCK_GAP * 2);
                     if (iw < 2 || ih < 2) return null;
 
-                    const bg = changeColor(stock.change);
-                    const fg = textColor();
+                    const bg = changeColor(stock.change, isDark);
+                    const fg = textColor(isDark);
                     const cx = ix + iw / 2;
                     const cy = iy + ih / 2;
                     const fs = Math.min(14, Math.max(8, Math.min(iw / 4.2, ih / 3.0)));
@@ -331,8 +342,8 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
               if (ty + TH > ch) ty = hover.my - TH - 15;
               if (tx < 5) tx = 5; if (ty < 5) ty = 5;
               const isUp = hover.change > 0; const isDown = hover.change < 0;
-              const color = isUp ? '#065f46' : (isDown ? '#991b1b' : '#64748b');
-              const bgSubtle = isUp ? '#f0fdf4' : (isDown ? '#fef2f2' : '#f8fafc');
+              const color = isUp ? (isDark ? '#86efac' : '#065f46') : (isDown ? (isDark ? '#fda4af' : '#991b1b') : '#64748b');
+              const bgSubtle = isUp ? (isDark ? '#14532d' : '#f0fdf4') : (isDown ? (isDark ? '#881337' : '#fef2f2') : (isDark ? '#334155' : '#f8fafc'));
               const tBg = isDark ? '#1e2230' : '#ffffff';
               const tStroke = isDark ? '#334155' : '#e2e8f0';
               return (

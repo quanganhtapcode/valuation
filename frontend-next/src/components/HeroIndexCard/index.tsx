@@ -167,8 +167,10 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const isVN     = selectedId === 'vnindex';
     const selected = indices.find(i => i.id === selectedId) || indices[0];
 
-    // ── Fetch full history once; retain it when switching index tabs ──────────
-    const vnTimeframe = 'ALL';
+    // The chart initially displays one year. Fetching every historical point
+    // (the old ALL request is ~271 KB) delayed its first meaningful paint and
+    // therefore the page LCP without improving the initial view.
+    const vnTimeframe = '1Y';
     useEffect(() => {
         const cached = vnCache.current.get(vnTimeframe);
         if (cached) {
