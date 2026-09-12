@@ -4,43 +4,10 @@ import {
   NewsItem,
   TopMoverItem,
   GoldPriceItem,
-  PEChartData,
 } from '@/lib/api';
 
 // The overview shell is static; live market data is loaded client-side.
 export const revalidate = 300;
-
-/*export const metadata = {
-  title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | VNINDEX, VN30, Cổ Phiếu',
-  description:
-    'Theo dõi thị trường chứng khoán Việt Nam hôm nay: VNINDEX, VN30 trực tiếp, top tăng/giảm, heatmap, dòng tiền ngoại và công cụ định giá cổ phiếu HOSE, HNX, UPCOM.',
-  keywords: [
-    'thị trường chứng khoán Việt Nam hôm nay',
-    'VNINDEX hôm nay',
-    'VN30 hôm nay',
-    'cổ phiếu tăng mạnh hôm nay',
-    'dòng tiền nước ngoài',
-    'vietnam stock market today',
-    'vnindex today',
-    'vn30 index',
-    'hose hnx upcom',
-    'vietnam stock news',
-  ],
-  alternates: { canonical: '/' },
-  openGraph: {
-    title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | Quang Anh',
-    description:
-      'Dashboard chứng khoán Việt Nam: VNINDEX/VN30 trực tiếp, top tăng/giảm, heatmap, dòng tiền ngoại và định giá cổ phiếu.',
-    url: '/',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | Quang Anh',
-    description:
-      'VNINDEX/VN30 trực tiếp, top tăng/giảm, heatmap và định giá cổ phiếu Việt Nam.',
-  },
-};*/
 
 export const generateMetadata = () => createLocalizedMetadata('/', {
   vi: { title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | VNINDEX, VN30', description: 'Theo dõi VNINDEX, VN30, top tăng giảm, heatmap, dòng tiền ngoại, tin tức và định giá cổ phiếu Việt Nam.' },
@@ -74,7 +41,6 @@ export default async function OverviewPage() {
   const initialLosers: TopMoverItem[] = [];
   const initialGoldPrices: GoldPriceItem[] = [];
   const initialGoldUpdated: undefined = undefined;
-  const initialPEData: PEChartData[] = [];
 
   return (
     <OverviewClient
@@ -84,7 +50,6 @@ export default async function OverviewPage() {
       initialLosers={initialLosers}
       initialGoldPrices={initialGoldPrices}
       initialGoldUpdated={initialGoldUpdated}
-      initialPEData={initialPEData}
     />
   );
 }

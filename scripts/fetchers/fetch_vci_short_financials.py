@@ -444,10 +444,17 @@ def upsert_payload(
             _to_int(envelope.get("status")),
             str(envelope.get("serverDateTime") or "") or None,
             str(envelope.get("traceId") or "") or None,
-            json.dumps(envelope, ensure_ascii=False),
+            gzip.compress(json.dumps(envelope, ensure_ascii=False).encode('utf-8'), mtime=0),
             fetched_at,
         ),
     )
+
+
+def decode_payload(raw_json: str | bytes) -> dict[str, Any]:
+    """Read legacy JSON TEXT or the lossless gzip BLOB archive representation."""
+    if isinstance(raw_json, bytes):
+        raw_json = gzip.decompress(raw_json).decode('utf-8')
+    return json.loads(raw_json)
 
 
 def _symbols_from_company_db(company_db: str) -> list[str]:

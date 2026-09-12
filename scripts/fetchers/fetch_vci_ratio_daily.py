@@ -197,10 +197,6 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         );
     """)
     conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_ratio_daily_history_ticker_date
-        ON ratio_daily_history (ticker, trading_date DESC);
-    """)
-    conn.execute("""
         CREATE TABLE IF NOT EXISTS meta (
           k TEXT PRIMARY KEY,
           v TEXT NOT NULL

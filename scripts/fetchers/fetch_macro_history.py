@@ -58,7 +58,6 @@ def init_db(path: str) -> sqlite3.Connection:
             PRIMARY KEY (symbol, date)
         )
     ''')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_macro_symbol_date ON macro_prices (symbol, date)')
     conn.commit()
     return conn
 

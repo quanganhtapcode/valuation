@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import sqlite3
 import time
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 
-import pandas as pd
 from flask import Blueprint, jsonify, request
 
 from backend.utils import validate_stock_symbol
@@ -18,6 +18,33 @@ from backend.cache_utils import cache_get_ns, cache_set_ns
 
 
 logger = logging.getLogger(__name__)
+
+
+def _vietcap_cache_ttl(now: datetime | None = None) -> int:
+    vn = (now or datetime.now(timezone.utc)).astimezone(timezone(timedelta(hours=7)))
+    minute = vn.hour * 60 + vn.minute
+    if vn.weekday() < 5 and 540 <= minute <= 930:
+        return 15 * 60
+    # Do not let an overnight cache survive into the next opening session.
+    opening = vn.replace(hour=9, minute=0, second=0, microsecond=0)
+    if opening <= vn:
+        opening += timedelta(days=1)
+    while opening.weekday() >= 5:
+        opening += timedelta(days=1)
+    return max(1, min(3600, int((opening - vn).total_seconds())))
+
+
+def _valid_candles(rows: list[dict]) -> list[dict]:
+    """Missing/non-finite OHLC must not become artificial zero-price candles."""
+    valid = []
+    for row in rows:
+        try:
+            if all(math.isfinite(float(row[k])) and float(row[k]) > 0
+                   for k in ('open', 'high', 'low', 'close')):
+                valid.append(row)
+        except (KeyError, TypeError, ValueError):
+            continue
+    return valid
 
 
 def register(stock_bp: Blueprint) -> None:
@@ -64,25 +91,12 @@ def register(stock_bp: Blueprint) -> None:
                     'volume': float(row['volume']) if row['volume'] is not None else 0.0,
                 })
             
-            return result
+            return _valid_candles(result)
             
         except Exception as e:
             logger.error(f"Error fetching price history from DB for {symbol}: {e}")
             return []
     
-    def _vietcap_cache_ttl() -> int:
-        """
-        Return appropriate TTL based on current VN market hours (UTC+7).
-        - During session (9:00–15:30): 15 min — intraday candle updates
-        - After close / pre-open:      60 min — data static until next session
-        """
-        vn_hour = (datetime.utcnow().hour + 7) % 24
-        vn_minute = datetime.utcnow().minute
-        in_session = (vn_hour == 9 and vn_minute >= 0) or \
-                     (10 <= vn_hour <= 14) or \
-                     (vn_hour == 15 and vn_minute <= 30)
-        return 60
-
     def get_price_history_from_vietcap(symbol: str, count_back: int, time_frame: str = "ONE_DAY") -> List[Dict]:
         """
         Fetch gap-adjusted OHLC price history from Vietcap API.
@@ -147,14 +161,14 @@ def register(stock_bp: Blueprint) -> None:
                 date_str = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
                 result.append({
                     "date":   date_str,
-                    "open":   float(opens[i])   if i < len(opens)   else 0.0,
-                    "high":   float(highs[i])   if i < len(highs)   else 0.0,
-                    "low":    float(lows[i])    if i < len(lows)    else 0.0,
-                    "close":  float(closes[i])  if i < len(closes)  else 0.0,
-                    "volume": float(volumes[i]) if i < len(volumes) else 0.0,
+                    "open":   float(opens[i] or 0)   if i < len(opens)   else 0.0,
+                    "high":   float(highs[i] or 0)   if i < len(highs)   else 0.0,
+                    "low":    float(lows[i] or 0)    if i < len(lows)    else 0.0,
+                    "close":  float(closes[i] or 0)  if i < len(closes)  else 0.0,
+                    "volume": float(volumes[i] or 0) if i < len(volumes) else 0.0,
                 })
 
-            result = sorted(result, key=lambda x: x["date"])
+            result = sorted(_valid_candles(result), key=lambda x: x["date"])
             if result:
                 cache_set_ns("vietcapHistory", cache_key, result, ttl=_vietcap_cache_ttl())
             return result
@@ -200,7 +214,7 @@ def register(stock_bp: Blueprint) -> None:
                 except (ValueError, TypeError):
                     continue
             
-            return sorted(result, key=lambda x: x['date'])
+            return sorted(_valid_candles(result), key=lambda x: x['date'])
             
         except Exception as e:
             logger.error(f"Error fetching price history from VCI for {symbol}: {e}")

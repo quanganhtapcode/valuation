@@ -96,7 +96,6 @@ interface OverviewClientProps {
     initialLosers: TopMoverItem[];
     initialGoldPrices: GoldPriceItem[];
     initialGoldUpdated?: string;
-    initialPEData: any[];
 }
 
 function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
@@ -129,7 +128,6 @@ export default function OverviewClient({
     const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
     const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
     const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
-    const [goldLoading] = useState(false);
     const [goldUpdatedAt, setGoldUpdatedAt] = useState<string>(initialGoldUpdated || new Date().toISOString());
     const [goldSource, setGoldSource] = useState<string>('Phú Quý');
 
@@ -226,8 +224,6 @@ export default function OverviewClient({
     // Movers: cold start
     useVisiblePolling(loadMovers, moversDelay, initialGainers.length === 0 || initialLosers.length === 0);
 
-    const initialIndicesLength = initialIndices?.length ?? 0;
-
     // Indices: WS with polling fallback
     useEffect(() => {
         let fallbackTimer: ReturnType<typeof setInterval> | null = null;
@@ -250,7 +246,7 @@ export default function OverviewClient({
             },
         });
         return () => { unsubscribe(); stopFallback(); };
-    }, [loadIndices, initialIndicesLength, mapMarketDataToIndices]);
+    }, [loadIndices, mapMarketDataToIndices]);
 
 
     return (
@@ -287,7 +283,7 @@ export default function OverviewClient({
                     <DeferredPanel><FFWorldMarkets /></DeferredPanel>
                     <DeferredPanel><FFForexRates /></DeferredPanel>
                     <DeferredPanel><CryptoPrices /></DeferredPanel>
-                    <GoldPrice prices={goldPrices} isLoading={goldLoading} updatedAt={goldUpdatedAt} source={goldSource} />
+                    <GoldPrice prices={goldPrices} isLoading={false} updatedAt={goldUpdatedAt} source={goldSource} />
                     <DeferredPanel><Lottery /></DeferredPanel>
                     <p className="px-1 text-[11px] leading-relaxed text-justify text-gray-400 dark:text-gray-500">
                         Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.

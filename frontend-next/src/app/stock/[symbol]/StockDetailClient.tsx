@@ -10,6 +10,7 @@ import styles from './page.module.css';
 import { siteConfig } from '@/app/siteConfig';
 import { useLanguage } from "@/lib/languageContext";
 import { translations } from "@/lib/translations";
+import { profileToText } from '@/lib/profileText';
 
 type StockTabId = 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical';
 
@@ -32,12 +33,6 @@ const TechnicalTab = dynamic(() => import('@/components/StockDetail/TechnicalTab
 
 function classNames(...classes: Array<string | false | undefined | null>) {
     return classes.filter(Boolean).join(' ');
-}
-
-function profileHtmlToText(value: string): string {
-    const documentFragment = document.createElement('div');
-    documentFragment.innerHTML = value;
-    return (documentFragment.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
 function scheduleIdleWork(callback: () => void, timeout = 1200): () => void {
@@ -189,7 +184,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         if (res?.available && typeof res.profile === 'string') {
-                            const description = profileHtmlToText(res.profile);
+                            const description = profileToText(res.profile);
                             if (!description) return;
                             setStockInfo(prev => prev ? {
                                 ...prev,
@@ -238,7 +233,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     setRawOverviewData(overviewWithoutDerivedPerShareValues);
 
                     // Update description from DB if available (faster than fallback fetch)
-                    const description = data.company_profile || data.overview?.description;
+                    const description = profileToText(data.company_profile || data.overview?.description);
                     if (description && !initialStockInfo.overview?.description) {
                         setStockInfo(prev => ({
                             ...prev!,

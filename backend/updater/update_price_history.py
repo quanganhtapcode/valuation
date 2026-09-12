@@ -10,9 +10,10 @@ import sqlite3
 import logging
 import time
 import random
+import math
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
 from backend.data_sources.vci import VCIClient
 from backend.db_path import resolve_price_history_db_path, resolve_vci_screening_db_path
@@ -39,7 +40,6 @@ CREATE TABLE IF NOT EXISTS stock_price_history (
     volume  INTEGER,
     PRIMARY KEY (symbol, time)
 );
-CREATE INDEX IF NOT EXISTS idx_ph_symbol ON stock_price_history(symbol);
 CREATE INDEX IF NOT EXISTS idx_ph_time   ON stock_price_history(time);
 """
 
@@ -172,6 +172,13 @@ class PriceHistoryUpdater:
                 low_val = record.get('lowestPrice') or record.get('low')
                 close_val = record.get('closePrice') or record.get('matchPrice') or record.get('close')
                 volume_val = record.get('totalVolume') or record.get('totalMatchVolume') or record.get('volume') or 0
+
+                try:
+                    if not all(math.isfinite(float(v)) and float(v) > 0
+                               for v in (open_val, high_val, low_val, close_val)):
+                        continue
+                except (TypeError, ValueError):
+                    continue
 
                 cursor.execute(
                     """

@@ -184,9 +184,6 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE stats_financial_history ADD COLUMN {col} {typ};")
         except Exception:
             pass  # Column already exists
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_sfh_ticker ON stats_financial_history(ticker);"
-    )
     conn.execute("""
         CREATE TABLE IF NOT EXISTS stats_financial (
           ticker               TEXT PRIMARY KEY,

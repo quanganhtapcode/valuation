@@ -415,10 +415,6 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_statement_periods_ticker ON statement_periods(ticker);")
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_statement_periods_lookup ON statement_periods(ticker, section, period_kind);"
-    )
 
     conn.execute(
         """

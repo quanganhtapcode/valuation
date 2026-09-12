@@ -30,19 +30,4 @@ export async function getCompanyProfile(symbol: string, lang: Lang, timeoutMs = 
     }
 }
 
-/** Render provider HTML as plain React text, including common/numeric entities. */
-export function profileToText(profile: string | null): string {
-    if (!profile) return '';
-    const entities: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
-    return profile
-        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (entity, name: string) => {
-            if (!name.startsWith('#')) return entities[name.toLowerCase()] ?? entity;
-            const hex = name[1].toLowerCase() === 'x';
-            const code = parseInt(name.slice(hex ? 2 : 1), hex ? 16 : 10);
-            return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity;
-        })
-        .replace(/\s+/g, ' ')
-        .trim();
-}
+export { profileToText } from './profileText';
