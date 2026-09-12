@@ -180,10 +180,9 @@ export async function GET(
 
         // JSON API response path (default)
         if (backendContentType.toLowerCase().includes('application/json')) {
-            const data = await response.json();
-
-            return NextResponse.json(data, {
+            return new NextResponse(response.body, {
                 headers: {
+                    'Content-Type': backendContentType,
                     'Cache-Control': cachePolicy.responseCacheControl,
                     ...(cachePolicy.mode === 'realtime'
                         ? {
@@ -202,7 +201,6 @@ export async function GET(
         }
 
         // Binary/file response path (downloads, etc.)
-        const payload = await response.arrayBuffer();
         const passthroughHeaders = new Headers();
 
         passthroughHeaders.set('Cache-Control', cachePolicy.responseCacheControl);
@@ -219,13 +217,14 @@ export async function GET(
 
         if (contentType) passthroughHeaders.set('Content-Type', contentType);
         if (contentDisposition) passthroughHeaders.set('Content-Disposition', contentDisposition);
-        if (contentLength) passthroughHeaders.set('Content-Length', contentLength);
+        // fetch decompresses upstream bodies; compressed lengths no longer apply.
+        if (contentLength && !response.headers.get('content-encoding')) passthroughHeaders.set('Content-Length', contentLength);
         if (backendSource) passthroughHeaders.set('X-Source', backendSource);
         if (backendTiming) passthroughHeaders.set('Server-Timing', backendTiming);
         if (backendDb) passthroughHeaders.set('X-DB', backendDb);
         if (backendCache) passthroughHeaders.set('X-Cache', backendCache);
 
-        return new NextResponse(payload, {
+        return new NextResponse(response.body, {
             status: response.status,
             headers: passthroughHeaders,
         });

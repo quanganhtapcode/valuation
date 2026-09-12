@@ -29,7 +29,6 @@ import {
     RiScales3Line,
     RiFileZipLine,
 } from '@remixicon/react';
-import { ReportGenerator } from '@/lib/reportGenerator';
 import type { ValuationResult, StockApiData } from '@/lib/types';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
@@ -301,6 +300,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                 return;
             }
 
+            const { ReportGenerator } = await import('@/lib/reportGenerator');
             const generator = new ReportGenerator();
             await generator.exportReport(
                 (stockData || result.metrics || result) as unknown as Record<string, unknown>,

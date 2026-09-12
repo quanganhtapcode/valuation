@@ -170,12 +170,12 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
     });
   }, [exchange]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal: AbortSignal) => {
     try {
-      const r = await fetch(`${API_BASE}/market/heatmap?exchange=${exchange}&limit=200`);
+      const r = await fetch(`${API_BASE}/market/heatmap?exchange=${exchange}&limit=200`, { signal });
       if (!r.ok) return;
       const d: HeatmapData = await r.json();
-      setData(d);
+      if (!signal.aborted) setData(d);
     } catch { /* silent */ }
   }, [exchange]);
 
@@ -186,11 +186,29 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
 
   useEffect(() => {
     if (useExternalOnly) return;
-    queueMicrotask(() => { void load(); });
-    if (!isTradingHours()) return;
-    // Poll every 15s — no setLoading(true) so no spinner flicker on updates
-    const timer = setInterval(load, PRICE_SYNC_INTERVAL_MS);
-    return () => clearInterval(timer);
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let running = false;
+    const refresh = async () => {
+      if (running || controller.signal.aborted || document.visibilityState !== 'visible') return;
+      running = true;
+      await load(controller.signal);
+      running = false;
+      if (!controller.signal.aborted && document.visibilityState === 'visible') {
+        timer = setTimeout(() => { void refresh(); }, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : 300000);
+      }
+    };
+    const onVisibility = () => {
+      clearTimeout(timer);
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    void refresh();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [load, useExternalOnly]);
 
   const svgBg = isDark ? '#0f1117' : '#ffffff';

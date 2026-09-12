@@ -19,8 +19,12 @@ import {
     GoldPriceItem,
 } from '@/lib/api';
 import styles from './page.module.css';
+import { useVisiblePolling } from '@/lib/useVisiblePolling';
+import DeferredPanel from '@/components/ui/DeferredPanel';
 
-const MOVERS_REFRESH_INTERVAL_MS = 30000;
+const moversDelay = () => isTradingHours() ? 30000 : 300000;
+const newsDelay = () => 120000;
+const goldDelay = () => 60000;
 
 function PanelSkeleton({ height = 'h-40' }: { height?: string }) {
     return (
@@ -214,38 +218,13 @@ export default function OverviewClient({
         }
     }, []); // stable — no deps
 
-    useEffect(() => {
-        if (!initialGoldPrices || initialGoldPrices.length === 0) loadGold();
-    }, [initialGoldPrices, loadGold]);
+    useVisiblePolling(loadGold, goldDelay, initialGoldPrices.length === 0);
 
     // News polling
-    useEffect(() => {
-        let isCancelled = false;
-        let timer: ReturnType<typeof setTimeout> | null = null;
-        const schedule = () => {
-            if (isCancelled) return;
-            const delay = isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS;
-            timer = setTimeout(async () => { await loadNews(); schedule(); }, delay);
-        };
-        loadNews().finally(schedule);
-        return () => { isCancelled = true; if (timer) clearTimeout(timer); };
-    }, [loadNews]);
+    useVisiblePolling(loadNews, newsDelay, initialNews.length === 0);
 
     // Movers: cold start
-    useEffect(() => {
-        if (!initialGainers || !initialLosers || initialGainers.length === 0 || initialLosers.length === 0) {
-            loadMovers();
-        }
-    }, [initialGainers, initialLosers, loadMovers]);
-
-    // Movers: periodic refresh (stable interval since loadMovers never changes)
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (document.visibilityState !== 'visible') return;
-            loadMovers();
-        }, MOVERS_REFRESH_INTERVAL_MS);
-        return () => clearInterval(interval);
-    }, [loadMovers]);
+    useVisiblePolling(loadMovers, moversDelay, initialGainers.length === 0 || initialLosers.length === 0);
 
     const initialIndicesLength = initialIndices?.length ?? 0;
 
@@ -254,7 +233,9 @@ export default function OverviewClient({
         let fallbackTimer: ReturnType<typeof setInterval> | null = null;
         const startFallback = () => {
             if (fallbackTimer) return;
-            fallbackTimer = setInterval(loadIndices, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
+            fallbackTimer = setInterval(() => {
+                if (document.visibilityState === 'visible') void loadIndices();
+            }, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
         };
         const stopFallback = () => {
             if (!fallbackTimer) return;
@@ -271,11 +252,6 @@ export default function OverviewClient({
         return () => { unsubscribe(); stopFallback(); };
     }, [loadIndices, initialIndicesLength, mapMarketDataToIndices]);
 
-    // Gold refresh every 60s
-    useEffect(() => {
-        const interval = setInterval(loadGold, 60000);
-        return () => clearInterval(interval);
-    }, [loadGold]);
 
     return (
         <div className={styles.container}>
@@ -298,7 +274,7 @@ export default function OverviewClient({
 
                     <HeatmapVN30 />
 
-                    <EarningsSeason />
+                    <DeferredPanel height={288}><EarningsSeason /></DeferredPanel>
 
                     <div className="order-2">
                         <NewsSection news={news} isLoading={newsLoading} error={newsError} />
@@ -308,11 +284,11 @@ export default function OverviewClient({
                 <aside className={styles.rightColumn}>
                     <WatchlistCard />
                     <MarketPulse gainers={gainers} losers={losers} isLoading={moversLoading} />
-                    <FFWorldMarkets />
-                    <FFForexRates />
-                    <CryptoPrices />
+                    <DeferredPanel><FFWorldMarkets /></DeferredPanel>
+                    <DeferredPanel><FFForexRates /></DeferredPanel>
+                    <DeferredPanel><CryptoPrices /></DeferredPanel>
                     <GoldPrice prices={goldPrices} isLoading={goldLoading} updatedAt={goldUpdatedAt} source={goldSource} />
-                    <Lottery />
+                    <DeferredPanel><Lottery /></DeferredPanel>
                     <p className="px-1 text-[11px] leading-relaxed text-justify text-gray-400 dark:text-gray-500">
                         Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.
                     </p>
