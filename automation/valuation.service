@@ -6,6 +6,7 @@ After=network.target
 User=root
 Group=root
 WorkingDirectory=/var/www/valuation
+Slice=valuation.slice
 Environment="PYTHONPATH=/var/www/valuation"
 Environment="STOCKS_DB_PATH=/var/www/valuation/stocks_optimized.db"
 Environment="PATH=/var/www/valuation/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"

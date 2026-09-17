@@ -6,6 +6,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/var/www/valuation
+Slice=valuation.slice
 Environment="PYTHONUNBUFFERED=1"
 Environment="EXCEL_DOWNLOAD_WORKERS=5"
 Environment="EXCEL_UPLOAD_WORKERS=5"

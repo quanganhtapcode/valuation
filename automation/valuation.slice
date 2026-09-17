@@ -1,0 +1,8 @@
+[Unit]
+Description=Shared CPU budget for the valuation project
+
+[Slice]
+# This VPS has two vCPUs. Cap all project services and scheduled jobs at 1.4
+# cores in aggregate, leaving capacity for Nginx, the OS and other projects.
+CPUAccounting=true
+CPUQuota=140%

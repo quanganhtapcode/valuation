@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=oneshot
 User=root
 WorkingDirectory=/var/www/valuation
+Slice=valuation.slice
 Environment="PATH=/var/www/valuation/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
 EnvironmentFile=/var/www/valuation/.env
