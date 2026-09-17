@@ -1,0 +1,18 @@
+[Unit]
+Description=Stock Valuation Backend Service
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/var/www/valuation
+Environment="PYTHONPATH=/var/www/valuation"
+Environment="STOCKS_DB_PATH=/var/www/valuation/stocks_optimized.db"
+Environment="PATH=/var/www/valuation/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# A whole-market Excel/ZIP export is CPU-bound. Keep one worker available for
+# prices, market data and the rest of the public API while another handles it.
+ExecStart=/var/www/valuation/.venv/bin/gunicorn --worker-class gevent --workers 2 --worker-connections 200 --bind 127.0.0.1:8000 --timeout 600 --access-logfile /var/log/valuation-access.log --error-logfile /var/log/valuation-error.log backend.server:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -35,6 +35,11 @@ FINANCIAL_TABLES = (
 FINANCIAL_TABLE_BY_ID = {item[0]: item for item in FINANCIAL_TABLES}
 STOCK_METRICS_TABLE = ("stock_metrics", "stock_metrics", "Stock Metrics")
 STOCK_METRICS_HISTORY_TABLE = ("stock_metrics_history", "stock_metrics_history", "Stock Metrics History")
+# Level 1 provides most of the compression benefit for tabular CSV while using
+# substantially less CPU than the default level 6. Exports run alongside the
+# public market API, so keeping this path CPU-light matters more than a
+# marginally smaller download.
+EXPORT_ZIP_COMPRESSLEVEL = 1
 STOCK_METRIC_COLUMNS = (
     ("period_date", "Kỳ dữ liệu", "text"),
     ("pe", "P/E", "multiple"),
@@ -75,21 +80,6 @@ FINANCIAL_METADATA_HEADERS = [
 CSV_METADATA_HEADERS = [
     "ticker", "period_kind", "year", "quarter", "period_months", "public_date",
 ]
-# Stable, analyst-friendly names for the most commonly used income-statement
-# variables. Other source fields retain their short Vietcap code (e.g. bsa2).
-CSV_FIELD_ALIASES = {
-    "isa1": "rev", "isa2": "sales_ded", "isa3": "net_rev", "isa4": "cogs",
-    "isa5": "gross_profit", "isa6": "fin_income", "isa7": "fin_exp",
-    "isa8": "interest_exp", "isa102": "jv_profit", "isa9": "selling_exp",
-    "isa10": "ga_exp", "isa11": "ebit", "isa12": "other_income",
-    "isa13": "other_exp", "isa14": "other_income_net", "isa15": "associate_profit",
-    "isa16": "ebt", "isa17": "current_tax", "isa18": "deferred_tax",
-    "isa19": "income_tax", "isa20": "net_income", "isa21": "minority_int",
-    "isa22": "ni_parent", "isa23": "eps_basic", "isa24": "eps_diluted",
-    "isb27": "net_interest_income", "isb25": "interest_income", "isb26": "interest_exp",
-    "isb30": "net_fee_income", "isb31": "fx_income", "isb36": "opex",
-    "isb41": "net_income", "bsa53": "total_assets", "bsa54": "total_liabilities",
-}
 BANK_SYMBOLS = {
     "VCB", "BID", "CTG", "TCB", "MBB", "ACB", "VPB", "HDB", "SHB", "STB",
     "TPB", "LPB", "MSB", "OCB", "EIB", "ABB", "NAB", "PGB", "VAB", "VIB",
@@ -440,11 +430,15 @@ def _period_sql(alias: str = "f") -> tuple[str, list[int | str]]:
 
 
 def _csv_variable_names(fields: list[str]) -> list[str]:
-    """Return unique compact column names for analytics-friendly CSV exports."""
+    """Return source-stable Vietcap codes for every statement variable.
+
+    CSV is intended for programmatic analysis, so it must not mix readable
+    aliases (such as ``rev``) with source codes (such as ``isb27``).
+    """
     used: set[str] = set()
     names: list[str] = []
     for field in fields:
-        base = CSV_FIELD_ALIASES.get(field.lower(), field.lower())
+        base = field.lower()
         name = base
         suffix = 2
         while name in used:
@@ -456,12 +450,20 @@ def _csv_variable_names(fields: list[str]) -> list[str]:
 
 
 def _csv_readme_section(table: str, fields: list[str], labels: dict[str, str]) -> str:
-    """Describe a CSV file and map compact headers back to their source fields."""
+    """Describe a CSV file and map its source-stable headers to labels."""
     variable_names = _csv_variable_names(fields)
-    lines = [f"## {table}.csv", "", "| CSV column | Source field | Original name |", "| --- | --- | --- |"]
+    lines = [
+        f"## {table}.csv",
+        "",
+        "All financial data columns use the original Vietcap field code exactly. "
+        "The table below maps each code to its display label.",
+        "",
+        "| Vietcap field code / CSV column | Display label |",
+        "| --- | --- |",
+    ]
     for variable_name, field in zip(variable_names, fields):
         original = labels.get(field.lower(), field).replace("|", "\\|")
-        lines.append(f"| `{variable_name}` | `{field}` | {original} |")
+        lines.append(f"| `{variable_name}` | {original} |")
     lines.extend(["", "Shared identifier columns: `ticker`, `period_kind`, `year`, `quarter`, `period_months`, `public_date`.", ""])
     return "\n".join(lines)
 
@@ -470,6 +472,7 @@ def _csv_readme(metric_tables: list[str], statement_sections: list[str]) -> str:
     lines = [
         "# Financial data export", "",
         "All statement CSV files use wide format: one row represents one ticker and reporting period; each financial item is a separate column.",
+        "Statement-variable columns are the original Vietcap codes (`isa*`, `isb*`, `bsa*`, `cfa*`, `cfb*`). Their human-readable labels are listed under each CSV section below.",
         "Values are reported in VND unless otherwise noted. Blank values mean the source did not provide a value for that period.",
         "For annual rows, `quarter` is empty. In `Stock Metrics History.csv`, annual observations use `quarter = 5`.",
         "",
@@ -581,6 +584,52 @@ def _write_financial_csv(connection: sqlite3.Connection, table: str, fields: lis
         if not any(not _is_empty_financial_value(value) for value in values):
             continue
         writer.writerow(metadata_values + list(values))
+        count += 1
+    return count
+
+
+def _append_financial_worksheet_rows(
+    worksheet,
+    connection: sqlite3.Connection,
+    table: str,
+    fields: list[str],
+    period_clause: str,
+    period_params: list[int | str],
+) -> int:
+    """Append a market dataset directly to a write-only worksheet.
+
+    This avoids the former SQLite -> temporary CSV -> CSV parser -> OpenPyXL
+    pipeline, which was especially expensive for whole-market exports.
+    """
+    from openpyxl.cell import WriteOnlyCell
+
+    header_font, header_fill, body_font, header_alignment = _generic_worksheet_styles(worksheet)
+    header_cells = []
+    for value in CSV_METADATA_HEADERS + _csv_variable_names(fields):
+        cell = WriteOnlyCell(worksheet, value=value)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        header_cells.append(cell)
+    worksheet.append(header_cells)
+
+    sql = (
+        f"SELECT f.ticker, f.period_kind, f.year_report, f.quarter_report, f.length_report, "
+        f"COALESCE(f.public_date, ''), {', '.join(f'f.{_quote_identifier(field)}' for field in fields)} "
+        f"FROM {table} f JOIN selected_financial_tickers t ON t.ticker = f.ticker WHERE {period_clause} "
+        "ORDER BY f.ticker, f.year_report, f.quarter_report"
+    )
+    count = 0
+    for row in connection.execute(sql, period_params):
+        values = row[6:]
+        if not any(not _is_empty_financial_value(value) for value in values):
+            continue
+        cells = []
+        for value in row:
+            cell = WriteOnlyCell(worksheet, value=value)
+            cell.font = body_font
+            cells.append(cell)
+        worksheet.append(cells)
         count += 1
     return count
 
@@ -941,48 +990,35 @@ def financial_bulk_export():
                             period_clause, period_params, template_levels,
                         )
                     else:
-                        from openpyxl.cell import WriteOnlyCell
-
-                        header_font, header_fill, body_font, header_alignment = _generic_worksheet_styles(worksheet)
-                        csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
-                        temporary_paths.append(csv_path)
-                        with open(csv_path, "w", encoding="utf-8", newline="") as handle:
-                            _write_financial_csv(connection, table, fields, labels, period_clause, period_params, handle)
-                        with open(csv_path, encoding="utf-8", newline="") as handle:
-                            for row_index, row in enumerate(csv.reader(handle), start=1):
-                                styled_row = []
-                                for value in row:
-                                    cell = WriteOnlyCell(worksheet, value=value)
-                                    cell.font = header_font if row_index == 1 else body_font
-                                    if row_index == 1:
-                                        cell.fill = header_fill
-                                        cell.alignment = header_alignment
-                                    styled_row.append(cell)
-                                worksheet.append(styled_row)
+                        _append_financial_worksheet_rows(
+                            worksheet, connection, table, fields, period_clause, period_params,
+                        )
                 workbook.save(output_path)
                 download_name = "financial-statements.xlsx"
                 mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             else:
                 output_path = tempfile.NamedTemporaryFile(prefix="financial-export-", suffix=".zip", delete=False).name
                 temporary_paths.append(output_path)
-                with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+                with zipfile.ZipFile(
+                    output_path, "w", compression=zipfile.ZIP_DEFLATED,
+                    compresslevel=EXPORT_ZIP_COMPRESSLEVEL,
+                ) as archive:
                     statement_sections: list[str] = []
                     metric_tables: list[str] = []
                     for _, table, filename in selected_tables:
-                        csv_path = tempfile.NamedTemporaryFile(prefix="financial-sheet-", suffix=".csv", delete=False).name
-                        temporary_paths.append(csv_path)
-                        with open(csv_path, "w", encoding="utf-8-sig", newline="") as handle:
-                            if table == "stock_metrics":
-                                _write_stock_metrics_csv(handle, tickers)
-                                metric_tables.append(table)
-                            elif table == "stock_metrics_history":
-                                _write_stock_metrics_history_csv(handle, tickers)
-                                metric_tables.append(table)
-                            else:
-                                fields = _export_fields(connection, table, period_clause, period_params)
-                                _write_financial_csv(connection, table, fields, labels, period_clause, period_params, handle)
-                                statement_sections.append(_csv_readme_section(filename, fields, labels))
-                        archive.write(csv_path, f"{filename}.csv")
+                        member_name = f"{filename}.csv"
+                        with archive.open(member_name, "w") as binary_handle:
+                            with io.TextIOWrapper(binary_handle, encoding="utf-8-sig", newline="") as handle:
+                                if table == "stock_metrics":
+                                    _write_stock_metrics_csv(handle, tickers)
+                                    metric_tables.append(table)
+                                elif table == "stock_metrics_history":
+                                    _write_stock_metrics_history_csv(handle, tickers)
+                                    metric_tables.append(table)
+                                else:
+                                    fields = _export_fields(connection, table, period_clause, period_params)
+                                    _write_financial_csv(connection, table, fields, labels, period_clause, period_params, handle)
+                                    statement_sections.append(_csv_readme_section(filename, fields, labels))
                     archive.writestr("README.md", _csv_readme(metric_tables, statement_sections).encode("utf-8"))
                 download_name = "financial-statements.zip"
                 mimetype = "application/zip"

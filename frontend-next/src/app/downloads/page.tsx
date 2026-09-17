@@ -8,7 +8,7 @@ type Scope = 'ticker' | 'industry' | 'market';
 type ExportFormat = 'csv' | 'xlsx';
 type PeriodKind = 'year' | 'quarter' | 'all';
 type Status = 'idle' | 'loading' | 'done' | 'error';
-type Ticker = { symbol: string; name: string; en_name?: string; sector?: string };
+type Ticker = { symbol: string; name: string; en_name?: string; sector?: string; exchange?: string };
 type TableId = 'income_statement' | 'balance_sheet' | 'cash_flow' | 'note';
 type DataTableId = TableId | 'stock_metrics' | 'stock_metrics_history';
 type DownloadTab = 'query' | 'variables' | 'manuals' | 'faqs' | 'datasets';
@@ -112,6 +112,13 @@ export default function DownloadsPage() {
         if (!showSuggestions || scope !== 'ticker' || !activeTickerQuery) return [];
         return tickers.filter((ticker) => ticker.symbol.startsWith(activeTickerQuery) || ticker.name?.toUpperCase().includes(activeTickerQuery) || ticker.en_name?.toUpperCase().includes(activeTickerQuery)).slice(0, 8).map((ticker) => lang === 'en' ? { ...ticker, name: ticker.en_name || ticker.name } : ticker);
     }, [activeTickerQuery, lang, scope, showSuggestions, tickers]);
+    const originalSymbols = useMemo(() => {
+        if (scope === 'ticker') return symbols;
+        return tickers
+            .filter((ticker) => exchanges.includes((ticker.exchange || '').toUpperCase()))
+            .filter((ticker) => scope !== 'industry' || ticker.sector === sector)
+            .map((ticker) => ticker.symbol);
+    }, [exchanges, scope, sector, symbols, tickers]);
     const scopeText = scope === 'ticker' ? (symbols.length > 1 ? `${symbols.length} ${c.tickers}` : symbols[0] || c.noTicker) : scope === 'industry' ? sector || c.noSector : c.allMarket;
     const canDownload = selectedTables.length > 0 && fromYear <= toYear && (scope !== 'ticker' || symbols.length > 0) && (scope !== 'industry' || !!sector) && (scope === 'ticker' || exchanges.length > 0);
     const params = (ticker?: string) => {
@@ -119,6 +126,13 @@ export default function DownloadsPage() {
         if (scope === 'ticker') result.set('tickers', ticker ?? symbols.join(',')); else result.set('exchanges', exchanges.join(','));
         if (scope === 'industry') result.set('sectors', sector);
         if (periodKind === 'quarter') { result.set('from_quarter', `${fromQuarter}`); result.set('to_quarter', `${toQuarter}`); }
+        return result;
+    };
+    const originalParams = () => {
+        const result = new URLSearchParams({ scope });
+        if (scope === 'ticker') result.set('tickers', originalSymbols.join(','));
+        else result.set('exchanges', exchanges.join(','));
+        if (scope === 'industry') result.set('sectors', sector);
         return result;
     };
     const saveBlob = (blob: Blob, filename: string) => { const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); };
@@ -149,18 +163,19 @@ export default function DownloadsPage() {
     };
     const upload = async (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; setScope('ticker'); setShowSuggestions(false); setQuery((await file.text()).replace(/[^a-zA-Z0-9,\s]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase()); event.target.value = ''; };
     const downloadOriginal = async () => {
-        if (!symbols.length) return;
-        if (symbols.length === 1) {
+        if (!originalSymbols.length) return;
+        if (originalSymbols.length === 1) {
             setOriginalStatus('loading');
-            try { const response = await fetch(`/api/stock/excel/${encodeURIComponent(symbols[0])}`); const data = await response.json() as { success?: boolean; url?: string }; if (!data.success || !data.url) throw new Error(); window.location.href = data.url; setOriginalStatus('done'); } catch { setMessage(c.errorOriginal); setOriginalStatus('error'); }
+            try { const response = await fetch(`/api/stock/excel/${encodeURIComponent(originalSymbols[0])}`); const data = await response.json() as { success?: boolean; url?: string }; if (!data.success || !data.url) throw new Error(); window.location.href = data.url; setOriginalStatus('done'); } catch { setMessage(c.errorOriginal); setOriginalStatus('error'); }
             return;
         }
         const picker = (window as Window & { showDirectoryPicker?: () => Promise<DirectoryHandle> }).showDirectoryPicker;
         if (!picker) { setMessage(c.browser); return; }
         setOriginalStatus('loading');
         try {
-            const directory = await (await picker()).getDirectoryHandle(`vietcap-${symbols.join('-')}`.slice(0, 80), { create: true });
-            const response = await fetch(`/api/stock/excel-manifest?${new URLSearchParams({ scope: 'ticker', tickers: symbols.join(',') })}`); if (!response.ok) throw new Error();
+            const directoryName = scope === 'ticker' ? `vietcap-${originalSymbols.join('-')}` : `vietcap-${scope}-${exchanges.join('-')}`;
+            const directory = await (await picker()).getDirectoryHandle(directoryName.slice(0, 80), { create: true });
+            const response = await fetch(`/api/stock/excel-manifest?${originalParams()}`, { cache: 'no-store' }); if (!response.ok) throw new Error();
             const files = ((await response.json()) as { files?: Array<{ filename: string; url: string }> }).files ?? [];
             setProgress([0, files.length]);
             for (const [index, file] of files.entries()) { const fileResponse = await fetch(file.url); if (!fileResponse.ok) throw new Error(); const writable = await (await directory.getFileHandle(file.filename, { create: true })).createWritable(); await writable.write(await fileResponse.blob()); await writable.close(); setProgress([index + 1, files.length]); }
@@ -179,7 +194,7 @@ export default function DownloadsPage() {
             </Step>
             <Step n={3} title={c.data}><p className="mb-4 text-sm text-slate-500">{c.dataHint}</p><div className="grid gap-3 sm:grid-cols-2">{TABLES.map((table) => <label key={table.id} className={`flex cursor-pointer gap-3 rounded-xl border p-4 ${selectedTables.includes(table.id) ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-700'}`}><input type="checkbox" checked={selectedTables.includes(table.id)} onChange={() => toggleTable(table.id)} className="mt-1 accent-emerald-600" /><span><b>{table[lang][0]}</b><small className="mt-1 block text-slate-500">{table[lang][1]}</small></span></label>)}</div><button onClick={() => setSelectedTables(selectedTables.length === TABLES.length ? [] : TABLES.map((table) => table.id))} className="mt-4 text-xs font-semibold text-emerald-700 dark:text-emerald-400">{selectedTables.length === TABLES.length ? c.clear : c.select}</button></Step>
             <Step n={4} title={c.output}><div className="grid gap-3 sm:grid-cols-2"><label className="rounded-xl border p-4"><input className="mr-2 accent-emerald-600" type="radio" checked={format === 'csv'} onChange={() => setFormat('csv')} /><b>CSV / ZIP</b><small className="mt-2 block text-slate-500">{c.csv}</small></label><label className="rounded-xl border p-4"><input className="mr-2 accent-emerald-600" type="radio" checked={format === 'xlsx'} onChange={() => setFormat('xlsx')} /><b>Excel (.xlsx)</b><small className="mt-2 block text-slate-500">{c.xlsx}</small></label></div><div className="mt-5 flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-4 dark:bg-slate-950"><span className="text-sm text-slate-500">{scopeText} · {fromYear}–{toYear} · {selectedTables.length} {c.tables}</span><button onClick={download} disabled={!canDownload || status === 'loading'} className="rounded-lg bg-emerald-600 px-6 py-3 text-sm font-bold text-white disabled:opacity-50">{status === 'loading' ? c.creating : status === 'done' ? `✓ ${c.done}` : `↓ ${c.create}`}</button></div>{message && <p className="mt-3 text-sm text-rose-600">{message}</p>}</Step>
-        </div><aside className="h-fit space-y-4 lg:sticky lg:top-5"><section className="rounded-xl border border-slate-200 p-5 dark:border-slate-800"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{c.summary}</p><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-slate-500">{c.scope}</dt><dd className="text-right font-semibold">{scopeText}</dd></div><div className="flex justify-between"><dt className="text-slate-500">{c.period}</dt><dd>{fromYear}–{toYear}</dd></div><div className="flex justify-between"><dt className="text-slate-500">{c.tables}</dt><dd>{selectedTables.length}/{TABLES.length}</dd></div></dl></section><section className="rounded-xl border border-slate-200 p-5 dark:border-slate-800"><b>{c.original}</b><p className="mt-2 text-xs leading-5 text-slate-500">{c.originalHint}</p><button onClick={downloadOriginal} disabled={!symbols.length || originalStatus === 'loading'} className="mt-4 w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 disabled:opacity-50 dark:text-emerald-300">{originalStatus === 'loading' ? (progress[1] ? `${progress[0]}/${progress[1]}` : c.preparing) : symbols.length > 1 ? c.many : c.one}</button></section></aside></div>}
+        </div><aside className="h-fit space-y-4 lg:sticky lg:top-5"><section className="rounded-xl border border-slate-200 p-5 dark:border-slate-800"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{c.summary}</p><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-slate-500">{c.scope}</dt><dd className="text-right font-semibold">{scopeText}</dd></div><div className="flex justify-between"><dt className="text-slate-500">{c.period}</dt><dd>{fromYear}–{toYear}</dd></div><div className="flex justify-between"><dt className="text-slate-500">{c.tables}</dt><dd>{selectedTables.length}/{TABLES.length}</dd></div></dl></section><section className="rounded-xl border border-slate-200 p-5 dark:border-slate-800"><b>{c.original}</b><p className="mt-2 text-xs leading-5 text-slate-500">{c.originalHint}</p><button onClick={downloadOriginal} disabled={!originalSymbols.length || originalStatus === 'loading'} className="mt-4 w-full rounded-lg border border-emerald-500 px-3 py-2.5 text-sm font-semibold text-emerald-700 disabled:opacity-50 dark:text-emerald-300">{originalStatus === 'loading' ? (progress[1] ? `${progress[0]}/${progress[1]}` : c.preparing) : originalSymbols.length > 1 ? c.many : c.one}</button></section></aside></div>}
         {activeTab === 'variables' && <><ExportSchema lang={lang} /><VariablesReference title={c.tabs.variables} lang={lang} fieldCodes={fieldCodes} loading={fieldCodesLoading} selectedSection={fieldSection} onSelectSection={setFieldSection} /></>}
         {activeTab === 'manuals' && <Reference title={c.tabs.manuals}><div className="grid gap-4 md:grid-cols-3">{c.guides.map(([title, description]) => <div key={title} className="rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><b>{title}</b><p className="mt-2 text-sm text-slate-500">{description}</p></div>)}</div></Reference>}
         {activeTab === 'faqs' && <Reference title={c.tabs.faqs}>{c.faqItems.map(([question, answer]) => <details key={question} className="border-b border-slate-100 py-3 dark:border-slate-800"><summary className="cursor-pointer font-semibold">{question}</summary><p className="mt-2 text-sm text-slate-500">{answer}</p></details>)}</Reference>}
