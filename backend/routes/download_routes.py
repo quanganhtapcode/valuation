@@ -1,4 +1,4 @@
-from flask import Blueprint, after_this_request, jsonify, request, redirect, send_file
+from flask import Blueprint, jsonify, request, redirect, send_file
 import logging
 import os
 import time
@@ -1025,14 +1025,15 @@ def financial_bulk_export():
         finally:
             connection.close()
         response = send_file(output_path, as_attachment=True, download_name=download_name, mimetype=mimetype)
-        @after_this_request
-        def cleanup(response):
+        def cleanup() -> None:
             for path in temporary_paths:
                 try:
                     os.unlink(path)
                 except OSError:
                     pass
-            return response
+        # Keep the file only while the response is open. This callback also
+        # runs when the browser closes the tab or cancels the download.
+        response.call_on_close(cleanup)
         return response
     except ValueError as exc:
         for path in temporary_paths:
@@ -1198,13 +1199,12 @@ def stock_excel_bulk():
         if not found:
             raise FileNotFoundError("No original Vietcap Excel files found in R2")
         response = send_file(temporary_path, as_attachment=True, download_name="vietcap-excel-original.zip", mimetype="application/zip")
-        @after_this_request
-        def cleanup(response):
+        def cleanup() -> None:
             try:
                 os.unlink(temporary_path)
             except OSError:
                 pass
-            return response
+        response.call_on_close(cleanup)
         return response
     except FileNotFoundError as exc:
         if temporary_path:
