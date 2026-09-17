@@ -135,6 +135,11 @@ export default function DownloadsPage() {
         if (scope === 'industry') result.set('sectors', sector);
         return result;
     };
+    const individualExportParams = (ticker: string) => {
+        const result = new URLSearchParams({ scope: 'ticker', tickers: ticker, from_year: `${fromYear}`, to_year: `${toYear}`, period_kind: periodKind, format: 'xlsx', tables: selectedTables.join(','), delivery: 'individual' });
+        if (periodKind === 'quarter') { result.set('from_quarter', `${fromQuarter}`); result.set('to_quarter', `${toQuarter}`); }
+        return result;
+    };
     const saveBlob = (blob: Blob, filename: string) => { const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); };
     const selectTicker = (ticker: Ticker) => { setQuery((value) => `${value.replace(/[^\s,]*$/, '')}${ticker.symbol} `); setShowSuggestions(false); };
     const toggleTable = (id: DataTableId) => setSelectedTables((value) => value.includes(id) ? value.filter((item) => item !== id) : [...value, id]);
@@ -143,15 +148,17 @@ export default function DownloadsPage() {
         if (!canDownload) return;
         setStatus('loading'); setMessage('');
         try {
-            if (format === 'xlsx' && scope === 'ticker' && symbols.length > 1) {
+            if (format === 'xlsx' && originalSymbols.length > 1) {
                 const picker = (window as Window & { showDirectoryPicker?: () => Promise<DirectoryHandle> }).showDirectoryPicker;
                 if (!picker) { setStatus('error'); setMessage(c.browser); return; }
-                const directory = await (await picker()).getDirectoryHandle(`financials-${symbols.join('-')}`.slice(0, 80), { create: true });
-                setProgress([0, symbols.length]);
-                for (const [index, ticker] of symbols.entries()) {
-                    const response = await fetch(`/api/financial-bulk-export?${params(ticker)}`, { cache: 'no-store' }); if (!response.ok) throw new Error();
+                const directoryName = scope === 'ticker' ? `financials-${originalSymbols.join('-')}` : `financials-${scope}-${exchanges.join('-')}`;
+                const directory = await (await picker()).getDirectoryHandle(directoryName.slice(0, 80), { create: true });
+                setProgress([0, originalSymbols.length]);
+                for (const [index, ticker] of originalSymbols.entries()) {
+                    if (index > 0) await new Promise((resolve) => window.setTimeout(resolve, 1000));
+                    const response = await fetch(`/api/financial-bulk-export?${individualExportParams(ticker)}`, { cache: 'no-store' }); if (!response.ok) throw new Error();
                     const writable = await (await directory.getFileHandle(`${ticker}_${fromYear}-${toYear}.xlsx`, { create: true })).createWritable();
-                    await writable.write(await response.blob()); await writable.close(); setProgress([index + 1, symbols.length]);
+                    await writable.write(await response.blob()); await writable.close(); setProgress([index + 1, originalSymbols.length]);
                 }
             } else {
                 const response = await fetch(`/api/financial-bulk-export?${params()}`, { cache: 'no-store' }); if (!response.ok) throw new Error();

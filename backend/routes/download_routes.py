@@ -1054,6 +1054,11 @@ def financial_bulk_export():
 download_tracker = defaultdict(list)
 DOWNLOAD_LIMIT = 20  # Max downloads per IP per window
 DOWNLOAD_WINDOW = 3600  # 1 hour window (in seconds)
+# A market XLSX delivery is intentionally split into one file per ticker. Such
+# a session exceeds the normal download-count limit, but is paced so it cannot
+# turn into a burst that monopolizes the API.
+INDIVIDUAL_EXPORT_MIN_INTERVAL = 1.0
+individual_export_last_request: dict[str, float] = {}
 PRESIGNED_URL_EXPIRES_SECONDS = int(os.getenv("R2_PRESIGNED_EXPIRES_SECONDS", "900"))
 
 def rate_limit_download(f):
@@ -1064,7 +1069,26 @@ def rate_limit_download(f):
         client_ip = get_client_ip()
         
         current_time = time.time()
-        
+
+        is_paced_individual_export = (
+            request.path.endswith("/financial-bulk-export")
+            and request.args.get("delivery") == "individual"
+            and len([item for item in (request.args.get("tickers") or "").split(",") if item.strip()]) == 1
+        )
+        if is_paced_individual_export:
+            previous_request = individual_export_last_request.get(client_ip, 0.0)
+            elapsed = current_time - previous_request
+            if elapsed < INDIVIDUAL_EXPORT_MIN_INTERVAL:
+                retry_after = max(1, int(INDIVIDUAL_EXPORT_MIN_INTERVAL - elapsed + 0.999))
+                response = jsonify({
+                    "error": "Individual export is temporarily paced",
+                    "retry_after": retry_after,
+                })
+                response.status_code = 429
+                response.headers["Retry-After"] = str(retry_after)
+                return response
+            individual_export_last_request[client_ip] = current_time
+            return f(*args, **kwargs)
         # Clean up old download records (outside the time window)
         download_tracker[client_ip] = [
             timestamp for timestamp in download_tracker[client_ip]
