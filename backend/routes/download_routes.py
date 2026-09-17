@@ -660,7 +660,7 @@ def _style_single_ticker_worksheet(connection: sqlite3.Connection, worksheet, ti
     thin_blue = Side(style="thin", color=dark_blue)
     # Match the source Vietcap workbook rather than a compact web-export style.
     header_font = Font(name="Calibri", size=12, bold=True, color=white)
-    metadata_label_font = Font(name="Calibri", size=12, bold=True, color=dark_blue)
+    metadata_label_font = Font(name="Calibri", size=12, bold=True, color=white)
     body_font = Font(name="Calibri", size=11)
     label_font = Font(name="Calibri", size=11, bold=True)
     child_label_font = Font(name="Calibri", size=11)
@@ -681,7 +681,12 @@ def _style_single_ticker_worksheet(connection: sqlite3.Connection, worksheet, ti
         "note": 15.89453125,
     }.get(table, 16.4609375)
 
-    metadata = (("Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")), ("Mã", ticker), ("Thời gian", "Năm, Quý" if annual_rows and quarterly_rows else "Năm" if annual_rows else "Quý"), ("Tiền tệ", "VND"))
+    metadata = (
+        ("Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")),
+        ("Mã cổ phiếu", ticker),
+        ("Kỳ", "Năm, Quý" if annual_rows and quarterly_rows else "Năm" if annual_rows else "Quý"),
+        ("Đơn vị", "VND"),
+    )
     for row_index, (label, value) in enumerate(metadata, start=1):
         label_cell = worksheet.cell(row_index, 1, label)
         value_cell = worksheet.cell(row_index, 2, value)
@@ -793,7 +798,12 @@ def _write_stock_metrics_worksheet(worksheet, tickers: list[str], single_ticker:
 
     if single_ticker:
         ticker = tickers[0]
-        metadata = (("Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")), ("Mã", ticker), ("Thời gian", "TTM / mới nhất"), ("Tiền tệ", "VND"))
+        metadata = (
+            ("Ngày xuất", datetime.utcnow().strftime("%d/%m/%Y")),
+            ("Mã cổ phiếu", ticker),
+            ("Kỳ", "TTM / mới nhất"),
+            ("Đơn vị", "VND"),
+        )
         for row_index, (label, value) in enumerate(metadata, start=1):
             label_cell, value_cell = worksheet.cell(row_index, 1, label), worksheet.cell(row_index, 2, value)
             label_cell.font, label_cell.fill, label_cell.border = header_font, header_fill, border
