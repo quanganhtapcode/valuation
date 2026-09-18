@@ -16,6 +16,7 @@ import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
 import BankingPeerTable from './BankingPeerTable';
 import { localizedPath } from '@/lib/localePath';
+import { fetchAPI } from '@/lib/api';
 
 interface Peer {
     symbol: string;
@@ -122,7 +123,7 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
             if (!cancelled) setLoading(true);
         });
 
-        const peersPromise = fetch(`/api/stock/peers-vci/${symbol}`).then(r => r.json());
+        const peersPromise = fetchAPI<any>(`/api/stock/peers-vci/${symbol}`);
 
         peersPromise
             .then((peersRes) => {

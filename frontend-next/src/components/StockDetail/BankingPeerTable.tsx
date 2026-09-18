@@ -12,6 +12,7 @@ import {
     TableCell,
 } from '@tremor/react';
 import { cx } from '@/lib/utils';
+import { fetchAPI } from '@/lib/api';
 
 interface BankPeer {
     symbol: string;
@@ -157,8 +158,7 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
         queueMicrotask(() => {
             if (!cancelled) setLoading(true);
         });
-        fetch(`/api/stock/peers-vci/${symbol}?mode=${mode}`)
-            .then(r => r.json())
+        fetchAPI<any>(`/api/stock/peers-vci/${symbol}?mode=${mode}`)
             .then(res => {
                 if (cancelled) return;
                 if (res?.success) {

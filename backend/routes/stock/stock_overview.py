@@ -69,6 +69,17 @@ def _fetch_raw(
 ) -> dict:
     """Fetch raw stock data from provider, cleaned of NaN."""
     provider = get_provider()
+    # The provider's live fallback can return a syntactically successful but
+    # entirely empty record for an arbitrary symbol. Treat the maintained
+    # ticker catalogue as the public API universe so unknown tickers become a
+    # proper 404 instead of a misleading 200 response full of nulls.
+    ticker_metadata = getattr(provider, "ticker_metadata", None)
+    if isinstance(ticker_metadata, dict) and symbol.upper() not in ticker_metadata:
+        return {
+            "symbol": symbol.upper(),
+            "success": False,
+            "error": "Symbol not found",
+        }
     raw = provider.get_stock_data(
         symbol,
         period,

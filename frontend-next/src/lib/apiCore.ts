@@ -1,11 +1,9 @@
-// API Base URL - prefer same-origin proxy (/api) for consistent caching/CORS.
-// Can be overridden via NEXT_PUBLIC_API_URL environment variable.
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
-
-export const REALTIME_API_BASE =
-    process.env.NEXT_PUBLIC_REALTIME_API_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_API_URL ||
-    'https://api.quanganh.org/v1/valuation';
+// All browser REST traffic uses the same-origin proxy. This centralizes
+// caching, timeout and error behaviour, and avoids a browser dependency on
+// backend CORS. WebSockets remain configured separately because Vercel cannot
+// proxy WebSocket connections.
+export const API_BASE = '/api';
+export const REALTIME_API_BASE = API_BASE;
 
 // API Endpoints
 export const API = {

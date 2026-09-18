@@ -71,6 +71,7 @@ function pathMatches(path: string, prefixes: string[]): boolean {
 
 function resolveCachePolicy(apiPath: string, searchParams: URLSearchParams): ProxyCachePolicy {
     const normalized = (apiPath || '').toLowerCase();
+    const isStockRealtimePrice = /^stock\/[^/]+\/current-price$/.test(normalized);
 
     if (searchParams.get('cache') === 'no-store' || searchParams.get('nocache') === '1') {
         return {
@@ -80,7 +81,7 @@ function resolveCachePolicy(apiPath: string, searchParams: URLSearchParams): Pro
         };
     }
 
-    if (pathMatches(normalized, REALTIME_PATH_PREFIXES)) {
+    if (isStockRealtimePrice || pathMatches(normalized, REALTIME_PATH_PREFIXES)) {
         return {
             mode: 'realtime',
             revalidateSeconds: 0,
@@ -247,8 +248,9 @@ export async function POST(
         const { path } = await params;
         const apiPath = path.join('/');
         const body = await request.json();
-
-        const fullUrl = `${BACKEND_API}/${apiPath}`;
+        const { searchParams } = new URL(request.url);
+        const queryString = searchParams.toString();
+        const fullUrl = `${BACKEND_API}/${apiPath}${queryString ? `?${queryString}` : ''}`;
 
         const response = await fetch(fullUrl, {
             method: 'POST',

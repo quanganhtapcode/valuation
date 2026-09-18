@@ -13,10 +13,11 @@ from json import JSONDecodeError
 import time
 import queue
 from datetime import datetime
-from flask import Flask, g, request
+from flask import Flask, g, jsonify, request
 from flask.json.provider import DefaultJSONProvider
 from flask_compress import Compress
 from flask_sock import Sock
+from werkzeug.exceptions import HTTPException
 
 # Import refactored data source modules
 from backend.services import GoldService
@@ -120,6 +121,41 @@ app.register_blueprint(market_bp)
 app.register_blueprint(download_bp)
 app.register_blueprint(health_bp)
 
+
+_ERROR_CODES = {
+    400: "BAD_REQUEST",
+    401: "UNAUTHORIZED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    405: "METHOD_NOT_ALLOWED",
+    408: "REQUEST_TIMEOUT",
+    409: "CONFLICT",
+    413: "PAYLOAD_TOO_LARGE",
+    429: "RATE_LIMITED",
+    500: "INTERNAL_ERROR",
+    502: "UPSTREAM_ERROR",
+    503: "SERVICE_UNAVAILABLE",
+    504: "GATEWAY_TIMEOUT",
+}
+
+
+def _error_code(status_code: int) -> str:
+    return _ERROR_CODES.get(status_code, "REQUEST_FAILED")
+
+
+@app.errorhandler(HTTPException)
+def api_http_error(error: HTTPException):
+    """Return JSON for framework-level errors on the public API."""
+    if request.path.startswith("/api/"):
+        return jsonify({
+            "success": False,
+            "error": {
+                "code": _error_code(error.code or 500),
+                "message": error.description,
+            },
+        }), error.code
+    return error
+
 # CORS Handling
 @app.before_request
 def _before_request_timer():
@@ -142,10 +178,27 @@ def after_request(response):
         else:
             response.headers['Server-Timing'] = timing_value
 
+    # Endpoint implementations predate a shared error contract and return
+    # several error shapes. Normalize every JSON error at the VPS boundary,
+    # while leaving successful payloads untouched for backwards compatibility.
+    if response.status_code >= 400 and response.mimetype == 'application/json':
+        payload = response.get_json(silent=True)
+        if isinstance(payload, dict):
+            error = payload.get('error')
+            if not (isinstance(error, dict) and 'code' in error and 'message' in error):
+                message = str(error or payload.get('message') or response.status)
+                response.set_data(json.dumps({
+                    'success': False,
+                    'error': {
+                        'code': _error_code(response.status_code),
+                        'message': message,
+                    },
+                }, ensure_ascii=False))
+
     header = response.headers
     header['Access-Control-Allow-Origin'] = '*'
     header['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    header['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    header['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
 
     # Keep API responses compact for browsers, but pretty-print for curl and
     # explicit `?pretty=1` requests so terminal output is easier to read.

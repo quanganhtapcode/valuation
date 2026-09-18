@@ -2,12 +2,14 @@ import tickerData from '../../../../public/ticker_data.json';
 import { getRequestLang } from '@/lib/i18nRouting';
 import { getCompanyProfile, profileToText } from '@/lib/companyProfile.server';
 import StockDetailClient from './StockDetailClient';
+import { notFound } from 'next/navigation';
 
 export default async function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
     const { symbol: rawSymbol } = await params;
     const symbol = rawSymbol.toUpperCase();
     const lang = await getRequestLang();
     const ticker = tickerData.tickers.find(item => item.symbol.toUpperCase() === symbol);
+    if (!ticker) notFound();
     const profile = await getCompanyProfile(symbol, lang);
 
     return (

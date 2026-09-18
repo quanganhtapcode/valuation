@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { formatNumber } from '@/lib/api';
+import { fetchAPI, formatNumber } from '@/lib/api';
 import { cx } from '@/lib/utils';
 import { useLanguage } from "@/lib/languageContext"
 import { translations } from "@/lib/translations"
@@ -1247,10 +1247,10 @@ export default function FinancialsTab({
         });
 
         Promise.allSettled([
-            fetch(`/api/stock/${symbol}/financial-report?type=income&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report?type=balance&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report?type=cashflow&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
-            fetch(`/api/stock/${symbol}/financial-report?type=ratio&period=${effectivePeriod}&limit=160`, { signal: controller.signal }).then(r => r.json()),
+            fetchAPI<any>(`/api/stock/${symbol}/financial-report?type=income&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
+            fetchAPI<any>(`/api/stock/${symbol}/financial-report?type=balance&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
+            fetchAPI<any>(`/api/stock/${symbol}/financial-report?type=cashflow&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
+            fetchAPI<any>(`/api/stock/${symbol}/financial-report?type=ratio&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
         ]).then(([income, balance, cashflow, ratio]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
@@ -1288,10 +1288,9 @@ export default function FinancialsTab({
             }
         });
 
-        fetch(`/api/stock/${symbol}/financial-report?type=note&period=${effectivePeriod}&limit=160`, {
+        fetchAPI<any>(`/api/stock/${symbol}/financial-report?type=note&period=${effectivePeriod}&limit=160`, {
             signal: controller.signal,
         })
-            .then(r => r.json())
             .then(payload => {
                 if (controller.signal.aborted) return;
                 const rows = Array.isArray(payload?.data)

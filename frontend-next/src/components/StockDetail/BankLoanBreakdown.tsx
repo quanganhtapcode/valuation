@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
     PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { fetchAPI } from '@/lib/api';
 
 interface LoanItem {
     name: string;
@@ -122,8 +123,7 @@ export default function BankLoanBreakdown({ symbol }: { symbol: string }) {
             setError(null);
         });
         const yearParam = selectedYear ? `?year=${selectedYear}` : '';
-        fetch(`/api/stock/${symbol}/loan-breakdown${yearParam}`)
-            .then(r => r.json())
+        fetchAPI<LoanBreakdownData>(`/api/stock/${symbol}/loan-breakdown${yearParam}`)
             .then((d: LoanBreakdownData) => {
                 setData(d);
                 if (!selectedYear && d.year) setSelectedYear(d.year);
