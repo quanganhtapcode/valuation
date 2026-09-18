@@ -8,6 +8,15 @@ export function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
+    // Serve the entry URL directly so a first visit avoids a locale redirect.
+    // Metadata still declares /vi or /en as the canonical URL.
+    if (pathname === '/') {
+        const preferred = request.cookies.get('lang')?.value;
+        const requestHeaders = new Headers(request.headers);
+        requestHeaders.set('x-site-locale', isLang(preferred || '') ? preferred! : 'vi');
+        return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+
     const parts = pathname.split('/');
     const locale = parts[1];
     if (!isLang(locale)) {
