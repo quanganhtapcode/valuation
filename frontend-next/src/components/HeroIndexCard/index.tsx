@@ -16,7 +16,11 @@ import {
 import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, isTradingHours } from '@/lib/api';
 import { cx } from '@/lib/utils';
 import { RiHistoryLine } from '@remixicon/react';
-import IndexHistoryModal from '@/components/IndexCard/IndexHistoryModal';
+import dynamic from 'next/dynamic';
+
+const IndexHistoryModal = dynamic(() => import('@/components/IndexCard/IndexHistoryModal'), {
+    ssr: false,
+});
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

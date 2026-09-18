@@ -1,4 +1,5 @@
 import OverviewClient from './OverviewClient';
+import { getOverviewSnapshot } from '@/lib/overviewSnapshot.server';
 import { createLocalizedMetadata } from '@/lib/i18nRouting';
 import {
   NewsItem,
@@ -6,7 +7,7 @@ import {
   GoldPriceItem,
 } from '@/lib/api';
 
-// The overview shell is static; live market data is loaded client-side.
+// Live updates remain client-side; a bounded snapshot supplies the initial HTML.
 export const revalidate = 300;
 
 export const generateMetadata = () => createLocalizedMetadata('/', {
@@ -14,26 +15,8 @@ export const generateMetadata = () => createLocalizedMetadata('/', {
   en: { title: 'Vietnam Stock Market Today | VNINDEX, VN30 & Analysis', description: 'Track VNINDEX, VN30, top movers, market heatmap, foreign flows, news, and Vietnamese stock valuation.' },
 });
 
-interface IndexData {
-  id: string;
-  name: string;
-  value: number;
-  change: number;
-  percentChange: number;
-  chartData: number[];
-  advances: number | undefined;
-  declines: number | undefined;
-  noChanges: number | undefined;
-  ceilings: number | undefined;
-  floors: number | undefined;
-  totalShares: number | undefined;
-  totalValue: number | undefined;
-}
-
 export default async function OverviewPage() {
-  // WS-first mode: do not prefetch indices over HTTP on SSR.
-  // Client subscribes to /ws/market/indices and only falls back to /market/vci-indices on WS error/close.
-  const initialIndices: IndexData[] = [];
+  const initialIndices = await getOverviewSnapshot();
 
   // Defer non-critical sections to client-side fetching for faster first paint
   const initialNews: NewsItem[] = [];

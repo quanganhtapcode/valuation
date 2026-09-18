@@ -159,15 +159,6 @@ export default function OverviewClient({
         setIndices(results);
     }, []);
 
-    const loadIndices = useCallback(async () => {
-        try {
-            const marketData = await fetchAllIndices();
-            mapMarketDataToIndices(marketData);
-        } catch (error) {
-            console.error('Error loading indices:', error);
-        }
-    }, [mapMarketDataToIndices]);
-
     const loadGold = useCallback(async () => {
         try {
             const result = await fetchGoldPrices();
@@ -224,29 +215,63 @@ export default function OverviewClient({
     // Movers: cold start
     useVisiblePolling(loadMovers, moversDelay, initialGainers.length === 0 || initialLosers.length === 0);
 
-    // Indices: WS with polling fallback
+    // A connected socket does not guarantee a snapshot. Bound the initial wait
+    // and fetch immediately on failure instead of waiting a full polling cycle.
     useEffect(() => {
+        let disposed = false;
+        let streamVersion = 0;
+        let fallbackRunning = false;
         let fallbackTimer: ReturnType<typeof setInterval> | null = null;
+        let snapshotTimer: ReturnType<typeof setTimeout> | null = null;
+        const refreshFallback = async () => {
+            if (disposed || fallbackRunning || document.visibilityState !== 'visible') return;
+            fallbackRunning = true;
+            const version = streamVersion;
+            try {
+                const marketData = await fetchAllIndices();
+                // A late HTTP response must not overwrite a newer live snapshot.
+                if (!disposed && version === streamVersion) mapMarketDataToIndices(marketData);
+            } catch (error) {
+                console.error('Error loading indices:', error);
+            } finally {
+                fallbackRunning = false;
+            }
+        };
         const startFallback = () => {
-            if (fallbackTimer) return;
-            fallbackTimer = setInterval(() => {
-                if (document.visibilityState === 'visible') void loadIndices();
-            }, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
+            if (disposed || fallbackTimer) return;
+            void refreshFallback();
+            fallbackTimer = setInterval(() => { void refreshFallback(); },
+                isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
         };
         const stopFallback = () => {
-            if (!fallbackTimer) return;
-            clearInterval(fallbackTimer);
+            if (snapshotTimer) clearTimeout(snapshotTimer);
+            if (fallbackTimer) clearInterval(fallbackTimer);
+            snapshotTimer = null;
             fallbackTimer = null;
         };
+        snapshotTimer = setTimeout(startFallback, 1500);
         const unsubscribe = subscribeIndicesStream({
-            onData: (marketData) => { mapMarketDataToIndices(marketData); stopFallback(); },
+            onData: (marketData) => {
+                if (!Object.values(marketData).some(data => data.CurrentIndex > 0)) return;
+                streamVersion += 1;
+                mapMarketDataToIndices(marketData);
+                stopFallback();
+            },
             onStatus: (status) => {
-                if (status === 'open') { stopFallback(); return; }
-                startFallback();
+                if (status !== 'open') startFallback();
             },
         });
-        return () => { unsubscribe(); stopFallback(); };
-    }, [loadIndices, mapMarketDataToIndices]);
+        const onVisibility = () => {
+            if (fallbackTimer) void refreshFallback();
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            disposed = true;
+            unsubscribe();
+            stopFallback();
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [mapMarketDataToIndices]);
 
 
     return (
@@ -268,7 +293,7 @@ export default function OverviewClient({
                         })}
                     />
 
-                    <HeatmapVN30 />
+                    <DeferredPanel height={620}><HeatmapVN30 /></DeferredPanel>
 
                     <DeferredPanel height={288}><EarningsSeason /></DeferredPanel>
 
@@ -278,8 +303,8 @@ export default function OverviewClient({
                 </div>
 
                 <aside className={styles.rightColumn}>
-                    <WatchlistCard />
-                    <MarketPulse gainers={gainers} losers={losers} isLoading={moversLoading} />
+                    <DeferredPanel height={208}><WatchlistCard /></DeferredPanel>
+                    <DeferredPanel height={256}><MarketPulse gainers={gainers} losers={losers} isLoading={moversLoading} /></DeferredPanel>
                     <DeferredPanel><FFWorldMarkets /></DeferredPanel>
                     <DeferredPanel><FFForexRates /></DeferredPanel>
                     <DeferredPanel><CryptoPrices /></DeferredPanel>
