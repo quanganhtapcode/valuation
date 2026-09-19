@@ -105,36 +105,31 @@ def _get_fireant_beta(ticker: str) -> float | None:
     return None
 
 
-def _get_index_closes(index_symbol: str = 'VN30', limit: int = 530) -> list[float]:
-    db_path = resolve_index_history_db_path()
+def _get_dated_closes(db_path: str, table: str, date_col: str, close_col: str,
+                      symbol: str, limit: int) -> dict[str, float]:
+    conn = None
     try:
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         rows = conn.execute(
-            "SELECT closeIndex FROM market_index_history WHERE symbol = ? "
-            "ORDER BY tradingDate ASC LIMIT ?",
-            (index_symbol, limit),
+            f"SELECT {date_col}, {close_col} FROM {table} WHERE symbol = ? "
+            f"ORDER BY {date_col} DESC LIMIT ?", (symbol.upper(), limit),
         ).fetchall()
-        conn.close()
-        return [float(r[0]) for r in rows if r[0] is not None and float(r[0]) > 0]
-    except Exception as exc:
-        logger.debug("Index closes failed for %s: %s", index_symbol, exc)
-        return []
+        return {str(day)[:10]: float(close) for day, close in rows
+                if close is not None and math.isfinite(float(close)) and float(close) > 0}
+    except sqlite3.Error as exc:
+        logger.debug("Price history failed for %s: %s", symbol, exc)
+        return {}
+    finally:
+        if conn is not None:
+            conn.close()
 
 
-def _get_stock_closes(ticker: str, limit: int = 530) -> list[float]:
-    db_path = resolve_price_history_db_path()
-    try:
-        conn = sqlite3.connect(db_path)
-        rows = conn.execute(
-            "SELECT close FROM stock_price_history WHERE symbol = ? "
-            "ORDER BY time ASC LIMIT ?",
-            (ticker.upper(), limit),
-        ).fetchall()
-        conn.close()
-        return [float(r[0]) for r in rows if r[0] is not None and float(r[0]) > 0]
-    except Exception as exc:
-        logger.debug("Stock closes failed for %s: %s", ticker, exc)
-        return []
+def _aligned_returns(stock: dict[str, float], index: dict[str, float],
+                     lookback: int) -> tuple[list[float], list[float]]:
+    # Both returns must cover exactly the same start/end trading dates.
+    days = sorted(stock.keys() & index.keys())[-(lookback + 1):]
+    return (_log_returns([stock[d] for d in days]),
+            _log_returns([index[d] for d in days]))
 
 
 def _log_returns(prices: list[float]) -> list[float]:
@@ -186,22 +181,26 @@ def calculate_beta(ticker: str, lookback_days: int = 252) -> dict:
             'is_fallback': False,
         }
 
-    # 2. OLS regression
-    stock_prices = _get_stock_closes(ticker, limit=lookback_days + 20)
-    if len(stock_prices) >= 30:
-        stock_ret = _log_returns(stock_prices)
-        for index_sym in ('VN30', 'VNINDEX'):
-            index_prices = _get_index_closes(index_sym, limit=lookback_days + 20)
-            if len(index_prices) < 30:
-                continue
-            index_ret = _log_returns(index_prices)
-            beta, n = _beta_ols(stock_ret, index_ret)
-            return {
-                'beta': beta,
-                'n_obs': n,
-                'index_used': index_sym,
-                'is_fallback': False,
-            }
+    # 3. OLS on the most recent common trading dates.
+    stock_prices = _get_dated_closes(
+        resolve_price_history_db_path(), 'stock_price_history', 'time', 'close',
+        ticker, lookback_days + 20,
+    )
+    for index_sym in ('VN30', 'VNINDEX'):
+        index_prices = _get_dated_closes(
+            resolve_index_history_db_path(), 'market_index_history', 'tradingDate',
+            'closeIndex', index_sym, lookback_days + 20,
+        )
+        stock_ret, index_ret = _aligned_returns(stock_prices, index_prices, lookback_days)
+        if len(stock_ret) < 30 or len(set(index_ret)) < 2:
+            continue
+        beta, n = _beta_ols(stock_ret, index_ret)
+        return {
+            'beta': beta,
+            'n_obs': n,
+            'index_used': index_sym,
+            'is_fallback': False,
+        }
 
     # 3. Fallback
     return {

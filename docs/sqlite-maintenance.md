@@ -11,7 +11,7 @@ Run from the repository root:
 The default command only reports redundant indexes. `--apply` acquires the same
 per-database lock as `vci_safe_run.sh`, creates and verifies a compressed SQLite
 snapshot in `data/backups/sqlite-optimization/<UTC timestamp>/`, then migrates
-and compacts each of the six explicitly listed databases. Run during a quiet
+and compacts each of the eight explicitly listed databases. Run during a quiet
 period: VACUUM needs temporary disk space and a writer lock. Do not run standalone
 fetchers concurrently. A failure stops subsequent databases; earlier databases
 may already be complete. The migrations can be rerun.
@@ -39,3 +39,15 @@ If reverting payload compression, also revert its fetcher write behavior.
 The notes fallback, legacy financial database and pre-SSI backup are intentionally
 retained. Their removal requires checking deployment configuration and recovery
 requirements. No financial history or news/event rows are pruned.
+
+Select databases to avoid rewriting databases already optimized:
+
+```sh
+.venv/bin/python automation/optimize_sqlite.py --database vci_company.sqlite --database vci_market_news.sqlite
+.venv/bin/python automation/optimize_sqlite.py --apply --database vci_company.sqlite --database vci_market_news.sqlite
+```
+
+The report includes freelist bytes (reusable pages, not necessarily the exact
+VACUUM saving). Company and market-news maintenance only compacts and refreshes
+query statistics; it preserves all table row counts. Empty legacy tables are
+not dropped. See [data inventory](data-inventory.md) for ownership and dependencies.

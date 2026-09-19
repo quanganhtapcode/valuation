@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import statistics
 
 
@@ -7,7 +8,8 @@ def _to_float(value, default: float = 0.0) -> float:
     try:
         if value is None:
             return default
-        return float(value)
+        result = float(value)
+        return result if math.isfinite(result) else default
     except Exception:
         return default
 
@@ -124,7 +126,7 @@ def _quality_grade(score: float) -> str:
     return 'F'
 
 
-def _build_quality_score(inputs: dict, pe_count: int, pb_count: int, ps_count: int) -> dict:
+def _build_quality_score(inputs: dict, pe_count: int, pb_count: int) -> dict:
     checks: list[dict] = []
 
     def add_check(name: str, passed: bool, points: int, detail: str = ''):
@@ -145,7 +147,7 @@ def _build_quality_score(inputs: dict, pe_count: int, pb_count: int, ps_count: i
 
     add_check('eps_ttm_available', eps_ok, 20, inputs.get('eps_source', 'missing'))
     add_check('bvps_available', bvps_ok, 15, inputs.get('bvps_source', 'missing'))
-    add_check('shares_outstanding_available', shares_ok, 10, 'sqlite.ratio_wide.outstanding_share')
+    add_check('shares_outstanding_available', shares_ok, 10, 'vci_stats_financial.shares')
     add_check('pe_peer_sample_ge_10', int(pe_count) >= 10, 15, f'count={int(pe_count)}')
     add_check('pb_peer_sample_ge_10', int(pb_count) >= 10, 15, f'count={int(pb_count)}')
     add_check('screening_industry_group_available', screening_group_ok, 10, str(inputs.get('industry_screening_key') or ''))

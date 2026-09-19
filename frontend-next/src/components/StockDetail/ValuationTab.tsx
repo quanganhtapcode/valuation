@@ -185,6 +185,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     const [manualPrice, setManualPrice] = useState<number>(currentPrice || 0);
     const [userEditedPrice, setUserEditedPrice] = useState<boolean>(false);
     const [userCustomizedModels, setUserCustomizedModels] = useState(false);
+    const [userEditedGrowth, setUserEditedGrowth] = useState(false);
 
     const defaultAssumptions = {
         revenueGrowth: 0,
@@ -250,9 +251,11 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
 
     useEffect(() => {
         setAssumptions(defaultAssumptions);
+        setUserEditedGrowth(false);
     }, [symbol]); // eslint-disable-line
 
     const handleAssumptionChange = (key: string, value: string) => {
+        if (key === 'revenueGrowth') setUserEditedGrowth(true);
         setAssumptions(prev => ({ ...prev, [key]: parseFloat(value) || 0 }));
     };
 
@@ -322,6 +325,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         try {
             const data = await calculateValuation(symbol, {
                 ...assumptions,
+                revenueGrowth: userEditedGrowth ? assumptions.revenueGrowth : undefined,
                 ...(userCustomizedModels ? { modelWeights: getModelWeights(), useCustomWeights: true } : {}),
                 currentPrice: manualPrice,
                 includeComparableLists: true,
@@ -341,7 +345,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     requiredReturn: prev.requiredReturn === 0 && data.wacc_suggestion?.ke
                         ? data.wacc_suggestion.ke * 100
                         : prev.requiredReturn,
-                    revenueGrowth: prev.revenueGrowth === 0 && data.inputs?.growth_used ? data.inputs.growth_used : prev.revenueGrowth,
+                    revenueGrowth: !userEditedGrowth && data.inputs?.growth_used != null ? data.inputs.growth_used : prev.revenueGrowth,
                 }));
             }
         } catch (error) {
@@ -419,6 +423,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
 
     const handleReset = () => {
         setAssumptions(defaultAssumptions);
+        setUserEditedGrowth(false);
         setManualPrice(Math.round(currentPrice * 100) / 100 || 0);
         setUserEditedPrice(false);
         setUserCustomizedModels(false);

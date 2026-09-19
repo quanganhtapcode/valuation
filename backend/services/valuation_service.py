@@ -3,13 +3,12 @@ import threading
 import time
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from backend.db_path import resolve_vci_screening_db_path, resolve_vci_stats_financial_db_path, resolve_vci_company_db_path, resolve_valuation_cache_db_path
 from backend.data_sources.financial_repository import FinancialRepository
 from backend.services.vci_financial_adapter import (
     has_vci_financial_db,
     load_eps_history_yearly as vci_load_eps_history,
-    load_latest_financial_components as vci_load_financial_components,
     load_ttm_eps as vci_load_ttm_eps,
     load_ttm_financial_components as vci_load_ttm_financial_components,
     load_latest_balance_sheet_components as vci_load_balance_sheet_components,
@@ -17,7 +16,6 @@ from backend.services.vci_financial_adapter import (
 )
 from backend.services.beta_calculator import suggest_wacc as _suggest_wacc
 from backend.services.valuation_policy import build_valuation_policy, sector_archetype, suggest_growth
-from backend.services.valuation_policy import build_valuation_policy, market_cap_tier
 from backend.services.vci_news_sqlite import default_news_db_path, summarize_symbol_news_signal
 from backend.services.valuation_math import (
     _build_default_scenarios,
@@ -253,7 +251,7 @@ def _load_vci_forecast_inputs(symbol: str) -> dict:
         years.append(record)
     current_year = datetime.now().year
     future = [row for row in years if row['is_forecast'] and int(row['year']) >= current_year]
-    selected = future[0] if future else next((row for row in reversed(years) if row['is_forecast']), None)
+    selected = future[0] if future else None
     return {
         'selected': selected,
         'years': years,
@@ -274,25 +272,6 @@ def _load_eps_history_yearly(symbol: str, limit: int = 10) -> list[dict]:
         except Exception as exc:
             logger.debug(f"VCI EPS history failed for {symbol}: {exc}")
     return []
-
-
-def _load_latest_financial_components(symbol: str) -> dict:
-    """Return income + cash flow components for FCFE calculation from VCI financial statements."""
-    symbol = symbol.upper()
-    if has_vci_financial_db():
-        try:
-            result = vci_load_financial_components(symbol)
-            if result.get('net_income', 0) > 0 or result.get('depreciation', 0) > 0:
-                return result
-        except Exception as exc:
-            logger.debug(f"VCI financial components failed for {symbol}: {exc}")
-    return {
-        'net_income': 0.0, 'period_year': None, 'period_quarter': None,
-        'financial_expense': 0.0, 'depreciation': 0.0, 'depreciation_fixed_assets': 0.0,
-        'operating_cf': 0.0, 'capex_net': 0.0,
-        'proceeds_borrowings': 0.0, 'repayments_borrowings': 0.0,
-        'net_borrowing': 0.0, 'source': 'missing',
-    }
 
 
 def _load_screening_peer_details(screening_db_path: str, icb_code_lv2: str, symbol: str) -> list[dict]:
@@ -349,37 +328,6 @@ def _load_screening_peer_details(screening_db_path: str, icb_code_lv2: str, symb
         conn.close()
     return peers
 
-
-
-def _load_valuation_datamart_row(db_path: str, symbol: str) -> dict | None:
-    symbol = str(symbol or '').upper().strip()
-    if not symbol:
-        return None
-
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    try:
-        exists = cur.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='valuation_datamart'"
-        ).fetchone()
-        if not exists:
-            return None
-
-        row = cur.execute(
-            """
-            SELECT *
-            FROM valuation_datamart
-            WHERE UPPER(symbol) = ?
-            LIMIT 1
-            """,
-            (symbol,),
-        ).fetchone()
-        return dict(row) if row else None
-    except Exception:
-        return None
-    finally:
-        conn.close()
 
 
 def _merge_peer_details(screening_peers: list[dict], overview_peers: list[dict]) -> list[dict]:
@@ -450,8 +398,6 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
     if not ov:
         return {'success': False, 'error': f'Symbol {symbol} not found in overview'}
 
-    ratio_wide_row = None
-
     industry = (ov['industry'] or 'Unknown')
 
     screening_db_path = resolve_vci_screening_db_path()
@@ -482,7 +428,7 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
     screening_market_price = _to_float(screening_row['marketPrice']) if screening_row else 0.0
 
     current_price = _to_float(current_price_override) if current_price_override and current_price_override > 0 else _to_float(ov['current_price'])
-    current_price_source = 'request.currentPrice' if current_price_override and current_price_override > 0 else 'sqlite.overview.current_price'
+    current_price_source = 'request.currentPrice' if current_price_override and current_price_override > 0 else 'vci_screening.marketPrice'
 
     # Use VCI marketPrice as current_price fallback (updated every 5-15 min)
     if not (current_price and current_price > 0) and screening_market_price > 0:
@@ -500,9 +446,9 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
     bvps_source = 'missing'
 
     # EPS priority: TTM from vci_financials.isa23 → annual isa23 → price/pe (circular fallback)
-    fs_ttm_eps = vci_load_ttm_eps(symbol) if has_vci_financial_db() else 0.0
+    fs_ttm_eps = vci_load_ttm_eps(symbol) if has_vci_financial_db() else None
     sf_eps = (screening_market_price / sf_pe) if (screening_market_price > 0 and sf_pe > 0) else 0.0
-    if fs_ttm_eps > 0:
+    if fs_ttm_eps is not None:
         eps = fs_ttm_eps
         eps_source = 'vci_financials.isa23 (TTM)'
     elif sf_eps > 0:
@@ -540,28 +486,19 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
             screening_industry_key = None
         screening_industry_name = screening_row['viSector'] or screening_row['enSector']
 
-    # shares_outstanding: vci_stats_financial.shares → ratio_wide.outstanding_share
+    # shares_outstanding from vci_stats_financial.shares
     outstanding_share = 0.0
     if sf_shares > 0:
         outstanding_share = sf_shares
-    elif ratio_wide_row and ratio_wide_row['outstanding_share']:
-        outstanding_share = _to_float(ratio_wide_row['outstanding_share'])
 
     market_cap_raw = _to_float((sf_row or {}).get('market_cap'))
     # TTM financial components (4-quarter sum when available)
-    if has_vci_financial_db():
-        financial_components = vci_load_ttm_financial_components(symbol)
-        balance_sheet_components = vci_load_balance_sheet_components(symbol)
-    else:
-        financial_components = _load_latest_financial_components(symbol)
-        balance_sheet_components = {
-            'cash': 0.0, 'short_term_debt': 0.0, 'long_term_debt': 0.0,
-            'total_debt': 0.0, 'net_debt': 0.0, 'source': 'missing',
-        }
+    financial_components = vci_load_ttm_financial_components(symbol)
+    balance_sheet_components = vci_load_balance_sheet_components(symbol)
     net_income_ttm = float(financial_components.get('net_income') or 0.0)
     net_income_source = financial_components.get('source', 'missing')
     # If BCTC has no net income, fall back to EPS × shares
-    if net_income_ttm <= 0 and eps > 0 and outstanding_share > 0:
+    if net_income_source == 'missing' and eps > 0 and outstanding_share > 0:
         net_income_ttm = float(eps * outstanding_share)
         net_income_source = 'derived: eps_ttm * shares_outstanding'
     implied_price_rw = (market_cap_raw / outstanding_share) if outstanding_share > 0 else 0.0
@@ -624,14 +561,13 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     bvps = float(inputs['bvps'])
     shares_outstanding = float(inputs.get('shares_outstanding') or 0.0)
     net_income_ttm = float(inputs.get('net_income_ttm') or 0.0)
-    fcfe_base_per_share = (net_income_ttm / shares_outstanding) if shares_outstanding > 0 else 0.0
 
     is_bank = bool(inputs.get('is_bank', False))
     analyst_forecast = inputs.get('analyst_forecast') or {}
     selected_forecast = analyst_forecast.get('selected') or {}
     forecast_eps = _to_float(selected_forecast.get('eps'))
     forecast_roe_pct = _to_float(selected_forecast.get('roe'))
-    forecast_profit_growth_pct = _to_float(selected_forecast.get('profit_growth'))
+    forecast_profit_growth_pct = _to_float(selected_forecast.get('profit_growth'), float('nan'))
 
     # Assumptions
     projection_years = int(_to_float(request_data.get('projectionYears'), 5))
@@ -666,8 +602,8 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             'source': '60% vci_analyst_profit_growth + 40% historical_eps_cagr',
         }
     default_growth_pct = round(growth_suggestion['used'] * 100, 1)
-    growth_override_pct = _to_float(request_data.get('revenueGrowth'), 0.0)
-    growth = (growth_override_pct if growth_override_pct != 0 else default_growth_pct) / 100.0
+    growth_override_pct = _to_float(request_data.get('revenueGrowth'), default_growth_pct)
+    growth = growth_override_pct / 100.0
     # Capital costs: user overrides are accepted, otherwise derive Ke/WACC from
     # CAPM and the company's reported capital structure.
     balance_sheet_components = inputs.get('balance_sheet_components') or {}
@@ -683,22 +619,17 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     required_return_from_request = _to_float(request_data.get('requiredReturn'), 0.0) / 100.0
     required_return = required_return_from_request if required_return_from_request > 0 else wacc_suggestion['ke']
 
-    # Industry comparables: VCI screening industry peers (cached) → valuation_datamart fallback.
+    # Industry comparables: VCI screening industry peers (cached).
     screening_db_path = resolve_vci_screening_db_path()
-    db_path = resolve_valuation_cache_db_path()
     screening_key = inputs.get('industry_screening_key')
     screening_name = inputs.get('industry_screening_name')
-    datamart_row = _load_valuation_datamart_row(db_path, inputs['symbol'])
 
     rows: list[tuple[str, float, float, float]] = []
     comparables_source = 'sqlite.vci_screening (icbCodeLv2 cohort; symbol excluded)'
     comparables_group = {'type': 'vci_screening.icbCodeLv2', 'key': industry}
 
-    dm_screening_key = str((datamart_row or {}).get('industry_screening_key') or '').strip()
-    dm_screening_name = str((datamart_row or {}).get('industry_screening_name') or '').strip()
-
-    effective_screening_key = screening_key or (dm_screening_key or None)
-    effective_screening_name = screening_name or dm_screening_name
+    effective_screening_key = screening_key
+    effective_screening_name = screening_name
 
     if effective_screening_key:
         try:
@@ -745,20 +676,6 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
 
     pe_sample_size = len(pe_values_all)
     pb_sample_size = len(pb_values_all)
-
-    # valuation_datamart fallback: use precomputed medians only when VCI screening yielded nothing.
-    if datamart_row and (industry_median_pe is None or industry_median_pb is None):
-        dm_pe = _to_float(datamart_row.get('pe_median'))
-        dm_pb = _to_float(datamart_row.get('pb_median'))
-        dm_pe_count = int(_to_float(datamart_row.get('pe_count')))
-        dm_pb_count = int(_to_float(datamart_row.get('pb_count')))
-        if industry_median_pe is None and dm_pe > 0 and dm_pe_count > 0:
-            industry_median_pe = float(dm_pe)
-            pe_sample_size = dm_pe_count
-            comparables_source = 'sqlite.valuation_datamart (precomputed medians fallback)'
-        if industry_median_pb is None and dm_pb > 0 and dm_pb_count > 0:
-            industry_median_pb = float(dm_pb)
-            pb_sample_size = dm_pb_count
 
     # Use a peer multiple as the default.  Including the company's current
     # multiple anchors the fair value to today's market price and becomes
@@ -863,8 +780,8 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     depreciation_base = _to_float(cashflow_components.get('depreciation'))
     net_income_base = _to_float(cashflow_components.get('net_income')) or net_income_ttm
 
-    # FCFE = Operating CF (cfa1) - Capex + Net New Borrowing
-    # FCFF = Operating CF (cfa1) + After-tax Interest - Capex
+    # FCFE = Operating CF (cfa18) - Capex + Net New Borrowing
+    # FCFF = Operating CF (cfa18) + After-tax Interest - Capex
     fcfe_base_total = operating_cf_base - capex_net_base + net_borrowing_base
     fcff_base_total = operating_cf_base - capex_net_base + interest_after_tax_base
 
@@ -921,7 +838,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         fcfe_base_per_share=float(fcfe_base_per_share),
         fcff_base_per_share=float(fcff_base_per_share),
         net_debt_per_share=float(net_debt_per_share),
-        eps=float(eps),
+        eps=float(eps_for_pe),
         bvps=float(bvps),
         pe_used=float(pe_used),
         pb_used=float(pb_used),
@@ -941,7 +858,6 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             inputs=inputs,
             pe_count=pe_sample_size,
             pb_count=pb_sample_size,
-            ps_count=0,
         )
 
     pe_values_export = pe_values_all[:comparable_list_limit]
@@ -967,11 +883,11 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     pe_std = pe_summary.get('std_dev') or 0.0
     pb_std = pb_summary.get('std_dev') or 0.0
     fair_value_range = None
-    if eps > 0 and pe_used > 0:
+    if eps_for_pe > 0 and pe_used > 0:
         fair_value_range = {
-            'low_pe':  float(round(eps * max(0.0, pe_used - pe_std), 2)),
-            'mid_pe':  float(round(eps * pe_used, 2)),
-            'high_pe': float(round(eps * (pe_used + pe_std), 2)),
+            'low_pe':  float(round(eps_for_pe * max(0.0, pe_used - pe_std), 2)),
+            'mid_pe':  float(round(eps_for_pe * pe_used, 2)),
+            'high_pe': float(round(eps_for_pe * (pe_used + pe_std), 2)),
             'pe_std':  float(round(pe_std, 2)),
         }
         if bvps > 0 and pb_used > 0:
@@ -1020,7 +936,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         },
         'calculation': {
             'dcf_fcfe': {
-                'cashflow_proxy': 'FCFE = operating_cf (cfa1) - capex_net + net_borrowing',
+                'cashflow_proxy': 'FCFE = operating_cf (cfa18) - capex_net + net_borrowing',
                 'operating_cf': float(operating_cf_base),
                 'net_income': float(net_income_base),
                 'shares_outstanding': float(shares_outstanding),
@@ -1039,7 +955,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
                 'result': float(fcfe_value),
             },
             'dcf_fcff': {
-                'cashflow_proxy': 'FCFF = operating_cf (cfa1) - capex_net + interest_after_tax',
+                'cashflow_proxy': 'FCFF = operating_cf (cfa18) - capex_net + interest_after_tax',
                 'operating_cf': float(operating_cf_base),
                 'net_income': float(net_income_base),
                 'depreciation': float(depreciation_base),
@@ -1093,7 +1009,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             'eps_ttm': inputs['eps_source'],
             'bvps': inputs['bvps_source'],
             'current_price': inputs['current_price_source'],
-            'shares_outstanding': 'sqlite.ratio_wide.outstanding_share',
+            'shares_outstanding': 'vci_stats_financial.shares',
             'net_income_ttm': inputs.get('net_income_source', 'missing'),
             'cashflow_components': (cashflow_components.get('source') or 'missing'),
             'balance_sheet_components': (balance_sheet_components.get('source') or 'missing'),

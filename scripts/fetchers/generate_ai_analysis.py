@@ -36,7 +36,6 @@ from backend.db_path import (
     resolve_vci_technical_db_path,
 )
 from backend.services.vci_technical_sqlite import query_technical_snapshot
-from backend.services.valuation_service import calculate_valuation
 
 FINANCIALS_DB = os.environ.get(
     "VCI_FINANCIAL_STATEMENT_DB_PATH",
@@ -409,26 +408,6 @@ def fetch_forecast_years(cache_conn: sqlite3.Connection, ticker: str) -> list[di
     ]
 
 
-def fetch_valuation_models(ticker: str) -> dict | None:
-    """Call ValuationService and return valuation model outputs."""
-    try:
-        result = calculate_valuation(ticker, {})
-        if not result.get("success"):
-            return None
-        return {
-            "fcfe": result.get("valuations", {}).get("fcfe"),
-            "fcff": result.get("valuations", {}).get("fcff"),
-            "justified_pe": result.get("valuations", {}).get("justified_pe"),
-            "justified_pb": result.get("valuations", {}).get("justified_pb"),
-            "graham": result.get("valuations", {}).get("graham"),
-            "weighted_average": result.get("valuations", {}).get("weighted_average"),
-            "fair_value_range": result.get("fair_value_range"),
-        }
-    except Exception as e:
-        logger.warning(f"ValuationService failed for {ticker}: {e}")
-        return None
-
-
 def build_rule_based_analysis(
     ticker: str,
     name: str,
@@ -579,40 +558,6 @@ def build_rule_based_analysis(
         _json.dumps(valuation_obj, ensure_ascii=False),
         _json.dumps(news_obj, ensure_ascii=False),
     )
-
-
-def parse_json_response(raw: str) -> str | None:
-    """Extract and validate JSON from AI response. Returns JSON string or None."""
-    import json, re
-    text = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        try:
-            data = json.loads(match.group())
-            return json.dumps(data, ensure_ascii=False)
-        except json.JSONDecodeError:
-            pass
-    return None
-
-
-def parse_analysis(raw: str) -> tuple[str, str | None]:
-    """Return (analysis_vi_summary, analysis_json_str | None).
-
-    Tries to extract JSON from the response. Falls back to storing raw text.
-    """
-    import json, re
-    # Strip markdown code fences if present
-    text = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
-    # Find first { ... } block
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        try:
-            data = json.loads(match.group())
-            summary = data.get("summary", "")
-            return summary, json.dumps(data, ensure_ascii=False)
-        except json.JSONDecodeError:
-            pass
-    return raw, None
 
 
 def save_analysis(

@@ -294,21 +294,6 @@ def cache_set_ns(namespace: str, key: str, value: Any, ttl: int = 300):
     _global_cache.set_ns(namespace, key, value, ttl)
 
 
-def cache_delete(key: str):
-    """Delete value from global cache"""
-    _global_cache.delete(key)
-
-
-def cache_clear():
-    """Clear global cache"""
-    _global_cache.clear()
-
-
-def cache_make_key(namespace: str, key: str) -> str:
-    """Build versioned namespaced key without writing to cache."""
-    return _global_cache.make_key(namespace, key)
-
-
 def cache_invalidate_namespace(namespace: str) -> int:
     """Invalidate all keys for a namespace and bump its key version."""
     return _global_cache.invalidate_namespace(namespace)

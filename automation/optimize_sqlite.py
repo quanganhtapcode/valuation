@@ -22,6 +22,8 @@ INDEXES = {
     'vci_stats_financial.sqlite': ['idx_sfh_ticker'],
     'vci_financials.sqlite': ['idx_statement_periods_ticker', 'idx_statement_periods_lookup'],
     'vci_short_financials.sqlite': [],
+    'vci_company.sqlite': [],
+    'vci_market_news.sqlite': [],
 }
 
 
@@ -101,15 +103,19 @@ def migrate(conn: sqlite3.Connection, filename: str, cutoff: str) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--database', action='append', choices=sorted(INDEXES),
+                        help='Maintain only this database; repeat to select several.')
     args = parser.parse_args()
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     archive = ROOT / 'data' / 'backups' / 'sqlite-optimization' / stamp
     cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-    for filename in INDEXES:
+    for filename in dict.fromkeys(args.database or INDEXES):
         path = (ROOT / 'data' / 'sqlite' / filename).resolve(strict=True)
         if not args.apply:
             with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as conn:
                 print(json.dumps({'database': filename, 'bytes': path.stat().st_size,
+                                  'reclaimable_bytes': conn.execute('PRAGMA freelist_count').fetchone()[0]
+                                  * conn.execute('PRAGMA page_size').fetchone()[0],
                                   'redundant_indexes': [n for n in INDEXES[filename] if verify_index(conn, n)]}))
             continue
         # Same lock as vci_safe_run.sh; never race a scheduled pipeline job.

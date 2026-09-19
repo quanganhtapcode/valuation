@@ -9,14 +9,15 @@ Run after the daily pipeline:
 from __future__ import annotations
 
 import logging
+import math
 import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from backend.db_path import resolve_valuation_cache_db_path
 
-_CACHE_DB = Path(__file__).resolve().parents[2] / "data" / "sqlite" / "valuation_cache.sqlite"
+logger = logging.getLogger(__name__)
 
 _CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS valuations (
@@ -38,11 +39,12 @@ def _get_symbols() -> list[str]:
 
 
 def _ensure_cache_db() -> str:
-    _CACHE_DB.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(str(_CACHE_DB)) as conn:
+    cache_db = Path(resolve_valuation_cache_db_path())
+    cache_db.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(str(cache_db)) as conn:
         conn.execute(_CREATE_TABLE)
         conn.commit()
-    return str(_CACHE_DB)
+    return str(cache_db)
 
 
 def run_batch_valuations(
@@ -64,20 +66,24 @@ def run_batch_valuations(
 
     results = {"computed": 0, "skipped": 0, "errors": 0, "total": len(symbols)}
     rows_to_upsert: list[tuple] = []
+    skipped_symbols: list[tuple[str]] = []
 
     for i, symbol in enumerate(symbols, 1):
         try:
             val = calculate_valuation(symbol, {})
             if not val.get("success"):
                 results["skipped"] += 1
+                skipped_symbols.append((symbol.upper(),))
                 continue
 
             intrinsic = (val.get("valuations") or {}).get("weighted_average")
             current_price = (val.get("inputs") or {}).get("current_price")
             quality = val.get("quality") or {}
 
-            if intrinsic is None or not current_price or current_price <= 0:
+            if (intrinsic is None or not math.isfinite(intrinsic) or intrinsic <= 0
+                    or not current_price or not math.isfinite(current_price) or current_price <= 0):
                 results["skipped"] += 1
+                skipped_symbols.append((symbol.upper(),))
                 continue
 
             upside_pct = ((intrinsic - current_price) / current_price) * 100.0
@@ -108,9 +114,16 @@ def run_batch_valuations(
                 results["errors"],
             )
 
-    # Bulk upsert
-    if rows_to_upsert:
+    # Do not publish a partly failed full refresh. Replace the full snapshot
+    # atomically so ineligible or delisted stocks cannot retain stale values.
+    if results["errors"]:
+        raise RuntimeError(f"Valuation refresh failed; cache preserved: {results}")
+    if rows_to_upsert or skipped_symbols:
         with sqlite3.connect(cache_path) as conn:
+            if max_symbols is None:
+                conn.execute("DELETE FROM valuations")
+            else:
+                conn.executemany("DELETE FROM valuations WHERE symbol = ?", skipped_symbols)
             conn.executemany(
                 """
                 INSERT OR REPLACE INTO valuations
