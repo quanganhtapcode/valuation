@@ -145,10 +145,6 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         );
     """)
     conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_shareholders_ticker
-        ON shareholders (ticker);
-    """)
-    conn.execute("""
         CREATE TABLE IF NOT EXISTS meta (
           k TEXT PRIMARY KEY,
           v TEXT NOT NULL

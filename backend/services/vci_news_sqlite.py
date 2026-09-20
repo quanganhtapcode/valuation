@@ -4,7 +4,7 @@ import datetime as dt
 import json
 import math
 import os
-import sqlite3
+from backend.sqlite_utils import read_connection
 from typing import Any, Optional
 
 
@@ -18,7 +18,7 @@ def default_news_db_path() -> str:
     env_path = os.getenv("VCI_MARKET_NEWS_DB_PATH", "").strip() or os.getenv("VCI_NEWS_DB_PATH", "").strip()
     candidates = []
     if env_path:
-        candidates.append(env_path)
+        return os.path.abspath(os.path.expanduser(env_path))
 
     candidates.extend(
         [
@@ -36,17 +36,11 @@ def default_news_db_path() -> str:
     return os.path.join(root, "data", "sqlite", "vci_market_news.sqlite")
 
 
-def _connect(db_path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path, timeout=10)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
 def get_meta_value(db_path: str, key: str) -> Optional[str]:
     if not db_path or not os.path.exists(db_path):
         return None
     try:
-        with _connect(db_path) as conn:
+        with read_connection(db_path) as conn:
             row = conn.execute("SELECT value FROM news_meta WHERE key = ?", (key,)).fetchone()
             return row[0] if row else None
     except Exception:
@@ -82,7 +76,7 @@ def query_market_news(
     page_size = min(max(int(page_size or 12), 1), 50)
     offset = (page - 1) * page_size
 
-    with _connect(db_path) as conn:
+    with read_connection(db_path) as conn:
         rows = conn.execute(
             """
             SELECT raw_json
@@ -118,7 +112,7 @@ def query_recent_market_news(
 
     limit = min(max(int(limit or 30), 1), 100)
     cutoff = since.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
-    with _connect(db_path) as conn:
+    with read_connection(db_path) as conn:
         rows = conn.execute(
             """
             SELECT raw_json
@@ -219,7 +213,7 @@ def query_news_for_symbol(
         return []
     limit = min(max(int(limit or 15), 1), 50)
 
-    with _connect(db_path) as conn:
+    with read_connection(db_path) as conn:
         rows = conn.execute(
             """
             SELECT raw_json

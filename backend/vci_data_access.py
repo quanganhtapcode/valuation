@@ -17,6 +17,8 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Optional
 
+from backend.sqlite_utils import open_readonly, row_dict
+
 from backend.db_path import (
     resolve_vci_screening_db_path,
     resolve_vci_stats_financial_db_path,
@@ -31,25 +33,17 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def _connect(db_path: str):
-    """Context manager for SQLite connections with row factory."""
-    import os
-    if not db_path or not os.path.exists(db_path):
+    """Missing sources may fall back; query errors retain their original cause."""
+    try:
+        conn = open_readonly(db_path)
+    except (OSError, sqlite3.Error) as exc:
+        logger.warning("SQLite connect failed for %s: %s", db_path, exc)
         yield None
         return
-    conn = None
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        conn.row_factory = sqlite3.Row
         yield conn
-    except Exception as e:
-        logger.warning(f"SQLite connect failed for {db_path}: {e}")
-        yield None
     finally:
-        try:
-            if conn is not None:
-                conn.close()
-        except Exception:
-            pass
+        conn.close()
 
 
 class VCIDataAccess:
@@ -66,7 +60,7 @@ class VCIDataAccess:
                     "SELECT * FROM companies WHERE ticker = ?", (symbol,)
                 ).fetchone()
                 if row:
-                    d = dict(row)
+                    d = row_dict(row)
                     return {
                         "symbol": d["ticker"],
                         "name": d.get("organ_name") or d.get("short_name") or symbol,
@@ -90,7 +84,7 @@ class VCIDataAccess:
                     "SELECT * FROM screening_data WHERE ticker = ?", (symbol,)
                 ).fetchone()
                 if row:
-                    d = dict(row)
+                    d = row_dict(row)
                     return {
                         "symbol": d["ticker"],
                         "name": d.get("enOrganName") or d.get("viOrganName") or symbol,
@@ -111,7 +105,7 @@ class VCIDataAccess:
                 "SELECT * FROM stats_financial WHERE ticker = ?", (symbol,)
             ).fetchone()
             if row:
-                d = dict(row)
+                d = row_dict(row)
                 return {
                     "pe": d.get("pe"),
                     "pb": d.get("pb"),
@@ -162,7 +156,7 @@ class VCIDataAccess:
             ).fetchall()
             result = []
             for r in rows:
-                d = dict(r)
+                d = row_dict(r)
                 result.append({
                     "year": d.get("year_report"),
                     "quarter": d.get("quarter_report"),
@@ -211,7 +205,7 @@ class VCIDataAccess:
                 """,
                 (symbol, limit),
             ).fetchall()
-            return [dict(r) for r in rows] if rows else []
+            return [row_dict(r) for r in rows] if rows else []
 
     # ── Shareholders ────────────────────────────────────────────────────
     def get_shareholders(self, symbol: str) -> list[dict]:
@@ -232,7 +226,7 @@ class VCIDataAccess:
                 """,
                 (symbol,),
             ).fetchall()
-            return [dict(r) for r in rows] if rows else []
+            return [row_dict(r) for r in rows] if rows else []
 
     # ── Price history ───────────────────────────────────────────────────
     def get_price_history(self, symbol: str, limit: int = 250) -> list[dict]:
@@ -251,7 +245,7 @@ class VCIDataAccess:
                 """,
                 (symbol, limit),
             ).fetchall()
-            return [dict(r) for r in rows] if rows else []
+            return [row_dict(r) for r in rows] if rows else []
 
     # ── Combined overview (replaces old 'overview' table) ───────────────
     def get_overview_data(self, symbol: str) -> dict:
@@ -273,7 +267,7 @@ class VCIDataAccess:
                     "SELECT * FROM stats_financial WHERE ticker = ?", (symbol,)
                 ).fetchone()
                 if row:
-                    d = dict(row)
+                    d = row_dict(row)
                     result.update({
                         "pe": d.get("pe"),
                         "pb": d.get("pb"),
@@ -322,7 +316,7 @@ class VCIDataAccess:
                     "SELECT * FROM screening_data WHERE ticker = ?", (symbol,)
                 ).fetchone()
                 if row:
-                    d = dict(row)
+                    d = row_dict(row)
                     snapshot = {
                         "exchange": d.get("exchange"),
                         "current_price": d.get("marketPrice"),

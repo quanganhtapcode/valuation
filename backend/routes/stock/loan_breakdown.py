@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
+from backend.sqlite_utils import read_connection, row_dict
 
 from flask import Blueprint, jsonify, request
 
@@ -65,40 +65,40 @@ def register(stock_bp: Blueprint) -> None:
             return jsonify({"error": "Financial DB not available"}), 503
 
         try:
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
+            with read_connection(db_path) as conn:
 
-            # Check wide-format note table exists
-            has_note = bool(conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='note'"
-            ).fetchone())
-            if not has_note:
-                conn.close()
-                return jsonify({"error": "Note table not available"}), 503
+                # Check wide-format note table exists
+                has_note = bool(conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='note'"
+                ).fetchone())
+                if not has_note:
+                    return jsonify({"error": "Note table not available"}), 503
 
-            # Available years
-            year_rows = conn.execute(
-                "SELECT DISTINCT year_report FROM note WHERE ticker=? AND period_kind='YEAR' ORDER BY year_report DESC",
-                (clean_symbol,),
-            ).fetchall()
-            years = [r["year_report"] for r in year_rows]
-            if not years:
-                conn.close()
-                return jsonify({"years": [], "year": None, "industry": [], "npl": []})
+                # Available years
+                year_rows = conn.execute(
+                    "SELECT DISTINCT year_report FROM note WHERE ticker=? AND period_kind='YEAR' ORDER BY year_report DESC",
+                    (clean_symbol,),
+                ).fetchall()
+                years = [r["year_report"] for r in year_rows]
+                if not years:
+                    return jsonify({"years": [], "year": None, "industry": [], "npl": []})
 
-            req_year = request.args.get("year", type=int)
-            year = req_year if req_year in years else years[0]
+                req_year = request.args.get("year", type=int)
+                year = req_year if req_year in years else years[0]
 
-            row = conn.execute(
-                "SELECT * FROM note WHERE ticker=? AND period_kind='YEAR' AND year_report=?",
-                (clean_symbol, year),
-            ).fetchone()
-            conn.close()
+                available = {r["name"] for r in conn.execute("PRAGMA table_info(note)")}
+                fields = [field for field in (*INDUSTRY_FIELDS, *NPL_FIELDS) if field in available]
+                # Legacy schemas may omit banking fields; missing fields remain zero.
+                projection = ", ".join('"' + field + '"' for field in fields) or 'ticker'
+                row = conn.execute(
+                    f"SELECT {projection} FROM note WHERE ticker=? AND period_kind='YEAR' AND year_report=?",
+                    (clean_symbol, year),
+                ).fetchone()
 
             if not row:
                 return jsonify({"years": years, "year": year, "industry": [], "npl": []})
 
-            rd = {k: row[k] for k in row.keys()}
+            rd = row_dict(row)
 
             # Industry breakdown — top N + "Khác"
             industry_raw = [

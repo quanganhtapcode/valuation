@@ -92,7 +92,6 @@ CREATE TABLE IF NOT EXISTS macro_data (
     PRIMARY KEY (indicator_id, date)
 );
 
-CREATE INDEX IF NOT EXISTS idx_md_indicator ON macro_data(indicator_id);
 CREATE INDEX IF NOT EXISTS idx_mi_type      ON macro_indicators(type);
 """
 

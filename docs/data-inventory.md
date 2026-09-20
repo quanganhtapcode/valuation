@@ -7,7 +7,7 @@ Tên file chỉ mô tả một bộ dữ liệu, không có nghĩa mọi bảng 
 | File | Vai trò |
 |---|---|
 | `vci_financials.sqlite` | Báo cáo tài chính chi tiết quý/năm: `balance_sheet`, `income_statement`, `cash_flow`, `note`; định nghĩa chỉ tiêu, kỳ báo cáo, nguồn và nhật ký nạp |
-| `vci_short_financials.sqlite` | Báo cáo tài chính tóm tắt từ endpoint short-financial; bảng lịch sử, bản mới nhất và payload gốc nén |
+| `vci_short_financials.sqlite` | Đã ngừng sử dụng và gỡ ngày 20/09/2026 theo xác nhận của chủ dự án; không còn fetcher hoặc bước bảo trì |
 | `vci_stats_financial.sqlite` | Tỷ số tính sẵn từ statistics-financial, lịch sử và bản TTM mới nhất; phần trăm lưu dạng thập phân |
 | `vci_ratio_daily.sqlite` | Tỷ số thị trường theo ngày, bản hiện tại và lịch sử |
 | `vci_screening.sqlite` | Snapshot phục vụ bộ lọc: giá, vốn hóa, thanh khoản, tỷ số, tăng trưởng |

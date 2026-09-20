@@ -13,9 +13,11 @@ import logging
 import os
 import sqlite3
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from contextlib import closing
+
+from backend.sqlite_utils import read_connection
 from pathlib import Path
 
 import requests
@@ -65,6 +67,10 @@ def _db_path() -> str:
 
 
 def _init_db(conn: sqlite3.Connection) -> None:
+    conn.execute("PRAGMA busy_timeout=5000")
+    mode = conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+    if mode.lower() != "wal":
+        raise RuntimeError("News/events database requires WAL mode")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS items (
             id          TEXT NOT NULL,
@@ -110,7 +116,12 @@ def _fetch_tab(symbol: str, tab: str) -> list[dict]:
         timeout=12,
     )
     resp.raise_for_status()
-    return (resp.json().get("data") or {}).get("content") or []
+    payload = resp.json()
+    data = payload.get("data") if isinstance(payload, dict) else None
+    items = data.get("content") if isinstance(data, dict) else None
+    if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+        raise ValueError("Invalid news/events response; preserving the previous snapshot")
+    return items
 
 
 def _row_from_item(item: dict, symbol: str, tab: str, now: str) -> tuple:
@@ -137,13 +148,26 @@ def _row_from_item(item: dict, symbol: str, tab: str, now: str) -> tuple:
 
 # ── Worker ────────────────────────────────────────────────────────────────────
 
-def _work(symbol: str, tab: str, incremental_cutoff: str | None) -> tuple[str, str, int, str | None]:
-    """Returns (symbol, tab, count, error_message|None)."""
+def _work(symbol: str, tab: str) -> tuple[str, str, int, str | None, list[dict]]:
+    """Fetch without holding a database transaction."""
     try:
         items = _fetch_tab(symbol, tab)
         return (symbol, tab, len(items), None, items)
     except Exception as exc:
         return (symbol, tab, 0, str(exc), [])
+
+
+def _store_result(conn: sqlite3.Connection, symbol: str, tab: str, items: list[dict]) -> None:
+    """Serialize before starting a short transaction; preserve prior data on failure."""
+    now = datetime.now(timezone.utc).isoformat()
+    rows = [row for item in items if (row := _row_from_item(item, symbol, tab, now))]
+    with conn:
+        if rows:
+            conn.executemany("INSERT OR REPLACE INTO items VALUES (?,?,?,?,?,?,?)", rows)
+        conn.execute(
+            "INSERT OR REPLACE INTO fetch_meta VALUES (?,?,?,?)",
+            (symbol, tab, now, len(rows)),
+        )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -158,11 +182,11 @@ def run(incremental: bool = False) -> None:
         logger.error("vci_screening.sqlite not found at %s", screen_db)
         sys.exit(1)
 
-    with sqlite3.connect(screen_db) as sc:
+    with read_connection(screen_db) as sc:
         symbols = [r[0] for r in sc.execute("SELECT DISTINCT ticker FROM screening_data WHERE ticker IS NOT NULL AND ticker != ''").fetchall()]
     logger.info("Symbols: %d", len(symbols))
 
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path, timeout=5)) as conn:
         _init_db(conn)
 
         already_fetched: set[tuple[str, str]] = set()
@@ -185,10 +209,9 @@ def run(incremental: bool = False) -> None:
 
         done = 0
         errors = 0
-        now = datetime.utcnow().isoformat()
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-            futures = {pool.submit(_work, sym, tab, None): (sym, tab) for sym, tab in tasks}
+            futures = {pool.submit(_work, sym, tab): (sym, tab) for sym, tab in tasks}
             for future in as_completed(futures):
                 symbol, tab, count, err, items = future.result()
                 done += 1
@@ -197,24 +220,11 @@ def run(incremental: bool = False) -> None:
                     errors += 1
                     if done % 100 == 0 or errors <= 5:
                         logger.warning("ERR %s/%s: %s", symbol, tab, err)
-                    conn.execute(
-                        "INSERT OR REPLACE INTO fetch_meta VALUES (?,?,?,?)",
-                        (symbol, tab, None, 0),
-                    )
+                    # Keep last successful freshness metadata on upstream errors.
                 else:
-                    rows = [_row_from_item(it, symbol, tab, now) for it in items]
-                    rows = [r for r in rows if r]
-                    if rows:
-                        conn.executemany(
-                            "INSERT OR REPLACE INTO items VALUES (?,?,?,?,?,?,?)", rows
-                        )
-                    conn.execute(
-                        "INSERT OR REPLACE INTO fetch_meta VALUES (?,?,?,?)",
-                        (symbol, tab, date.today().isoformat(), len(rows)),
-                    )
+                    _store_result(conn, symbol, tab, items)
 
                 if done % 500 == 0:
-                    conn.commit()
                     logger.info("Progress: %d/%d (errors: %d)", done, len(tasks), errors)
 
         conn.commit()
@@ -222,7 +232,7 @@ def run(incremental: bool = False) -> None:
     logger.info("Done. Tasks: %d, errors: %d", done, errors)
 
     # Report DB size
-    with sqlite3.connect(db_path) as conn:
+    with read_connection(db_path) as conn:
         total = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
         symbols_done = conn.execute("SELECT COUNT(DISTINCT symbol) FROM items").fetchone()[0]
         logger.info("DB: %d items across %d symbols", total, symbols_done)

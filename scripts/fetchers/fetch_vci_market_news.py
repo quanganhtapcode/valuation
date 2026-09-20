@@ -73,6 +73,7 @@ def _request_json(
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS news_items (
@@ -265,6 +266,7 @@ def fetch_to_sqlite(
             for p in tasks:
                 _, items = _fetch(p)
                 changed, skipped = upsert_items(conn, items, fetched_at)
+                conn.commit()
                 total_changed += changed
                 total_skipped += skipped
                 print(f"Page {p}: {len(items)} items | upserted {changed} | skipped {skipped}")
@@ -274,6 +276,7 @@ def fetch_to_sqlite(
                 for fut in as_completed(fut_map):
                     p, items = fut.result()
                     changed, skipped = upsert_items(conn, items, fetched_at)
+                    conn.commit()
                     total_changed += changed
                     total_skipped += skipped
                     print(f"Page {p}: {len(items)} items | upserted {changed} | skipped {skipped}")

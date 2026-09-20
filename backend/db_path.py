@@ -30,11 +30,11 @@ def resolve_vci_screening_db_path(explicit_path: Optional[str] = None) -> str:
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv("VCI_SCREENING_DB_PATH")
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     candidates.append(root / "data" / "sqlite" / "vci_screening.sqlite")
@@ -67,11 +67,11 @@ def resolve_vci_stats_financial_db_path(explicit_path: Optional[str] = None) -> 
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv("VCI_STATS_FINANCIAL_DB_PATH")
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     candidates.append(root / "data" / "sqlite" / "vci_stats_financial.sqlite")
@@ -96,11 +96,11 @@ def resolve_vci_shareholders_db_path(explicit_path: Optional[str] = None) -> str
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv("VCI_SHAREHOLDERS_DB_PATH")
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     candidates.append(root / "data" / "sqlite" / "vci_shareholders.sqlite")
@@ -133,11 +133,11 @@ def resolve_price_history_db_path(explicit_path: Optional[str] = None) -> str:
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv("PRICE_HISTORY_DB_PATH")
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     candidates.append(root / "data" / "sqlite" / "vci_price_history.sqlite")
@@ -163,11 +163,11 @@ def resolve_valuation_cache_db_path(explicit_path: Optional[str] = None) -> str:
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv("VALUATION_CACHE_DB_PATH")
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     candidates.append(root / "data" / "sqlite" / "valuation_cache.sqlite")
@@ -190,11 +190,11 @@ def resolve_vci_ratio_daily_db_path(explicit_path: Optional[str] = None) -> str:
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv("VCI_RATIO_DAILY_DB_PATH")
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     candidates.append(root / "data" / "sqlite" / "vci_ratio_daily.sqlite")
@@ -217,11 +217,11 @@ def resolve_vci_technical_db_path(explicit_path: Optional[str] = None) -> str:
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv("VCI_TECHNICAL_DB_PATH")
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     candidates.append(root / "data" / "sqlite" / "vci_technical.sqlite")
@@ -244,11 +244,11 @@ def resolve_vci_financial_statement_db_path(explicit_path: Optional[str] = None)
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv("VCI_FINANCIAL_STATEMENT_DB_PATH")
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     # Wide-format SQLite (preferred — fetched by fetch_vci_financials.py)
@@ -285,11 +285,11 @@ def _resolve_db_path(
     candidates: list[Path] = []
 
     if explicit_path:
-        candidates.append(Path(explicit_path).expanduser())
+        return str(Path(explicit_path).expanduser().resolve())
 
     env_path = os.getenv(env_var)
     if env_path:
-        candidates.append(Path(env_path).expanduser())
+        return str(Path(env_path).expanduser().resolve())
 
     root = _project_root()
     candidates.append(root / default_rel)

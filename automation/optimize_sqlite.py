@@ -21,9 +21,12 @@ INDEXES = {
     'macro_history.sqlite': ['idx_macro_symbol_date'],
     'vci_stats_financial.sqlite': ['idx_sfh_ticker'],
     'vci_financials.sqlite': ['idx_statement_periods_ticker', 'idx_statement_periods_lookup'],
-    'vci_short_financials.sqlite': [],
     'vci_company.sqlite': [],
     'vci_market_news.sqlite': [],
+    'vci_news_events.sqlite': [],
+    'vci_valuation.sqlite': [],
+    'vci_shareholders.sqlite': ['idx_shareholders_ticker'],
+    'fireant_macro.sqlite': ['idx_md_indicator'],
 }
 
 
@@ -73,16 +76,7 @@ def migrate(conn: sqlite3.Connection, filename: str, cutoff: str) -> dict:
         if verify_index(conn, name):
             conn.execute(f'DROP INDEX "{name}"')
             dropped.append(name)
-    compressed = pruned = 0
-    if filename == 'vci_short_financials.sqlite':
-        for ticker, raw in conn.execute("SELECT ticker,raw_json FROM short_financial_payload WHERE typeof(raw_json)='text'").fetchall():
-            json.loads(raw)
-            data = raw.encode('utf-8')
-            packed = gzip.compress(data, mtime=0)
-            if gzip.decompress(packed) != data:
-                raise RuntimeError('Payload round-trip failed')
-            conn.execute('UPDATE short_financial_payload SET raw_json=? WHERE ticker=?', (packed, ticker))
-            compressed += 1
+    pruned = 0
     if filename == 'vci_financials.sqlite':
         # Preserve the last success per ticker for --resume, and all errors.
         pruned = conn.execute("""
@@ -96,13 +90,14 @@ def migrate(conn: sqlite3.Connection, filename: str, cutoff: str) -> dict:
         expected['fetch_log'] -= pruned
     if counts(conn) != expected:
         raise RuntimeError('Unexpected row-count changes')
-    return {'indexes_removed': dropped, 'payloads_compressed': compressed,
-            'success_logs_archived': pruned}
+    return {'indexes_removed': dropped, 'success_logs_archived': pruned}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--no-vacuum', action='store_true', help='Keep reusable pages; avoid rewriting the database.')
+    parser.add_argument('--wal', action='store_true', help='Enable WAL after snapshotting, under the writer lock.')
     parser.add_argument('--database', action='append', choices=sorted(INDEXES),
                         help='Maintain only this database; repeat to select several.')
     args = parser.parse_args()
@@ -124,6 +119,10 @@ def main() -> None:
             backup = snapshot(path, archive)
             before_bytes = path.stat().st_size
             with closing(sqlite3.connect(path, timeout=5)) as conn:
+                if args.wal:
+                    mode = conn.execute('PRAGMA journal_mode=WAL').fetchone()[0]
+                    if mode.lower() != 'wal':
+                        raise RuntimeError(f'Could not enable WAL: {filename}')
                 conn.execute('BEGIN IMMEDIATE')
                 try:
                     result = migrate(conn, filename, cutoff)
@@ -131,7 +130,8 @@ def main() -> None:
                 except Exception:
                     conn.rollback()
                     raise
-                conn.execute('VACUUM')
+                if not args.no_vacuum:
+                    conn.execute('VACUUM')
                 conn.execute('ANALYZE')
                 if conn.execute('PRAGMA quick_check').fetchall() != [('ok',)]:
                     raise RuntimeError(f'Integrity check failed; snapshot: {backup}')

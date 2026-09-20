@@ -214,6 +214,7 @@ def attach_ema50(rows: list[dict[str, Any]], period: int = 50) -> None:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS valuation_history (
             date       TEXT PRIMARY KEY,

@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from flask import Blueprint, jsonify, request
 from backend.cache_utils import cache_stats, cache_invalidate_namespaces
 from backend.telemetry import get_latency_metrics
+from backend.sqlite_utils import read_connection
 
 health_bp = Blueprint("health", __name__)
 
@@ -61,7 +62,7 @@ def _sqlite_query(db: Path, sql: str, default=None):
     if not db.exists():
         return default
     try:
-        with sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=3) as conn:
+        with read_connection(db, timeout=0.25) as conn:
             row = conn.execute(sql).fetchone()
             return row[0] if row else default
     except Exception:
@@ -103,6 +104,7 @@ def _check_sqlite_file(
     db: Path,
     freshness_minutes: int,
     freshness_sql: str | None = None,
+    fetched_sql: str | None = None,
 ) -> dict:
     """Generic checker cho các SQLite files trong data/sqlite/."""
     age = _file_age_minutes(db)
@@ -120,10 +122,62 @@ def _check_sqlite_file(
         val = _sqlite_query(db, freshness_sql)
         result["latest_record"] = val
 
+    if fetched_sql:
+        fetched = _sqlite_query(db, fetched_sql)
+        result["data_as_of"] = fetched
+        try:
+            stamp = datetime.fromisoformat(fetched.replace("Z", "+00:00"))
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=timezone.utc)
+            age = (datetime.now(timezone.utc) - stamp).total_seconds() / 60
+            result["age_minutes"] = round(age, 1)
+            result["status"] = "ok" if age < freshness_minutes else "warn"
+        except (AttributeError, TypeError, ValueError):
+            result.update(status="warn", message="No readable successful fetch timestamp")
+            return result
+
     if age is not None and age >= freshness_minutes:
         result["message"] = f"stale — last update {age:.0f} min ago (threshold {freshness_minutes} min)"
 
     return result
+
+
+def _check_ingestion(db: Path, *, finished_key: str, max_age_minutes: int) -> dict:
+    """Use committed fetch metadata, not database mtime (unreliable under WAL)."""
+    try:
+        with read_connection(db, timeout=0.25) as conn:
+            meta = dict(conn.execute("SELECT k, v FROM meta").fetchall())
+        finished = meta.get(finished_key)
+        stamp = datetime.fromisoformat(finished.replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - stamp).total_seconds() / 60
+        failed_value = meta.get("last_run_failed")
+        failures = int(failed_value) if failed_value is not None else None
+        return {"status": "warn" if age > max_age_minutes or failures else "ok",
+                "data_as_of": finished, "age_minutes": round(age, 1),
+                "last_run_started": meta.get("last_run_started"),
+                "last_run_success": meta.get("last_run_success", meta.get("last_run_ok_count")),
+                "last_run_failed": failures}
+    except (OSError, sqlite3.Error, ValueError, TypeError, AttributeError) as exc:
+        return {"status": "warn", "message": f"Fetch metadata unavailable: {exc}"}
+
+
+def _check_news_coverage(db: Path) -> dict:
+    try:
+        with read_connection(db, timeout=0.25) as conn:
+            total, recent, latest = conn.execute("""
+                SELECT COUNT(*),
+                       COALESCE(SUM(julianday(last_fetched) >= julianday('now', '-2 days')), 0),
+                       MAX(last_fetched)
+                FROM fetch_meta
+            """).fetchone()
+        coverage = recent / total if total else 0
+        return {"status": "ok" if coverage >= 0.9 else "warn",
+                "data_as_of": latest, "symbol_tab_pairs": total,
+                "successful_pairs_48h": recent, "coverage_48h_pct": round(coverage * 100, 1)}
+    except (OSError, sqlite3.Error) as exc:
+        return {"status": "warn", "message": f"News/events metadata unavailable: {exc}"}
 
 
 def _check_pipeline_log() -> dict:
@@ -237,6 +291,12 @@ def health() -> tuple:
             freshness_minutes=24 * 60,
             freshness_sql="SELECT MAX(time) FROM stock_price_history",
         ),
+        "financials_ingestion": _check_ingestion(
+            fetch_dir / "vci_financials.sqlite", finished_key="last_run_at", max_age_minutes=48 * 60),
+        "ratios_ingestion": _check_ingestion(
+            fetch_dir / "vci_ratio_daily.sqlite", finished_key="last_run_finished", max_age_minutes=48 * 60),
+        "stats_ingestion": _check_ingestion(
+            fetch_dir / "vci_stats_financial.sqlite", finished_key="last_run_finished", max_age_minutes=3 * 60),
         "pipeline_log": _check_pipeline_log(),
         "systemd_timer": _check_systemd_timer(),
         "index_history": _check_sqlite_file(
@@ -249,12 +309,15 @@ def health() -> tuple:
             "screening",
             fetch_dir / "vci_screening.sqlite",
             freshness_minutes=15 if _is_vn_market_session() else 72 * 60,
+            fetched_sql="SELECT v FROM meta WHERE k='last_run_utc'",
         ),
+        "news_events_ingestion": _check_news_coverage(fetch_dir / "vci_news_events.sqlite"),
         "news": _check_sqlite_file(
             "news",
             fetch_dir / "vci_market_news.sqlite",
             freshness_minutes=15,
             freshness_sql="SELECT MAX(update_date) FROM news_items",
+            fetched_sql="SELECT value FROM news_meta WHERE key='last_fetch_utc'",
         ),
 "cron_screener": _check_cron_screener_log(),
         "cron_news": _check_cron_news_log(),

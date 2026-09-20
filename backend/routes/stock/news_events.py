@@ -1,58 +1,159 @@
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
-import os
 import sqlite3
-from datetime import date
+from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
+from threading import BoundedSemaphore, Lock
+import time
+from pathlib import Path
 
-import requests
+from backend.sqlite_utils import read_connection
+
 from flask import Blueprint, jsonify, request
 
 from backend.db_path import resolve_vci_news_events_db_path
 from backend.services.news_service import NewsService
 from backend.utils import validate_stock_symbol
 from backend.services.vci_news_sqlite import compact_news_item, query_news_for_symbol, default_news_db_path
-from backend.routes.market.http_headers import VCI_HEADERS
 from backend.cache_utils import cache_get, cache_set
 
 
-def _query_news_events_sqlite(symbol: str, tab: str, limit: int = 50) -> list:
-    """Query vci_news_events.sqlite for a given symbol+tab. Returns list of dicts from raw_json."""
-    db_path = resolve_vci_news_events_db_path()
-    if not os.path.exists(db_path):
-        return []
-    try:
-        conn = sqlite3.connect(db_path, timeout=5)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT raw_json FROM items WHERE symbol = ? AND tab = ? ORDER BY public_date DESC LIMIT ?",
-            (symbol.upper(), tab, limit),
-        ).fetchall()
-        conn.close()
-        result = []
-        for r in rows:
-            try:
-                result.append(json.loads(r[0]))
-            except Exception:
-                continue
-        return result
-    except Exception as e:
-        logger.warning("vci_news_events sqlite query failed for %s/%s: %s", symbol, tab, e)
-        return []
-
-_VCI_IQ_BASE = "https://iq.vietcap.com.vn/api/iq-insight-service/v1"
-
-_TAB_CONFIG: dict[str, dict] = {
-    "news":     {"path": "news",   "extra_params": {"languageId": "1"}},
-    "dividend": {"path": "events", "extra_params": {"eventCode": "DIV,ISS"}},
-    "insider":  {"path": "events", "extra_params": {"eventCode": "DDIND,DDINS,DDRP"}},
-    "agm":      {"path": "events", "extra_params": {"eventCode": "AGME,AGMR,EGME"}},
-    "other":    {"path": "events", "extra_params": {"eventCode": "AIS,MA,MOVE,NLIS,OTHE,RETU,SUSP"}},
-}
-
-
 logger = logging.getLogger(__name__)
+_EVENT_TABS = ("dividend", "insider", "agm", "other")
+_TABS = ("news", *_EVENT_TABS)
+_REFRESH_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="news-refresh")
+_REFRESH_LOCK = Lock()
+_REFRESH_SLOTS = BoundedSemaphore(16)
+_REFRESH_PENDING: set[str] = set()
+_REFRESH_ATTEMPTS: dict[str, float] = {}
+
+
+def _snapshot(symbol: str, tabs: tuple[str, ...]) -> dict:
+    """A successful empty fetch is different from missing/unreadable data."""
+    data = []
+    timestamps = []
+    missing = []
+    stale = False
+    with read_connection(resolve_vci_news_events_db_path(), timeout=0.25) as conn:
+        # Keep rows and their fetch metadata in the same read snapshot.
+        conn.execute("BEGIN")
+        for tab in tabs:
+            meta = conn.execute(
+                "SELECT last_fetched, item_count FROM fetch_meta WHERE symbol=? AND tab=?",
+                (symbol, tab),
+            ).fetchone()
+            rows = conn.execute(
+                "SELECT raw_json, fetched_at FROM items WHERE symbol=? AND tab=? ORDER BY public_date DESC LIMIT 50",
+                (symbol, tab),
+            ).fetchall()
+            decoded = []
+            for row in rows:
+                try:
+                    item = json.loads(row[0])
+                    if isinstance(item, dict):
+                        decoded.append(item)
+                except (TypeError, ValueError):
+                    continue
+            known_empty = meta is not None and meta[0] and meta[1] == 0 and not rows
+            if (not decoded and not known_empty) or len(decoded) < len(rows):
+                missing.append(tab)
+            data.extend(decoded)
+            stamp = meta[0] if meta else None
+            if not stamp:
+                stale = True
+                stamp = max((row[1] for row in rows if row[1]), default=None)
+            if stamp:
+                timestamps.append(stamp)
+            try:
+                updated = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                # Historical date-only metadata refers to the server's local day.
+                if updated.tzinfo is None:
+                    updated = updated.astimezone()
+                stale |= (datetime.now(timezone.utc) - updated).total_seconds() > 86400
+            except (AttributeError, TypeError, ValueError):
+                stale = True
+    return {"data": data, "data_as_of": min(timestamps) if timestamps else None,
+            "stale": stale or bool(missing), "partial": bool(missing),
+            "available": bool(data) or not missing}
+
+
+def _refresh_symbol(symbol: str) -> None:
+    from backend.updater.batch_news import _fetch_tab, _init_db, _store_result
+
+    try:
+        db_path = Path(resolve_vci_news_events_db_path())
+        for tab in _TABS:
+            try:
+                # Fetch outside SQLite and the maintenance lock.
+                items = _fetch_tab(symbol, tab)
+                with Path(str(db_path) + ".safe-run.lock").open("a") as lock:
+                    try:
+                        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except BlockingIOError:
+                        return  # Cron/maintenance owns the database; keep its snapshot.
+                    with closing(sqlite3.connect(db_path, timeout=5)) as conn:
+                        _init_db(conn)
+                        _store_result(conn, symbol, tab, items)
+            except Exception:
+                logger.warning("Background news refresh failed for %s/%s", symbol, tab, exc_info=True)
+
+    except Exception:
+        logger.warning("Could not refresh news database for %s", symbol, exc_info=True)
+    finally:
+        with _REFRESH_LOCK:
+            _REFRESH_PENDING.discard(symbol)
+            _REFRESH_ATTEMPTS[symbol] = time.monotonic()
+        _REFRESH_SLOTS.release()
+
+
+def _schedule_refresh(symbol: str) -> bool:
+    """Bound work and suppress repeated refreshes for the same symbol per worker."""
+    with _REFRESH_LOCK:
+        now = time.monotonic()
+        for key, attempted in list(_REFRESH_ATTEMPTS.items()):
+            if now - attempted >= 60:
+                del _REFRESH_ATTEMPTS[key]
+        if symbol in _REFRESH_PENDING:
+            return True
+        if symbol in _REFRESH_ATTEMPTS or not _REFRESH_SLOTS.acquire(blocking=False):
+            return False
+        _REFRESH_PENDING.add(symbol)
+        try:
+            _REFRESH_POOL.submit(_refresh_symbol, symbol)
+        except Exception:
+            _REFRESH_PENDING.discard(symbol)
+            _REFRESH_SLOTS.release()
+            logger.exception("Could not schedule news refresh")
+            return False
+        return True
+
+
+def _load_snapshot(symbol: str, tabs: tuple[str, ...]) -> dict:
+    try:
+        snapshot = _snapshot(symbol, tabs)
+    except (OSError, sqlite3.Error):
+        logger.warning("News snapshot unavailable for %s", symbol, exc_info=True)
+        snapshot = {"data": [], "data_as_of": None, "stale": True,
+                    "partial": True, "available": False}
+    snapshot["refresh_pending"] = _schedule_refresh(symbol) if snapshot["stale"] else False
+    return snapshot
+
+
+def _snapshot_response(snapshot: dict, **extra):
+    available = snapshot["available"]
+    payload = {"success": available, **extra,
+               **{k: v for k, v in snapshot.items() if k != "available"}}
+    if not available:
+        payload["error"] = "News/events snapshot is not available yet; retry shortly."
+    response = jsonify(payload)
+    if not available:
+        response.status_code = 503
+        response.headers["Retry-After"] = "10"
+    return response
 
 
 def register(stock_bp: Blueprint) -> None:
@@ -68,6 +169,10 @@ def register(stock_bp: Blueprint) -> None:
             compact = request.args.get("compact") == "1"
             cache_key = f"news_{clean_symbol}_{'compact' if compact else 'full'}"
 
+            cached = cache_get(cache_key)
+            if cached:
+                return jsonify(cached)
+
             # SQLite cache (VCI AI)
             try:
                 items = query_news_for_symbol(default_news_db_path(), clean_symbol, limit=12)
@@ -79,10 +184,6 @@ def register(stock_bp: Blueprint) -> None:
                     return jsonify(result)
             except Exception as e:
                 logger.warning(f"SQLite symbol news failed for {clean_symbol}: {e}")
-
-            cached = cache_get(cache_key)
-            if cached:
-                return jsonify(cached)
 
             # Upstream fallback (kept for compatibility)
             news_data = NewsService.fetch_news(ticker=clean_symbol, page=1, page_size=12)
@@ -103,98 +204,36 @@ def register(stock_bp: Blueprint) -> None:
             if not is_valid:
                 return jsonify({"success": False, "error": clean_symbol}), 400
 
-            cache_key = f"events_{clean_symbol}"
-            cached = cache_get(cache_key)
-            if cached:
-                return jsonify(cached)
+            snapshot = _load_snapshot(clean_symbol, _EVENT_TABS)
+            events = [{
+                "event_name": item.get("title") or item.get("eventTitleVi") or item.get("eventTitleEn") or item.get("eventNameEn") or "",
+                "event_code": item.get("eventCode", "Event"),
+                "notify_date": str(item.get("publicDate") or "")[:10],
+                "url": "#",
+            } for item in snapshot["data"]]
+            events.sort(key=lambda item: item["notify_date"], reverse=True)
+            snapshot["data"] = events[:10]
+            return _snapshot_response(snapshot)
 
-            # Use VCI IQ API directly (same as vci-feed endpoint)
-            today = date.today()
-            from_date = "20100101"
-            to_date = f"{today.year + 1}{today.month:02d}{today.day:02d}"
-
-            all_events = []
-            for event_code in ["DIV,ISS", "DDIND,DDINS,DDRP", "AGME,AGMR,EGME", "AIS,MA,MOVE,NLIS,OTHE,RETU,SUSP"]:
-                try:
-                    params = {
-                        "ticker": clean_symbol,
-                        "fromDate": from_date,
-                        "toDate": to_date,
-                        "page": "0",
-                        "size": "50",
-                        "eventCode": event_code,
-                    }
-                    url = f"{_VCI_IQ_BASE}/events"
-                    resp = requests.get(url, params=params, headers=VCI_HEADERS, timeout=10)
-                    resp.raise_for_status()
-                    raw = resp.json()
-                    items = (raw.get("data") or {}).get("content") or []
-                    for item in items:
-                        all_events.append({
-                            "event_name": item.get("title", ""),
-                            "event_code": item.get("eventCode", "Event"),
-                            "notify_date": str(item.get("publicDate", "")).split(" ")[0] if item.get("publicDate") else "",
-                            "url": "#",
-                        })
-                except Exception:
-                    continue
-
-            all_events.sort(key=lambda e: e["notify_date"] or "9999-12-31", reverse=True)
-            result = {"success": True, "data": all_events[:10]}
-            cache_set(cache_key, result)
-            return jsonify(result)
         except Exception as exc:
             return jsonify({"success": False, "error": str(exc)}), 500
 
     @stock_bp.route("/vci-feed/<symbol>")
     @stock_bp.route("/stock/vci-feed/<symbol>")
     def api_vci_feed(symbol):
-        """Proxy VCI IQ news/events API for a given tab type."""
+        """Serve saved news/events and refresh stale snapshots off the request path."""
         try:
             is_valid, clean_symbol = validate_stock_symbol(symbol)
             if not is_valid:
                 return jsonify({"success": False, "error": clean_symbol}), 400
 
             tab = (request.args.get("tab") or "news").strip().lower()
-            if tab not in _TAB_CONFIG:
+            if tab not in _TABS:
                 return jsonify({"success": False, "error": f"Unknown tab: {tab}"}), 400
 
-            cache_key = f"vci_feed_{clean_symbol}_{tab}"
-            cached = cache_get(cache_key)
-            if cached:
-                return jsonify(cached)
+            snapshot = _load_snapshot(clean_symbol, (tab,))
+            return _snapshot_response(snapshot, tab=tab)
 
-            # Prefer SQLite cache (vci_news_events.sqlite) over live API
-            sqlite_items = _query_news_events_sqlite(clean_symbol, tab, limit=50)
-            if sqlite_items:
-                result = {"success": True, "tab": tab, "data": sqlite_items}
-                cache_set(cache_key, result)
-                return jsonify(result)
-
-            # Fallback: live VCI IQ API
-            cfg = _TAB_CONFIG[tab]
-            today = date.today()
-            from_date = "20100101"
-            to_date = f"{today.year + 1}{today.month:02d}{today.day:02d}"
-
-            params: dict = {
-                "ticker": clean_symbol,
-                "fromDate": from_date,
-                "toDate": to_date,
-                "page": "0",
-                "size": "50",
-                **cfg["extra_params"],
-            }
-
-            url = f"{_VCI_IQ_BASE}/{cfg['path']}"
-            resp = requests.get(url, params=params, headers=VCI_HEADERS, timeout=10)
-            resp.raise_for_status()
-            raw = resp.json()
-
-            items = (raw.get("data") or {}).get("content") or []
-            result = {"success": True, "tab": tab, "data": items}
-            cache_set(cache_key, result)
-            return jsonify(result)
         except Exception as exc:
-            logger.error("vci_feed error %s %s: %s", symbol, tab, exc)
+            logger.error("vci_feed error %s: %s", symbol, exc)
             return jsonify({"success": False, "error": str(exc)}), 500
