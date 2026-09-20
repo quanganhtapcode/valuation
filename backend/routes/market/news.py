@@ -26,12 +26,16 @@ def register(market_bp: Blueprint) -> None:
 
         try:
             news_db = default_news_db_path()
-            if is_fresh(news_db, max_age_seconds=cache_ttl().get("news", 300) if cache_ttl() else 300):
-                data = query_market_news(news_db, page=int(page_index), page_size=int(page_size))
+            data = query_market_news(news_db, page=int(page_index), page_size=int(page_size))
+            if data:
                 if compact:
                     data = [compact_news_item(item) for item in data]
                 resp = jsonify({"success": True, "data": data})
                 resp.headers["X-Cache"] = "SQLITE"
+                resp.headers["X-News-Stale"] = "0" if is_fresh(
+                    news_db,
+                    max_age_seconds=cache_ttl().get("news", 300) if cache_ttl() else 300,
+                ) else "1"
                 return resp
         except Exception as e:
             logger.warning(f"SQLite news read failed; falling back to upstream: {e}")
