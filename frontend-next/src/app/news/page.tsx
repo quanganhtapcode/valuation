@@ -20,11 +20,15 @@ export default function NewsPage() {
         async function loadNews() {
             try {
                 setIsLoading(true);
-                const response = await fetch(`/api/market/news?page=${page}&size=${pageSize}&compact=1`);
+                const response = await fetch(`/api/market/news?page=${page}&size=${pageSize}&compact=1&cache=no-store`, {
+                    cache: 'no-store',
+                });
                 if (!response.ok) throw new Error('Failed to fetch news');
                 const data = await response.json();
                 // Handle API response with Data property
-                const newsArray = Array.isArray(data) ? data : (data.Data || data.data || data.news || []);
+                const newsArray = Array.isArray(data)
+                    ? data
+                    : (Array.isArray(data?.data) ? data.data : (data.Data || data.news || []));
                 setNews(newsArray);
             } catch (err) {
                 console.error('Error loading news:', err);

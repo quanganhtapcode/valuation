@@ -30,7 +30,7 @@ def register(market_bp: Blueprint) -> None:
                 data = query_market_news(news_db, page=int(page_index), page_size=int(page_size))
                 if compact:
                     data = [compact_news_item(item) for item in data]
-                resp = jsonify({"data": data})
+                resp = jsonify({"success": True, "data": data})
                 resp.headers["X-Cache"] = "SQLITE"
                 return resp
         except Exception as e:
@@ -45,9 +45,13 @@ def register(market_bp: Blueprint) -> None:
             data, is_cached = cache_func()(cache_key, cache_ttl().get("news", 300), fetch_news)
             if compact and isinstance(data, list):
                 data = [compact_news_item(item) for item in data]
-            resp = jsonify({"data": data} if isinstance(data, list) else data)
+            resp = jsonify(
+                {"success": True, "data": data}
+                if isinstance(data, list)
+                else data
+            )
             resp.headers["X-Cache"] = "HIT" if is_cached else "MISS"
             return resp
         except Exception as e:
             logger.error(f"News proxy error: {e}")
-            return jsonify([])
+            return jsonify({"success": False, "data": [], "error": "News unavailable"}), 503
