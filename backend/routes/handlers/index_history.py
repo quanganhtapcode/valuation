@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-import sqlite3
+
+from backend.sqlite_utils import read_connection
 
 
 def _normalize_index_token(index: str) -> str:
@@ -57,8 +58,7 @@ def resolve_index_db_path(*, base_dir: str, index: str) -> str | None:
 
 
 def read_index_history(*, db_path: str, days: int, index: str | None = None) -> list[dict]:
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with read_connection(db_path) as conn:
         cur = conn.cursor()
 
         index_symbol: str | None = None

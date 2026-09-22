@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
-import sqlite3
 from typing import Any
+
+from backend.sqlite_utils import read_connection
 
 
 def top_movers_from_screener_sqlite(
@@ -20,8 +21,7 @@ def top_movers_from_screener_sqlite(
     if not db_path or not os.path.exists(db_path):
         return {"Data": []}
 
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
+    with read_connection(db_path) as conn:
         rows = conn.execute(
             "SELECT ticker, exchange, viOrganName, enOrganName, marketPrice, "
             "dailyPriceChangePercent, accumulatedValue "

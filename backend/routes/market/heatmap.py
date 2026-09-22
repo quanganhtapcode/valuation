@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
+
+from backend.sqlite_utils import read_connection
 
 from flask import Blueprint, jsonify, request
 
@@ -47,8 +48,7 @@ def register(market_bp: Blueprint) -> None:
             if not db or not os.path.exists(db):
                 return {'sectors': []}
 
-            with sqlite3.connect(db) as conn:
-                conn.row_factory = sqlite3.Row
+            with read_connection(db) as conn:
                 rows = conn.execute(
                     'SELECT ticker, viSector, marketCap, dailyPriceChangePercent, marketPrice, '
                     'viOrganShortName, enOrganShortName '

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
+
+from backend.sqlite_utils import read_connection
 
 from flask import Blueprint, jsonify, request
 
@@ -14,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 # VCI income statement field codes
 # Non-bank (isa*): isa1=total revenue, isa20=net profit after tax
-# Bank (isb*):     isb25=net interest income, isb31=net profit after tax
-# Insurance (isi*): isi1=total revenue, isi19=net profit after tax
-# Securities (iss*): iss1=total revenue, iss19=net profit after tax
+# Bank: isb27=net interest income, isa20=net profit after tax
 
 _NORMAL_FIELDS = {
     "revenue": "isa1",
@@ -24,20 +23,9 @@ _NORMAL_FIELDS = {
 }
 
 _BANK_FIELDS = {
-    "revenue": "isb25",       # Net interest income
-    "net_profit": "isb31",    # Profit after tax
+    "revenue": "isb27",       # Net interest income
+    "net_profit": "isa20",    # Profit after tax
 }
-
-_INSURANCE_FIELDS = {
-    "revenue": "isi1",
-    "net_profit": "isi19",
-}
-
-_SECURITIES_FIELDS = {
-    "revenue": "iss1",
-    "net_profit": "iss19",
-}
-
 
 def _is_bank(symbol: str) -> bool:
     """Check if a symbol is a bank using vci_company.sqlite."""
@@ -45,7 +33,7 @@ def _is_bank(symbol: str) -> bool:
     if not db_path or not os.path.exists(db_path):
         return False
     try:
-        with sqlite3.connect(db_path) as conn:
+        with read_connection(db_path) as conn:
             row = conn.execute(
                 "SELECT isbank FROM companies WHERE ticker = ?", (symbol,)
             ).fetchone()
@@ -66,8 +54,7 @@ def _get_income_data(
         return []
 
     try:
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with read_connection(db_path) as conn:
             cur = conn.cursor()
 
             # Check table exists
@@ -86,37 +73,26 @@ def _get_income_data(
                 rev_col = _NORMAL_FIELDS["revenue"]
                 profit_col = _NORMAL_FIELDS["net_profit"]
 
-            # Build query
-            if period == "year":
-                # Yearly: aggregate quarterly data by year
-                query = f"""
-                    SELECT year_report,
-                           SUM({rev_col}) AS revenue,
-                           SUM({profit_col}) AS net_profit
-                    FROM income_statement
-                    WHERE ticker = ?
-                    GROUP BY year_report
-                    ORDER BY year_report DESC
-                    LIMIT ?
-                """
-            else:
-                # Quarterly: return individual quarters
-                query = f"""
-                    SELECT year_report, quarter_report, {rev_col} AS revenue, {profit_col} AS net_profit
-                    FROM income_statement
-                    WHERE ticker = ?
-                    ORDER BY year_report DESC, quarter_report DESC
-                    LIMIT ?
-                """
-
-            rows = cur.execute(query, (symbol, limit)).fetchall()
+            # Read the reported period directly: annual rows must not be
+            # added to quarterly rows from the same year.
+            query = f"""
+                SELECT year_report, quarter_report, {rev_col} AS revenue,
+                       {profit_col} AS net_profit
+                FROM income_statement
+                WHERE ticker = ? AND period_kind = ?
+                ORDER BY year_report DESC, quarter_report DESC
+                LIMIT ?
+            """
+            rows = cur.execute(
+                query, (symbol, "YEAR" if period == "year" else "QUARTER", limit)
+            ).fetchall()
             if not rows:
                 return []
 
             periods = []
             for r in rows:
                 year = r["year_report"]
-                quarter = r.get("quarter_report")  # None for yearly aggregation
+                quarter = r["quarter_report"]
                 revenue = r["revenue"]
                 net_profit = r["net_profit"]
 
@@ -150,7 +126,7 @@ def register(stock_bp: Blueprint) -> None:
     def api_revenue_profit(symbol):
         """Get Revenue and Net Margin data for Revenue & Profit chart.
 
-        Sources: vci_financials.sqlite (VCI field codes: isa*/isb*/isi*/iss*)
+        Sources: vci_financials.sqlite (VCI field codes: isa*/isb*)
         """
         period = request.args.get("period", "quarter")
         is_valid, result = validate_stock_symbol(symbol)

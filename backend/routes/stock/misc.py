@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sqlite3
 import statistics
+
+from backend.sqlite_utils import read_connection
 
 from flask import Blueprint, jsonify, request
 
@@ -48,8 +49,7 @@ def register(stock_bp: Blueprint) -> None:
                 mode = "quarter"
 
             company_db = resolve_vci_company_db_path()
-            with sqlite3.connect(company_db) as conn:
-                conn.row_factory = sqlite3.Row
+            with read_connection(company_db) as conn:
                 row = conn.execute(
                     "SELECT icb_name2, organ_name FROM companies WHERE UPPER(ticker) = ?",
                     (clean_symbol.upper(),),
@@ -60,8 +60,7 @@ def register(stock_bp: Blueprint) -> None:
 
             sector = row["icb_name2"]
 
-            with sqlite3.connect(company_db) as conn:
-                conn.row_factory = sqlite3.Row
+            with read_connection(company_db) as conn:
                 peer_rows = conn.execute(
                     "SELECT ticker, organ_name FROM companies WHERE icb_name2 = ?",
                     (sector,),
@@ -77,8 +76,7 @@ def register(stock_bp: Blueprint) -> None:
             placeholders = ",".join(["?" for _ in peer_tickers])
 
             if mode == "year":
-                with sqlite3.connect(stats_db) as conn:
-                    conn.row_factory = sqlite3.Row
+                with read_connection(stats_db) as conn:
                     stats_rows = conn.execute(
                         f"""
                         SELECT h.ticker, h.pe, h.pb, h.roe, h.roa, h.market_cap,
@@ -100,8 +98,7 @@ def register(stock_bp: Blueprint) -> None:
                 if stats_rows:
                     period = f"Năm {stats_rows[0]['year_report']}"
             else:
-                with sqlite3.connect(stats_db) as conn:
-                    conn.row_factory = sqlite3.Row
+                with read_connection(stats_db) as conn:
                     stats_rows = conn.execute(
                         f"""
                         SELECT ticker, pe, pb, roe, roa, market_cap,
@@ -114,7 +111,7 @@ def register(stock_bp: Blueprint) -> None:
                         peer_tickers,
                     ).fetchall()
                 period = None
-                with sqlite3.connect(stats_db) as conn:
+                with read_connection(stats_db) as conn:
                     raw = conn.execute(
                         "SELECT raw_json FROM stats_financial WHERE ticker = ?",
                         (clean_symbol.upper(),),
@@ -177,8 +174,7 @@ def register(stock_bp: Blueprint) -> None:
                 return jsonify({"success": False, "error": clean_symbol}), 400
 
             stats_db = resolve_vci_stats_financial_db_path()
-            with sqlite3.connect(stats_db) as conn:
-                conn.row_factory = sqlite3.Row
+            with read_connection(stats_db) as conn:
                 row = conn.execute(
                     """
                     SELECT
@@ -212,7 +208,7 @@ def register(stock_bp: Blueprint) -> None:
         """Return available ICB level-3 sectors from vci_company.sqlite."""
         try:
             company_db = resolve_vci_company_db_path()
-            with sqlite3.connect(company_db) as conn:
+            with read_connection(company_db) as conn:
                 rows = conn.execute(
                     """
                     SELECT DISTINCT TRIM(icb_name3) AS icb_l3
@@ -237,8 +233,7 @@ def register(stock_bp: Blueprint) -> None:
             company_db = resolve_vci_company_db_path()
             stats_db = resolve_vci_stats_financial_db_path()
 
-            with sqlite3.connect(stats_db) as conn:
-                conn.row_factory = sqlite3.Row
+            with read_connection(stats_db) as conn:
                 conn.execute(f"ATTACH DATABASE '{company_db}' AS cmp")
                 raw_col = ", s.raw_json" if include_raw else ""
                 stats_rows = conn.execute(
@@ -253,7 +248,7 @@ def register(stock_bp: Blueprint) -> None:
                         c.organ_name AS company_name, c.icb_name1, c.icb_name2, c.icb_name3, c.icb_name4
                         {raw_col}
                     FROM stats_financial s
-                    LEFT JOIN cmp.companies c ON UPPER(c.ticker) = UPPER(s.ticker)
+                    LEFT JOIN cmp.companies c ON c.ticker = s.ticker COLLATE NOCASE
                     WHERE (? = '' OR TRIM(COALESCE(c.icb_name3, '')) = TRIM(?))
                     ORDER BY s.ticker
                     """,

@@ -252,5 +252,113 @@ class LoanTests(TempDBCase):
                                         'industry': [{'name': 'Thương mại', 'value': 100}], 'npl': []})
 
 
+
+
+class RevenueProfitTests(TempDBCase):
+    def setUp(self):
+        super().setUp()
+        from backend.routes.stock import revenue_profit
+        self.module = revenue_profit
+        with sqlite3.connect(self.path) as conn:
+            conn.executescript("""
+                CREATE TABLE companies(ticker TEXT, isbank INTEGER);
+                INSERT INTO companies VALUES ('FPT', 0), ('VCB', 1);
+                CREATE TABLE income_statement(
+                    ticker TEXT, period_kind TEXT, year_report INTEGER,
+                    quarter_report INTEGER, isa1 REAL, isa20 REAL,
+                    isb27 REAL, isb25 REAL, isb31 REAL,
+                    PRIMARY KEY(ticker, period_kind, year_report, quarter_report));
+                INSERT INTO income_statement VALUES
+                    ('FPT', 'YEAR', 2025, 0, 120000000000, 12000000000, 0, 0, 0),
+                    ('FPT', 'QUARTER', 2025, 1, 25000000000, 0, 0, 0, 0),
+                    ('FPT', 'QUARTER', 2025, 2, 30000000000, -3000000000, 0, 0, 0),
+                    ('VCB', 'YEAR', 2025, 0, 0, 20000000000,
+                     50000000000, 90000000000, 5000000000);
+            """)
+        conn.close()
+        for name in ('resolve_vci_company_db_path', 'resolve_vci_financial_statement_db_path'):
+            patcher = patch.object(self.module, name, return_value=str(self.path))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_annual_does_not_sum_quarters_or_duplicate_reported_year(self):
+        rows = self.module._get_income_data('FPT', 'year')
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['revenue'], 120)
+        self.assertEqual(rows[0]['netMargin'], 10)
+        self.assertEqual(rows[0]['quarter'], 0)
+
+    def test_quarters_exclude_annual_and_keep_zero_and_loss(self):
+        rows = self.module._get_income_data('FPT', 'quarter')
+        self.assertEqual([r['quarter'] for r in rows], [2, 1])
+        self.assertEqual([r['netMargin'] for r in rows], [-10, 0])
+        self.assertEqual(len(self.module._get_income_data('FPT', 'quarter', limit=1)), 1)
+
+    def test_bank_uses_net_interest_income_and_after_tax_profit(self):
+        row = self.module._get_income_data('VCB', 'year')[0]
+        self.assertEqual(row['revenue'], 50)
+        self.assertEqual(row['netMargin'], 40)
+
+    def test_api_returns_nonempty_json_with_period_order(self):
+        app = Flask(__name__)
+        bp = Blueprint('revenue_test', __name__)
+        self.module.register(bp)
+        app.register_blueprint(bp, url_prefix='/api')
+        response = app.test_client().get('/api/stock/FPT/revenue-profit')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([r['quarter'] for r in response.json['periods']], [1, 2])
+
+    def test_readers_close_after_success_and_query_failure(self):
+        from backend.routes.stock import charts
+        connections = []
+        from backend.sqlite_utils import open_readonly
+
+        def tracked(*args, **kwargs):
+            conn = open_readonly(*args, **kwargs)
+            connections.append(conn)
+            return conn
+
+        with patch('backend.sqlite_utils.open_readonly', side_effect=tracked):
+            self.assertTrue(self.module._get_income_data('FPT', 'year'))
+            # A malformed table takes the chart's exception path.
+            with sqlite3.connect(self.path) as writer:
+                writer.execute('CREATE TABLE ratio_daily_history(ticker)')
+            writer.close()
+            self.assertEqual(charts._query_ratio_daily_history(str(self.path), 'FPT', 10), [])
+        self.assertEqual(len(connections), 3)
+        for conn in connections:
+            with self.assertRaises(sqlite3.ProgrammingError):
+                conn.execute('SELECT 1')
+
+
+class SectorJoinTests(unittest.TestCase):
+    def test_indexable_join_preserves_case_insensitive_results(self):
+        # Exercise the actual endpoint query, with all selected fields present.
+        import ast
+        module = Path('backend/routes/stock/misc.py').read_text()
+        tree = ast.parse(module)
+        query = next(node for node in ast.walk(tree) if isinstance(node, ast.JoinedStr)
+                     and any(isinstance(v, ast.Constant) and isinstance(v.value, str)
+                             and 'LEFT JOIN cmp.companies' in v.value for v in node.values))
+        sql = ''.join(v.value if isinstance(v, ast.Constant) else '' for v in query.values)
+        import re
+        stats_columns = sorted(set(re.findall(r's\.(\w+)', sql)))
+        company_columns = sorted(set(re.findall(r'c\.(\w+)', sql)))
+        conn = sqlite3.connect(':memory:')
+        self.addCleanup(conn.close)
+        conn.execute("ATTACH DATABASE ':memory:' AS cmp")
+        conn.execute('CREATE TABLE stats_financial (' + ','.join(stats_columns) + ')')
+        conn.execute('CREATE TABLE cmp.companies (' + ','.join(company_columns) + ')')
+        conn.executemany('INSERT INTO stats_financial(ticker) VALUES (?)', [('fpt',), ('VCB',), ('MISSING',)])
+        conn.executemany('INSERT INTO cmp.companies(ticker, organ_name, icb_name3) VALUES (?,?,?)',
+                         [('FPT', 'FPT company', 'Technology'), ('vcb', 'VCB company', 'Bank')])
+        previous = sql.replace('c.ticker = s.ticker COLLATE NOCASE', 'UPPER(c.ticker) = UPPER(s.ticker)')
+        for sector in ['', 'Technology', 'Bank']:
+            self.assertEqual(conn.execute(sql, (sector, sector)).fetchall(),
+                             conn.execute(previous, (sector, sector)).fetchall())
+        plans = [row[3] for row in conn.execute('EXPLAIN QUERY PLAN ' + sql, ('', ''))]
+        self.assertTrue(any('SEARCH c USING' in plan for plan in plans), plans)
+
+
 if __name__ == '__main__':
     unittest.main()

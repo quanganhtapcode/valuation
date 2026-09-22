@@ -5,7 +5,6 @@ import logging
 from datetime import datetime
 from typing import Dict, Any
 from backend.db_path import resolve_vci_screening_db_path, resolve_vci_stats_financial_db_path, resolve_vci_company_db_path, resolve_valuation_cache_db_path
-from backend.data_sources.financial_repository import FinancialRepository
 from backend.services.vci_financial_adapter import (
     has_vci_financial_db,
     load_eps_history_yearly as vci_load_eps_history,
@@ -30,9 +29,6 @@ from backend.services.valuation_math import (
 logger = logging.getLogger(__name__)
 
 class ValuationService:
-    def __init__(self, repo: FinancialRepository):
-        self.repo = repo
-
     def calculate(self, symbol: str, request_data: dict) -> Dict[str, Any]:
         return calculate_valuation(symbol, request_data)
 

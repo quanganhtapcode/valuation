@@ -31,7 +31,7 @@ from backend.db_path import (
     resolve_vci_screening_db_path,
     resolve_vci_stats_financial_db_path,
 )
-from backend.extensions import get_provider, get_stock_service, get_financial_service, get_valuation_service
+from backend.extensions import get_provider, get_stock_service, get_valuation_service
 from backend.utils import validate_stock_symbol
 
 logger = logging.getLogger(__name__)

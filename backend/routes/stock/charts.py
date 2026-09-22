@@ -4,7 +4,8 @@ import logging
 import os
 import sqlite3
 
-import pandas as pd
+from backend.sqlite_utils import read_connection
+
 from flask import Blueprint, jsonify, request
 
 from backend.db_path import resolve_vci_ratio_daily_db_path, resolve_vci_stats_financial_db_path
@@ -101,8 +102,7 @@ def _query_ratio_daily_history(db_path: str, symbol: str, limit: int) -> list[di
         return []
 
     try:
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with read_connection(db_path) as conn:
             cur = conn.cursor()
             rows: list[sqlite3.Row] = []
 
@@ -162,8 +162,7 @@ def _query_vci_history(db_path: str, symbol: str, period: str) -> list[dict]:
         return []
 
     try:
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with read_connection(db_path) as conn:
             cur = conn.cursor()
             cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='stats_financial_history'")
             if not cur.fetchone():

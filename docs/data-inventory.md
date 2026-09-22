@@ -43,8 +43,7 @@ code hiện tại; chưa xác định được script lịch sử nào đã tạ
 Vì vậy sự hiện diện của chúng không chứng minh có dữ liệu tỷ số, cổ đông hay tin tức
 trong financials. Dữ liệu đó hiện nằm trong các file chuyên biệt ở bảng trên.
 
-Không xóa tự động: `backend/stock_provider.py`,
-`backend/data_sources/financial_repository.py` và
+Không xóa tự động: `backend/stock_provider.py` và
 `backend/routes/stock/missing_routes.py` vẫn có truy vấn schema cũ như
 `financial_ratios`, `company_overview`. Cần di chuyển các đường đọc này trước khi
 loại bỏ schema. Tổng dung lượng của 15 bảng rỗng và index tương ứng chỉ 140 KiB.

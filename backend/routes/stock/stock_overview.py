@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
 
-import numpy as np
+from backend.sqlite_utils import read_connection
+
 import pandas as pd
 from flask import Blueprint, jsonify, request
 
@@ -34,7 +34,7 @@ def _read_vci_company(symbol: str) -> dict:
     if not db or not os.path.exists(db):
         return {}
     try:
-        with sqlite3.connect(db) as conn:
+        with read_connection(db) as conn:
             row = conn.execute(
                 "SELECT target_price, company_profile FROM companies WHERE ticker = ?",
                 (symbol.upper(),),

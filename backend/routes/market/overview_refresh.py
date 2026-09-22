@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
 import time
 from typing import Any
+
+from backend.sqlite_utils import read_connection
 
 from flask import Blueprint, jsonify, request
 
@@ -104,8 +105,7 @@ def _fetch_heatmap(exchange: str, limit: int) -> dict[str, Any]:
     if not db or not os.path.exists(db):
         return {"sectors": []}
 
-    with sqlite3.connect(db) as conn:
-        conn.row_factory = sqlite3.Row
+    with read_connection(db) as conn:
         rows = conn.execute(
             "SELECT ticker, viSector, marketCap, dailyPriceChangePercent, marketPrice "
             "FROM screening_data "
