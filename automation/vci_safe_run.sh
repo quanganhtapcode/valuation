@@ -267,15 +267,28 @@ fi
 attempt=1
 max_attempts=$((RETRIES + 1))
 run_ok=0
+last_exit=0
+partial_run=0
 while [[ $attempt -le $max_attempts ]]; do
   echo "[safe-run][$JOB_NAME] attempt=$attempt/$max_attempts"
-  if [[ $attempt -gt 1 && -f "$last_backup" ]]; then
+  if [[ $attempt -gt 1 && $last_exit -ne 75 && -f "$last_backup" ]]; then
     python3 "$SCRIPT_DIR/sqlite_backup.py" --restore "$last_backup" "$DB_PATH"
     echo "[safe-run][$JOB_NAME] restored last backup before retry: $last_backup"
   fi
   if bash -lc "$RUN_CMD"; then
     run_ok=1
+    partial_run=0
     break
+  else
+    last_exit=$?
+  fi
+  # 75 means a non-destructive partial fetch: retain committed successes so
+  # incremental retries can finish missing work instead of restoring old data.
+  if [[ $last_exit -eq 75 ]]; then
+    partial_run=1
+    echo "[safe-run][$JOB_NAME] partial fetch; retaining successful updates"
+  else
+    partial_run=0
   fi
   if [[ $attempt -lt $max_attempts ]]; then
     sleep_s=$((RETRY_SLEEP * attempt))
@@ -285,7 +298,7 @@ while [[ $attempt -le $max_attempts ]]; do
   attempt=$((attempt + 1))
 done
 
-if [[ $run_ok -ne 1 ]]; then
+if [[ $run_ok -ne 1 && $partial_run -ne 1 ]]; then
   echo "[safe-run][$JOB_NAME] all attempts failed"
   if [[ -f "$last_backup" ]]; then
     python3 "$SCRIPT_DIR/sqlite_backup.py" --restore "$last_backup" "$DB_PATH"
@@ -326,6 +339,13 @@ if [[ $should_rollback -eq 1 ]]; then
   prune_backups
   send_telegram_summary "ROLLED_BACK" "health threshold violated; restored last good backup"
   exit 3
+fi
+
+if [[ $partial_run -eq 1 ]]; then
+  echo "[safe-run][$JOB_NAME] PARTIAL: row checks passed but upstream work remains incomplete"
+  prune_backups
+  send_telegram_summary "PARTIAL" "successful updates retained; upstream tasks failed after retries"
+  exit 75
 fi
 
 echo "[safe-run][$JOB_NAME] health check passed"

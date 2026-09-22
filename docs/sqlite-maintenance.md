@@ -73,3 +73,40 @@ Explicit database paths and environment overrides are authoritative, including
 when the file is missing; readers fail or return unavailable instead of silently
 selecting a different legacy database. Financial/ratio/stats ingestion health uses
 committed metadata timestamps instead of the SQLite file modification time.
+
+## Ingestion result status (2026-09-22)
+
+Price history, news/events and financial statements now distinguish:
+
+- Exit 0: every requested task completed successfully (valid existing data may
+  need no new rows).
+- Exit 75: partial/incomplete ingestion with old snapshots and committed
+  successes retained. `vci_safe_run.sh` retries without restoring the pre-run
+  snapshot; after exhausted retries it validates row-count/quality thresholds,
+  retains good progress and still returns 75. A partial run never prints
+  `health check passed` as its final result.
+- Other nonzero exits: existing restore/retry behavior applies. Row-loss checks
+  still trigger restoration even when the fetcher returns 75.
+
+This exit-75 contract is only for fetchers that preserve previous data on error;
+custom commands must not use it for destructive failures. Retry does not mean
+all fetchers skip previous successes: news/events `--incremental` skips pairs
+already fetched that UTC day; price history rechecks recent pages; financials
+repeats the requested universe. No cron/service reinstallation is needed because
+scheduled jobs reference these scripts directly.
+
+The news worker default is four HTTP requests concurrently, with two bounded
+retries per pair. `--workers`, `--retries` and `--symbols` support controlled
+recovery. Financial `--retry` and `--timeout` are now applied; symbol workers use
+separate HTTP openers and the pacing lock no longer covers network I/O.
+
+All three writers record run status, counts, scope and timestamps in `meta`.
+Health exposes price/news run metadata as well as existing coverage/data checks.
+A targeted run is marked `scope=subset` and does not declare the full universe
+healthy. Missing metadata remains a warning until a run populates it. Latest
+trade date and ingestion success are distinct: a successful fetch can correctly
+add no candles on a non-trading day; an error or malformed response cannot be
+classified as up-to-date.
+
+Backups made during this recovery are in `data/backups/ingestion-20260922/`.
+No financial history or news/event items were deleted to silence health warnings.

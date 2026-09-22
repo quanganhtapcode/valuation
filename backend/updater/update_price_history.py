@@ -11,7 +11,9 @@ import logging
 import time
 import random
 import math
-from datetime import datetime
+from datetime import datetime, timezone
+from contextlib import closing
+from backend.sqlite_utils import read_connection
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict
 
@@ -40,6 +42,7 @@ CREATE TABLE IF NOT EXISTS stock_price_history (
     volume  INTEGER,
     PRIMARY KEY (symbol, time)
 );
+CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
 CREATE INDEX IF NOT EXISTS idx_ph_time   ON stock_price_history(time);
 """
 
@@ -91,7 +94,7 @@ class PriceHistoryUpdater:
             'retried_ok': 0,
         }
 
-    def _fetch_recent_with_retry(self, symbol: str) -> Dict | None:
+    def _fetch_recent_with_retry(self, symbol: str, page: int = 0) -> Dict | None:
         """
         Fetch page 0 history with retry/backoff for transient 403/5xx or network issues.
         """
@@ -99,10 +102,14 @@ class PriceHistoryUpdater:
         for attempt in range(1, max_attempts + 1):
             result = VCIClient.fetch_price_history(
                 symbol=symbol,
-                page=0,
+                page=page,
                 size=self.recent_page_size,
             )
-            if result:
+            try:
+                VCIClient.price_history_records(result)
+            except ValueError:
+                result = None
+            if result is not None:
                 if attempt > 1:
                     self.stats['retried_ok'] += 1
                 return result
@@ -112,33 +119,20 @@ class PriceHistoryUpdater:
         return None
 
     def get_latest_date(self, symbol: str) -> str | None:
-        """Return latest trading date (YYYY-MM-DD) currently stored for symbol."""
-        conn = sqlite3.connect(self.price_db_path)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "SELECT MAX(time) FROM stock_price_history WHERE symbol = ?",
-                (symbol,),
-            )
-            row = cursor.fetchone()
-            latest = row[0] if row else None
+        """Return the latest committed trading date for a symbol."""
+        with read_connection(self.price_db_path) as conn:
+            latest = conn.execute(
+                "SELECT MAX(time) FROM stock_price_history WHERE symbol = ?", (symbol,)
+            ).fetchone()[0]
             return str(latest) if latest else None
-        finally:
-            conn.close()
 
     def get_all_symbols(self) -> List[str]:
-        """Fetch all stock symbols from vci_screening."""
-        try:
-            conn = sqlite3.connect(self.screening_db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT DISTINCT ticker FROM screening_data ORDER BY ticker")
-            symbols = [row[0] for row in cursor.fetchall() if row[0]]
-            conn.close()
-            logger.info(f"Found {len(symbols)} symbols to update")
-            return symbols
-        except Exception as e:
-            logger.error(f"Failed to fetch symbols: {e}")
-            return []
+        """Read the stock universe without creating a missing database."""
+        with read_connection(self.screening_db_path) as conn:
+            symbols = [row[0] for row in conn.execute(
+                "SELECT DISTINCT ticker FROM screening_data ORDER BY ticker") if row[0]]
+        logger.info("Found %d symbols to update", len(symbols))
+        return symbols
 
     def insert_price_records(self, symbol: str, records: List[Dict]) -> int:
         """Upsert OHLCV records into vci_price_history.sqlite. Returns inserted count."""
@@ -207,6 +201,7 @@ class PriceHistoryUpdater:
         except Exception as e:
             logger.error(f"DB write error for {symbol}: {e}")
             conn.rollback()
+            raise
         finally:
             conn.close()
 
@@ -214,51 +209,46 @@ class PriceHistoryUpdater:
 
     def fetch_and_store_symbol(self, symbol: str) -> Dict:
         try:
-            if self.incremental:
-                latest_date = self.get_latest_date(symbol)
-                # If symbol is missing from DB, bootstrap with full backfill.
-                if latest_date:
-                    result = self._fetch_recent_with_retry(symbol)
-                    if not result:
-                        return {'symbol': symbol, 'success': False, 'error': 'No data', 'inserted': 0}
+            latest_date = self.get_latest_date(symbol) if self.incremental else None
+            records = []
+            for page in range(self.pages_per_symbol):
+                result = self._fetch_recent_with_retry(symbol, page)
+                if result is None:
+                    raise ValueError(f'Price-history page {page} failed')
+                batch = VCIClient.price_history_records(result)
+                dates = []
+                for record in batch:
+                    date_text = str(record.get('tradingDate') or record.get('time') or record.get('date') or '')[:10]
+                    datetime.strptime(date_text, '%Y-%m-%d')
+                    dates.append(date_text)
+                records.extend(r for r, d in zip(batch, dates) if not latest_date or d > latest_date)
+                if latest_date and any(d <= latest_date for d in dates):
+                    break
+                if len(batch) < self.recent_page_size:
+                    break
+                if latest_date and page + 1 == self.pages_per_symbol:
+                    raise ValueError('Incremental gap exceeds page limit; rerun with --pages increased')
+                if self.delay:
+                    time.sleep(self.delay)
 
-                    raw = result.get('data') if isinstance(result, dict) else []
-                    if isinstance(raw, dict):
-                        records = raw.get('content', [])
-                    elif isinstance(raw, list):
-                        records = raw
-                    else:
-                        records = []
-
-                    new_records = []
-                    for record in records:
-                        trading_date = str(record.get('tradingDate') or record.get('time') or record.get('date') or '')[:10]
-                        if trading_date and trading_date > latest_date:
-                            new_records.append(record)
-
-                    if not new_records:
-                        return {'symbol': symbol, 'success': True, 'inserted': 0, 'up_to_date': True}
-
-                    inserted = self.insert_price_records(symbol, new_records)
-                    logger.info(f"+ {symbol}: incremental {len(new_records)} new, {inserted} upserted")
-                    return {'symbol': symbol, 'success': True, 'inserted': inserted}
-
-            records = VCIClient.fetch_price_history_batch(
-                symbol=symbol,
-                pages=self.pages_per_symbol,
-                size=self.recent_page_size,
-                delay=self.delay,
-            )
             if not records:
-                return {'symbol': symbol, 'success': False, 'error': 'No data', 'inserted': 0}
-
+                if latest_date and batch:
+                    return {'symbol': symbol, 'success': True, 'inserted': 0, 'up_to_date': True}
+                raise ValueError('No price history returned; cannot confirm freshness')
             inserted = self.insert_price_records(symbol, records)
-            logger.info(f"+ {symbol}: {len(records)} fetched, {inserted} upserted")
+            if inserted != len(records):
+                raise ValueError(f'Only {inserted}/{len(records)} valid price records stored')
+            logger.info('+ %s: %d records upserted', symbol, inserted)
             return {'symbol': symbol, 'success': True, 'inserted': inserted}
+        except Exception as exc:
+            logger.error('x %s: %s', symbol, exc)
+            return {'symbol': symbol, 'success': False, 'error': str(exc), 'inserted': 0}
 
-        except Exception as e:
-            logger.error(f"x {symbol}: {e}")
-            return {'symbol': symbol, 'success': False, 'error': str(e), 'inserted': 0}
+    def _record_run(self, values: dict) -> None:
+        with closing(sqlite3.connect(self.price_db_path)) as conn:
+            with conn:
+                conn.executemany('INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)',
+                                 [(key, str(value)) for key, value in values.items()])
 
     def run(self, symbols: List[str] = None, test_mode: bool = False):
         start_time = time.time()
@@ -269,16 +259,22 @@ class PriceHistoryUpdater:
         )
         logger.info("=" * 70)
 
+        scope = 'subset' if symbols is not None or test_mode else 'full'
         if symbols is None:
             symbols = self.get_all_symbols()
+        symbols = list(dict.fromkeys(symbols))
         if test_mode:
             symbols = symbols[:5]
             logger.info(f"TEST MODE: {len(symbols)} symbols only")
 
+        self.stats = dict.fromkeys(self.stats, 0)
         self.stats['total'] = len(symbols)
+        self._record_run({'last_run_started': datetime.now(timezone.utc).isoformat(),
+                          'last_run_status': 'running', 'last_run_scope': scope, 'last_run_total': len(symbols)})
         if not symbols:
             logger.error("No symbols to process")
-            return
+            self._record_run({'last_run_status': 'failed', 'last_run_failed': 0})
+            return dict(self.stats)
 
         logger.info(f"Processing {len(symbols)} symbols with {self.max_workers} workers…")
         failed_symbols = []
@@ -310,6 +306,14 @@ class PriceHistoryUpdater:
             logger.warning(f"Failed ({len(failed_symbols)}): {', '.join(failed_symbols[:30])}")
             if len(failed_symbols) > 30:
                 logger.warning(f"  … and {len(failed_symbols) - 30} more")
+        self._record_run({
+            'last_run_finished': datetime.now(timezone.utc).isoformat(),
+            'last_run_status': 'partial' if failed_symbols else 'ok',
+            'last_run_success': self.stats['success'], 'last_run_failed': self.stats['failed'],
+            'last_run_records': self.stats['records_inserted'],
+            'last_run_up_to_date': self.stats['up_to_date'],
+        })
+        return dict(self.stats)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -343,7 +347,7 @@ def _parse_args() -> argparse.Namespace:
     return args
 
 
-def main() -> None:
+def main() -> int:
     os.makedirs('logs', exist_ok=True)
     args = _parse_args()
     symbols = [s.strip().upper() for s in args.symbols.split(',') if s.strip()] if args.symbols else None
@@ -358,8 +362,9 @@ def main() -> None:
         retries=2,
         retry_backoff=1.5,
     )
-    updater.run(symbols=symbols, test_mode=args.test)
+    stats = updater.run(symbols=symbols, test_mode=args.test)
+    return 1 if not stats['total'] else (75 if stats['failed'] else 0)
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

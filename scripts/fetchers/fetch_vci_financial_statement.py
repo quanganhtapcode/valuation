@@ -51,6 +51,8 @@ DEVICE_ID = "".join(f"{random.randrange(256):02x}" for _ in range(12))
 HTTP_LOCK = threading.Lock()
 FIELD_CODE_RE = re.compile(r"^[a-z]{3}\d+$", re.IGNORECASE)
 REQUEST_DELAY_S = 0.0
+REQUEST_RETRIES = 3
+REQUEST_TIMEOUT_S = 20
 
 # Wide-format table names per section (mirrors vci_financials.sqlite schema)
 SECTION_TABLE_MAP: dict[str, str] = {
@@ -215,26 +217,31 @@ def _request_json(
     opener: urllib.request.OpenerDirector,
     url: str,
     *,
-    timeout_s: int = 20,
-    retries: int = 3,
+    timeout_s: int | None = None,
+    retries: int | None = None,
     backoff_base_s: float = 0.8,
 ) -> dict[str, Any]:
+    timeout_s = REQUEST_TIMEOUT_S if timeout_s is None else timeout_s
+    retries = REQUEST_RETRIES if retries is None else retries
     headers = _headers()
     last_err: Exception | None = None
     for attempt in range(retries + 1):
         try:
             req = urllib.request.Request(url=url, headers=headers, method="GET")
-            with HTTP_LOCK:
-                with opener.open(req, timeout=timeout_s) as resp:
-                    raw = resp.read()
-                    enc = (resp.headers.get("Content-Encoding") or "").lower()
-                if REQUEST_DELAY_S > 0:
+            # Pace starts, but do not serialize network I/O across all workers.
+            if REQUEST_DELAY_S > 0:
+                with HTTP_LOCK:
                     time.sleep(REQUEST_DELAY_S)
+            with opener.open(req, timeout=timeout_s) as resp:
+                raw = resp.read()
+                enc = (resp.headers.get("Content-Encoding") or "").lower()
             if "gzip" in enc:
                 raw = gzip.decompress(raw)
             body = json.loads(raw.decode("utf-8", errors="replace"))
             if not isinstance(body, dict):
                 raise ValueError(f"Unexpected response type from {url}: {type(body).__name__}")
+            if body.get("successful") is False or body.get("status") not in (None, 200, "200"):
+                raise ValueError(f"Unsuccessful financial response from {url}")
             return body
         except urllib.error.HTTPError as e:
             last_err = e
@@ -319,9 +326,13 @@ def _fetch_section(
     body = _request_json(opener, url)
     data = body.get("data")
     if not isinstance(data, dict):
-        return {"years": [], "quarters": []}
+        raise ValueError(f"Invalid {section} response for {symbol}")
     years = data.get("years")
     quarters = data.get("quarters")
+    if not isinstance(years, list) or not isinstance(quarters, list):
+        raise ValueError(f"Invalid {section} periods for {symbol}")
+    if any(not isinstance(row, dict) for row in years + quarters):
+        raise ValueError(f"Invalid {section} rows for {symbol}")
     return {
         "years": years if isinstance(years, list) else [],
         "quarters": quarters if isinstance(quarters, list) else [],
@@ -664,9 +675,10 @@ def upsert_symbol_statements(
 
 
 def _fetch_symbol_all_sections(
-    opener: urllib.request.OpenerDirector,
     symbol: str,
 ) -> dict[str, dict[str, list[dict[str, Any]]]]:
+    # Cookie jars/openers are mutable; give each symbol worker its own instance.
+    opener = _build_opener()
     out: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for section in SECTIONS:
         out[section] = _fetch_section(opener, symbol, section)
@@ -976,7 +988,13 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
-    global REQUEST_DELAY_S
+    global REQUEST_DELAY_S, REQUEST_RETRIES, REQUEST_TIMEOUT_S
+    if not 0 <= args.retry <= 5:
+        raise ValueError("--retry must be 0..5")
+    if args.timeout <= 0:
+        raise ValueError("--timeout must be positive")
+    REQUEST_TIMEOUT_S = args.timeout
+    REQUEST_RETRIES = args.retry
     REQUEST_DELAY_S = max(0.0, float(args.delay))
     opener = _build_opener()
 
@@ -1091,6 +1109,11 @@ def main() -> int:
         log.error("No symbols to fetch.")
         return 1
 
+    conn.executemany("INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)", [
+        ('last_run_started', fetched_at), ('last_run_status', 'running'),
+        ('last_run_scope', 'subset' if args.symbols.strip() or args.limit or args.test_only or args.resume_missing else 'full'),
+        ('last_run_total', str(len(symbols)))])
+    conn.commit()
     success = 0
     failed = 0
     total_period_rows = 0
@@ -1105,7 +1128,7 @@ def main() -> int:
     for bstart in range(0, len(symbols), batch_size):
         batch = symbols[bstart : bstart + batch_size]
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            fut_map = {ex.submit(_fetch_symbol_all_sections, opener, sym): sym for sym in batch}
+            fut_map = {ex.submit(_fetch_symbol_all_sections, sym): sym for sym in batch}
             for fut in as_completed(fut_map):
                 symbol = fut_map[fut]
                 try:
@@ -1142,13 +1165,13 @@ def main() -> int:
                         write_wide=(wide_columns is not None),
                         wide_columns=wide_columns,
                     )
-                    total_period_rows += p_rows
-                    total_value_rows += v_rows
-                    success += 1
                     conn.execute(
                         "INSERT OR REPLACE INTO fetch_log(ticker, status, message, fetched_at) VALUES (?, ?, ?, ?)",
                         (symbol, "ok", f"period_rows={p_rows}, value_rows={v_rows}", fetched_at),
                     )
+                    total_period_rows += p_rows
+                    total_value_rows += v_rows
+                    success += 1
                 except Exception as e:
                     failed += 1
                     conn.execute(
@@ -1197,6 +1220,10 @@ def main() -> int:
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     except Exception:
         pass
+    conn.executemany("INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)", [
+        ('last_run_finished', dt.datetime.now(dt.timezone.utc).isoformat()),
+        ('last_run_status', 'partial' if failed else 'ok')])
+    conn.commit()
     conn.close()
 
     log.info(
@@ -1209,7 +1236,7 @@ def main() -> int:
         elapsed,
         db_path,
     )
-    return 0 if success > 0 else 1
+    return 75 if failed else 0
 
 
 if __name__ == "__main__":

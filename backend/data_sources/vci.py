@@ -994,6 +994,19 @@ class VCIClient:
                 results[symbol.upper()] = price
         return results
 
+    @staticmethod
+    def price_history_records(payload: Any) -> List[Dict[str, Any]]:
+        """Distinguish a valid empty page from an upstream/application error."""
+        if not isinstance(payload, dict) or payload.get('successful') is False:
+            raise ValueError('Unsuccessful price-history response')
+        if payload.get('status') not in (None, 200, '200'):
+            raise ValueError('Unexpected price-history status')
+        data = payload.get('data')
+        records = data.get('content') if isinstance(data, dict) else data
+        if not isinstance(records, list) or any(not isinstance(r, dict) for r in records):
+            raise ValueError('Invalid price-history page')
+        return records
+
     @classmethod
     def fetch_price_history(cls, symbol: str, page: int = 0, size: int = 250, time_frame: str = "ONE_DAY") -> Optional[Dict[str, Any]]:
         """
@@ -1039,8 +1052,10 @@ class VCIClient:
         try:
             response = cls._session.get(url, params=params, headers=headers, timeout=15)
             response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
+            payload = response.json()
+            cls.price_history_records(payload)
+            return payload
+        except (requests.exceptions.RequestException, ValueError) as e:
             logger.error(f"Failed to fetch price history for {symbol} page {page}: {e}")
             return None
 

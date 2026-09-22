@@ -74,3 +74,38 @@ là dead code, không thay đổi frontend hoặc xóa dữ liệu nghiệp vụ
   và query plan trước khi đổi. Không bỏ xử lý hoa/thường chỉ để tối ưu.
 - Giữ database dự phòng và schema rỗng: ít lợi ích hiệu năng khi xóa chúng và
   chưa có đủ bằng chứng về nhu cầu khôi phục để loại bỏ.
+
+## Đợt tiếp theo: sửa ingestion và phục hồi giá
+
+- Phản hồi giá lỗi/malformed không còn biến thành `up_to_date`; từng trang được
+  retry có giới hạn, lỗi trang sau không ghi một backfill thiếu trang. Lỗi ghi
+  SQLite được rollback và truyền lên, không trả số bản ghi chưa commit.
+- News/events retry từng cặp mã/tab, giảm mặc định từ 20 xuống 4 worker. Giữ
+  timestamp cũ khi lỗi hoặc item thiếu ID. Incremental so ngày theo UTC vì
+  timestamp được ghi UTC. Có CLI giới hạn mã, worker và số retry.
+- Financials áp dụng thực sự `--retry`/`--timeout`, kiểm tra phản hồi lỗi và cấu
+  trúc kỳ, dùng opener riêng cho worker và không khóa toàn bộ network I/O.
+- Cả ba luồng dùng exit 75 cho kết quả không đầy đủ. Safe-run giữ tiến độ đã ghi
+  khi retry loại lỗi này, vẫn kiểm tra sụt giảm dữ liệu và rollback khi vi phạm;
+  không còn thông báo thành công chỉ vì tổng số dòng cũ được giữ nguyên.
+- Metadata thêm trạng thái, phạm vi, số thành công/thất bại và thời gian chạy.
+  Health phân biệt lượt chạy subset, full và partial; không coi một mẫu nhỏ là
+  bằng chứng toàn thị trường đã được cập nhật.
+
+Kiểm tra: 61 test đạt, gồm test chạy shell safe-run thực tế trên SQLite tạm cho
+partial/retry/rollback, test financial main với writer thật, và concurrency HTTP.
+Kiểm tra cú pháp Python, `bash -n`, `git diff --check`.
+
+Kết quả chạy thực tế có backup và khóa database:
+
+- Giá: 1.561/1.561 mã thành công, 1.523 bản ghi upsert, 38 mã không có dữ liệu mới,
+  1 mã phục hồi sau retry, khoảng 112 giây. Ngày mới nhất lên 21/09/2026.
+- News/events mẫu FPT, VCB, MWG, HDC, BMI: lượt đầu 23/25 thành công và exit 75;
+  lượt sau bỏ qua đúng 23 cặp đã xong, hoàn tất 2 cặp còn lại, exit 0. Tổng số
+  items 213.055 không giảm. Chưa chạy lại toàn bộ 7.805 cặp trong đợt này.
+- Đọc thử không ghi cho MWG, HDC, BMI: cả ba trả đủ balance sheet, income,
+  cash flow, note. Đây là xác minh upstream, chưa phải phục hồi toàn bộ 132 lỗi
+  financials được ghi trong lượt toàn thị trường trước đó.
+
+Không thay lịch cron hoặc bật thông báo Telegram. Các lượt theo lịch tiếp theo
+sẽ dùng code mới và phản ánh lỗi partial thay vì báo thành công giả.

@@ -13,6 +13,8 @@ import logging
 import os
 import sqlite3
 import sys
+import time
+import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timezone
 from contextlib import closing
@@ -47,7 +49,7 @@ TABS: dict[str, dict] = {
     "other":    {"path": "events", "extra": {"eventCode": "AIS,MA,MOVE,NLIS,OTHE,RETU,SUSP"}},
 }
 
-MAX_WORKERS = 20   # concurrent HTTP requests
+MAX_WORKERS = 4   # concurrent HTTP requests
 PAGE_SIZE   = 50   # items per request
 
 # ── DB path ───────────────────────────────────────────────────────────────────
@@ -117,7 +119,9 @@ def _fetch_tab(symbol: str, tab: str) -> list[dict]:
     )
     resp.raise_for_status()
     payload = resp.json()
-    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(payload, dict) or payload.get("successful") is False or payload.get("status") not in (None, 200, "200"):
+        raise ValueError("Unsuccessful news/events response")
+    data = payload.get("data")
     items = data.get("content") if isinstance(data, dict) else None
     if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
         raise ValueError("Invalid news/events response; preserving the previous snapshot")
@@ -148,19 +152,28 @@ def _row_from_item(item: dict, symbol: str, tab: str, now: str) -> tuple:
 
 # ── Worker ────────────────────────────────────────────────────────────────────
 
-def _work(symbol: str, tab: str) -> tuple[str, str, int, str | None, list[dict]]:
-    """Fetch without holding a database transaction."""
-    try:
-        items = _fetch_tab(symbol, tab)
-        return (symbol, tab, len(items), None, items)
-    except Exception as exc:
-        return (symbol, tab, 0, str(exc), [])
+def _work(symbol: str, tab: str, retries: int = 2) -> tuple[str, str, int, str | None, list[dict]]:
+    """Retry transient failures without holding a database transaction."""
+    for attempt in range(retries + 1):
+        try:
+            items = _fetch_tab(symbol, tab)
+            return (symbol, tab, len(items), None, items)
+        except Exception as exc:
+            if isinstance(exc, requests.HTTPError) and exc.response is not None:
+                if exc.response.status_code not in (429, 500, 502, 503, 504):
+                    return (symbol, tab, 0, str(exc), [])
+            if attempt == retries:
+                return (symbol, tab, 0, str(exc), [])
+            time.sleep(2 ** attempt + random.uniform(0, 0.4))
+    raise AssertionError('Unreachable retry loop')
 
 
 def _store_result(conn: sqlite3.Connection, symbol: str, tab: str, items: list[dict]) -> None:
     """Serialize before starting a short transaction; preserve prior data on failure."""
     now = datetime.now(timezone.utc).isoformat()
     rows = [row for item in items if (row := _row_from_item(item, symbol, tab, now))]
+    if len(rows) != len(items):
+        raise ValueError("News/events items lack IDs; preserving previous freshness")
     with conn:
         if rows:
             conn.executemany("INSERT OR REPLACE INTO items VALUES (?,?,?,?,?,?,?)", rows)
@@ -172,7 +185,7 @@ def _store_result(conn: sqlite3.Connection, symbol: str, tab: str, items: list[d
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run(incremental: bool = False) -> None:
+def run(incremental: bool = False, *, symbols: list[str] | None = None, workers: int = MAX_WORKERS, retries: int = 2) -> int:
     db_path = _db_path()
     logger.info("DB: %s", db_path)
 
@@ -183,15 +196,25 @@ def run(incremental: bool = False) -> None:
         sys.exit(1)
 
     with read_connection(screen_db) as sc:
-        symbols = [r[0] for r in sc.execute("SELECT DISTINCT ticker FROM screening_data WHERE ticker IS NOT NULL AND ticker != ''").fetchall()]
+        universe = [r[0] for r in sc.execute("SELECT DISTINCT ticker FROM screening_data WHERE ticker IS NOT NULL AND ticker != ''").fetchall()]
+    scope = 'subset' if symbols is not None else 'full'
+    symbols = list(dict.fromkeys(symbols if symbols is not None else universe))
+    if not symbols:
+        logger.error("No symbols to fetch")
+        return 1
     logger.info("Symbols: %d", len(symbols))
 
     with closing(sqlite3.connect(db_path, timeout=5)) as conn:
         _init_db(conn)
+        conn.execute("CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)")
+        conn.executemany("INSERT OR REPLACE INTO meta VALUES (?,?)", [
+            ('last_run_started', datetime.now(timezone.utc).isoformat()),
+            ('last_run_status', 'running'), ('last_run_scope', scope)])
+        conn.commit()
 
         already_fetched: set[tuple[str, str]] = set()
         if incremental:
-            today_str = date.today().isoformat()
+            today_str = datetime.now(timezone.utc).date().isoformat()
             rows = conn.execute(
                 "SELECT symbol, tab FROM fetch_meta WHERE last_fetched >= ?", (today_str,)
             ).fetchall()
@@ -210,8 +233,8 @@ def run(incremental: bool = False) -> None:
         done = 0
         errors = 0
 
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-            futures = {pool.submit(_work, sym, tab): (sym, tab) for sym, tab in tasks}
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_work, sym, tab, retries): (sym, tab) for sym, tab in tasks}
             for future in as_completed(futures):
                 symbol, tab, count, err, items = future.result()
                 done += 1
@@ -222,11 +245,21 @@ def run(incremental: bool = False) -> None:
                         logger.warning("ERR %s/%s: %s", symbol, tab, err)
                     # Keep last successful freshness metadata on upstream errors.
                 else:
-                    _store_result(conn, symbol, tab, items)
+                    try:
+                        _store_result(conn, symbol, tab, items)
+                    except (sqlite3.Error, ValueError) as exc:
+                        errors += 1
+                        logger.error("Store failed %s/%s: %s", symbol, tab, exc)
 
                 if done % 500 == 0:
                     logger.info("Progress: %d/%d (errors: %d)", done, len(tasks), errors)
 
+        conn.executemany("INSERT OR REPLACE INTO meta VALUES (?,?)", [
+            ('last_run_finished', datetime.now(timezone.utc).isoformat()),
+            ('last_run_status', 'partial' if errors else 'ok'),
+            ('last_run_total', str(len(tasks))),
+            ('last_run_success', str(done - errors)),
+            ('last_run_failed', str(errors))])
         conn.commit()
 
     logger.info("Done. Tasks: %d, errors: %d", done, errors)
@@ -237,9 +270,21 @@ def run(incremental: bool = False) -> None:
         symbols_done = conn.execute("SELECT COUNT(DISTINCT symbol) FROM items").fetchone()[0]
         logger.info("DB: %d items across %d symbols", total, symbols_done)
 
+    return 75 if errors else 0
 
-if __name__ == "__main__":
+
+def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--incremental", action="store_true", help="Skip symbols fetched today")
+    ap.add_argument("--symbols", help="Comma-separated tickers; default is the full universe")
+    ap.add_argument("--workers", type=int, default=MAX_WORKERS)
+    ap.add_argument("--retries", type=int, default=2)
     args = ap.parse_args()
-    run(incremental=args.incremental)
+    if not 1 <= args.workers <= 20 or not 0 <= args.retries <= 5:
+        ap.error("workers must be 1..20 and retries must be 0..5")
+    symbols = [s.strip().upper() for s in args.symbols.split(',') if s.strip()] if args.symbols is not None else None
+    return run(incremental=args.incremental, symbols=symbols, workers=args.workers, retries=args.retries)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

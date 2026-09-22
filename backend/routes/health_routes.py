@@ -154,7 +154,12 @@ def _check_ingestion(db: Path, *, finished_key: str, max_age_minutes: int) -> di
         age = (datetime.now(timezone.utc) - stamp).total_seconds() / 60
         failed_value = meta.get("last_run_failed")
         failures = int(failed_value) if failed_value is not None else None
-        return {"status": "warn" if age > max_age_minutes or failures else "ok",
+        run_status = meta.get("last_run_status")
+        scope = meta.get("last_run_scope")
+        incomplete = run_status in {"failed", "partial"} or scope == "subset"
+        return {"status": "warn" if age > max_age_minutes or failures or incomplete else "ok",
+                "run_status": run_status, "scope": scope,
+                "last_run_total": meta.get("last_run_total"),
                 "data_as_of": finished, "age_minutes": round(age, 1),
                 "last_run_started": meta.get("last_run_started"),
                 "last_run_success": meta.get("last_run_success", meta.get("last_run_ok_count")),
@@ -291,6 +296,10 @@ def health() -> tuple:
             freshness_minutes=24 * 60,
             freshness_sql="SELECT MAX(time) FROM stock_price_history",
         ),
+        "price_history_ingestion": _check_ingestion(
+            fetch_dir / "vci_price_history.sqlite", finished_key="last_run_finished", max_age_minutes=72 * 60),
+        "news_events_run": _check_ingestion(
+            fetch_dir / "vci_news_events.sqlite", finished_key="last_run_finished", max_age_minutes=48 * 60),
         "financials_ingestion": _check_ingestion(
             fetch_dir / "vci_financials.sqlite", finished_key="last_run_at", max_age_minutes=48 * 60),
         "ratios_ingestion": _check_ingestion(
