@@ -110,3 +110,27 @@ classified as up-to-date.
 
 Backups made during this recovery are in `data/backups/ingestion-20260922/`.
 No financial history or news/event items were deleted to silence health warnings.
+
+### Bounded recovery and resuming financials
+
+News/events and financial ingestion default to a 1,800-second fetch budget.
+`--max-runtime` sets a positive budget; `--max-consecutive-errors` stops sustained
+failures (20 tasks for news/events, 10 symbols for financials by default).
+Queued work is cancelled when a limit is reached. In-flight requests finish or
+time out before the worker pool closes, so total elapsed time may exceed the
+fetch budget; financial post-fetch SQLite maintenance is also outside that budget.
+Both paths record `last_run_reason` (`time_budget` or `consecutive_errors`) and
+`last_run_unprocessed`, and return 75 while retaining committed updates.
+
+For example, a limited news recovery under the usual backup/writer lock:
+
+```sh
+bash automation/vci_safe_run.sh --name news_recovery --db data/sqlite/vci_news_events.sqlite --retries 0 --command '.venv/bin/python -m backend.updater.batch_news --incremental --workers 1 --retries 0 --max-runtime 90 --max-consecutive-errors 5'
+```
+
+`fetch_vci_financial_statement.py --resume-missing` now checks the **latest**
+fetch_log entry per ticker. A recent error is retried even when an older fetch
+succeeded. It skips current successful tickers and is intended for continuing an
+interrupted recovery, not as a permanent replacement for periodic full refreshes.
+Health reports the stop reason and unprocessed count; it does not hide upstream
+outages by declaring retained historical rows fresh.

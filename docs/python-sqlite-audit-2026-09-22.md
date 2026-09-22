@@ -109,3 +109,42 @@ Kết quả chạy thực tế có backup và khóa database:
 
 Không thay lịch cron hoặc bật thông báo Telegram. Các lượt theo lịch tiếp theo
 sẽ dùng code mới và phản ánh lỗi partial thay vì báo thành công giả.
+
+## Đợt 3: company search, dọn adapter cũ và giới hạn recovery
+
+- Sửa `/api/companies/search`: adapter cũ truy vấn bảng `company` trong screening
+  trong khi nguồn thực tế là `companies` tại company DB. List/search nay dùng
+  chung truy vấn VCI, giữ các trường `symbol`, `name`, `exchange`, `industry`.
+  Search hỗ trợ tên ngắn/tên tiếng Anh (ví dụ Vinamilk), ưu tiên mã khớp chính xác,
+  xử lý `%`/`_` như ký tự tìm kiếm và trả 400 khi tham số phân trang không hợp lệ.
+- Loại bỏ `backend/data_sources/sqlite_db.py` (322 dòng) sau khi chuyển caller cuối,
+  cùng các phương thức StockService và khởi tạo/import không còn được dùng.
+- Connection chính và database attach đều dùng `mode=ro`, đường dẫn attach được
+  truyền qua SQL parameter. JOIN dùng NOCASE; kiểm tra 500 dòng company list giống
+  kết quả truy vấn cũ. Không thay schema, frontend hoặc hợp đồng response.
+- Bổ sung budget và dừng theo chuỗi lỗi cho news/events/financials; health hiển thị
+  lý do dừng và số tác vụ chưa xử lý. Sửa `--resume-missing` dựa trên trạng thái
+  mới nhất của mỗi ticker, tránh bỏ qua lỗi mới chỉ vì từng có lần thành công.
+
+Kiểm tra: 71 test đạt, bao gồm tìm mã/tên/alias, ưu tiên mã chính xác, literal
+wildcard, đường dẫn có dấu nháy, missing attachment, đóng connection, phân trang,
+request budget, chuỗi lỗi và resume sau một thành công cũ/lỗi mới.
+
+Kết quả nguồn thật trong đợt này:
+
+- Hai lượt toàn thị trường gặp timeout liên tục. Đã dừng đúng hai nhóm tiến trình
+  do task khởi chạy; giữ những transaction đã commit và đánh dấu metadata partial.
+  News/events thêm 64 cặp mã/tab được refresh; financials 7 mã thành công, 23 mã
+  lỗi và 1.531 mã chưa xử lý trong lượt này. Không coi đây là full refresh đạt.
+- Lượt news/events mới có giới hạn 90 giây, một worker, không retry: bỏ qua 89
+  cặp đã thành công trong ngày, tự dừng sau 5 lỗi liên tiếp; 7.711 tác vụ còn lại.
+  Safe-run trả 75, giữ số dòng và không tuyên bố dữ liệu đã cập nhật đầy đủ.
+- Thử financials chỉ cho các mã có kết quả mới nhất là lỗi, timeout 5 giây:
+  endpoint mapping đã timeout trước khi bắt đầu fetch từng mã. Safe-run trả lỗi
+  và khôi phục backup trước lượt thử. Không tiếp tục gây tải lên nguồn đang lỗi.
+- News/events vẫn có 213.056 items. Snapshot trước mỗi lượt chạy nằm trong
+  `data/backups/ingestion-20260922/` theo chính sách giữ backup hiện hành.
+
+Phần còn phụ thuộc nguồn ngoài: phục hồi đầy đủ news/events/financials khi
+Vietcap phản hồi ổn định. Code tự giới hạn thời gian và báo partial rõ ràng;
+không dùng dữ liệu cũ để giả lập một lượt cập nhật thành công.

@@ -185,7 +185,11 @@ def _store_result(conn: sqlite3.Connection, symbol: str, tab: str, items: list[d
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run(incremental: bool = False, *, symbols: list[str] | None = None, workers: int = MAX_WORKERS, retries: int = 2) -> int:
+def run(incremental: bool = False, *, symbols: list[str] | None = None, workers: int = MAX_WORKERS, retries: int = 2,
+        max_runtime: float = 1800, max_consecutive_errors: int = 20) -> int:
+    if max_runtime <= 0 or max_consecutive_errors < 1:
+        raise ValueError("Runtime and consecutive-error limits must be positive")
+    deadline = time.monotonic() + max_runtime
     db_path = _db_path()
     logger.info("DB: %s", db_path)
 
@@ -232,11 +236,19 @@ def run(incremental: bool = False, *, symbols: list[str] | None = None, workers:
 
         done = 0
         errors = 0
+        consecutive_errors = 0
+        stop_reason = ''
 
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(_work, sym, tab, retries): (sym, tab) for sym, tab in tasks}
             for future in as_completed(futures):
+                if time.monotonic() >= deadline:
+                    stop_reason = 'time_budget'
+                    for pending in futures:
+                        pending.cancel()
+                    break
                 symbol, tab, count, err, items = future.result()
+                errors_before = errors
                 done += 1
 
                 if err:
@@ -251,18 +263,26 @@ def run(incremental: bool = False, *, symbols: list[str] | None = None, workers:
                         errors += 1
                         logger.error("Store failed %s/%s: %s", symbol, tab, exc)
 
-                if done % 500 == 0:
+                consecutive_errors = consecutive_errors + 1 if errors > errors_before else 0
+                if consecutive_errors >= max_consecutive_errors:
+                    stop_reason = 'consecutive_errors'
+                    for pending in futures:
+                        pending.cancel()
+                    break
+                if done % 100 == 0:
                     logger.info("Progress: %d/%d (errors: %d)", done, len(tasks), errors)
 
         conn.executemany("INSERT OR REPLACE INTO meta VALUES (?,?)", [
             ('last_run_finished', datetime.now(timezone.utc).isoformat()),
-            ('last_run_status', 'partial' if errors else 'ok'),
+            ('last_run_status', 'partial' if errors or stop_reason else 'ok'),
+            ('last_run_reason', stop_reason),
+            ('last_run_unprocessed', str(len(tasks) - done)),
             ('last_run_total', str(len(tasks))),
             ('last_run_success', str(done - errors)),
             ('last_run_failed', str(errors))])
         conn.commit()
 
-    logger.info("Done. Tasks: %d, errors: %d", done, errors)
+    logger.info("Done. Tasks: %d/%d, errors: %d, stop_reason: %s", done, len(tasks), errors, stop_reason or "complete")
 
     # Report DB size
     with read_connection(db_path) as conn:
@@ -270,7 +290,7 @@ def run(incremental: bool = False, *, symbols: list[str] | None = None, workers:
         symbols_done = conn.execute("SELECT COUNT(DISTINCT symbol) FROM items").fetchone()[0]
         logger.info("DB: %d items across %d symbols", total, symbols_done)
 
-    return 75 if errors else 0
+    return 75 if errors or stop_reason else 0
 
 
 def main() -> int:
@@ -279,11 +299,16 @@ def main() -> int:
     ap.add_argument("--symbols", help="Comma-separated tickers; default is the full universe")
     ap.add_argument("--workers", type=int, default=MAX_WORKERS)
     ap.add_argument("--retries", type=int, default=2)
+    ap.add_argument("--max-runtime", type=float, default=1800, help="Stop after this many seconds of ingestion (default: 1800)")
+    ap.add_argument("--max-consecutive-errors", type=int, default=20, help="Stop after this many consecutive failed tasks")
     args = ap.parse_args()
+    if args.max_runtime <= 0 or args.max_consecutive_errors < 1:
+        ap.error("runtime and consecutive-error limits must be positive")
     if not 1 <= args.workers <= 20 or not 0 <= args.retries <= 5:
         ap.error("workers must be 1..20 and retries must be 0..5")
     symbols = [s.strip().upper() for s in args.symbols.split(',') if s.strip()] if args.symbols is not None else None
-    return run(incremental=args.incremental, symbols=symbols, workers=args.workers, retries=args.retries)
+    return run(incremental=args.incremental, symbols=symbols, workers=args.workers, retries=args.retries,
+               max_runtime=args.max_runtime, max_consecutive_errors=args.max_consecutive_errors)
 
 
 if __name__ == "__main__":

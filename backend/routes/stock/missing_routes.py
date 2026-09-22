@@ -77,41 +77,19 @@ def register(stock_bp: Blueprint) -> None:
     def api_companies():
         """Return all companies, optionally filtered by exchange."""
         exchange = request.args.get("exchange", "").upper()
-        page = max(1, int(request.args.get("page", 1)))
-        limit = min(500, max(10, int(request.args.get("limit", 200))))
+        try:
+            page = max(1, int(request.args.get("page", 1)))
+            limit = min(500, max(10, int(request.args.get("limit", 200))))
+        except ValueError:
+            return jsonify({"error": "page and limit must be integers"}), 400
 
         cache_key = f"companies_{exchange}_{page}_{limit}"
         cached = _cache_get(cache_key)
         if cached:
             return jsonify(cached)
 
-        company_path = resolve_vci_company_db_path()
-        screening_path = resolve_vci_screening_db_path()
         try:
-            conn = sqlite3.connect(company_path)
-            conn.row_factory = sqlite3.Row
-            conn.execute(f"ATTACH DATABASE '{screening_path}' AS scr")
-            cur = conn.cursor()
-
-            q = """
-                SELECT c.ticker AS symbol, c.organ_name AS name,
-                       COALESCE(sc.exchange, c.floor, 'HOSE') AS exchange,
-                       COALESCE(sc.viSector, c.icb_name4, c.icb_name3, '') AS industry
-                FROM companies c
-                LEFT JOIN scr.screening_data sc ON UPPER(sc.ticker) = UPPER(c.ticker)
-            """
-            params: list = []
-            if exchange:
-                q += " WHERE COALESCE(sc.exchange, c.floor, 'HOSE') = ?"
-                params.append(exchange)
-            q += " ORDER BY c.ticker LIMIT ? OFFSET ?"
-            params += [limit, (page - 1) * limit]
-
-            cur.execute(q, params)
-            rows = cur.fetchall()
-            conn.close()
-
-            result = [dict(r) for r in rows]
+            result = get_stock_service().list_companies(exchange, page, limit)
             _cache_set(cache_key, result)
             return jsonify(result)
         except Exception as exc:
@@ -125,7 +103,10 @@ def register(stock_bp: Blueprint) -> None:
     def api_companies_search():
         """Search companies by ticker or name."""
         q = request.args.get("q", "").strip()
-        limit = min(50, max(1, int(request.args.get("limit", 20))))
+        try:
+            limit = min(50, max(1, int(request.args.get("limit", 20))))
+        except ValueError:
+            return jsonify({"error": "limit must be an integer"}), 400
         if not q:
             return jsonify([])
 

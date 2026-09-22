@@ -159,6 +159,8 @@ def _check_ingestion(db: Path, *, finished_key: str, max_age_minutes: int) -> di
         incomplete = run_status in {"failed", "partial"} or scope == "subset"
         return {"status": "warn" if age > max_age_minutes or failures or incomplete else "ok",
                 "run_status": run_status, "scope": scope,
+                "stop_reason": meta.get("last_run_reason") or None,
+                "last_run_unprocessed": meta.get("last_run_unprocessed", meta.get("last_run_unattempted")),
                 "last_run_total": meta.get("last_run_total"),
                 "data_as_of": finished, "age_minutes": round(age, 1),
                 "last_run_started": meta.get("last_run_started"),

@@ -77,6 +77,21 @@ class PriceTests(unittest.TestCase):
 
 
 class NewsTests(unittest.TestCase):
+    def test_budget_and_failure_streak_leave_unprocessed_work_visible(self):
+        for timed_out in [False, True]:
+            with self.subTest(timed_out=timed_out), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'news.sqlite'
+                with closing(sqlite3.connect(Path(directory) / 'vci_screening.sqlite')) as conn:
+                    conn.executescript("CREATE TABLE screening_data(ticker); INSERT INTO screening_data VALUES ('FPT');")
+                with patch.object(batch_news, '_db_path', return_value=str(path)), patch.object(batch_news, '_work', return_value=('FPT', 'news', 0, 'timeout', [])), patch.object(batch_news.time, 'monotonic', side_effect=[0] + [10 if timed_out else 0] * 20):
+                    self.assertEqual(batch_news.run(workers=1, max_runtime=1, max_consecutive_errors=1), 75)
+                with closing(sqlite3.connect(path)) as conn:
+                    meta = dict(conn.execute('SELECT k,v FROM meta'))
+                self.assertEqual(meta['last_run_status'], 'partial')
+                self.assertEqual(meta['last_run_reason'], 'time_budget' if timed_out else 'consecutive_errors')
+                self.assertEqual(int(meta['last_run_unprocessed']), 5 if timed_out else 4)
+                self.assertEqual(int(meta['last_run_failed']), 0 if timed_out else 1)
+
     def test_transient_failure_retries(self):
         with patch.object(batch_news, '_fetch_tab', side_effect=[TimeoutError('timeout'), []]) as fetch, patch.object(batch_news.time, 'sleep'):
             result = batch_news._work('FPT', 'news', retries=1)
@@ -113,6 +128,37 @@ class NewsTests(unittest.TestCase):
 
 
 class FinancialTests(unittest.TestCase):
+    def test_latest_error_is_retried_despite_older_success(self):
+        with closing(sqlite3.connect(':memory:')) as conn:
+            conn.executescript("""
+                CREATE TABLE fetch_log(ticker, status, fetched_at);
+                INSERT INTO fetch_log VALUES ('FPT','ok','2026-09-20'),('FPT','error','2026-09-21'),
+                    ('VCB','error','2026-09-20'),('VCB','ok','2026-09-21');
+            """)
+            self.assertEqual(financial._latest_successful_symbols(conn), {'VCB'})
+
+    def test_exhausted_budget_does_not_start_network_request(self):
+        opener = Mock()
+        with patch.object(financial, 'REQUEST_DEADLINE', 1), patch.object(financial.time, 'monotonic', return_value=2):
+            with self.assertRaisesRegex(TimeoutError, 'time budget'):
+                financial._request_json(opener, 'https://example.invalid')
+        opener.open.assert_not_called()
+
+    def test_main_stops_after_repeated_failures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / 'financials.sqlite'
+            metrics = {section: [{'field': 'isa20'}] for section in financial.SECTIONS}
+            argv = ['fetch', '--db-path', str(db), '--out-dir', directory,
+                    '--symbols', ','.join(f'BAD{i}' for i in range(20)), '--mapping-symbols', 'FPT',
+                    '--keep-normalized-values', '--workers', '1', '--max-consecutive-errors', '2']
+            with patch.object(sys, 'argv', argv), patch.object(financial, '_fetch_metrics', return_value=metrics), patch.object(financial, '_fetch_symbol_all_sections', side_effect=TimeoutError('upstream failed')):
+                self.assertEqual(financial.main(), 75)
+            with closing(sqlite3.connect(db)) as conn:
+                meta = dict(conn.execute('SELECT k,v FROM meta'))
+            self.assertEqual(meta['last_run_failed'], '2')
+            self.assertEqual(meta['last_run_unprocessed'], '18')
+            self.assertEqual(meta['last_run_reason'], 'consecutive_errors')
+
     def test_missing_period_shape_is_not_success(self):
         for data in [None, {}, {'years': [], 'quarters': 'bad'}]:
             with patch.object(financial, '_request_json', return_value={'data': data}):

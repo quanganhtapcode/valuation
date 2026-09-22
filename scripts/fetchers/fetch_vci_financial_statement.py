@@ -53,6 +53,7 @@ FIELD_CODE_RE = re.compile(r"^[a-z]{3}\d+$", re.IGNORECASE)
 REQUEST_DELAY_S = 0.0
 REQUEST_RETRIES = 3
 REQUEST_TIMEOUT_S = 20
+REQUEST_DEADLINE: float | None = None
 
 # Wide-format table names per section (mirrors vci_financials.sqlite schema)
 SECTION_TABLE_MAP: dict[str, str] = {
@@ -226,13 +227,16 @@ def _request_json(
     headers = _headers()
     last_err: Exception | None = None
     for attempt in range(retries + 1):
+        remaining = REQUEST_DEADLINE - time.monotonic() if REQUEST_DEADLINE is not None else timeout_s
+        if remaining <= 0:
+            raise TimeoutError("Financial ingestion time budget exhausted")
         try:
             req = urllib.request.Request(url=url, headers=headers, method="GET")
             # Pace starts, but do not serialize network I/O across all workers.
             if REQUEST_DELAY_S > 0:
                 with HTTP_LOCK:
                     time.sleep(REQUEST_DELAY_S)
-            with opener.open(req, timeout=timeout_s) as resp:
+            with opener.open(req, timeout=min(timeout_s, remaining)) as resp:
                 raw = resp.read()
                 enc = (resp.headers.get("Content-Encoding") or "").lower()
             if "gzip" in enc:
@@ -254,6 +258,8 @@ def _request_json(
             if attempt >= retries:
                 raise
         delay = backoff_base_s * (2**attempt) + random.random() * 0.2
+        if REQUEST_DEADLINE is not None:
+            delay = min(delay, max(0, REQUEST_DEADLINE - time.monotonic()))
         time.sleep(delay)
     if last_err:
         raise last_err
@@ -924,7 +930,7 @@ def _parse_args() -> argparse.Namespace:
         "--delay",
         type=float,
         default=0.0,
-        help="Delay in seconds after each HTTP request. Useful for throttling.",
+        help="Minimum delay between HTTP request starts. Useful for throttling.",
     )
     parser.add_argument(
         "--store-values-json",
@@ -936,6 +942,8 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="When enabled, skip symbols already marked ok; retry previously failed symbols.",
     )
+    parser.add_argument("--max-runtime", type=float, default=1800, help="Fetch time budget in seconds; post-fetch SQLite maintenance is excluded")
+    parser.add_argument("--max-consecutive-errors", type=int, default=10, help="Stop after this many consecutive failed symbols")
     parser.add_argument("--retry", type=int, default=3, help="HTTP retries per request.")
     parser.add_argument("--timeout", type=int, default=20, help="HTTP timeout seconds.")
     parser.add_argument("--mapping-symbol", default="FPT", help="Symbol used to fetch metrics mapping.")
@@ -986,9 +994,22 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _latest_successful_symbols(conn: sqlite3.Connection) -> set[str]:
+    rows = conn.execute("""
+        SELECT log.ticker FROM fetch_log log
+        JOIN (SELECT ticker, MAX(fetched_at) AS fetched_at FROM fetch_log GROUP BY ticker) latest
+          ON latest.ticker = log.ticker AND latest.fetched_at = log.fetched_at
+        WHERE log.status = 'ok'
+    """)
+    return {row[0] for row in rows}
+
+
 def main() -> int:
     args = _parse_args()
-    global REQUEST_DELAY_S, REQUEST_RETRIES, REQUEST_TIMEOUT_S
+    global REQUEST_DELAY_S, REQUEST_RETRIES, REQUEST_TIMEOUT_S, REQUEST_DEADLINE
+    if args.max_runtime <= 0 or args.max_consecutive_errors < 1:
+        raise ValueError("Runtime and consecutive-error limits must be positive")
+    REQUEST_DEADLINE = time.monotonic() + args.max_runtime
     if not 0 <= args.retry <= 5:
         raise ValueError("--retry must be 0..5")
     if args.timeout <= 0:
@@ -1083,8 +1104,8 @@ def main() -> int:
         symbols = symbols[: args.limit]
 
     if args.resume_missing:
-        done_rows = conn.execute("SELECT DISTINCT ticker FROM fetch_log WHERE status = 'ok'").fetchall()
-        done = {r[0] for r in done_rows if r and r[0]}
+        # A newer error must be retried even if an older run succeeded.
+        done = _latest_successful_symbols(conn)
         symbols = [s for s in symbols if s not in done]
 
     symbols_path.write_text(
@@ -1106,8 +1127,10 @@ def main() -> int:
     log.info("Symbols snapshot saved: %s (count=%d)", symbols_path, len(symbols))
 
     if not symbols:
-        log.error("No symbols to fetch.")
-        return 1
+        log.info("No symbols to fetch.")
+        conn.close()
+        REQUEST_DEADLINE = None
+        return 0 if args.resume_missing else 1
 
     conn.executemany("INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)", [
         ('last_run_started', fetched_at), ('last_run_status', 'running'),
@@ -1125,11 +1148,21 @@ def main() -> int:
 
     batch_size = max(1, int(args.batch_size))
     processed = 0
+    consecutive_errors = 0
+    stop_reason = ''
     for bstart in range(0, len(symbols), batch_size):
+        if time.monotonic() >= REQUEST_DEADLINE:
+            stop_reason = 'time_budget'
+            break
         batch = symbols[bstart : bstart + batch_size]
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
             fut_map = {ex.submit(_fetch_symbol_all_sections, sym): sym for sym in batch}
             for fut in as_completed(fut_map):
+                if time.monotonic() >= REQUEST_DEADLINE:
+                    stop_reason = 'time_budget'
+                    for pending in fut_map:
+                        pending.cancel()
+                    break
                 symbol = fut_map[fut]
                 try:
                     raw_payloads = fut.result()
@@ -1172,17 +1205,27 @@ def main() -> int:
                     total_period_rows += p_rows
                     total_value_rows += v_rows
                     success += 1
+                    consecutive_errors = 0
                 except Exception as e:
                     failed += 1
+                    consecutive_errors += 1
                     conn.execute(
                         "INSERT OR REPLACE INTO fetch_log(ticker, status, message, fetched_at) VALUES (?, ?, ?, ?)",
                         (symbol, "error", str(e)[:800], fetched_at),
                     )
                     log.warning("Failed %s: %s", symbol, e)
                 processed += 1
+                if consecutive_errors >= args.max_consecutive_errors:
+                    stop_reason = 'consecutive_errors'
+                    REQUEST_DEADLINE = time.monotonic()
+                    for pending in fut_map:
+                        pending.cancel()
+                    break
                 if processed % 50 == 0 or processed == len(symbols):
                     log.info("Progress %d/%d | ok=%d failed=%d", processed, len(symbols), success, failed)
         conn.commit()
+        if stop_reason:
+            break
     conn.commit()
 
     elapsed = time.time() - started
@@ -1222,7 +1265,8 @@ def main() -> int:
         pass
     conn.executemany("INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)", [
         ('last_run_finished', dt.datetime.now(dt.timezone.utc).isoformat()),
-        ('last_run_status', 'partial' if failed else 'ok')])
+        ('last_run_status', 'partial' if failed or stop_reason else 'ok'),
+        ('last_run_reason', stop_reason), ('last_run_unprocessed', str(len(symbols) - processed))])
     conn.commit()
     conn.close()
 
@@ -1236,7 +1280,9 @@ def main() -> int:
         elapsed,
         db_path,
     )
-    return 75 if failed else 0
+    log.info("Unprocessed: %d; stop reason: %s", len(symbols) - processed, stop_reason or "complete")
+    REQUEST_DEADLINE = None
+    return 75 if failed or stop_reason else 0
 
 
 if __name__ == "__main__":
