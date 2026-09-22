@@ -59,70 +59,19 @@ export async function fetchAllIndices(): Promise<Record<string, MarketIndexData>
     return result;
 }
 
-function getIndicesWsUrl(): string {
-    const fromEnv = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
-    if (fromEnv) {
-        const normalized = fromEnv.replace(/\/$/, '');
-        if (/^wss?:\/\//i.test(normalized)) {
-            return `${normalized}/ws/market/indices`;
-        }
-        if (/^https?:\/\//i.test(normalized)) {
-            try {
-                const parsed = new URL(normalized);
-                const wsProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
-                return `${wsProtocol}//${parsed.host}${parsed.pathname.replace(/\/$/, '')}/ws/market/indices`;
-            } catch {
-                // fall through
-            }
-        }
-    }
-
-    const fromApiEnv = process.env.NEXT_PUBLIC_API_URL;
-    if (fromApiEnv) {
-        if (/^https?:\/\//i.test(fromApiEnv)) {
-            try {
-                const parsed = new URL(fromApiEnv);
-                const wsProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
-                let basePath = parsed.pathname.replace(/\/$/, '');
-                if (basePath.endsWith('/api')) {
-                    basePath = basePath.slice(0, -4);
-                }
-                return `${wsProtocol}//${parsed.host}${basePath}/ws/market/indices`;
-            } catch {
-                // fall through
-            }
-        }
-
-        if (fromApiEnv.startsWith('/') && typeof window !== 'undefined') {
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            let basePath = fromApiEnv.replace(/\/$/, '');
-            if (basePath.endsWith('/api')) {
-                basePath = basePath.slice(0, -4);
-            }
-            return `${wsProtocol}//${window.location.host}${basePath}/ws/market/indices`;
-        }
-    }
-
-    if (typeof window !== 'undefined') {
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        if (isLocal) {
-            return 'ws://127.0.0.1:5000/ws/market/indices';
-        }
-
-        if (/(^|\.)stock\.quanganh\.org$/i.test(window.location.hostname)) {
-            return 'wss://api.quanganh.org/v1/valuation/ws/market/indices';
-        }
-
-        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        return `${proto}//${window.location.host}/ws/market/indices`;
-    }
-
-    return 'ws://127.0.0.1:5000/ws/market/indices';
+// All streams share one explicit backend base. REST /api is never a WS target.
+export function getWsUrl(path: string): string {
+    const base = (
+        process.env.NEXT_PUBLIC_BACKEND_WS_URL ||
+        (process.env.NODE_ENV === 'development'
+            ? 'ws://127.0.0.1:8000'
+            : 'wss://api.quanganh.org/v1/valuation')
+    ).trim().replace(/\/+$/, '').replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
+    return `${base}/${path.replace(/^\/+/, '')}`;
 }
 
-/** Generic helper: build a VPS WebSocket URL for any path. */
-export function getWsUrl(path: string): string {
-    return getIndicesWsUrl().replace('/ws/market/indices', path);
+function getIndicesWsUrl(): string {
+    return getWsUrl('/ws/market/indices');
 }
 
 export function subscribeIndicesStream(options: {
@@ -181,21 +130,7 @@ export function subscribeIndicesStream(options: {
 }
 
 export function getPricesWsUrl(): string {
-    const override = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
-    if (typeof window !== 'undefined') {
-        if (override) {
-            return `${override}${override.endsWith('/') ? '' : '/'}ws/market/prices`;
-        }
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            return 'ws://127.0.0.1:5000/ws/market/prices';
-        }
-        if (/(^|\.)stock\.quanganh\.org$/i.test(window.location.hostname)) {
-            return 'wss://api.quanganh.org/v1/valuation/ws/market/prices';
-        }
-        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        return `${proto}//${window.location.host}/ws/market/prices`;
-    }
-    return 'ws://127.0.0.1:5000/ws/market/prices';
+    return getWsUrl('/ws/market/prices');
 }
 
 export function subscribePricesStream(options: {

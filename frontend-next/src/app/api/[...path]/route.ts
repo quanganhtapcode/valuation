@@ -1,18 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// ── API proxy target ────────────────────────────────────────────────────────
-// Browser calls  : GET/POST /api/*  →  this file  →  BACKEND_API/*
-// Domain mapping : stock.quanganh.org (Vercel) → api.quanganh.org (VPS nginx)
-//
-// Env vars to set:
-//   BACKEND_API_URL       — production VPS URL  (set in Vercel dashboard)
-//   BACKEND_API_URL_LOCAL — local Flask URL     (set in .env.local)
-//
-// See .env.production / .env.example for canonical values.
-const BACKEND_API =
-    process.env.NODE_ENV === 'development'
-        ? (process.env.BACKEND_API_URL_LOCAL || 'http://127.0.0.1:8000/api')
-        : (process.env.BACKEND_API_URL || 'https://api.quanganh.org/v1/valuation');
+import { BACKEND_API } from '@/lib/backendApi.server';
 
 type ProxyCachePolicy = {
     mode: 'realtime' | 'short' | 'medium' | 'long';

@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { BACKEND_API } from '@/lib/backendApi.server';
 
 type Props = {
   params: Promise<{ symbol: string }>;
@@ -19,11 +20,6 @@ export const size = {
   height: 630,
 };
 export const contentType = 'image/png';
-
-const BACKEND_API =
-  process.env.NODE_ENV === 'development'
-    ? (process.env.BACKEND_API_URL_LOCAL || 'http://127.0.0.1:8000/api')
-    : (process.env.BACKEND_API_URL || 'https://api.quanganh.org/v1/valuation');
 
 function normalizeSymbol(symbol: string): string {
   return (symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);

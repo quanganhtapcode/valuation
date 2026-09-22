@@ -1,13 +1,11 @@
 import 'server-only';
+import { BACKEND_API } from './backendApi.server';
 import { INDEX_MAP, type VciIndexItem } from './marketTypes';
 
 /** Small shared snapshot for first paint; the browser then subscribes to live data. */
 export async function getOverviewSnapshot() {
-    const base = process.env.NODE_ENV === 'development'
-        ? (process.env.BACKEND_API_URL_LOCAL || 'http://127.0.0.1:8000/api')
-        : (process.env.BACKEND_API_URL || 'https://api.quanganh.org/v1/valuation');
     try {
-        const response = await fetch(`${base.replace(/\/$/, '')}/market/vci-indices`, {
+        const response = await fetch(`${BACKEND_API}/market/vci-indices`, {
             next: { revalidate: 15 },
             signal: AbortSignal.timeout(800),
         });
