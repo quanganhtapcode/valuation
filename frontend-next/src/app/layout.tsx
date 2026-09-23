@@ -115,13 +115,20 @@ export default async function RootLayout({
     "name": "Quang Anh",
     "legalName": "Lê Quang Anh",
     "url": siteConfig.url,
+    "sameAs": ["https://quanganh.org", "https://sites.google.com/view/anhqle"],
+    "founder": {
+      "@type": "Person",
+      "name": "Lê Quang Anh",
+      "url": "https://sites.google.com/view/anhqle",
+      "sameAs": ["https://quanganh.org", "https://sites.google.com/view/anhqle"],
+    },
     "logo": {
       "@type": "ImageObject",
       "url": `${siteConfig.url}/quanganh-logo.svg`,
     },
     "contactPoint": {
       "@type": "ContactPoint",
-      "email": "contact@quanganh.org",
+      "email": "quanganh.ibd@gmail.com",
       "contactType": "customer support",
       "availableLanguage": ["Vietnamese", "English"],
     },

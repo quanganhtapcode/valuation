@@ -31,7 +31,7 @@ const commonVi = {
     readingTime: 'Khoảng 6 phút đọc',
     summaryLabel: 'Tóm tắt nhanh',
     toc: 'Nội dung',
-    contact: 'Cần trao đổi? Liên hệ contact@quanganh.org.',
+    contact: 'Cần trao đổi? Liên hệ quanganh.ibd@gmail.com.',
     nav: { disclaimer: 'Miễn trừ trách nhiệm', terms: 'Điều khoản', privacy: 'Quyền riêng tư' },
 };
 
@@ -41,7 +41,7 @@ const commonEn = {
     readingTime: 'About 6 minutes',
     summaryLabel: 'Quick summary',
     toc: 'On this page',
-    contact: 'Questions? Contact contact@quanganh.org.',
+    contact: 'Questions? Contact quanganh.ibd@gmail.com.',
     nav: { disclaimer: 'Disclaimer', terms: 'Terms', privacy: 'Privacy' },
 };
 

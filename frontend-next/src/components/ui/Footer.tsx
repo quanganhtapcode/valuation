@@ -21,6 +21,8 @@ export default function Footer() {
         ],
         company: [
             { name: t.contact, href: localizedPath('/contact', lang), external: false },
+            { name: 'quanganh.org', href: 'https://quanganh.org', external: true },
+            { name: 'Quang Anh profile', href: 'https://sites.google.com/view/anhqle', external: true },
         ],
         legal: [
             { name: t.privacy, href: localizedPath('/privacy', lang), external: false },

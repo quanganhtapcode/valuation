@@ -29,6 +29,23 @@ export default function AboutContent() {
                     <div className={styles.pillar}><div className={styles.iconWrapper}>🛡️</div><h4>{copy.integrity}</h4><p>{copy.integrityText}</p></div>
                 </div>
             </section>
+            <section className={styles.profile} aria-labelledby="founder-profile">
+                <div>
+                    <p className={styles.profileEyebrow}>{lang === 'vi' ? 'Người xây dựng nền tảng' : 'Platform creator'}</p>
+                    <h2 id="founder-profile">Lê Quang Anh</h2>
+                    <p>
+                        {lang === 'vi'
+                            ? 'Quang Anh xây dựng các sản phẩm và công cụ phân tích giúp nhà đầu tư tiếp cận dữ liệu chứng khoán Việt Nam rõ ràng, thuận tiện hơn.'
+                            : 'Quang Anh builds products and analysis tools that make Vietnamese stock-market data clearer and more accessible to investors.'}
+                    </p>
+                </div>
+                <div className={styles.profileLinks}>
+                    <a href="https://quanganh.org" target="_blank" rel="noopener noreferrer">quanganh.org</a>
+                    <a href="https://sites.google.com/view/anhqle" target="_blank" rel="noopener noreferrer">
+                        {lang === 'vi' ? 'Hồ sơ Quang Anh' : 'Quang Anh profile'}
+                    </a>
+                </div>
+            </section>
             <section className={styles.cta}>
                 <h2>{copy.cta}</h2><p>{copy.ctaText}</p>
                 <Link href="/overview" className={styles.ctaButton}>{copy.explore}</Link>
