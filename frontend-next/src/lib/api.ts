@@ -155,7 +155,9 @@ function yesProbability(market: GammaMarket): number {
 
 export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
     const payload = await fetchAPI<GammaEvent[]>(API.POLYMARKET_EVENTS);
-    const activeEvents = payload.filter((event) => event.title && event.slug);
+    const activeEvents = payload
+        .filter((event) => event.title && event.slug)
+        .sort((a, b) => (b.volume || 0) - (a.volume || 0) || (b.volume24hr || 0) - (a.volume24hr || 0));
     const macroEvents = activeEvents.filter((event) => MACRO_EVENT_PATTERN.test(event.title!));
     const selected = [...macroEvents, ...activeEvents.filter((event) => !MACRO_EVENT_PATTERN.test(event.title!))]
         .slice(0, 3);

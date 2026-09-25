@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { BACKEND_API } from '@/lib/backendApi.server';
 
-const POLYMARKET_EVENTS_URL = 'https://gamma-api.polymarket.com/events?active=true&closed=false&tag_slug=finance&order=volume24hr&ascending=false&limit=100';
+const POLYMARKET_EVENTS_URLS = [
+    'https://gamma-api.polymarket.com/events?active=true&closed=false&tag_slug=finance&order=volume24hr&ascending=false&limit=100',
+    'https://gamma-api.polymarket.com/events?active=true&closed=false&tag_slug=fed-rates&order=volume24hr&ascending=false&limit=100',
+];
 
 type ProxyCachePolicy = {
     mode: 'realtime' | 'short' | 'medium' | 'long';
@@ -119,15 +122,25 @@ export async function GET(
         const apiPath = path.join('/');
 
         if (apiPath === 'market/polymarket-events') {
-            const response = await fetch(POLYMARKET_EVENTS_URL, {
+            const responses = await Promise.all(POLYMARKET_EVENTS_URLS.map((url) => fetch(url, {
                 headers: { Accept: 'application/json' },
                 next: { revalidate: 300 },
                 signal: AbortSignal.timeout(10000),
-            });
-            if (!response.ok) {
-                return NextResponse.json({ error: `Upstream Error: ${response.status}` }, { status: 502 });
+            })));
+            const failedResponse = responses.find((response) => !response.ok);
+            if (failedResponse) {
+                return NextResponse.json({ error: `Upstream Error: ${failedResponse.status}` }, { status: 502 });
             }
-            return NextResponse.json(await response.json(), {
+            const payloads: unknown[] = await Promise.all(responses.map((response) => response.json()));
+            const events = payloads.flatMap((payload) => Array.isArray(payload) ? payload : []);
+            const uniqueEvents = Array.from(new Map(events.map((event, index) => {
+                const id = typeof event === 'object' && event !== null && 'id' in event
+                    ? String(event.id)
+                    : String(index);
+                return [id, event];
+            })).values());
+
+            return NextResponse.json(uniqueEvents, {
                 headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
             });
         }
