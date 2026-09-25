@@ -146,6 +146,13 @@ function parseStringArray(value?: string): string[] {
     }
 }
 
+function yesProbability(market: GammaMarket): number {
+    const labels = parseStringArray(market.outcomes);
+    const prices = parseStringArray(market.outcomePrices).map(Number);
+    const yesIndex = labels.findIndex((label) => label.toLowerCase() === 'yes');
+    return prices[yesIndex >= 0 ? yesIndex : 0] ?? -1;
+}
+
 export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
     const payload = await fetchAPI<GammaEvent[]>(API.POLYMARKET_EVENTS);
     const activeEvents = payload.filter((event) => event.title && event.slug);
@@ -156,7 +163,10 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
     return selected.map((event) => {
         const markets = (event.markets || [])
             .filter((item) => item.active && !item.closed && item.acceptingOrders !== false)
-            .sort((a, b) => (b.volume24hr || b.liquidityNum || 0) - (a.volume24hr || a.liquidityNum || 0));
+            .sort((a, b) => {
+                const probabilityDifference = yesProbability(b) - yesProbability(a);
+                return probabilityDifference || (b.volume24hr || b.liquidityNum || 0) - (a.volume24hr || a.liquidityNum || 0);
+            });
         const outcomes = markets.slice(0, 3).map((market) => {
             const labels = parseStringArray(market.outcomes);
             const prices = parseStringArray(market.outcomePrices).map(Number);
