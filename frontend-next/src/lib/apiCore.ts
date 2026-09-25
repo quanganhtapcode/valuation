@@ -17,6 +17,7 @@ export const API = {
     FOREIGN_NET_VALUE: `${API_BASE}/market/foreign-net-value`,
     FOREIGN_VOLUME_CHART: `${API_BASE}/market/foreign-volume-chart`,
     GOLD: `${API_BASE}/market/gold`,
+    POLYMARKET_EVENTS: `${API_BASE}/market/polymarket-events`,
     LOTTERY: `${API_BASE}/market/lottery`,
     EARNINGS_SEASON: `${API_BASE}/market/earnings-season`,
     AI_TAKEAWAYS: `${API_BASE}/market/ai-takeaways`,

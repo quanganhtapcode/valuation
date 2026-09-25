@@ -96,6 +96,75 @@ export interface GoldPriceItem {
     UpdateTime: string;
 }
 
+export interface PolymarketEvent {
+    id: string;
+    title: string;
+    url?: string;
+    probability?: number;
+    outcome?: string;
+    endDate?: string;
+}
+
+const MACRO_EVENT_PATTERN = /\b(fed|fomc|federal reserve|interest rate|rate cut|rate hike|central bank|ecb|bank of england|bank of japan|boj|cpi|inflation|jobs report|nonfarm|unemployment|gdp|recession|treasury|yield|tariff|trade deal)\b/i;
+
+interface GammaMarket {
+    question?: string;
+    outcomes?: string;
+    outcomePrices?: string;
+    volume24hr?: number;
+    liquidityNum?: number;
+    active?: boolean;
+    closed?: boolean;
+    acceptingOrders?: boolean;
+}
+
+interface GammaEvent {
+    id: string | number;
+    title?: string;
+    slug?: string;
+    volume24hr?: number;
+    liquidity?: number;
+    endDate?: string;
+    markets?: GammaMarket[];
+}
+
+function parseStringArray(value?: string): string[] {
+    if (!value) return [];
+    try {
+        const parsed: unknown = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+    } catch {
+        return [];
+    }
+}
+
+export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
+    const payload = await fetchAPI<GammaEvent[]>(API.POLYMARKET_EVENTS);
+    const activeEvents = payload.filter((event) => event.title && event.slug);
+    const macroEvents = activeEvents.filter((event) => MACRO_EVENT_PATTERN.test(event.title!));
+    const selected = [...macroEvents, ...activeEvents.filter((event) => !MACRO_EVENT_PATTERN.test(event.title!))]
+        .slice(0, 3);
+
+    return selected.map((event) => {
+        const market = (event.markets || [])
+            .filter((item) => item.active && !item.closed && item.acceptingOrders !== false)
+            .sort((a, b) => (b.volume24hr || b.liquidityNum || 0) - (a.volume24hr || a.liquidityNum || 0))[0];
+        const outcomes = parseStringArray(market?.outcomes);
+        const prices = parseStringArray(market?.outcomePrices).map(Number);
+        const bestIndex = prices.reduce((best, price, index) => price > (prices[best] ?? -1) ? index : best, 0);
+        const probability = Number.isFinite(prices[bestIndex]) ? prices[bestIndex] * 100 : undefined;
+
+        return {
+            id: String(event.id),
+            title: event.title!,
+            url: `https://polymarket.com/event/${event.slug}`,
+            probability,
+            outcome: outcomes[bestIndex],
+            endDate: event.endDate,
+        };
+    });
+}
+
 export interface ValuationStats {
     average: number;
     plusOneSD: number;

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { BACKEND_API } from '@/lib/backendApi.server';
 
+const POLYMARKET_EVENTS_URL = 'https://gamma-api.polymarket.com/events?active=true&closed=false&tag_slug=finance&order=volume24hr&ascending=false&limit=100';
+
 type ProxyCachePolicy = {
     mode: 'realtime' | 'short' | 'medium' | 'long';
     revalidateSeconds: number;
@@ -115,6 +117,20 @@ export async function GET(
     try {
         const { path } = await params;
         const apiPath = path.join('/');
+
+        if (apiPath === 'market/polymarket-events') {
+            const response = await fetch(POLYMARKET_EVENTS_URL, {
+                headers: { Accept: 'application/json' },
+                next: { revalidate: 300 },
+                signal: AbortSignal.timeout(10000),
+            });
+            if (!response.ok) {
+                return NextResponse.json({ error: `Upstream Error: ${response.status}` }, { status: 502 });
+            }
+            return NextResponse.json(await response.json(), {
+                headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+            });
+        }
 
         // Get query string from the request URL
         const { searchParams } = new URL(request.url);
