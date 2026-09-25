@@ -110,7 +110,23 @@ export interface PolymarketEvent {
     endDate?: string;
 }
 
-const MACRO_EVENT_PATTERN = /\b(fed|fomc|federal reserve|interest rate|rate cut|rate hike|central bank|ecb|bank of england|bank of japan|boj|cpi|inflation|jobs report|nonfarm|unemployment|gdp|recession|treasury|yield|tariff|trade deal)\b/i;
+const MACRO_EVENT_PATTERN = /\b(fed|fomc|federal reserve|interest rate|rate cut|rate hike|central bank|ecb|bank of england|bank of japan|boj|cpi|inflation|jobs report|nonfarm|unemployment|gdp|recession|treasury|yield|tariff|trade deal|wti|crude oil|brent|gold|silver)\b/i;
+
+function eventTopic(title: string): string {
+    const normalized = title.toLowerCase();
+    if (/fed|fomc|federal reserve|interest rate|rate cut|rate hike/.test(normalized)) return 'fed';
+    if (/treasury|yield/.test(normalized)) return 'treasury-yields';
+    if (/cpi|inflation/.test(normalized)) return 'inflation';
+    if (/jobs report|nonfarm|unemployment/.test(normalized)) return 'employment';
+    if (/gdp|recession/.test(normalized)) return 'growth';
+    if (/wti|crude oil|brent|oil|gold|silver/.test(normalized)) return 'commodities';
+    if (/tariff|trade deal/.test(normalized)) return 'trade';
+    return `event:${normalized}`;
+}
+
+function isFedDecision(title: string): boolean {
+    return /fed decision|fomc decision/.test(title.toLowerCase());
+}
 
 interface GammaMarket {
     question?: string;
@@ -159,8 +175,20 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         .filter((event) => event.title && event.slug)
         .sort((a, b) => (b.volume || 0) - (a.volume || 0) || (b.volume24hr || 0) - (a.volume24hr || 0));
     const macroEvents = activeEvents.filter((event) => MACRO_EVENT_PATTERN.test(event.title!));
-    const selected = [...macroEvents, ...activeEvents.filter((event) => !MACRO_EVENT_PATTERN.test(event.title!))]
-        .slice(0, 3);
+    const topicLeaders = new Map<string, GammaEvent>();
+    for (const event of macroEvents) {
+        const topic = eventTopic(event.title!);
+        const current = topicLeaders.get(topic);
+        if (!current ||
+            (topic === 'fed' && isFedDecision(event.title!) && !isFedDecision(current.title!)) ||
+            (isFedDecision(event.title!) === isFedDecision(current.title!) && (event.volume || 0) > (current.volume || 0))) {
+            topicLeaders.set(topic, event);
+        }
+    }
+    const selected = [
+        ...Array.from(topicLeaders.values()).sort((a, b) => (b.volume || 0) - (a.volume || 0)),
+        ...activeEvents.filter((event) => !MACRO_EVENT_PATTERN.test(event.title!)),
+    ].slice(0, 3);
 
     return selected.map((event) => {
         const markets = (event.markets || [])
