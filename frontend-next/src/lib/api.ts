@@ -100,8 +100,13 @@ export interface PolymarketEvent {
     id: string;
     title: string;
     url?: string;
-    probability?: number;
-    outcome?: string;
+    outcomes: Array<{
+        label: string;
+        probability?: number;
+        change?: number;
+    }>;
+    volume?: number;
+    marketCount?: number;
     endDate?: string;
 }
 
@@ -109,10 +114,12 @@ const MACRO_EVENT_PATTERN = /\b(fed|fomc|federal reserve|interest rate|rate cut|
 
 interface GammaMarket {
     question?: string;
+    groupItemTitle?: string;
     outcomes?: string;
     outcomePrices?: string;
     volume24hr?: number;
     liquidityNum?: number;
+    oneDayPriceChange?: number;
     active?: boolean;
     closed?: boolean;
     acceptingOrders?: boolean;
@@ -123,6 +130,7 @@ interface GammaEvent {
     title?: string;
     slug?: string;
     volume24hr?: number;
+    volume?: number;
     liquidity?: number;
     endDate?: string;
     markets?: GammaMarket[];
@@ -146,20 +154,28 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         .slice(0, 3);
 
     return selected.map((event) => {
-        const market = (event.markets || [])
+        const markets = (event.markets || [])
             .filter((item) => item.active && !item.closed && item.acceptingOrders !== false)
-            .sort((a, b) => (b.volume24hr || b.liquidityNum || 0) - (a.volume24hr || a.liquidityNum || 0))[0];
-        const outcomes = parseStringArray(market?.outcomes);
-        const prices = parseStringArray(market?.outcomePrices).map(Number);
-        const bestIndex = prices.reduce((best, price, index) => price > (prices[best] ?? -1) ? index : best, 0);
-        const probability = Number.isFinite(prices[bestIndex]) ? prices[bestIndex] * 100 : undefined;
+            .sort((a, b) => (b.volume24hr || b.liquidityNum || 0) - (a.volume24hr || a.liquidityNum || 0));
+        const outcomes = markets.slice(0, 3).map((market) => {
+            const labels = parseStringArray(market.outcomes);
+            const prices = parseStringArray(market.outcomePrices).map(Number);
+            const yesIndex = labels.findIndex((label) => label.toLowerCase() === 'yes');
+            const probability = prices[yesIndex >= 0 ? yesIndex : 0];
+            return {
+                label: market.groupItemTitle || market.question || labels[yesIndex >= 0 ? yesIndex : 0] || 'Outcome',
+                probability: Number.isFinite(probability) ? probability * 100 : undefined,
+                change: typeof market.oneDayPriceChange === 'number' ? market.oneDayPriceChange * 100 : undefined,
+            };
+        });
 
         return {
             id: String(event.id),
             title: event.title!,
             url: `https://polymarket.com/event/${event.slug}`,
-            probability,
-            outcome: outcomes[bestIndex],
+            outcomes,
+            volume: event.volume,
+            marketCount: markets.length,
             endDate: event.endDate,
         };
     });
