@@ -56,11 +56,11 @@ export default function FFWorldMarkets() {
                             if (!snap) return null;
                             return (
                                 <div key={item.channel}
-                                    className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800/50 last:border-0">
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    className="flex min-w-0 items-center justify-between gap-2 py-3 border-b border-gray-100 dark:border-gray-800/50 last:border-0">
+                                    <span className="min-w-0 text-sm font-medium text-gray-700 dark:text-gray-300">
                                         {item.label}
                                     </span>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex shrink-0 items-center gap-2">
                                         <span className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
                                             {item.fmt(snap.price)}
                                         </span>
