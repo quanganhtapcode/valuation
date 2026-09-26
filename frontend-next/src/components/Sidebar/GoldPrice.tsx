@@ -1,9 +1,8 @@
 'use client';
 
-import {
-    Card,
-} from '@tremor/react';
-import { GoldPriceItem, formatRelativeTime } from '@/lib/api';
+import SidebarCard from './SidebarCard';
+import type { GoldPriceItem } from '@/lib/goldApi';
+import { formatRelativeTime } from '@/lib/dateFormatters';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
 
@@ -29,16 +28,7 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
     const sourceLabel = source === 'BTMC' ? 'BTMC' : 'Phú Quý';
 
     return (
-        <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-2xl">
-            {/* Header */}
-            <div className="flex items-center gap-2 px-5 py-5">
-                <span className="text-2xl">🏆</span>
-                <span className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
-                    {t.goldSilver}
-                </span>
-            </div>
-
-            {/* Content List */}
+        <SidebarCard title={t.goldSilver} icon="🏆">
             <div className="px-5 pb-2">
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-10">
@@ -124,6 +114,6 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                     })()} ({sourceLabel})
                 </span>
             </div>
-        </Card>
+        </SidebarCard>
     );
 }

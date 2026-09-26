@@ -1,6 +1,8 @@
 'use client';
 
-import { Card } from '@tremor/react';
+import MarketChange from './MarketChange';
+
+import SidebarCard from './SidebarCard';
 import { useEffect, useState } from 'react';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 import { useLanguage } from '@/lib/languageContext';
@@ -32,14 +34,7 @@ export default function FFForexRates() {
     const loaded = ITEMS.filter(it => prices.has(it.channel));
 
     return (
-        <Card className="p-0 overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm rounded-2xl">
-            <div className="flex items-center gap-2 px-5 py-5">
-                <div className="flex items-center gap-2">
-                    <span className="text-2xl">💱</span>
-                    <span className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">{t.forex}</span>
-                </div>
-            </div>
-
+        <SidebarCard title={t.forex} icon="💱">
             <div className="px-5 pb-2">
                 {loaded.length === 0 ? (
                     <div className="space-y-3 pb-3">
@@ -55,7 +50,6 @@ export default function FFForexRates() {
                         {ITEMS.map(item => {
                             const snap = prices.get(item.channel);
                             if (!snap) return null;
-                            const up = snap.changePercent >= 0;
                             return (
                                 <div key={item.channel}
                                     className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800/50 last:border-0">
@@ -66,9 +60,7 @@ export default function FFForexRates() {
                                         <span className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
                                             {item.fmt(snap.price)}
                                         </span>
-                                        <span className={`text-xs font-semibold tabular-nums ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                                            {up ? '+' : ''}{snap.changePercent.toFixed(2)}%
-                                        </span>
+                                        <MarketChange value={snap.changePercent} />
                                     </div>
                                 </div>
                             );
@@ -76,6 +68,6 @@ export default function FFForexRates() {
                     </div>
                 )}
             </div>
-        </Card>
+        </SidebarCard>
     );
 }
