@@ -156,9 +156,9 @@ function MarketList({
                                 <Link
                                     key={item.Symbol}
                                     href={localizedPath(`/stock/${item.Symbol}`, lang)}
-                                    className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group"
+                                    className="flex min-w-0 items-center justify-between px-4 py-3 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group"
                                 >
-                                    <div className="flex items-center gap-3 overflow-hidden flex-1 mr-2">
+                                    <div className="flex min-w-0 items-center gap-3 overflow-hidden flex-1 mr-2">
                                         <div className="shrink-0 relative size-9 rounded-full bg-white border border-tremor-border dark:border-dark-tremor-border dark:bg-gray-800 flex items-center justify-center p-0.5 group-hover:border-blue-200 transition-colors overflow-hidden">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
