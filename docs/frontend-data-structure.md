@@ -40,9 +40,10 @@ external source.
 
 The client selects up to three events and three outcomes per event. Probability
 is shown as a percentage; the existing daily price difference is multiplied by
-100 and displayed in percentage points (`pp`). This differs from the relative
-percentage change used for asset prices. Missing movement is never replaced
-with zero.
+100 and displayed with a percent suffix to match the OKX card. The tooltip
+clarifies that this is a probability difference in percentage points, rather
+than the relative percentage change used for asset prices. Missing movement
+is never replaced with zero.
 
 Polling uses `useVisiblePolling`: requests run serially every five minutes,
 pause in hidden tabs and refresh on return. A failed refresh preserves the

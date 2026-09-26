@@ -45,9 +45,6 @@ export default function PolymarketEvents() {
                         {lang === 'vi' ? 'Không thể cập nhật Polymarket. Sẽ tự động thử lại.' : 'Unable to refresh Polymarket. Retrying automatically.'}
                     </p>
                 )}
-                <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                    {lang === 'vi' ? 'Xác suất · Thay đổi 24h (pp = điểm phần trăm)' : 'Probability · 24h change (pp = percentage points)'}
-                </p>
                 {loading ? (
                     <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-500 border-t-transparent" /></div>
                 ) : events.length ? (
@@ -71,7 +68,6 @@ export default function PolymarketEvents() {
                                                 </span>
                                                 <MarketChange
                                                     value={outcome.change}
-                                                    unit=" pp"
                                                     title={lang === 'vi' ? 'Thay đổi xác suất trong 24 giờ (điểm phần trăm)' : '24-hour probability change (percentage points)'}
                                                 />
                                             </div>
