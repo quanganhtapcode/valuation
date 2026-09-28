@@ -268,7 +268,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         .then(res => {
                             const newsData = res?.data || res;
                             if (Array.isArray(newsData) && newsData.length > 0) {
-                                setNews(newsData.slice(0, 6));
+                                setNews(newsData.slice(0, 8));
                             }
                         })
                         .catch(err => {

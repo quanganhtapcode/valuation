@@ -224,7 +224,7 @@ export default function OverviewTab({
                             </h3>
                         </div>
                         <div className={styles.newsGrid}>
-                            {news.slice(0, 6).map((item, index) => {
+                            {news.slice(0, 8).map((item, index) => {
                                 const title = item.title || item.Title || '';
                                 const url = item.url || item.Link || item.news_source_link || '#';
                                 const imageUrl = item.image_url || item.ImageThumb || item.news_image_url || '';
