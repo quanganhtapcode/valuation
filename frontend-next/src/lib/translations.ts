@@ -33,7 +33,7 @@ export const translations = {
             systemsOperational: "Hệ thống hoạt động bình thường",
             marketOverview: "Tổng quan thị trường",
             stockAnalysis: "Phân tích cổ phiếu",
-            disclaimer: "Tuyên bố miễn trách",
+            disclaimer: "Tuyên bố miễn trừ",
             downloadData: "Tải dữ liệu",
             contact: "Liên hệ",
             privacy: "Quyền riêng tư",
