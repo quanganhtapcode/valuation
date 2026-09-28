@@ -244,10 +244,10 @@ export function Navbar() {
                 <div className="flex items-center justify-between gap-4">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <Link href={localizedPath(siteConfig.baseLinks.overview, lang)}>
+                        <a href={siteConfig.url}>
                             <span className="sr-only">Overview</span>
                             <DatabaseLogo className="size-9 md:size-10" />
-                        </Link>
+                        </a>
                     </div>
 
                     {/* Desktop Nav */}

@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
 import styles from './page.module.css';
@@ -48,7 +47,7 @@ export default function AboutContent() {
             </section>
             <section className={styles.cta}>
                 <h2>{copy.cta}</h2><p>{copy.ctaText}</p>
-                <Link href="/overview" className={styles.ctaButton}>{copy.explore}</Link>
+                <a href="https://stock.quanganh.org" className={styles.ctaButton}>{copy.explore}</a>
             </section>
         </main>
     );

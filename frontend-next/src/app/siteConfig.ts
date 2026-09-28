@@ -38,7 +38,7 @@ export const siteConfig = {
     ],
     baseLinks: {
         home: "/",
-        overview: "/overview",
+        overview: "/",
         about: "/about",
         changelog: "/changelog",
         pricing: "/pricing",
