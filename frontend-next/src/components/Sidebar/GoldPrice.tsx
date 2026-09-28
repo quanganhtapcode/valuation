@@ -2,18 +2,16 @@
 
 import SidebarCard from './SidebarCard';
 import type { GoldPriceItem } from '@/lib/goldApi';
-import { formatRelativeTime } from '@/lib/dateFormatters';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
 
 interface GoldPriceProps {
     prices: GoldPriceItem[];
     isLoading?: boolean;
-    updatedAt?: string;
     source?: string;
 }
 
-export default function GoldPrice({ prices, isLoading, updatedAt, source }: GoldPriceProps) {
+export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps) {
     const { lang } = useLanguage();
     const t = translations[lang].dashboard;
     // Show 3 gold classes + silver bar if available
@@ -84,35 +82,6 @@ export default function GoldPrice({ prices, isLoading, updatedAt, source }: Gold
                         })}
                     </div>
                 )}
-            </div>
-
-            {/* Footer Update Time */}
-            <div className="text-center py-3">
-                <span className="text-[11px] text-gray-600 dark:text-gray-400 italic">
-                    {t.updated}: {(() => {
-                        try {
-                            if (!updatedAt) return '';
-
-                            const locale = translations[lang].overview.locale;
-                            const relative = formatRelativeTime(updatedAt, locale);
-                            if (relative) return relative;
-
-                            if (updatedAt.includes('/') && updatedAt.includes(':')) return updatedAt;
-                            const date = new Date(updatedAt);
-                            if (isNaN(date.getTime())) return updatedAt;
-                            return date.toLocaleString(locale, {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                timeZone: 'Asia/Ho_Chi_Minh'
-                            });
-                        } catch {
-                            return updatedAt;
-                        }
-                    })()} ({sourceLabel})
-                </span>
             </div>
         </SidebarCard>
     );
