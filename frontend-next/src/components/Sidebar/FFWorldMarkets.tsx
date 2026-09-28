@@ -12,7 +12,6 @@ const ITEMS = [
     { channel: 'SPX/USD',    label: 'S&P 500',    fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
     { channel: 'NDX/USD',    label: 'Nasdaq 100', fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
     { channel: 'Dow/USD',    label: 'Dow Jones',  fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
-    { channel: 'VIX/USD',    label: 'VIX',        fmt: (p: number) => p.toFixed(2) },
     { channel: 'DXY/USD',    label: 'USD Index',  fmt: (p: number) => p.toFixed(2) },
     { channel: 'Gold/USD',   label: 'Gold',       fmt: (p: number) => p.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) },
     { channel: 'WTI/USD',    label: 'WTI Oil',    fmt: (p: number) => p.toFixed(2) },

@@ -67,9 +67,6 @@ const GoldPrice = dynamic(() => import('@/components/Sidebar/GoldPrice'), {
 const PolymarketEvents = dynamic(() => import('@/components/Sidebar/PolymarketEvents'), {
     loading: () => <PanelSkeleton height="h-48" />,
 });
-const Lottery = dynamic(() => import('@/components/Sidebar/Lottery'), {
-    loading: () => <PanelSkeleton height="h-48" />,
-});
 
 const PLACEHOLDER_INDICES: { id: string; name: string }[] = Object.entries(INDEX_MAP).map(([, info]) => ({
     id: info.id,
@@ -313,7 +310,6 @@ export default function OverviewClient({
                     <DeferredPanel><CryptoPrices /></DeferredPanel>
                     <GoldPrice prices={goldPrices} isLoading={false} updatedAt={goldUpdatedAt} source={goldSource} />
                     <PolymarketEvents />
-                    <DeferredPanel><Lottery /></DeferredPanel>
                     <p className="px-1 text-[11px] leading-relaxed text-justify text-gray-400 dark:text-gray-500">
                         Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.
                     </p>
