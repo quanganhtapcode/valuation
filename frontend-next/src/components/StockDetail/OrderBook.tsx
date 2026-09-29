@@ -75,7 +75,7 @@ export default function OrderBook({ orderbook, refPrice, ceiling, floor }: Order
     const bidRatio = totalVol > 0 ? totalBid / totalVol : 0.5;
 
     return (
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700/50 dark:bg-slate-900/80" aria-labelledby="order-book-title">
+        <section className="min-h-[252px] overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700/50 dark:bg-slate-900/80" aria-labelledby="order-book-title">
 
             {/* ── Header ─────────────────────────────────────────── */}
             <div className="flex items-center justify-between px-3.5 py-2 border-b border-slate-100 dark:border-slate-800">

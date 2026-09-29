@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import styles from '../../app/stock/[symbol]/page.module.css';
+import styles from '../../app/[lang]/stock/[symbol]/page.module.css';
 import TradingViewChart from './TradingViewChart';
 import OrderBook from './OrderBook';
-import BankLoanBreakdown from './BankLoanBreakdown';
+import dynamic from 'next/dynamic';
+import DeferredPanel from '@/components/ui/DeferredPanel';
+
+const BankLoanBreakdown = dynamic(() => import('./BankLoanBreakdown'), {
+    loading: () => <div className="min-h-[432px] animate-pulse rounded bg-slate-100 dark:bg-slate-800" />,
+});
 import AiInsightCard from './AiInsightCard';
 import FinancialMetricsPanel from './FinancialMetricsPanel';
 import { fetchAiAnalysis } from '@/lib/api';
@@ -280,7 +285,7 @@ export default function OverviewTab({
                 {/* Bank loan breakdown — only for bank stocks */}
                 {isBank && (
                     <section className={`${styles.section} ${styles.sectionBankLoan}`}>
-                        <BankLoanBreakdown symbol={_symbol} />
+                        <DeferredPanel height={432}><BankLoanBreakdown symbol={_symbol} /></DeferredPanel>
                     </section>
                 )}
 

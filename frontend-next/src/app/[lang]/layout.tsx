@@ -1,0 +1,175 @@
+import type { Metadata, Viewport } from "next";
+import { Manrope } from "next/font/google";
+import "../globals.css";
+import { Navbar } from "@/components/ui/Navbar";
+import Footer from "@/components/ui/Footer";
+import MainWrapper from "@/components/ui/MainWrapper";
+import { ThemeProvider } from "next-themes";
+import { LazyTickerTape } from "@/components/TickerTape";
+import { ClientErrorBoundary } from "@/components/ui/ClientErrorBoundary";
+import { siteConfig } from "@/app/siteConfig";
+import { WatchlistProvider } from "@/lib/watchlistContext"
+import { LanguageProvider } from "@/lib/languageContext";
+import { getRequestLang } from "@/lib/i18nRouting";
+
+const manrope = Manrope({
+  subsets: ["latin", "vietnamese"],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  preload: false,
+  variable: '--font-manrope',
+});
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: "Phân Tích Cổ Phiếu Việt Nam | VNINDEX, VN30, Định Giá – Quang Anh",
+    template: "%s | Quang Anh",
+  },
+  description: siteConfig.description,
+  applicationName: siteConfig.shortName,
+  keywords: siteConfig.keywords,
+  category: "Finance",
+  authors: [{ name: "Lê Quang Anh", url: siteConfig.url }],
+  creator: "Lê Quang Anh",
+  publisher: "Quang Anh Stocks",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [{ url: "/quanganh-logo.svg", type: "image/svg+xml", sizes: "any" }],
+    shortcut: ["/quanganh-logo.svg"],
+    apple: [{ url: "/quanganh-logo.svg", sizes: "any", type: "image/svg+xml" }],
+  },
+  openGraph: {
+    title: "Phân Tích Cổ Phiếu Việt Nam | VNINDEX, VN30 – Quang Anh",
+    description: siteConfig.description,
+    url: siteConfig.url,
+    siteName: siteConfig.shortName,
+    type: "website",
+    locale: siteConfig.locale,
+    alternateLocale: ["en_US"],
+    images: [
+      {
+        url: siteConfig.defaultOgImage,
+        width: 512,
+        height: 512,
+        alt: "Quang Anh – Nền tảng phân tích cổ phiếu Việt Nam",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Phân Tích Cổ Phiếu Việt Nam | VNINDEX, VN30 – Quang Anh",
+    description: siteConfig.description,
+    images: [siteConfig.defaultOgImage],
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
+
+export function generateStaticParams() {
+  return [{ lang: 'vi' }, { lang: 'en' }];
+}
+
+export default async function RootLayout({
+  children,
+  params,
+}: Readonly<{
+  children: React.ReactNode;
+  params: Promise<{ lang: string }>;
+}>) {
+  const lang = await getRequestLang(params);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": siteConfig.shortName,
+    "alternateName": ["Quang Anh", "QuangAnh Stocks", "stock.quanganh.org"],
+    "url": siteConfig.url,
+    "description": lang === 'vi' ? siteConfig.description : siteConfig.descriptionEn,
+    "inLanguage": ["vi", "en"],
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": `${siteConfig.url}/${lang}/stock/{search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Quang Anh",
+    "legalName": "Lê Quang Anh",
+    "url": siteConfig.url,
+    "sameAs": ["https://quanganh.org", "https://sites.google.com/view/anhqle"],
+    "founder": {
+      "@type": "Person",
+      "name": "Lê Quang Anh",
+      "url": "https://sites.google.com/view/anhqle",
+      "sameAs": ["https://quanganh.org", "https://sites.google.com/view/anhqle"],
+    },
+    "logo": {
+      "@type": "ImageObject",
+      "url": `${siteConfig.url}/quanganh-logo.svg`,
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "quanganh.ibd@gmail.com",
+      "contactType": "customer support",
+      "availableLanguage": ["Vietnamese", "English"],
+    },
+    "areaServed": "VN",
+    "knowsAbout": ["Vietnam stock market", "Stock valuation", "DCF analysis", "HOSE", "HNX", "UPCOM"],
+  };
+
+  return (
+    <html lang={lang === 'vi' ? 'vi-VN' : 'en-US'} suppressHydrationWarning>
+      <body className={`${manrope.className} ${manrope.variable} min-h-screen scroll-auto antialiased selection:bg-indigo-100 selection:text-indigo-700 dark:bg-gray-950`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c") }}
+        />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          disableTransitionOnChange
+        >
+          <LanguageProvider key={lang} initialLang={lang}>
+            <WatchlistProvider>
+              <Navbar />
+              <LazyTickerTape />
+              <ClientErrorBoundary>
+                <MainWrapper>{children}</MainWrapper>
+              </ClientErrorBoundary>
+              <Footer />
+            </WatchlistProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

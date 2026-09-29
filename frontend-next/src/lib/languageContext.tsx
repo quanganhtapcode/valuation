@@ -22,6 +22,7 @@ export function LanguageProvider({ children, initialLang = "vi" }: { children: R
     useEffect(() => {
         document.documentElement.lang = translations[lang].overview.locale
         document.documentElement.dir = "ltr"
+        document.cookie = `lang=${lang}; path=/; max-age=31536000; samesite=lax`
     }, [lang])
 
     const setLanguage = (l: Lang) => {

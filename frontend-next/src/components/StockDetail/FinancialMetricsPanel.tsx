@@ -1,4 +1,4 @@
-import styles from '../../app/stock/[symbol]/page.module.css';
+import styles from '../../app/[lang]/stock/[symbol]/page.module.css';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
 
@@ -93,26 +93,24 @@ export default function FinancialMetricsPanel({
             <div className={styles.metricsPanelHeader}>
                 <h3 id="financial-metrics-title" className={styles.sectionTitle}>{t.indicators}</h3>
             </div>
-            {targetPrice && upside !== null && (
-                <div className={styles.indicatorHighlight}>
-                    <div className={styles.indicatorHighlightTop}>
-                        <span>{t.referenceValuation}</span>
-                        {recommendation && <span className={`${styles.recommendationBadge} ${recommendationClass}`}>{recommendation}</span>}
-                    </div>
-                    <dl>
-                        <div>
-                            <dt>{t.targetPrice}</dt>
-                            <dd>{formatCompact(targetPrice, lang)}</dd>
-                        </div>
-                        <div>
-                            <dt>{t.upsideDownside}</dt>
-                            <dd className={upside >= 0 ? styles.positiveMetric : styles.negativeMetric}>
-                                {upside >= 0 ? '+' : ''}{upside.toFixed(1)}%
-                            </dd>
-                        </div>
-                    </dl>
+            <div className={styles.indicatorHighlight}>
+                <div className={styles.indicatorHighlightTop}>
+                    <span>{t.referenceValuation}</span>
+                    {recommendation && <span className={`${styles.recommendationBadge} ${recommendationClass}`}>{recommendation}</span>}
                 </div>
-            )}
+                <dl>
+                    <div>
+                        <dt>{t.targetPrice}</dt>
+                        <dd>{formatCompact(targetPrice ?? undefined, lang)}</dd>
+                    </div>
+                    <div>
+                        <dt>{t.upsideDownside}</dt>
+                        <dd className={upside === null ? undefined : upside >= 0 ? styles.positiveMetric : styles.negativeMetric}>
+                            {upside === null ? '—' : `${upside >= 0 ? '+' : ''}${upside.toFixed(1)}%`}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
             <div className={styles.metricGroups}>
                 {groups.map((group) => (
                     <div key={group.title} className={styles.metricGroup}>

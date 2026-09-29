@@ -8,13 +8,14 @@ export function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Serve the entry URL directly so a first visit avoids a locale redirect.
-    // Metadata still declares /vi or /en as the canonical URL.
+    // Locale preference is cookie-dependent; only explicit locale URLs share HTML caches.
     if (pathname === '/') {
         const preferred = request.cookies.get('lang')?.value;
-        const requestHeaders = new Headers(request.headers);
-        requestHeaders.set('x-site-locale', isLang(preferred || '') ? preferred! : 'vi');
-        return NextResponse.next({ request: { headers: requestHeaders } });
+        const url = request.nextUrl.clone();
+        url.pathname = isLang(preferred || '') ? `/${preferred}` : '/vi';
+        const response = NextResponse.redirect(url, 307);
+        response.headers.set('Cache-Control', 'private, no-store');
+        return response;
     }
 
     const parts = pathname.split('/');
@@ -24,16 +25,12 @@ export function proxy(request: NextRequest) {
         const targetLocale = isLang(preferred || '') ? preferred : 'vi';
         const url = request.nextUrl.clone();
         url.pathname = `/${targetLocale}${pathname === '/' ? '' : pathname}`;
-        return NextResponse.redirect(url, 308);
+        const response = NextResponse.redirect(url, 307);
+        response.headers.set('Cache-Control', 'private, no-store');
+        return response;
     }
 
-    const url = request.nextUrl.clone();
-    url.pathname = `/${parts.slice(2).join('/')}`;
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-site-locale', locale);
-    const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
-    response.cookies.set('lang', locale, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
-    return response;
+    return NextResponse.next();
 }
 
 export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };

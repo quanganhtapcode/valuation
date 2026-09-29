@@ -126,7 +126,6 @@ export default function BankLoanBreakdown({ symbol }: { symbol: string }) {
         fetchAPI<LoanBreakdownData>(`/api/stock/${symbol}/loan-breakdown${yearParam}`)
             .then((d: LoanBreakdownData) => {
                 setData(d);
-                if (!selectedYear && d.year) setSelectedYear(d.year);
             })
             .catch(() => setError('Không thể tải dữ liệu'))
             .finally(() => setLoading(false));
@@ -157,7 +156,7 @@ export default function BankLoanBreakdown({ symbol }: { symbol: string }) {
                 </h3>
                 {data.years.length > 1 && (
                     <select
-                        value={selectedYear ?? ''}
+                        value={selectedYear ?? data.year ?? ''}
                         onChange={e => setSelectedYear(Number(e.target.value))}
                         className="rounded border border-tremor-border bg-tremor-background px-2 py-1 text-xs text-tremor-content-strong dark:border-dark-tremor-border dark:bg-dark-tremor-background dark:text-dark-tremor-content-strong"
                     >

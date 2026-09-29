@@ -54,8 +54,8 @@ also mirrored in the Vercel dashboard.
 
 | Path | Purpose |
 |---|---|
-| `src/app/page.tsx` | Main overview page |
-| `src/app/stock/[symbol]/page.tsx` | Stock detail route |
+| `src/app/[lang]/page.tsx` | Main overview page |
+| `src/app/[lang]/stock/[symbol]/page.tsx` | Stock detail route |
 | `src/app/api/[...path]/route.ts` | Backend proxy route |
 | `src/components/StockDetail/` | Overview, financials, valuation, holders and price-history tabs |
 | `src/components/Sidebar/` | Market pulse widgets |

@@ -1,0 +1,316 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import HeroIndexCard from '@/components/HeroIndexCard';
+import {
+    fetchAllIndices,
+    subscribeIndicesStream,
+    isTradingHours,
+    PRICE_SYNC_INTERVAL_MS,
+    IDLE_REFRESH_INTERVAL_MS,
+    fetchTopMovers,
+    fetchGoldPrices,
+    fetchNews,
+    INDEX_MAP,
+    MarketIndexData,
+    NewsItem,
+    TopMoverItem,
+    GoldPriceItem,
+} from '@/lib/api';
+import styles from './page.module.css';
+import { useVisiblePolling } from '@/lib/useVisiblePolling';
+import DeferredPanel from '@/components/ui/DeferredPanel';
+
+const moversDelay = () => isTradingHours() ? 30000 : 300000;
+const newsDelay = () => 120000;
+const goldDelay = () => 60000;
+
+function PanelSkeleton({ height = 'h-40' }: { height?: string }) {
+    return (
+        <div className={`rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${height}`}>
+            <div className="h-full animate-pulse bg-slate-100 dark:bg-slate-800/60" />
+        </div>
+    );
+}
+
+// The index card is the largest element above the fold.  Keeping it in the
+// initial route render avoids showing a large dynamic-import placeholder that
+// can become the page's LCP element.
+const NewsSection = dynamic(() => import('@/components/NewsSection'), {
+    loading: () => <PanelSkeleton height="h-80" />,
+});
+const HeatmapVN30 = dynamic(() => import('@/components/HeatmapVN30').then(mod => mod.HeatmapVN30), {
+    loading: () => <PanelSkeleton height="h-[620px]" />,
+});
+const EarningsSeason = dynamic(() => import('@/components/EarningsSeason').then(mod => mod.EarningsSeason), {
+    loading: () => <PanelSkeleton height="h-72" />,
+});
+const WatchlistCard = dynamic(() => import('@/components/Sidebar/WatchlistCard'), {
+    loading: () => <PanelSkeleton height="h-52" />,
+});
+const MarketPulse = dynamic(() => import('@/components/Sidebar/MarketPulse'), {
+    loading: () => <PanelSkeleton height="h-64" />,
+});
+const FFWorldMarkets = dynamic(() => import('@/components/Sidebar/FFWorldMarkets'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+const FFForexRates = dynamic(() => import('@/components/Sidebar/FFForexRates'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+const CryptoPrices = dynamic(() => import('@/components/Sidebar/CryptoPrices'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+const GoldPrice = dynamic(() => import('@/components/Sidebar/GoldPrice'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+const PolymarketEvents = dynamic(() => import('@/components/Sidebar/PolymarketEvents'), {
+    loading: () => <PanelSkeleton height="h-48" />,
+});
+
+const PLACEHOLDER_INDICES: { id: string; name: string }[] = Object.entries(INDEX_MAP).map(([, info]) => ({
+    id: info.id,
+    name: info.name,
+}));
+
+interface IndexData {
+    id: string;
+    name: string;
+    value: number;
+    change: number;
+    percentChange: number;
+    chartData: number[];
+    advances: number | undefined;
+    declines: number | undefined;
+    noChanges: number | undefined;
+    ceilings: number | undefined;
+    floors: number | undefined;
+    totalShares: number | undefined;
+    totalValue: number | undefined;
+}
+
+interface OverviewClientProps {
+    initialIndices: IndexData[];
+    initialNews: NewsItem[];
+    initialGainers: TopMoverItem[];
+    initialLosers: TopMoverItem[];
+    initialGoldPrices: GoldPriceItem[];
+}
+
+function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
+    if (a === b) return true;
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+        const x = a[i]; const y = b[i];
+        if (!x || !y) return false;
+        if (x.Symbol !== y.Symbol ||
+            Number(x.CurrentPrice || 0) !== Number(y.CurrentPrice || 0) ||
+            Number(x.ChangePricePercent || 0) !== Number(y.ChangePricePercent || 0) ||
+            Number(x.Value || 0) !== Number(y.Value || 0)) return false;
+    }
+    return true;
+}
+
+export default function OverviewClient({
+    initialIndices,
+    initialNews,
+    initialGainers,
+    initialLosers,
+    initialGoldPrices,
+}: OverviewClientProps) {
+    const [indices, setIndices] = useState<IndexData[]>(initialIndices);
+    const [news, setNews] = useState<NewsItem[]>(initialNews);
+    const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
+    const [newsError, setNewsError] = useState<string | null>(null);
+    const [gainers, setGainers] = useState<TopMoverItem[]>(initialGainers);
+    const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
+    const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
+    const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
+    const [goldSource, setGoldSource] = useState<string>('Phú Quý');
+
+    const newsInFlightRef = useRef(false);
+    const moversInFlightRef = useRef(false);
+    // Use refs so loadMovers callback is stable (never recreated)
+    const gainersRef = useRef<TopMoverItem[]>(initialGainers);
+    const losersRef = useRef<TopMoverItem[]>(initialLosers);
+    useEffect(() => { gainersRef.current = gainers; }, [gainers]);
+    useEffect(() => { losersRef.current = losers; }, [losers]);
+
+    const mapMarketDataToIndices = useCallback((marketData: Record<string, MarketIndexData>) => {
+        const results = Object.entries(INDEX_MAP)
+            .map(([indexId, info]) => {
+                const data = marketData[indexId] as MarketIndexData | undefined;
+                if (!data) return null;
+                const currentIndex = data.CurrentIndex;
+                const prevIndex = data.PrevIndex;
+                const change = currentIndex - prevIndex;
+                const percent = prevIndex > 0 ? (change / prevIndex) * 100 : 0;
+                return {
+                    id: info.id, name: info.name, value: currentIndex, change, percentChange: percent,
+                    chartData: [] as number[], advances: data.Advances, declines: data.Declines,
+                    noChanges: data.NoChanges, ceilings: data.Ceilings, floors: data.Floors,
+                    totalShares: data.Volume, totalValue: data.Value,
+                };
+            })
+            .filter((r): r is IndexData => r !== null);
+        setIndices(results);
+    }, []);
+
+    const loadGold = useCallback(async () => {
+        try {
+            const result = await fetchGoldPrices();
+            setGoldPrices(result.data);
+            if (result.source) setGoldSource(result.source);
+        } catch (error) {
+            console.error('Error loading gold prices:', error);
+        }
+    }, []);
+
+    const loadNews = useCallback(async () => {
+        if (newsInFlightRef.current) return;
+        try {
+            newsInFlightRef.current = true;
+            setNewsError(null);
+            const nextNews = await fetchNews(1, 30);
+            setNews(nextNews);
+        } catch (error) {
+            console.error('Error loading market news:', error);
+            setNewsError('Unable to refresh market news');
+        } finally {
+            newsInFlightRef.current = false;
+            setNewsLoading(false);
+        }
+    }, []);
+
+    // Stable loadMovers — uses refs, never recreated
+    const loadMovers = useCallback(async () => {
+        if (moversInFlightRef.current) return;
+        const coldStart = gainersRef.current.length === 0 && losersRef.current.length === 0;
+        try {
+            moversInFlightRef.current = true;
+            if (coldStart) setMoversLoading(true);
+            const [up, down] = await Promise.all([
+                fetchTopMovers('UP'),
+                fetchTopMovers('DOWN'),
+            ]);
+            setGainers(prev => (sameMovers(prev, up) ? prev : up));
+            setLosers(prev => (sameMovers(prev, down) ? prev : down));
+        } catch (error) {
+            console.error('Error loading top movers:', error);
+        } finally {
+            moversInFlightRef.current = false;
+            if (coldStart) setMoversLoading(false);
+        }
+    }, []); // stable — no deps
+
+    useVisiblePolling(loadGold, goldDelay, initialGoldPrices.length === 0);
+
+    // News polling
+    useVisiblePolling(loadNews, newsDelay, initialNews.length === 0);
+
+    // Movers: cold start
+    useVisiblePolling(loadMovers, moversDelay, initialGainers.length === 0 || initialLosers.length === 0);
+
+    // A connected socket does not guarantee a snapshot. Bound the initial wait
+    // and fetch immediately on failure instead of waiting a full polling cycle.
+    useEffect(() => {
+        let disposed = false;
+        let streamVersion = 0;
+        let fallbackRunning = false;
+        let fallbackTimer: ReturnType<typeof setInterval> | null = null;
+        let snapshotTimer: ReturnType<typeof setTimeout> | null = null;
+        const refreshFallback = async () => {
+            if (disposed || fallbackRunning || document.visibilityState !== 'visible') return;
+            fallbackRunning = true;
+            const version = streamVersion;
+            try {
+                const marketData = await fetchAllIndices();
+                // A late HTTP response must not overwrite a newer live snapshot.
+                if (!disposed && version === streamVersion) mapMarketDataToIndices(marketData);
+            } catch (error) {
+                console.error('Error loading indices:', error);
+            } finally {
+                fallbackRunning = false;
+            }
+        };
+        const startFallback = () => {
+            if (disposed || fallbackTimer) return;
+            void refreshFallback();
+            fallbackTimer = setInterval(() => { void refreshFallback(); },
+                isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
+        };
+        const stopFallback = () => {
+            if (snapshotTimer) clearTimeout(snapshotTimer);
+            if (fallbackTimer) clearInterval(fallbackTimer);
+            snapshotTimer = null;
+            fallbackTimer = null;
+        };
+        snapshotTimer = setTimeout(startFallback, 1500);
+        const unsubscribe = subscribeIndicesStream({
+            onData: (marketData) => {
+                if (!Object.values(marketData).some(data => data.CurrentIndex > 0)) return;
+                streamVersion += 1;
+                mapMarketDataToIndices(marketData);
+                stopFallback();
+            },
+            onStatus: (status) => {
+                if (status !== 'open') startFallback();
+            },
+        });
+        const onVisibility = () => {
+            if (fallbackTimer) void refreshFallback();
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            disposed = true;
+            unsubscribe();
+            stopFallback();
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [mapMarketDataToIndices]);
+
+
+    return (
+        <div className={styles.container}>
+            <div className={styles.mainContent}>
+                <div className={styles.leftColumn}>
+                    <HeroIndexCard
+                        indices={PLACEHOLDER_INDICES.map((placeholder) => {
+                            const data = indices.find(d => d.id === placeholder.id);
+                            return {
+                                id: placeholder.id, name: placeholder.name,
+                                value: data?.value ?? 0, change: data?.change ?? 0,
+                                percentChange: data?.percentChange ?? 0,
+                                advances: data?.advances, declines: data?.declines,
+                                noChanges: data?.noChanges, ceilings: data?.ceilings,
+                                floors: data?.floors, totalShares: data?.totalShares,
+                                totalValue: data?.totalValue,
+                            };
+                        })}
+                    />
+
+                    <DeferredPanel height={620}><HeatmapVN30 /></DeferredPanel>
+
+                    <DeferredPanel height={288}><EarningsSeason /></DeferredPanel>
+
+                    <div className="order-2">
+                        <NewsSection news={news} isLoading={newsLoading} error={newsError} />
+                    </div>
+                </div>
+
+                <aside className={styles.rightColumn}>
+                    <DeferredPanel height={208}><WatchlistCard /></DeferredPanel>
+                    <DeferredPanel height={256}><MarketPulse gainers={gainers} losers={losers} isLoading={moversLoading} /></DeferredPanel>
+                    <DeferredPanel><FFWorldMarkets /></DeferredPanel>
+                    <DeferredPanel><FFForexRates /></DeferredPanel>
+                    <DeferredPanel><CryptoPrices /></DeferredPanel>
+                    <GoldPrice prices={goldPrices} isLoading={false} source={goldSource} />
+                    <DeferredPanel height={480}><PolymarketEvents /></DeferredPanel>
+                    <p className="px-1 text-[11px] leading-relaxed text-justify text-gray-400 dark:text-gray-500">
+                        Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.
+                    </p>
+                </aside>
+            </div>
+        </div>
+    );
+}
