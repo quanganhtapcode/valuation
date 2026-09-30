@@ -457,7 +457,13 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 if (!controller.signal.aborted) setIsChartLoading(false);
             }
         }
-        const cancelIdle = scheduleIdleWork(loadHistory, 900);
+        // User-requested history expansion should start immediately while panning.
+        let cancelIdle = () => {};
+        if (historyPeriod === '1Y') {
+            cancelIdle = scheduleIdleWork(loadHistory, 900);
+        } else {
+            void loadHistory();
+        }
         return () => {
             cancelIdle();
             controller.abort();

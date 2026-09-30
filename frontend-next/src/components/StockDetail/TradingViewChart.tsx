@@ -5,7 +5,7 @@ import {
     createChart,
     IChartApi,
     ISeriesApi,
-    AreaSeries,
+    CandlestickSeries,
     HistogramSeries,
     Time,
     BusinessDay,
@@ -23,7 +23,7 @@ interface HistoricalData {
     volume: number;
 }
 
-const AREA_COLOR = '#0E6BFF';
+const CROSSHAIR_COLOR = '#0E6BFF';
 
 interface TradingViewChartProps {
     data: HistoricalData[];
@@ -166,7 +166,7 @@ function OHLCVOverlay({ bar }: { bar: BarDisplay | null }) {
 export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }: TradingViewChartProps) {
     const chartContainerRef    = useRef<HTMLDivElement>(null);
     const chartRef             = useRef<IChartApi | null>(null);
-    const areaSeriesRef        = useRef<ISeriesApi<'Area'> | null>(null);
+    const candleSeriesRef      = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const barsByDateRef        = useRef<Map<string, BarDisplay>>(new Map());
     const volumeSeriesRef      = useRef<ISeriesApi<'Histogram'> | null>(null);
     const loadOlderRef = useRef(onLoadOlderHistory);
@@ -204,8 +204,8 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
             },
             crosshair: {
                 mode:     CrosshairMode.Normal,
-                vertLine: { color: initTheme.crosshair, width: 1, style: 2, labelBackgroundColor: AREA_COLOR },
-                horzLine: { color: initTheme.crosshair, width: 1, style: 2, labelBackgroundColor: AREA_COLOR },
+                vertLine: { color: initTheme.crosshair, width: 1, style: 2, labelBackgroundColor: CROSSHAIR_COLOR },
+                horzLine: { color: initTheme.crosshair, width: 1, style: 2, labelBackgroundColor: CROSSHAIR_COLOR },
             },
             rightPriceScale: {
                 borderColor:  initTheme.border,
@@ -216,22 +216,19 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
                 timeVisible:           false,
                 rightOffset:           5,
                 barSpacing:            6,
-                minBarSpacing:         0.01,
+                minBarSpacing:         2,
                 rightBarStaysOnScroll: true,
             },
             handleScroll: { vertTouchDrag: false },
+            kineticScroll: { mouse: true, touch: true },
         });
 
-        const areaSeries = chart.addSeries(AreaSeries, {
-            topColor: `${AREA_COLOR}38`,
-            bottomColor: `${AREA_COLOR}03`,
-            lineColor: AREA_COLOR,
-            lineWidth: 2,
-            lineType: 2,
-            crosshairMarkerRadius: 4,
-            crosshairMarkerBackgroundColor: AREA_COLOR,
-            crosshairMarkerBorderColor: '#ffffff',
-            crosshairMarkerBorderWidth: 2,
+        const candleSeries = chart.addSeries(CandlestickSeries, {
+            upColor: '#22c55e',
+            downColor: '#ef4444',
+            wickUpColor: '#22c55e',
+            wickDownColor: '#ef4444',
+            borderVisible: false,
             priceLineVisible: false,
             lastValueVisible: true,
             priceFormat: { type: 'price', precision: 0, minMove: 1 },
@@ -247,17 +244,27 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
             scaleMargins: { top: 0.90, bottom: 0 },
         });
 
-        // Look up OHLCV in constant time without scanning the full history on hover.
+        // Coalesce pointer events into one overlay update per animation frame.
+        let hoverFrame: number | null = null;
+        let pendingBar: BarDisplay | null = null;
+        const scheduleHover = (bar: BarDisplay | null) => {
+            pendingBar = bar;
+            if (hoverFrame !== null) return;
+            hoverFrame = requestAnimationFrame(() => {
+                hoverFrame = null;
+                const nextBar = pendingBar;
+                setHoveredBar(current => current === nextBar ? current : nextBar);
+            });
+        };
         chart.subscribeCrosshairMove((param: MouseEventParams) => {
-            if (!param.time || !param.point || !param.seriesData.get(areaSeries)) {
-                setHoveredBar(null);
-                return;
-            }
-            setHoveredBar(barsByDateRef.current.get(formatDate(param.time)) ?? null);
+            const bar = param.time && param.point && param.seriesData.get(candleSeries)
+                ? barsByDateRef.current.get(formatDate(param.time)) ?? null
+                : null;
+            scheduleHover(bar);
         });
 
         chartRef.current           = chart;
-        areaSeriesRef.current      = areaSeries;
+        candleSeriesRef.current    = candleSeries;
         volumeSeriesRef.current    = volumeSeries;
 
         const ro = new ResizeObserver((entries) => {
@@ -274,24 +281,28 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
         el.addEventListener('pointerdown', markInteraction, { passive: true });
         el.addEventListener('wheel', markInteraction, { passive: true });
         chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-            if (!loadingRef.current && interactedRef.current && range && range.from <= 8) {
+            if (!range) return;
+            // Fetch ahead while half a viewport of older bars still remains.
+            const preloadThreshold = Math.max(8, (range.to - range.from) / 2);
+            if (!loadingRef.current && interactedRef.current && range.from <= preloadThreshold) {
                 // Applying a longer data set also changes this range. Consume
                 // the gesture so a single drag requests just one next period.
                 interactedRef.current = false;
                 loadOlderRef.current?.();
             }
         });
-        const clearOnTouchEnd = () => setHoveredBar(null);
+        const clearOnTouchEnd = () => scheduleHover(null);
         el.addEventListener('touchend', clearOnTouchEnd, { passive: true });
 
         return () => {
+            if (hoverFrame !== null) cancelAnimationFrame(hoverFrame);
             ro.disconnect();
             el.removeEventListener('touchend', clearOnTouchEnd);
             el.removeEventListener('pointerdown', markInteraction);
             el.removeEventListener('wheel', markInteraction);
             chart.remove();
             chartRef.current = null;
-            areaSeriesRef.current = null;
+            candleSeriesRef.current = null;
             volumeSeriesRef.current = null;
         };
     }, []);
@@ -314,7 +325,7 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
 
     // ── Push data ─────────────────────────────────────────────────────────────
     useEffect(() => {
-        if (!chartRef.current || !areaSeriesRef.current || !volumeSeriesRef.current) return;
+        if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
         const previousRange = firstDateRef.current ? chartRef.current.timeScale().getVisibleLogicalRange() : null;
         const addedBars = firstDateRef.current
             ? normalizedData.findIndex(d => dayKey(d.time) === firstDateRef.current)
@@ -332,14 +343,17 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
             }];
         }));
         queueMicrotask(() => setHoveredBar(null));
-        areaSeriesRef.current.setData(normalizedData.map(d => ({
+        candleSeriesRef.current.setData(normalizedData.map(d => ({
             time: toBusinessDay(d.time),
-            value: d.close,
+            open: d.open,
+            high: d.high,
+            low: d.low,
+            close: d.close,
         })));
-        volumeSeriesRef.current.setData(normalizedData.map((d, i) => ({
+        volumeSeriesRef.current.setData(normalizedData.map(d => ({
             time: toBusinessDay(d.time),
             value: d.volume,
-            color: i === 0 || d.close >= normalizedData[i - 1].close
+            color: d.close >= d.open
                 ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
         })));
         firstDateRef.current = normalizedData.length ? dayKey(normalizedData[0].time) : null;
@@ -353,14 +367,10 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
             return;
         }
 
-        // Initially show one year; older sessions are fetched on pan/zoom demand.
-        const latest = toBusinessDay(normalizedData[normalizedData.length - 1].time);
-        const from = new Date(Date.UTC(latest.year - 1, latest.month - 1, latest.day))
-            .toISOString().slice(0, 10);
-        const first = dayKey(normalizedData[0].time);
-        chartRef.current.timeScale().setVisibleRange({
-            from: toBusinessDay(from < first ? first : from),
-            to: latest,
+        // Start with readable candles; older sessions are fetched on pan/zoom demand.
+        chartRef.current.timeScale().setVisibleLogicalRange({
+            from: Math.max(0, normalizedData.length - 90),
+            to: normalizedData.length - 1 + 5,
         });
     }, [normalizedData]);
 
