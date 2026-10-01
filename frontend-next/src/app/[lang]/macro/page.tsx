@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { API } from '@/lib/api';
+import type { MacroSeries } from '@/components/Macro/MacroHistoryModal';
+import { macroDate, normalizeMacroPoints } from '@/components/Macro/macroData';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
@@ -12,7 +14,6 @@ import {
     FF_ASIA_CHANNELS,
     FF_EUROPE_CHANNELS,
     FF_FOREX_CHANNELS,
-    RANGE_OPTIONS,
     RATES_REFRESH_MS,
     TV_CONFIGS,
     VIETNAM_SUBTABS,
@@ -29,17 +30,11 @@ import {
     type VietnamSubTabId,
 } from './config';
 
-const AreaChart = dynamic(() => import('@tremor/react').then((module) => module.AreaChart), {
+const MacroSeriesChart = dynamic(() => import('@/components/Macro/MacroSeriesChart'), {
     ssr: false,
-    loading: () => <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
+    loading: () => <div className="h-36 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
 });
-const BarChart = dynamic(() => import('@tremor/react').then((module) => module.BarChart), {
-    ssr: false,
-    loading: () => <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
-});
-
-// Keep one in-memory request per symbol/range for the summary cards.
-const historyRequestCache = new Map<string, Promise<PricePoint[]>>();
+const MacroHistoryModal = dynamic(() => import('@/components/Macro/MacroHistoryModal'), { ssr: false });
 
 const MACRO_LABELS_EN: Record<string, string> = {
     'ECONOMICS:VNINBR': 'Overnight interbank rate', 'ECONOMICS:VNINTR': 'Policy interest rate', 'ECONOMICS:VNDIR': 'Deposit interest rate',
@@ -80,18 +75,6 @@ function macroValue(value: number, sym: string, lang: 'vi' | 'en') {
         .replaceAll('M người', 'million people');
 }
 
-function loadMacroHistory(symbol: string, days: number): Promise<PricePoint[]> {
-    const cacheKey = `${symbol}:${days}`;
-    const cached = historyRequestCache.get(cacheKey);
-    if (cached) return cached;
-
-    const request = fetch(API.MACRO_HISTORY(symbol, days))
-        .then((response) => response.ok ? response.json() : [])
-        .catch(() => [] as PricePoint[]);
-    historyRequestCache.set(cacheKey, request);
-    return request;
-}
-
 function loadMacroHistoryBatch(symbols: string[]): Promise<Record<string, PricePoint[]>> {
     if (!symbols.length) return Promise.resolve({});
     const days = Math.max(...symbols.map((symbol) => TV_CONFIGS[symbol].defaultDays));
@@ -112,113 +95,11 @@ function Spinner({ h = 'h-48' }: { h?: string }) {
         </div>
     );
 }
-function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-    return <div className={`rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>{children}</div>;
-}
 function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
     return (
         <div className="mb-4">
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
-        </div>
-    );
-}
-
-// ── History chart for exchange rates / commodities ────────────────────────────
-
-function downloadCsv(filename: string, rows: PricePoint[]) {
-    const body = rows.map((r) => `${r.date},${r.close}`).join('\n');
-    const blob  = new Blob([`Date,Close\n${body}`], { type: 'text/csv;charset=utf-8;' });
-    const url   = URL.createObjectURL(blob);
-    const a     = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
-}
-
-function HistoryChart({ item, isVnd, onClose }: { item: RateItem; isVnd: boolean; onClose: () => void }) {
-    const { lang } = useLanguage();
-    const copy = translations[lang].macro;
-    const [days, setDays]       = useState(365);
-    const [points, setPoints]   = useState<PricePoint[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const load = useCallback(async (d: number) => {
-        setLoading(true);
-        try {
-            setPoints(await loadMacroHistory(item.symbol, d));
-        } catch { /* ignore */ }
-        finally { setLoading(false); }
-    }, [item.symbol]);
-
-    useEffect(() => { load(days); }, [days, load]);
-
-    const first = points[0]?.close ?? null;
-    const last  = points[points.length - 1]?.close ?? null;
-    const overallChange = first && last ? ((last - first) / first) * 100 : null;
-    const up = overallChange === null ? true : overallChange >= 0;
-
-    const useDayFormat = days <= 180;
-    const chartData = points.map((p) => {
-        const [y, m, d] = p.date.split('-');
-        return {
-            [copy.dateAxis]: useDayFormat ? `${d}/${m}` : `${m}/${y.slice(2)}`,
-            [item.name]: p.close,
-        };
-    });
-
-    const fmtY = isVnd ? fmtVndPrice : fmtUsdPrice;
-    const maxClose = points.length ? Math.max(...points.map((p) => p.close)) : 0;
-    const yAxisW   = isVnd ? 80 : maxClose >= 1000 ? 70 : 52;
-    const rangeLabel = RANGE_OPTIONS.find((o) => o.days === days)?.label ?? '';
-
-    return (
-        <div>
-            <Panel className="p-5">
-                <div className="flex items-start justify-between mb-4">
-                    <div>
-                        <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                            {item.name}
-                            {item.unit && <span className="ml-1.5 text-xs font-normal text-tremor-content dark:text-dark-tremor-content">({item.unit})</span>}
-                        </p>
-                        {overallChange !== null && (
-                            <p className={`text-sm mt-0.5 font-medium ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                {up ? '▲' : '▼'} {Math.abs(overallChange).toFixed(2)}% {copy.overPeriod}
-                            </p>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 text-xs">
-                            {RANGE_OPTIONS.map((opt) => (
-                                <button key={opt.days} onClick={() => setDays(opt.days)}
-                                    className={`px-2.5 py-1 font-medium transition-colors ${days === opt.days ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
-                        {points.length > 0 && (
-                            <button onClick={() => downloadCsv(`${item.symbol.replace('=', '_')}_${rangeLabel}.csv`, points)}
-                                title={copy.downloadCsv}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                    <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                                CSV
-                            </button>
-                        )}
-                        <button onClick={onClose} className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label={translations[lang].common.close}>
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                {loading ? <Spinner h="h-48" /> : chartData.length === 0
-                    ? <div className="h-48 flex items-center justify-center text-sm text-tremor-content dark:text-dark-tremor-content">{copy.noData}</div>
-                    : <AreaChart data={chartData} index={copy.dateAxis} categories={[item.name]}
-                        colors={[up ? 'emerald' : 'rose']} valueFormatter={fmtY}
-                        yAxisWidth={yAxisW} showLegend={false} showGradient autoMinValue
-                        showAnimation={false} tickGap={60} className="h-48" />}
-            </Panel>
         </div>
     );
 }
@@ -264,10 +145,9 @@ function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]
 function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
     const { lang } = useLanguage();
     const common = translations[lang].common;
-    const copy = translations[lang].macro;
     const [selected, setSelected] = useState<string | null>(null);
     const selectedItem = items.find((i) => i.symbol === selected) ?? null;
-    const toggle = (sym: string) => setSelected((prev) => (prev === sym ? null : sym));
+    const openHistory = (sym: string) => setSelected(sym);
     return (
         <div>
             <div className="overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -293,18 +173,18 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
                                 <td className="hidden px-3 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{format(item.price - item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%</td>
-                                <td className="px-3 py-3.5 text-right md:px-4"><button type="button" onClick={() => toggle(item.symbol)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">{selected === item.symbol ? copy.collapse : copy.viewHistory}</button></td>
+                                <td className="px-3 py-3.5 text-right md:px-4"><button type="button" onClick={() => openHistory(item.symbol)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">{lang === 'vi' ? 'Xem biểu đồ ↗' : 'View chart ↗'}</button></td>
                             </tr>;
                         })}
                     </tbody>
                 </table>
             </div>
-            {selectedItem && (
-                <div className="mt-4">
-                    <HistoryChart key={selectedItem.symbol} item={selectedItem}
-                        isVnd={isVnd} onClose={() => setSelected(null)} />
-                </div>
-            )}
+            {selectedItem && <MacroHistoryModal key={selectedItem.symbol} series={{
+                symbol: selectedItem.symbol, title: selectedItem.name,
+                unit: selectedItem.unit ?? (isVnd ? 'VND' : 'USD'), source: 'Yahoo Finance',
+                formatValue: isVnd ? fmtVndPrice : fmtUsdPrice, defaultDays: 365,
+            }} onClose={() => setSelected(null)} />}
+
         </div>
     );
 }
@@ -350,16 +230,9 @@ function VietnamTvRow({ sym, points }: { sym: string; points: PricePoint[] | nul
     return <tr className="border-b border-slate-100 dark:border-slate-800"><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{macroLabel(sym, cfg.titleVN, lang)}</p><p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${macroValue(Math.abs(summary.delta), sym, lang)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
 }
 
-function formatMacroChartDate(date: string, frequency: 'daily' | 'monthly' | 'annual') {
-    const [year, month, day] = date.split('-');
-    if (frequency === 'annual') return year;
-    if (frequency === 'daily') return `${day}/${month}`;
-    return `${month}/${year.slice(2)}`;
-}
-
 function formatMacroAxisValue(value: number, sym: string) {
     const unit = TV_CONFIGS[sym].unitLabel;
-    if (unit.includes('%')) return `${value.toFixed(1)}%`;
+    if (unit.includes('%')) return `${(Math.abs(value) < 0.05 ? 0 : value).toFixed(1)}%`;
     if (unit.includes('nghìn tỷ')) return (value / 1e12).toLocaleString('en-US', { maximumFractionDigits: 0 });
     if (unit.includes('tỷ $')) return (value / 1e9).toLocaleString('en-US', { maximumFractionDigits: 1 });
     if (unit.includes('triệu ₫')) return (value / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 });
@@ -369,56 +242,45 @@ function formatMacroAxisValue(value: number, sym: string) {
     return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
 
-function VietnamTrendChart({ sym, points }: { sym: string; points: PricePoint[] | null }) {
+function macroValueScale(sym: string) {
+    const unit = TV_CONFIGS[sym].unitLabel;
+    if (unit.includes('nghìn tỷ')) return 1e12;
+    if (unit.includes('tỷ $')) return 1e9;
+    if (unit.includes('triệu')) return 1e6;
+    return 1;
+}
+
+function VietnamTrendChart({ sym, points, onOpen }: { sym: string; points: PricePoint[] | null; onOpen: () => void }) {
     const { lang } = useLanguage();
     const copy = translations[lang].macro;
     const cfg = TV_CONFIGS[sym];
     const label = macroLabel(sym, cfg.titleVN, lang);
-    const chartData = (points ?? []).map((point) => ({
-        [copy.dateAxis]: formatMacroChartDate(point.date, cfg.freq),
-        [label]: point.close,
-    }));
-    const latest = points?.at(-1)?.close;
-    const previous = points && points.length > 1 ? points.at(-2)?.close : undefined;
-    const delta = latest !== undefined && previous !== undefined ? latest - previous : null;
-    const up = delta === null || delta >= 0;
-    const chartColor = cfg.color === 'amber' ? 'yellow' : cfg.color;
+    const history = normalizeMacroPoints(points ?? []);
+    // The API's days parameter limits observations, not calendar days.
+    const end = history.at(-1)?.date;
+    const cutoff = end ? new Date(`${end}T00:00:00Z`).getTime() - cfg.defaultDays * 86400000 : 0;
+    const preview = history.filter(point => Date.parse(point.date) >= cutoff);
+    const summary = buildTvSummary(sym, history, lang);
 
-    return (
-        <Panel className="overflow-hidden">
-            <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-900 dark:text-slate-100">{label}</p>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{macroUnit(cfg.unitLabel, lang)}</p>
-                    </div>
-                    {latest !== undefined && (
-                        <div className="shrink-0 text-right">
-                            <p className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">{macroValue(latest, sym, lang)}</p>
-                            {delta !== null && <p className={`mt-0.5 text-xs font-medium tabular-nums ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{delta >= 0 ? '+' : ''}{macroValue(delta, sym, lang)}</p>}
-                        </div>
-                    )}
-                </div>
-            </div>
-            <div className="px-2 pb-2 pt-3">
-                {points === null ? <Spinner h="h-48" /> : chartData.length === 0
-                    ? <div className="flex h-48 items-center justify-center text-sm text-slate-500 dark:text-slate-400">{copy.noData}</div>
-                    : cfg.barChart
-                        ? <BarChart data={chartData} index={copy.dateAxis} categories={[label]} colors={[chartColor]}
-                            valueFormatter={(value) => formatMacroAxisValue(value, sym)} yAxisWidth={64}
-                            showLegend={false} showAnimation={false} autoMinValue tickGap={56} className="h-48" />
-                        : <AreaChart data={chartData} index={copy.dateAxis} categories={[label]} colors={[chartColor]}
-                            valueFormatter={(value) => formatMacroAxisValue(value, sym)} yAxisWidth={64}
-                            showLegend={false} showGradient showAnimation={false} autoMinValue tickGap={56} className="h-48" />}
-            </div>
-        </Panel>
-    );
+    return <button type="button" onClick={onOpen} aria-label={`${label}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`}
+        className="group w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-emerald-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-700">
+        <div className="px-5 pt-5">
+            <div className="flex items-start justify-between gap-3"><h3 className="min-h-10 text-sm font-semibold leading-5 text-slate-700 dark:text-slate-200">{label}</h3><span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 dark:bg-slate-800 dark:group-hover:bg-emerald-950">↗</span></div>
+            <div className="mt-3 min-h-16">{points === null ? <div className="h-8 w-32 animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <><p className="text-2xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{macroUnit(cfg.unitLabel, lang)}</p></>}</div>
+        </div>
+        <div className="pointer-events-none px-3 pb-1">
+            {points === null ? <Spinner h="h-36" /> : !preview.length ? <div className="flex h-36 items-center justify-center text-sm text-slate-400">{copy.noData}</div>
+                : <MacroSeriesChart compact points={preview} label={label} formatValue={value => macroValue(value, sym, lang)} formatAxis={value => formatMacroAxisValue(value, sym)} bar={cfg.barChart} />}
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 text-xs dark:border-slate-800"><span className="text-slate-400">{summary.updatedAt ? macroDate(summary.updatedAt, lang) : '—'}</span><span className="font-medium text-emerald-700 dark:text-emerald-400">{lang === 'vi' ? 'Biểu đồ & dữ liệu' : 'Chart & data'} ↗</span></div>
+    </button>;
 }
 
 function VietnamMacroTab() {
     const { lang } = useLanguage();
     const copy = translations[lang].macro;
     const [activeSubTab, setActiveSubTab] = useState<VietnamSubTabId>('growth');
+    const [selected, setSelected] = useState<string | null>(null);
     const [history, setHistory] = useState<{ tab: VietnamSubTabId; data: Record<string, PricePoint[]> } | null>(null);
     const activeSymbols = VIETNAM_TAB_TV[activeSubTab];
 
@@ -454,12 +316,23 @@ function VietnamMacroTab() {
 
                 <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{copy.indicator}</th><th className="px-3 py-3 text-right md:px-4">{copy.latest}</th><th className="px-3 py-3 text-right md:px-4">{copy.change}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{copy.comparison}</th><th className="px-3 py-3 text-right md:px-4">{copy.date}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
 
-                <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
-                    {activeSymbols.map((sym) => <VietnamTrendChart key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                    {activeSymbols.map((sym) => <VietnamTrendChart key={sym} sym={sym} onOpen={() => setSelected(sym)} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}
                 </div>
             </section>
+            {selected && <MacroHistoryModal key={selected} series={vietnamSeries(selected, lang)} onClose={() => setSelected(null)} />}
         </div>
     );
+}
+
+function vietnamSeries(sym: string, lang: 'vi' | 'en'): MacroSeries {
+    const cfg = TV_CONFIGS[sym];
+    return {
+        symbol: sym, title: macroLabel(sym, cfg.titleVN, lang), unit: macroUnit(cfg.unitLabel, lang),
+        source: cfg.source.split(' · ')[0], formatValue: value => macroValue(value, sym, lang),
+        formatAxis: value => formatMacroAxisValue(value, sym), valueScale: macroValueScale(sym),
+        bar: cfg.barChart, defaultDays: cfg.defaultDays,
+    };
 }
 
 // ── World Tab — isolated component so WS subs don't affect Vietnam tab ────────
