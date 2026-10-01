@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogPanel } from '@tremor/react';
-import { RiCloseLine, RiDownloadLine } from '@remixicon/react';
+import { RiArrowDownSLine, RiCloseLine, RiDownloadLine } from '@remixicon/react';
 import { API } from '@/lib/api';
 import { useLanguage } from '@/lib/languageContext';
 import Pagination from '@/components/Pagination';
@@ -23,10 +23,10 @@ export interface MacroSeries {
 }
 
 const COPY = {
-    vi: { detail: 'Lịch sử dữ liệu', chart: 'Biểu đồ', table: 'Bảng dữ liệu', from: 'Từ ngày', to: 'Đến ngày', all: 'Tất cả', csv: 'Tải CSV', date: 'Thời gian', value: 'Giá trị', change: 'Thay đổi so với kỳ trước', loading: 'Đang tải dữ liệu…', empty: 'Không có dữ liệu trong khoảng thời gian này.', failed: 'Không tải được dữ liệu. Vui lòng thử lại.', retry: 'Thử lại', invalid: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.', latest: 'Giá trị cuối kỳ', lowest: 'Thấp nhất', highest: 'Cao nhất', points: 'mốc dữ liệu', source: 'Nguồn', close: 'Đóng', year: 'N', month: 'T', available: 'Dữ liệu hiện có' },
-    en: { detail: 'Data history', chart: 'Chart', table: 'Data table', from: 'From', to: 'To', all: 'All', csv: 'Download CSV', date: 'Date', value: 'Value', change: 'Change vs. previous observation', loading: 'Loading data…', empty: 'No data in this date range.', failed: 'Unable to load data. Please try again.', retry: 'Retry', invalid: 'The start date must be on or before the end date.', latest: 'Last value', lowest: 'Lowest', highest: 'Highest', points: 'observations', source: 'Source', close: 'Close', year: 'Y', month: 'M', available: 'Available data' },
+    vi: { detail: 'Lịch sử dữ liệu', chart: 'Biểu đồ', table: 'Bảng dữ liệu', range: 'Khoảng thời gian', all: 'Tất cả', csv: 'Tải CSV', date: 'Thời gian', value: 'Giá trị', change: 'Thay đổi so với kỳ trước', loading: 'Đang tải dữ liệu…', empty: 'Không có dữ liệu trong khoảng thời gian này.', failed: 'Không tải được dữ liệu. Vui lòng thử lại.', retry: 'Thử lại', latest: 'Giá trị cuối kỳ', lowest: 'Thấp nhất', highest: 'Cao nhất', points: 'mốc dữ liệu', source: 'Nguồn', close: 'Đóng', year: 'năm', available: 'Dữ liệu hiện có' },
+    en: { detail: 'Data history', chart: 'Chart', table: 'Data table', range: 'Time range', all: 'All', csv: 'Download CSV', date: 'Date', value: 'Value', change: 'Change vs. previous observation', loading: 'Loading data…', empty: 'No data in this date range.', failed: 'Unable to load data. Please try again.', retry: 'Retry', latest: 'Last value', lowest: 'Lowest', highest: 'Highest', points: 'observations', source: 'Source', close: 'Close', year: 'years', available: 'Available data' },
 };
-const RANGES = [90, 365, 1095, 1825, 3650, 0];
+const RANGES = [365, 1095, 1825, 0];
 const PAGE_SIZE = 25;
 
 function rangeStart(end: string, days: number) {
@@ -49,9 +49,7 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [attempt, setAttempt] = useState(0);
-    const [range, setRange] = useState<number | null>(series.defaultDays ?? 1825);
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
+    const [range, setRange] = useState((series.defaultDays ?? 1825) <= 365 ? 365 : 1825);
     const [view, setView] = useState<'chart' | 'table'>('chart');
     const [page, setPage] = useState(1);
 
@@ -67,9 +65,6 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
                     point !== null && typeof point === 'object' && typeof point.date === 'string' && typeof point.close === 'number'));
                 if (controller.signal.aborted) return;
                 setPoints(history);
-                const end = history.at(-1)?.date ?? '';
-                setTo(end);
-                setFrom(end ? rangeStart(end, series.defaultDays ?? 1825) : '');
                 setLoading(false);
             } catch {
                 if (!controller.signal.aborted) { setError(true); setLoading(false); }
@@ -77,10 +72,14 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
         }
         load();
         return () => controller.abort();
-    }, [series.symbol, series.defaultDays, attempt]);
+    }, [series.symbol, attempt]);
 
-    const invalid = !!from && !!to && from > to;
-    const filtered = useMemo(() => invalid ? [] : points.filter(point => (!from || point.date >= from) && (!to || point.date <= to)), [points, from, to, invalid]);
+    const filtered = useMemo(() => {
+        const end = points.at(-1)?.date;
+        if (!end || range === 0) return points;
+        const from = rangeStart(end, range);
+        return points.filter(point => point.date >= from);
+    }, [points, range]);
     const rows = useMemo(() => filtered.map((point, index) => ({ ...point, change: index ? point.close - filtered[index - 1].close : null })).reverse(), [filtered]);
     const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
@@ -93,8 +92,8 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
     }, [filtered, c]);
 
     function selectRange(days: number) {
-        const end = points.at(-1)?.date ?? '';
-        setRange(days); setTo(end); setFrom(days && end ? rangeStart(end, days) : points[0]?.date ?? ''); setPage(1);
+        setRange(days);
+        setPage(1);
     }
 
     function download() {
@@ -108,28 +107,28 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-    const inputClass = 'h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100';
     return <Dialog open onClose={close} className="fixed inset-0 z-[100]" aria-label={series.title}>
         <DialogPanel className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white p-0 text-slate-900 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-800">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-4 dark:border-slate-800 sm:px-6">
                 <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{c.detail}</p><h2 id="macro-history-title" className="mt-1 text-lg font-bold sm:text-xl">{series.title}</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{series.unit}</p></div>
                 <button type="button" onClick={close} aria-label={c.close} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:bg-slate-800"><RiCloseLine className="h-5 w-5" /></button>
             </div>
-            <div className="max-h-[75dvh] space-y-5 overflow-y-auto p-4 sm:p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-950">{RANGES.map(days => <button key={days} type="button" onClick={() => selectRange(days)} disabled={loading || error || !points.length} aria-pressed={range === days}
-                        className={`h-9 rounded-lg px-3 text-xs font-semibold transition disabled:opacity-40 ${range === days ? 'bg-white text-emerald-700 shadow-sm dark:bg-slate-800 dark:text-emerald-300' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}>{days === 0 ? c.all : days < 365 ? `3${c.month}` : `${Math.round(days / 365)}${c.year}`}</button>)}</div>
-                    <button type="button" onClick={download} disabled={loading || error || !filtered.length} className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><RiDownloadLine className="h-4 w-4" />{c.csv}</button>
+            <div className="max-h-[75dvh] space-y-4 sm:space-y-5 overflow-y-auto p-4 sm:p-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <label className="relative min-w-0 flex-1 sm:max-w-56">
+                        <span className="sr-only">{c.range}</span>
+                        <select value={range} onChange={event => selectRange(Number(event.target.value))} disabled={loading || error || !points.length}
+                            className="h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-sm font-medium text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                            {RANGES.map(days => <option key={days} value={days}>{days === 0 ? c.all : lang === 'en' && days === 365 ? '1 year' : `${days / 365} ${c.year}`}</option>)}
+                        </select>
+                        <RiArrowDownSLine aria-hidden="true" className="pointer-events-none absolute right-2 top-3 h-4 w-4 text-slate-400" />
+                    </label>
+                    <button type="button" onClick={download} disabled={loading || error || !filtered.length} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4"><RiDownloadLine className="h-4 w-4" />{c.csv}</button>
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:max-w-md">
-                    <label className="min-w-0 space-y-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"><span className="block">{c.from}</span><input type="date" value={from} disabled={loading || error || !points.length} max={points.at(-1)?.date} onChange={event => { setFrom(event.target.value); setRange(null); setPage(1); }} className={inputClass} aria-invalid={invalid} /></label>
-                    <label className="min-w-0 space-y-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"><span className="block">{c.to}</span><input type="date" value={to} disabled={loading || error || !points.length} min={points[0]?.date} onChange={event => { setTo(event.target.value); setRange(null); setPage(1); }} className={inputClass} aria-invalid={invalid} /></label>
-                </div>
-                {invalid && <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">{c.invalid}</p>}
                 {loading ? <div role="status" className="flex h-72 items-center justify-center text-sm text-slate-500"><span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-600" />{c.loading}</div>
                     : error ? <div role="alert" className="py-12 text-center"><p className="text-sm text-rose-600 dark:text-rose-400">{c.failed}</p><button type="button" onClick={() => { setLoading(true); setError(false); setAttempt(value => value + 1); }} className="mt-3 rounded-lg border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">{c.retry}</button></div>
                     : <>
-                        {stats.length > 0 && <div className="grid grid-cols-3 gap-2 sm:gap-4">{stats.map(stat => <div key={stat.label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950 sm:p-4"><p className="text-xs text-slate-500 dark:text-slate-400">{stat.label}</p><p className="mt-1 break-words text-sm font-semibold tabular-nums sm:text-lg">{series.formatValue(stat.value)}</p></div>)}</div>}
+                        {stats.length > 0 && <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">{stats.map((stat, index) => <div key={stat.label} className={`items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-950 sm:block sm:p-4 ${index === 0 ? 'flex' : 'hidden'}`}><p className="text-xs text-slate-500 dark:text-slate-400">{stat.label}</p><p className="break-words text-lg font-semibold tabular-nums sm:mt-1">{series.formatValue(stat.value)}</p></div>)}</div>}
                         <div className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800"><div className="flex" role="tablist" aria-label={c.detail}>{(['chart', 'table'] as const).map(tab => <button key={tab} id={`macro-${tab}-tab`} type="button" role="tab" aria-selected={view === tab} aria-controls="macro-history-content" tabIndex={view === tab ? 0 : -1} onKeyDown={event => {
                             if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                                 event.preventDefault();

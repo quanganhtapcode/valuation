@@ -22,6 +22,9 @@ const REALTIME_PATH_PREFIXES = [
     'market/top-movers',
     'market/heatmap',
     'market/prices',
+    // The backend already caches quotes and refreshes them in the background.
+    // Let the next browser request observe that refresh instead of caching its seed.
+    'market/macro/rates',
     // This is a small, persisted snapshot that can change whenever the
     // background AI job completes. Never serve an older fallback after a
     // successful refresh.

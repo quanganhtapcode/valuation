@@ -3,7 +3,7 @@
 
 Direct Yahoo Finance symbols (have full history):
   USDVND=X  EURVND=X  USDJPY=X  USDCNY=X
-  BZ=F  HG=F  ZR=F  GC=F
+  BZ=F  SI=F  ZR=F  GC=F
 
 Derived VND pairs (computed from USD crosses + USDVND):
   JPYVND=X  = USDVND / USDJPY
@@ -24,6 +24,7 @@ import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -34,6 +35,12 @@ _DIRECT_SYMBOLS = [
     'USDJPY=X', 'USDCNY=X',
     'BZ=F', 'SI=F', 'ZR=F', 'GC=F',
 ]
+
+# This database also holds long economic series owned by other fetchers.
+_STORED_SYMBOLS = (
+    'USDVND=X', 'EURVND=X', 'CNYVND=X', 'JPYVND=X',
+    'BZ=F', 'SI=F', 'ZR=F', 'GC=F',
+)
 
 PRUNE_DAYS = 3 * 365
 
@@ -103,13 +110,17 @@ def fetch_history(symbol: str, range_str: str = '3y') -> dict[str, float]:
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode())
         result = data['chart']['result'][0]
+        try:
+            market_tz = ZoneInfo(result.get('meta', {}).get('exchangeTimezoneName') or 'UTC')
+        except ZoneInfoNotFoundError:
+            market_tz = dt.timezone.utc
         timestamps = result['timestamp']
         closes = result['indicators']['quote'][0]['close']
         pairs: list[tuple[str, float]] = []
         for ts, c in zip(timestamps, closes):
             if c is None:
                 continue
-            date_str = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
+            date_str = dt.datetime.fromtimestamp(ts, tz=market_tz).strftime('%Y-%m-%d')
             pairs.append((date_str, round(float(c), 6)))
         pairs = _normalize_unit_change(pairs)
         out = dict(pairs)
@@ -134,9 +145,22 @@ def derive_vnd_cross(
 
 # ── Upsert / prune ───────────────────────────────────────────────────────────
 
-def upsert(conn: sqlite3.Connection, symbol: str, rows: dict[str, float]) -> int:
+def upsert(
+    conn: sqlite3.Connection,
+    symbol: str,
+    rows: dict[str, float],
+    *,
+    replace_window: bool = False,
+) -> int:
     if not rows:
         return 0
+    if replace_window and symbol in _STORED_SYMBOLS and len(rows) > 1:
+        # FX dates used to be stored in UTC. Replace this source window so
+        # shifted weekend observations do not remain beside corrected dates.
+        conn.execute(
+            'DELETE FROM macro_prices WHERE symbol = ? AND date BETWEEN ? AND ?',
+            (symbol, min(rows), max(rows)),
+        )
     conn.executemany(
         'INSERT OR REPLACE INTO macro_prices (symbol, date, close) VALUES (?, ?, ?)',
         [(symbol, date, close) for date, close in rows.items()],
@@ -146,8 +170,13 @@ def upsert(conn: sqlite3.Connection, symbol: str, rows: dict[str, float]) -> int
 
 
 def prune(conn: sqlite3.Connection) -> None:
-    cutoff = (dt.datetime.utcnow() - dt.timedelta(days=PRUNE_DAYS)).strftime('%Y-%m-%d')
-    conn.execute('DELETE FROM macro_prices WHERE date < ?', (cutoff,))
+    """Prune only FX/commodity history managed by this job."""
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=PRUNE_DAYS)).strftime('%Y-%m-%d')
+    placeholders = ', '.join('?' for _ in _STORED_SYMBOLS)
+    conn.execute(
+        f'DELETE FROM macro_prices WHERE symbol IN ({placeholders}) AND date < ?',
+        (*_STORED_SYMBOLS, cutoff),
+    )
     conn.commit()
 
 
@@ -177,14 +206,14 @@ def main() -> None:
 
     # Upsert direct symbols (skip helper cross-rate symbols)
     for sym in ('USDVND=X', 'EURVND=X', 'BZ=F', 'SI=F', 'ZR=F', 'GC=F'):
-        n = upsert(conn, sym, fetched.get(sym, {}))
+        n = upsert(conn, sym, fetched.get(sym, {}), replace_window=sym.endswith('VND=X'))
         logger.info('  %-12s  %d rows upserted', sym, n)
 
     # Derive and upsert CNY/VND and JPY/VND
     usdvnd = fetched.get('USDVND=X', {})
     for derived_sym, cross_sym in (('CNYVND=X', 'USDCNY=X'), ('JPYVND=X', 'USDJPY=X')):
         derived = derive_vnd_cross(usdvnd, fetched.get(cross_sym, {}))
-        n = upsert(conn, derived_sym, derived)
+        n = upsert(conn, derived_sym, derived, replace_window=True)
         logger.info('  %-12s  %d rows upserted (derived)', derived_sym, n)
 
     prune(conn)

@@ -161,7 +161,7 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
                                 openHistory(item.symbol);
                             }} className="cursor-pointer transition-colors hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20">
                                 <td className="px-3 py-3.5 md:px-4"><p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>{item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
-                                <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{format(item.price)}</td>
+                                <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{format(item.price)}{item.updatedAt && <p className="mt-0.5 whitespace-nowrap text-xs font-normal text-slate-400">{macroDate(item.updatedAt, lang)}</p>}</td>
                                 <td className="hidden px-3 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{format(item.price - item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%</td>
@@ -329,16 +329,17 @@ function WorldTab() {
     const [ffIndices, setFfIndices] = useState<Map<string, FFPrice>>(new Map());
 
     const loadRates = useCallback(async () => {
-        try { const r = await fetch(API.MACRO_RATES); if (r.ok) setRates(await r.json()); }
+        try { const r = await fetch(API.MACRO_RATES, { cache: 'no-store' }); if (r.ok) setRates(await r.json()); }
         catch { /* ignore */ } finally { setRL(false); }
     }, []);
 
     useEffect(() => {
         if (view === 'indices') return;
         loadRates();
+        const initialRefresh = setTimeout(loadRates, 2000);
         const t = setInterval(loadRates, RATES_REFRESH_MS);
 
-        return () => clearInterval(t);
+        return () => { clearTimeout(initialRefresh); clearInterval(t); };
     }, [loadRates, view]);
 
     useEffect(() => {

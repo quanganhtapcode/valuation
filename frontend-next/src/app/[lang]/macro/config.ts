@@ -10,6 +10,7 @@ export interface RateItem {
     change: number;
     changePercent: number;
     unit?: string;
+    updatedAt?: string;
 }
 
 export interface PricePoint {

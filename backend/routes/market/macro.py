@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 import sqlite3
 import threading
@@ -9,6 +10,7 @@ import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests as http_requests
 from flask import Blueprint, jsonify, request
@@ -88,6 +90,9 @@ _FX_SYMBOLS: dict[str, str] = {
     'JPYVND=X': 'JPY/VND',
 }
 
+# Match the history fetcher: these direct Yahoo VND pairs lack reliable candles.
+_FX_CROSSES = {'CNYVND=X': 'USDCNY=X', 'JPYVND=X': 'USDJPY=X'}
+
 # Commodities relevant to Vietnam (USD-denominated)
 _COMMODITY_SYMBOLS: dict[str, dict] = {
     'BZ=F': {'name': 'Brent Crude',    'unit': 'USD/bbl'},
@@ -110,17 +115,38 @@ _rates_cache_lock = threading.Lock()
 
 def _fetch_yahoo(sym: str) -> dict | None:
     try:
-        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=1d'
+        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=5d'
         r = http_requests.get(url, timeout=7, headers=_YAHOO_HEADERS)
         if r.status_code != 200:
             return None
         data = r.json()
-        meta = data['chart']['result'][0]['meta']
+        result = data['chart']['result'][0]
+        meta = result['meta']
         price = float(meta.get('regularMarketPrice') or 0)
-        prev  = float(meta.get('chartPreviousClose') or meta.get('previousClose') or price)
+        if not math.isfinite(price) or price <= 0:
+            return None
+        try:
+            market_tz = ZoneInfo(meta.get('exchangeTimezoneName') or 'UTC')
+        except ZoneInfoNotFoundError:
+            market_tz = timezone.utc
+        quote_date = datetime.fromtimestamp(meta['regularMarketTime'], tz=market_tz).date()
+        # chartPreviousClose is the beginning of the requested window, not
+        # necessarily the previous session. FX candles may start at 23:00 UTC.
+        closes = result.get('indicators', {}).get('quote', [{}])[0].get('close', [])
+        previous = [
+            float(close) for timestamp, close in zip(result.get('timestamp', []), closes)
+            if close is not None and math.isfinite(float(close)) and float(close) > 0
+            and datetime.fromtimestamp(timestamp, tz=market_tz).date() < quote_date
+        ]
+        prev = float(meta.get('previousClose') or (previous[-1] if previous else price))
+        if not math.isfinite(prev) or prev <= 0:
+            prev = price
         change = round(price - prev, 4)
         pct    = round((change / prev) * 100, 2) if prev else 0.0
-        return {'price': price, 'change': change, 'changePercent': pct}
+        return {
+            'price': price, 'change': change, 'changePercent': pct,
+            'updatedAt': quote_date.isoformat(),
+        }
     except Exception as exc:
         logger.warning('macro: yahoo %s: %s', sym, exc)
         return None
@@ -185,7 +211,7 @@ def _add_quarter_labels(points: list[dict]) -> list[dict]:
 
 def _fetch_rates_data() -> dict:
     """Fetch exchange rates + commodities from Yahoo Finance. Cache 5 min."""
-    all_yahoo = list(_FX_SYMBOLS.keys()) + list(_COMMODITY_SYMBOLS.keys())
+    all_yahoo = ['USDVND=X', 'EURVND=X', *_FX_CROSSES.values(), *_COMMODITY_SYMBOLS.keys()]
     yahoo_results: dict[str, dict] = {}
 
     with ThreadPoolExecutor(max_workers=len(all_yahoo)) as pool:
@@ -195,9 +221,27 @@ def _fetch_rates_data() -> dict:
             if result:
                 yahoo_results[futures[future]] = result
 
+    base = yahoo_results.get('USDVND=X')
+    for symbol, cross_symbol in _FX_CROSSES.items():
+        cross = yahoo_results.get(cross_symbol)
+        if not base or not cross:
+            continue
+        base_previous = base['price'] - base['change']
+        cross_previous = cross['price'] - cross['change']
+        if base_previous <= 0 or cross_previous <= 0:
+            continue
+        price = base['price'] / cross['price']
+        previous = base_previous / cross_previous
+        yahoo_results[symbol] = {
+            'price': round(price, 6),
+            'change': round(price - previous, 4),
+            'changePercent': round((price / previous - 1) * 100, 2),
+            'updatedAt': min(base['updatedAt'], cross['updatedAt']),
+        }
+
     return {
         'exchange_rates': [
-            {'symbol': sym, 'name': name, **yahoo_results[sym]}
+            {'symbol': sym, 'name': name, 'unit': 'VND', **yahoo_results[sym]}
             for sym, name in _FX_SYMBOLS.items()
             if sym in yahoo_results
         ],
@@ -214,7 +258,7 @@ def _read_rates_seed() -> dict:
     try:
         conn = sqlite3.connect(os.path.normpath(_MACRO_HISTORY_DB))
         rows = conn.execute(
-            '''SELECT current.symbol, current.close, previous.close
+            '''SELECT current.symbol, current.close, previous.close, current.date
                FROM macro_prices AS current
                LEFT JOIN macro_prices AS previous ON previous.symbol = current.symbol
                    AND previous.date = (
@@ -231,7 +275,7 @@ def _read_rates_seed() -> dict:
         return {'exchange_rates': [], 'commodities': []}
 
     quotes = {}
-    for symbol, price, previous in rows:
+    for symbol, price, previous, date in rows:
         if price is None:
             continue
         prev = previous if previous not in (None, 0) else price
@@ -240,10 +284,11 @@ def _read_rates_seed() -> dict:
             'price': price,
             'change': change,
             'changePercent': round((change / prev) * 100, 2) if prev else 0.0,
+            'updatedAt': date,
         }
     return {
         'exchange_rates': [
-            {'symbol': sym, 'name': name, **quotes[sym]}
+            {'symbol': sym, 'name': name, 'unit': 'VND', **quotes[sym]}
             for sym, name in _FX_SYMBOLS.items() if sym in quotes
         ],
         'commodities': [
@@ -253,13 +298,27 @@ def _read_rates_seed() -> dict:
     }
 
 
+def _merge_rates(base: dict, fresh: dict) -> dict:
+    """Keep every known pair when only part of the upstream request succeeds."""
+    merged = {}
+    for group in ('exchange_rates', 'commodities'):
+        quotes = {item['symbol']: item for item in base.get(group, [])}
+        for item in fresh.get(group, []):
+            previous = quotes.get(item['symbol'])
+            if previous is None or item.get('updatedAt', '') >= previous.get('updatedAt', ''):
+                quotes[item['symbol']] = item
+        merged[group] = list(quotes.values())
+    return merged
+
+
 def _refresh_rates_cache() -> None:
     global _rates_cache, _rates_cache_updated_at, _rates_cache_refreshing
     try:
         fresh = _fetch_rates_data()
-        if fresh['exchange_rates'] or fresh['commodities']:
-            with _rates_cache_lock:
-                _rates_cache = fresh
+        with _rates_cache_lock:
+            seed = _merge_rates(_rates_cache or {}, _read_rates_seed())
+            _rates_cache = _merge_rates(seed, fresh)
+            if _rates_cache['exchange_rates'] or _rates_cache['commodities']:
                 _rates_cache_updated_at = time.monotonic()
     finally:
         with _rates_cache_lock:
