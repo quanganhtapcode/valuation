@@ -37,7 +37,7 @@ export default function MacroSeriesChart({ points, label, formatValue, formatAxi
         <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={dateTick}
             axisLine={false} tickLine={false} minTickGap={compact ? 65 : 45} tick={{ fill: '#94a3b8', fontSize: 11 }} tickMargin={12} height={30} />
         <YAxis hide={compact} domain={domain} tickFormatter={formatAxis} axisLine={false} tickLine={false}
-            width={72} tick={{ fill: '#94a3b8', fontSize: 11 }} tickCount={5} />
+            width={72} tick={{ fill: '#94a3b8', fontSize: 11, className: '-translate-x-2 sm:translate-x-0' }} tickCount={5} />
         {min < 0 && max > 0 && <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />}
         {!compact && <Tooltip cursor={{ stroke: '#94a3b8', strokeDasharray: '4 4', fill: '#94a3b812' }} content={({ active, payload }) => {
             const point = payload?.[0]?.payload as MacroPoint | undefined;

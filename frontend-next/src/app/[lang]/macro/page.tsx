@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { API } from '@/lib/api';
 import type { MacroSeries } from '@/components/Macro/MacroHistoryModal';
-import { macroDate, normalizeMacroPoints } from '@/components/Macro/macroData';
+import { macroDate } from '@/components/Macro/macroData';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
@@ -30,10 +30,6 @@ import {
     type VietnamSubTabId,
 } from './config';
 
-const MacroSeriesChart = dynamic(() => import('@/components/Macro/MacroSeriesChart'), {
-    ssr: false,
-    loading: () => <div className="h-36 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
-});
 const MacroHistoryModal = dynamic(() => import('@/components/Macro/MacroHistoryModal'), { ssr: false });
 
 const MACRO_LABELS_EN: Record<string, string> = {
@@ -87,13 +83,6 @@ function loadMacroHistoryBatch(symbols: string[]): Promise<Record<string, PriceP
 
 function SkeletonCard() {
     return <div className="h-[100px] rounded-lg animate-pulse bg-slate-100 dark:bg-slate-800" />;
-}
-function Spinner({ h = 'h-48' }: { h?: string }) {
-    return (
-        <div className={`${h} flex items-center justify-center`}>
-            <div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-700 border-t-slate-600 dark:border-t-slate-300 rounded-full animate-spin" />
-        </div>
-    );
 }
 function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
     return (
@@ -167,13 +156,16 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
                             const up = item.changePercent >= 0;
                             const tone = up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
                             const format = isVnd ? fmtVndPrice : fmtUsdPrice;
-                            return <tr key={item.symbol} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                            return <tr key={item.symbol} onClick={event => {
+                                event.currentTarget.querySelector('button')?.focus({ preventScroll: true });
+                                openHistory(item.symbol);
+                            }} className="cursor-pointer transition-colors hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20">
                                 <td className="px-3 py-3.5 md:px-4"><p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>{item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
                                 <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{format(item.price)}</td>
                                 <td className="hidden px-3 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{format(item.price - item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%</td>
-                                <td className="px-3 py-3.5 text-right md:px-4"><button type="button" onClick={() => openHistory(item.symbol)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">{lang === 'vi' ? 'Xem biểu đồ ↗' : 'View chart ↗'}</button></td>
+                                <td className="px-3 py-3.5 text-right md:px-4"><button type="button" aria-haspopup="dialog" aria-label={`${item.name}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`} className="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">{lang === 'vi' ? 'Xem biểu đồ ↗' : 'View chart ↗'}</button></td>
                             </tr>;
                         })}
                     </tbody>
@@ -220,14 +212,30 @@ function buildTvSummary(sym: string, points: PricePoint[], lang: 'vi' | 'en') {
     };
 }
 
-function VietnamTvRow({ sym, points }: { sym: string; points: PricePoint[] | null }) {
+function VietnamTvRow({ sym, points, onOpen }: { sym: string; points: PricePoint[] | null; onOpen: () => void }) {
     const { lang } = useLanguage();
     const cfg = TV_CONFIGS[sym];
+    const label = macroLabel(sym, cfg.titleVN, lang);
     if (!points) return <tr><td colSpan={5} className="px-4 py-4"><div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></td></tr>;
     const summary = buildTvSummary(sym, points, lang);
     const tone = getDeltaDirection(summary.delta);
     const toneClass = tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-rose-600' : 'text-slate-500';
-    return <tr className="border-b border-slate-100 dark:border-slate-800"><td className="px-3 py-3.5 md:px-4"><p className="font-semibold">{macroLabel(sym, cfg.titleVN, lang)}</p><p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p></td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${macroValue(Math.abs(summary.delta), sym, lang)}`}</td><td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td><td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ?? '—'}</td></tr>;
+    return <tr onClick={event => {
+        event.currentTarget.querySelector('button')?.focus({ preventScroll: true });
+        onOpen();
+    }} className="group cursor-pointer border-b border-slate-100 transition-colors hover:bg-emerald-50/60 dark:border-slate-800 dark:hover:bg-emerald-950/20">
+        <td className="px-3 py-3.5 md:px-4">
+            <button type="button" aria-haspopup="dialog" aria-label={`${label}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`}
+                className="rounded text-left font-semibold transition-colors group-hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:group-hover:text-emerald-400">
+                {label}<span aria-hidden="true" className="ml-2 inline-block text-emerald-600 dark:text-emerald-400">↗</span>
+            </button>
+            <p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p>
+        </td>
+        <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</td>
+        <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${macroValue(Math.abs(summary.delta), sym, lang)}`}</td>
+        <td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td>
+        <td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ? macroDate(summary.updatedAt, lang) : '—'}</td>
+    </tr>;
 }
 
 function formatMacroAxisValue(value: number, sym: string) {
@@ -248,32 +256,6 @@ function macroValueScale(sym: string) {
     if (unit.includes('tỷ $')) return 1e9;
     if (unit.includes('triệu')) return 1e6;
     return 1;
-}
-
-function VietnamTrendChart({ sym, points, onOpen }: { sym: string; points: PricePoint[] | null; onOpen: () => void }) {
-    const { lang } = useLanguage();
-    const copy = translations[lang].macro;
-    const cfg = TV_CONFIGS[sym];
-    const label = macroLabel(sym, cfg.titleVN, lang);
-    const history = normalizeMacroPoints(points ?? []);
-    // The API's days parameter limits observations, not calendar days.
-    const end = history.at(-1)?.date;
-    const cutoff = end ? new Date(`${end}T00:00:00Z`).getTime() - cfg.defaultDays * 86400000 : 0;
-    const preview = history.filter(point => Date.parse(point.date) >= cutoff);
-    const summary = buildTvSummary(sym, history, lang);
-
-    return <button type="button" onClick={onOpen} aria-label={`${label}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`}
-        className="group w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-emerald-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-700">
-        <div className="px-5 pt-5">
-            <div className="flex items-start justify-between gap-3"><h3 className="min-h-10 text-sm font-semibold leading-5 text-slate-700 dark:text-slate-200">{label}</h3><span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 dark:bg-slate-800 dark:group-hover:bg-emerald-950">↗</span></div>
-            <div className="mt-3 min-h-16">{points === null ? <div className="h-8 w-32 animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <><p className="text-2xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{macroUnit(cfg.unitLabel, lang)}</p></>}</div>
-        </div>
-        <div className="pointer-events-none px-3 pb-1">
-            {points === null ? <Spinner h="h-36" /> : !preview.length ? <div className="flex h-36 items-center justify-center text-sm text-slate-400">{copy.noData}</div>
-                : <MacroSeriesChart compact points={preview} label={label} formatValue={value => macroValue(value, sym, lang)} formatAxis={value => formatMacroAxisValue(value, sym)} bar={cfg.barChart} />}
-        </div>
-        <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 text-xs dark:border-slate-800"><span className="text-slate-400">{summary.updatedAt ? macroDate(summary.updatedAt, lang) : '—'}</span><span className="font-medium text-emerald-700 dark:text-emerald-400">{lang === 'vi' ? 'Biểu đồ & dữ liệu' : 'Chart & data'} ↗</span></div>
-    </button>;
 }
 
 function VietnamMacroTab() {
@@ -314,11 +296,10 @@ function VietnamMacroTab() {
                     ))}
                 </div>
 
-                <div className="mt-5 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{copy.indicator}</th><th className="px-3 py-3 text-right md:px-4">{copy.latest}</th><th className="px-3 py-3 text-right md:px-4">{copy.change}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{copy.comparison}</th><th className="px-3 py-3 text-right md:px-4">{copy.date}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
+                <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'Chọn một chỉ số để xem biểu đồ và dữ liệu.' : 'Select an indicator to view its chart and data.'}</p>
+                <div className="mt-3 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{copy.indicator}</th><th className="px-3 py-3 text-right md:px-4">{copy.latest}</th><th className="px-3 py-3 text-right md:px-4">{copy.change}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{copy.comparison}</th><th className="px-3 py-3 text-right md:px-4">{copy.date}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} onOpen={() => setSelected(sym)} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
 
-                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                    {activeSymbols.map((sym) => <VietnamTrendChart key={sym} sym={sym} onOpen={() => setSelected(sym)} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}
-                </div>
+
             </section>
             {selected && <MacroHistoryModal key={selected} series={vietnamSeries(selected, lang)} onClose={() => setSelected(null)} />}
         </div>
