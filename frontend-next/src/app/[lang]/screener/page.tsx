@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Pagination from '@/components/Pagination';
 import {
   fetchScreener,
   fetchScreenerIcbSectors,
@@ -541,12 +542,8 @@ export default function ScreenerPage() {
             )}
           </div>
 
-          <div className="mt-3 flex items-center justify-between">
-            <button className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm disabled:opacity-40"
-              onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1 || loading}>← {t.previous}</button>
-            <div className="text-sm text-slate-500 tabular-nums">{page} / {totalPages}</div>
-            <button className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm disabled:opacity-40"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages || loading}>{t.next} →</button>
+          <div className="mt-4">
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} disabled={loading} />
           </div>
         </div>
       </div>

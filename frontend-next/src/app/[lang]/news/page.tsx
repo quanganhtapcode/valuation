@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { NewsItem, formatRelativeTime } from '@/lib/api';
 import styles from './page.module.css';
+import Pagination from '@/components/Pagination';
 import { siteConfig } from '@/app/siteConfig';
 import { useI18n } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
@@ -45,14 +46,6 @@ export default function NewsPage() {
         setPage(next);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
-
-    const pageButtons = (() => {
-        const start = Math.max(1, page - 2);
-        const end = page + 2;
-        const buttons: number[] = [];
-        for (let p = start; p <= end; p++) buttons.push(p);
-        return buttons;
-    })();
 
     return (
         <div className={styles.container}>
@@ -153,34 +146,8 @@ export default function NewsPage() {
                         );
                     })}
                 </div>
-                <div className={styles.pagination}>
-                    <button
-                        className={styles.pageButton}
-                        onClick={() => goToPage(page - 1)}
-                        disabled={page <= 1 || isLoading}
-                    >
-                        {copy.previous}
-                    </button>
-
-                    {pageButtons.map((p) => (
-                        <button
-                            key={p}
-                            className={`${styles.pageButton} ${p === page ? styles.pageActive : ''}`}
-                            onClick={() => goToPage(p)}
-                            disabled={isLoading}
-                        >
-                            {p}
-                        </button>
-                    ))}
-
-                    <button
-                        className={styles.pageButton}
-                        onClick={() => goToPage(page + 1)}
-                        disabled={isLoading || news.length < pageSize}
-                        title={news.length < pageSize ? copy.noMore : ''}
-                    >
-                        {copy.next}
-                    </button>
+                <div className="mt-6">
+                    <Pagination page={page} onPageChange={goToPage} disabled={isLoading} hasNext={news.length >= pageSize} />
                 </div>
                 </>
             )}

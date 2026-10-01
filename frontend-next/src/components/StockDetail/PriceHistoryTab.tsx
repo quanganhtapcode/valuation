@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useTransition } from 'react';
+import Pagination from '@/components/Pagination';
 import { formatNumber } from '@/lib/api';
 import type { PriceData } from '@/lib/types';
 import { useLanguage } from '@/lib/languageContext';
@@ -154,46 +155,25 @@ function PriceHistoryTab({ symbol, data: allPriceData, isLoading, hasError, onLo
                     </div>
 
                     {/* Pagination controls */}
-                    <div className="flex items-center justify-between gap-4 px-1">
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-1">
                         <span className="text-xs text-tremor-content dark:text-dark-tremor-content">
                             {reversedData.length === 0 ? `0 ${copy.rows}` : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, reversedData.length)} ${copy.of} ${reversedData.length} ${copy.rows}`}
                         </span>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                             {/* Rows per page */}
                             <div className="flex items-center gap-1.5">
                                 <span className="text-xs text-tremor-content dark:text-dark-tremor-content whitespace-nowrap">{copy.rows}</span>
                                 <select
                                     value={pageSize}
                                     onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                                    className="rounded border border-tremor-border bg-white px-2 py-1 text-xs text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong"
+                                    className="h-10 rounded-lg border border-tremor-border bg-white px-2 text-sm text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong"
                                 >
                                     {[25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                                 </select>
                             </div>
 
-                            {/* Page buttons */}
-                            <div className="flex items-center gap-1">
-                                <button
-                                    type="button"
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1}
-                                    className="rounded border border-tremor-border bg-white px-2 py-1 text-xs text-tremor-content-strong disabled:opacity-40 hover:bg-tremor-background-muted dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong hover:dark:bg-gray-900"
-                                >
-                                    ←
-                                </button>
-                                <span className="px-2 text-xs text-tremor-content dark:text-dark-tremor-content">
-                                    {currentPage} / {totalPages}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className="rounded border border-tremor-border bg-white px-2 py-1 text-xs text-tremor-content-strong disabled:opacity-40 hover:bg-tremor-background-muted dark:border-dark-tremor-border dark:bg-gray-950 dark:text-dark-tremor-content-strong hover:dark:bg-gray-900"
-                                >
-                                    →
-                                </button>
-                            </div>
+                            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
                         </div>
                     </div>
                 </div>

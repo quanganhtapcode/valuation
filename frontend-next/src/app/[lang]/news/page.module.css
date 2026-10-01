@@ -62,40 +62,6 @@
     gap: var(--space-20);
 }
 
-.pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-8);
-    margin-top: var(--space-24);
-    flex-wrap: wrap;
-}
-
-.pageButton {
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text);
-    font-size: var(--font-size-sm);
-    cursor: pointer;
-    transition: opacity 0.2s;
-}
-
-.pageButton:hover {
-    opacity: 0.9;
-}
-
-.pageButton:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.pageActive {
-    font-weight: var(--font-weight-semibold);
-    border-color: var(--color-primary);
-}
-
 /* News Item */
 .newsItem {
     display: flex;
