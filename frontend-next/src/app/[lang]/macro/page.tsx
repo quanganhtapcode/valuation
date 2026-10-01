@@ -22,7 +22,6 @@ import {
     fmtUsdPrice,
     fmtVndChange,
     fmtVndPrice,
-    getMarketSessions,
     type FFCardDef,
     type PricePoint,
     type RateItem,
@@ -93,21 +92,6 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle: string })
     );
 }
 
-function SessionBadge({ open, tz }: { open: boolean; tz: string }) {
-    const { lang } = useLanguage();
-    const copy = translations[lang].macro.global;
-    return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-            open
-                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-        }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${open ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-            {open ? copy.open : copy.closed} · {tz}
-        </span>
-    );
-}
-
 function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]; snapshots: Map<string, FFPrice> }) {
     const { lang } = useLanguage();
     const common = translations[lang].common;
@@ -116,14 +100,14 @@ function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]
         <div className="overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <table className="min-w-full text-left text-sm">
                 <thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300">
-                    <tr><th className="px-2 py-3 md:px-4">{common.name}</th><th className="px-2 py-3 text-right md:px-4">{common.latest}</th><th className="hidden px-2 py-3 text-right sm:table-cell md:px-4">{common.open}</th><th className="px-2 py-3 text-right md:px-4">{common.change}</th><th className="px-2 py-3 text-right md:px-4">{common.changePercent}</th><th className="px-2 py-3 text-right md:px-4">{common.status}</th></tr>
+                    <tr><th className="px-2 py-3 md:px-4">{common.name}</th><th className="px-2 py-3 text-right md:px-4">{common.latest}</th><th className="hidden px-2 py-3 text-right sm:table-cell md:px-4">{common.open}</th><th className="px-2 py-3 text-right md:px-4">{common.change}</th><th className="px-2 py-3 text-right md:px-4">{common.changePercent}</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {items.map((item) => {
                         const snap = snapshots.get(item.channel);
                         const change = snap ? snap.price - snap.dayOpen : null;
                         const up = (snap?.changePercent ?? 0) >= 0;
-                        return <tr key={item.channel} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-2 py-3.5 font-semibold text-slate-900 md:px-4 dark:text-slate-100"><span className="mr-3">{marketFlag(item.channel)}</span>{item.label}</td><td className="px-2 py-3.5 text-right font-medium tabular-nums md:px-4">{snap ? item.fmt(snap.price) : <span className="inline-block h-4 w-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />}</td><td className="hidden px-2 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{snap ? item.fmt(snap.dayOpen) : '—'}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{change === null ? '—' : `${change >= 0 ? '+' : ''}${item.fmt(change)}`}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{snap ? `${snap.changePercent >= 0 ? '+' : ''}${snap.changePercent.toFixed(2)}%` : '—'}</td><td className="px-2 py-3.5 text-right md:px-4"><span className={`inline-flex items-center gap-1.5 text-xs font-medium ${snap ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}><span className={`h-1.5 w-1.5 rounded-full ${snap ? 'bg-emerald-500' : 'bg-slate-300'}`} /><span className="hidden sm:inline">{snap ? common.live : common.connecting}</span></span></td></tr>;
+                        return <tr key={item.channel} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-2 py-3.5 font-semibold text-slate-900 md:px-4 dark:text-slate-100"><span className="mr-3">{marketFlag(item.channel)}</span>{item.label}</td><td className="px-2 py-3.5 text-right font-medium tabular-nums md:px-4">{snap ? item.fmt(snap.price) : <span className="inline-block h-4 w-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />}</td><td className="hidden px-2 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{snap ? item.fmt(snap.dayOpen) : '—'}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{change === null ? '—' : `${change >= 0 ? '+' : ''}${item.fmt(change)}`}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{snap ? `${snap.changePercent >= 0 ? '+' : ''}${snap.changePercent.toFixed(2)}%` : '—'}</td></tr>;
                     })}
                 </tbody>
             </table>
@@ -148,7 +132,6 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
                             <th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{common.open}</th>
                             <th className="px-3 py-3 text-right md:px-4">{common.change}</th>
                             <th className="px-3 py-3 text-right md:px-4">{common.changePercent}</th>
-                            <th className="px-3 py-3 text-right md:px-4" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -160,12 +143,12 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
                                 event.currentTarget.querySelector('button')?.focus({ preventScroll: true });
                                 openHistory(item.symbol);
                             }} className="cursor-pointer transition-colors hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20">
-                                <td className="px-3 py-3.5 md:px-4"><p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>{item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
+                                <td className="px-3 py-3.5 md:px-4"><button type="button" aria-haspopup="dialog" aria-label={`${item.name}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`} className="text-left font-semibold text-slate-900 dark:text-slate-100">{item.name}</button>{item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
                                 <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{format(item.price)}{item.updatedAt && <p className="mt-0.5 whitespace-nowrap text-xs font-normal text-slate-400">{macroDate(item.updatedAt, lang)}</p>}</td>
                                 <td className="hidden px-3 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{format(item.price - item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%</td>
-                                <td className="px-3 py-3.5 text-right md:px-4"><button type="button" aria-haspopup="dialog" aria-label={`${item.name}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`} className="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">{lang === 'vi' ? 'Xem biểu đồ ↗' : 'View chart ↗'}</button></td>
+
                             </tr>;
                         })}
                     </tbody>
@@ -358,13 +341,12 @@ function WorldTab() {
 
     const fxRates     = rates?.exchange_rates ?? [];
     const commodities = rates?.commodities    ?? [];
-    const sess        = getMarketSessions();
     const regionItems = region === 'asia' ? FF_ASIA_CHANNELS : region === 'europe' ? FF_EUROPE_CHANNELS : FF_AMERICAS_CHANNELS;
     const regionalCopy = region === 'asia'
-        ? { title: copy.asia, hours: 'Tokyo 7:00–13:30 · Sydney 7:00–13:00', open: sess.asia, tz: '07:00–13:30' }
+        ? { title: copy.asia, hours: 'Tokyo 7:00–13:30 · Sydney 7:00–13:00' }
         : region === 'europe'
-            ? { title: copy.europe, hours: 'Frankfurt/London 14:00–22:30', open: sess.europe, tz: '14:00–22:30' }
-            : { title: copy.americas, hours: 'NYSE/NASDAQ 20:30–03:00', open: sess.americas, tz: '20:30–03:00' };
+            ? { title: copy.europe, hours: 'Frankfurt/London 14:00–22:30' }
+            : { title: copy.americas, hours: 'NYSE/NASDAQ 20:30–03:00' };
 
     return (
         <div className="space-y-6">
@@ -375,7 +357,7 @@ function WorldTab() {
             </div>
 
             {view === 'indices' && <section>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><SectionHeader title={regionalCopy.title} subtitle={`${regionalCopy.hours} · ${copy.vietnamTime}`} /><SessionBadge open={regionalCopy.open} tz={regionalCopy.tz} /></div>
+                <SectionHeader title={regionalCopy.title} subtitle={`${regionalCopy.hours} · ${copy.vietnamTime}`} />
                 <div className="mb-4 flex flex-wrap gap-2">{([['asia', copy.asia], ['europe', copy.europe], ['americas', copy.americas]] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setRegion(id)} className={`rounded-full border px-4 py-2 text-sm font-semibold ${region === id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' : 'border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300'}`}>{label}</button>)}</div>
                 <MarketSnapshotTable items={regionItems} snapshots={ffIndices} />
             </section>}
