@@ -176,21 +176,23 @@ export default function EventsPage() {
                 </div>
 
                 {/* Category tabs */}
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="mb-4 flex overflow-x-auto border-b border-slate-200 dark:border-slate-800">
                     {CATEGORIES.map(cat => (
                         <button
                             key={cat.id}
+                            type="button"
+                            aria-pressed={category === cat.id}
                             onClick={() => setCategory(cat.id)}
-                            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors border ${
+                            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-5 py-3 text-base font-semibold transition-colors ${
                                 category === cat.id
-                                    ? 'border-blue-500 bg-blue-600 text-white'
-                                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-blue-400'
+                                    ? 'border-blue-600 text-blue-700 dark:text-blue-400'
+                                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
                             }`}
                         >
                             {copy.categories[cat.label]}
                             {counts[cat.id] !== undefined && (
                                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                                    category === cat.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                                    category === cat.id ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                                 }`}>
                                     {counts[cat.id]}
                                 </span>
