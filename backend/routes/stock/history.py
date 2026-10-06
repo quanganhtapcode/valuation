@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import gzip
 import os
 import tempfile
 import threading
@@ -10,7 +9,8 @@ import logging
 import math
 import sqlite3
 import time
-import urllib.request
+from curl_cffi import requests as chart_requests
+from gevent import monkey
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 
@@ -33,6 +33,26 @@ _HISTORY_FAILURE_TTL = 30
 _REFRESH_LOCK = threading.Lock()
 _REFRESHING: set[str] = set()
 _REFRESH_SLOTS = threading.BoundedSemaphore(4)
+
+
+def _fetch_gap_chart(url: str, headers: dict, payload: bytes) -> list:
+    # Match Chromium's TLS/HTTP2 profile; let libcurl decode compression.
+    # Native curl must yield to the gevent hub while network I/O is pending.
+    with chart_requests.Session(impersonate='chrome124',
+                                thread='gevent' if monkey.is_module_patched('socket') else None) as session:
+        for attempt in range(_HISTORY_ATTEMPTS):
+            try:
+                response = session.post(url, headers=headers, data=payload,
+                                        timeout=_HISTORY_TIMEOUT_SECONDS)
+                response.raise_for_status()
+                raw = response.json()
+                if not isinstance(raw, list) or not raw:
+                    raise ValueError('Vietcap returned no chart series')
+                return raw
+            except Exception:
+                if attempt + 1 == _HISTORY_ATTEMPTS:
+                    raise
+    return []
 
 
 def _expected_session_date() -> str:
@@ -187,34 +207,17 @@ def register(stock_bp: Blueprint) -> None:
                 separators=(',', ':')
             ).encode()
 
-            req = urllib.request.Request(
-                "https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart",
-                data=body,
+            raw = _fetch_gap_chart(
+                'https://trading.vietcap.com.vn/api/chart/OHLCChart/gap-chart',
                 headers={
-                    "Content-Type": "application/json",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    "Origin": "https://trading.vietcap.com.vn",
-                    "Referer": f"https://trading.vietcap.com.vn/iq/company?tab=overview&ticker={symbol}&isIndex=false",
-                    "Accept": "application/json, text/plain, */*",
-                    "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+                    'Content-Type': 'application/json',
+                    'Origin': 'https://trading.vietcap.com.vn',
+                    'Referer': f'https://trading.vietcap.com.vn/iq/company?tab=overview&ticker={symbol}&isIndex=false',
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
                 },
-                method="POST",
+                payload=body,
             )
-
-            # Retry on a new connection: upstream sometimes stalls after TLS.
-            for attempt in range(_HISTORY_ATTEMPTS):
-                try:
-                    with urllib.request.urlopen(req, timeout=_HISTORY_TIMEOUT_SECONDS) as resp:
-                        body = resp.read()
-                        if resp.headers.get('Content-Encoding', '').lower() == 'gzip' or body[:2] == b'\x1f\x8b':
-                            body = gzip.decompress(body)
-                        raw = json.loads(body.decode())
-                    if not isinstance(raw, list) or not raw:
-                        raise ValueError('Vietcap returned no chart series')
-                    break
-                except Exception:
-                    if attempt + 1 == _HISTORY_ATTEMPTS:
-                        raise
 
             # Response: [{"symbol":"X","o":[...],"h":[...],"l":[...],"c":[...],"v":[...],"t":[...]}]
             if not raw or not isinstance(raw, list):

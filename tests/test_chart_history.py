@@ -1,4 +1,3 @@
-import gzip
 import json
 import sqlite3
 import tempfile
@@ -35,37 +34,42 @@ class ChartHistoryTests(unittest.TestCase):
 
     def response(self):
         r = MagicMock()
-        r.__enter__.return_value = r
-        r.headers = {'Content-Encoding': 'gzip'}
-        r.read.return_value = gzip.compress(json.dumps([{'t': [1791244800], 'o': [21600], 'h': [22350], 'l': [20150], 'c': [20150], 'v': [16274800]}]).encode())
+        r.json.return_value = [{'t': [1791244800], 'o': [21600], 'h': [22350], 'l': [20150], 'c': [20150], 'v': [16274800]}]
         return r
 
-    def test_timeout_retry_gzip_and_shared_cache(self):
-        with patch.object(history.urllib.request, 'urlopen', side_effect=[TimeoutError('read timeout'), self.response()]) as call:
+    def transport(self, effects):
+        session = MagicMock()
+        session.__enter__.return_value = session
+        session.post.side_effect = effects
+        return session
+
+    def test_chrome_transport_retry_and_shared_cache(self):
+        with patch.object(history.chart_requests, 'Session', return_value=self.transport([TimeoutError('read timeout'), self.response()])) as factory:
             result = self.app.test_client().get('/api/stock/history/PNJ?period=1Y').get_json()
             self.assertEqual(result['source'], 'vietcap')
             self.assertEqual(result['data'][-1]['date'], '2026-10-06')
-            self.assertEqual(call.call_count, 2)
-            self.assertEqual(call.call_args.kwargs['timeout'], 2)
+            self.assertEqual(factory.return_value.post.call_count, 2)
+            self.assertEqual(factory.return_value.post.call_args.kwargs['timeout'], 2)
+            self.assertEqual(factory.call_args.kwargs['impersonate'], 'chrome124')
         self.cache.clear()  # A second worker has no in-memory cache.
-        with patch.object(history.urllib.request, 'urlopen') as call:
+        with patch.object(history.chart_requests, 'Session') as call:
             self.assertEqual(self.app.test_client().get('/api/stock/history/PNJ?period=1Y').get_json()['count'], 1)
             call.assert_not_called()
 
     def test_failure_cooldown_preserves_adjusted_history(self):
         rows = [{'date': '2026-10-06', 'open': 21600, 'high': 22350, 'low': 20150, 'close': 20150, 'volume': 1}]
         Path(self.tmp.name, 'PNJ_260_ONE_DAY.json').write_text(json.dumps({'saved_at': 1, 'rows': rows}))
-        with patch.object(history.urllib.request, 'urlopen', side_effect=TimeoutError('read timeout')) as call:
+        with patch.object(history.chart_requests, 'Session', return_value=self.transport([TimeoutError('read timeout'), TimeoutError('read timeout')])) as call:
             client = self.app.test_client()
             self.assertEqual(client.get('/api/stock/history/PNJ?period=1Y').get_json()['data'], rows)
             self.assertEqual(client.get('/api/stock/history/PNJ?period=1Y').get_json()['data'], rows)
-            self.assertEqual(call.call_count, 2)
+            self.assertEqual(call.return_value.post.call_count, 2)
 
     def test_fallback_starts_background_retry_and_recovers(self):
         rows = [{'date': '2026-10-05', 'open': 21600, 'high': 22350, 'low': 20150, 'close': 20150, 'volume': 1}]
         with sqlite3.connect(history.resolve_price_history_db_path()) as conn:
             conn.execute("INSERT INTO stock_price_history VALUES ('PNJ', '2026-10-05', 21600, 22350, 20150, 20150, 1)")
-        with patch.object(history.urllib.request, 'urlopen', side_effect=[TimeoutError(), TimeoutError(), self.response()]) as call, patch.object(history.threading, 'Thread') as thread:
+        with patch.object(history.chart_requests, 'Session', return_value=self.transport([TimeoutError(), TimeoutError(), self.response()])) as call, patch.object(history.threading, 'Thread') as thread:
             client = self.app.test_client()
             first = client.get('/api/stock/history/PNJ?period=1Y').get_json()
             self.assertEqual(first['source'], 'sqlite')
@@ -76,7 +80,7 @@ class ChartHistoryTests(unittest.TestCase):
             self.assertEqual(second.get_json()['latest_date'], '2026-10-06')
             self.assertEqual(second.get_json()['source'], 'vietcap')
             self.assertEqual(second.headers['Cache-Control'], 'no-store')
-            self.assertEqual(call.call_count, 3)
+            self.assertEqual(call.return_value.post.call_count, 3)
 
 
 if __name__ == '__main__':
