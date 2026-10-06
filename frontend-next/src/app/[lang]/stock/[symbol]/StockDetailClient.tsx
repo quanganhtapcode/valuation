@@ -399,9 +399,14 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
 
         setIsChartLoading(true);
         setHistoryError(false);
+        let fetching = false;
         async function loadHistory() {
+            if (fetching || controller.signal.aborted) return;
+            fetching = true;
             try {
-                const res = await fetch(`/api/stock/history/${symbol}?period=${historyPeriod}`, { signal: controller.signal });
+                const res = await fetch(`/api/stock/history/${symbol}?period=${historyPeriod}&nocache=1`, {
+                    signal: controller.signal, cache: 'no-store',
+                });
                 if (!res.ok) throw new Error(`History request failed: ${res.status}`);
                 if (res.ok) {
                     const json = await res.json();
@@ -454,6 +459,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     setHistoryError(true);
                 }
             } finally {
+                fetching = false;
                 if (!controller.signal.aborted) setIsChartLoading(false);
             }
         }
@@ -464,8 +470,17 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         } else {
             void loadHistory();
         }
+        const refreshVisibleHistory = () => {
+            if (document.visibilityState === 'visible') void loadHistory();
+        };
+        const refreshTimer = window.setInterval(refreshVisibleHistory, 30_000);
+        document.addEventListener('visibilitychange', refreshVisibleHistory);
+        window.addEventListener('focus', refreshVisibleHistory);
         return () => {
             cancelIdle();
+            window.clearInterval(refreshTimer);
+            document.removeEventListener('visibilitychange', refreshVisibleHistory);
+            window.removeEventListener('focus', refreshVisibleHistory);
             controller.abort();
         };
     }, [symbol, historyPeriod]);

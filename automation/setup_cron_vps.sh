@@ -18,7 +18,7 @@ CRON_STATS_FINANCIAL="5 * * * * cd /var/www/valuation && bash automation/vci_saf
 
 # ── Daily jobs ────────────────────────────────────────────────────────────────
 
-CRON_PRICE_HISTORY="30 11 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name price_history --db data/sqlite/vci_price_history.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python -m backend.updater.update_price_history\" >> logs/price_history_update.log 2>&1"
+CRON_PRICE_HISTORY="30 11,16,20 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name price_history --db data/sqlite/vci_price_history.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python -m backend.updater.update_price_history\" >> logs/price_history_update.log 2>&1"
 
 CRON_RATIO_DAILY="35 13 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name ratio_daily --db data/sqlite/vci_ratio_daily.sqlite --retries 2 --retry-sleep 15 --drop-total-pct 0.20 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_ratio_daily.py --db data/sqlite/vci_ratio_daily.sqlite --workers 4 --delay 0.12 --retries 4\" >> logs/cron_ratio_daily.log 2>&1"
 

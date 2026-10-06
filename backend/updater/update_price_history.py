@@ -221,7 +221,7 @@ class PriceHistoryUpdater:
                     date_text = str(record.get('tradingDate') or record.get('time') or record.get('date') or '')[:10]
                     datetime.strptime(date_text, '%Y-%m-%d')
                     dates.append(date_text)
-                records.extend(r for r, d in zip(batch, dates) if not latest_date or d > latest_date)
+                records.extend(r for r, d in zip(batch, dates) if not latest_date or d >= latest_date)
                 if latest_date and any(d <= latest_date for d in dates):
                     break
                 if len(batch) < self.recent_page_size:

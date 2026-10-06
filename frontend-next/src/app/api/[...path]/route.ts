@@ -9,6 +9,7 @@ type ProxyCachePolicy = {
 };
 
 const REALTIME_PATH_PREFIXES = [
+    'stock/history/',
     'current-price/',
     'price/',
     'batch-price',
@@ -42,7 +43,6 @@ const SHORT_CACHE_PATH_PREFIXES = [
 
 const MEDIUM_CACHE_PATH_PREFIXES = [
     'historical-chart-data/',
-    'stock/history/',
     'stock/',
     'app-data/',
     'market/pe-chart',

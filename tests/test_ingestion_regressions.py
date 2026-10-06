@@ -51,8 +51,17 @@ class PriceTests(unittest.TestCase):
         with patch.object(VCIClient, 'fetch_price_history', return_value=page([])):
             self.assertFalse(self.updater.fetch_and_store_symbol('FPT')['success'])
 
-    def test_valid_old_candle_is_up_to_date(self):
-        with patch.object(VCIClient, 'fetch_price_history', return_value=page([candle('2026-09-18')])):
+    def test_latest_candle_is_refreshed_after_intraday_update(self):
+        updated = {**candle('2026-09-18'), 'close': 12, 'volume': 200}
+        with patch.object(VCIClient, 'fetch_price_history', return_value=page([updated])):
+            result = self.updater.fetch_and_store_symbol('FPT')
+        self.assertTrue(result['success'])
+        self.assertEqual(result['inserted'], 1)
+        with closing(sqlite3.connect(self.path)) as conn:
+            self.assertEqual(conn.execute("SELECT close, volume FROM stock_price_history WHERE symbol='FPT'").fetchone(), (12, 200))
+
+    def test_older_candle_is_up_to_date(self):
+        with patch.object(VCIClient, 'fetch_price_history', return_value=page([candle('2026-09-17')])):
             self.assertTrue(self.updater.fetch_and_store_symbol('FPT')['up_to_date'])
 
     def test_later_page_failure_does_not_commit_incomplete_backfill(self):

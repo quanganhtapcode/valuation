@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import json
+import gzip
+import os
+import tempfile
+import threading
+from pathlib import Path
 import logging
 import math
 import sqlite3
@@ -18,6 +23,57 @@ from backend.cache_utils import cache_get_ns, cache_set_ns
 
 
 logger = logging.getLogger(__name__)
+
+
+# Keep adjusted candles separate from the raw price-history database.
+_HISTORY_CACHE_DIR = Path(__file__).resolve().parents[3] / 'data' / 'cache' / 'chart_history'
+_HISTORY_TIMEOUT_SECONDS = 2
+_HISTORY_ATTEMPTS = 2
+_HISTORY_FAILURE_TTL = 30
+_REFRESH_LOCK = threading.Lock()
+_REFRESHING: set[str] = set()
+_REFRESH_SLOTS = threading.BoundedSemaphore(4)
+
+
+def _expected_session_date() -> str:
+    vn = datetime.now(timezone(timedelta(hours=7)))
+    # Before opening, yesterday is the latest possible session.
+    if vn.hour < 9:
+        vn -= timedelta(days=1)
+    while vn.weekday() >= 5:
+        vn -= timedelta(days=1)
+    return vn.strftime('%Y-%m-%d')
+
+
+def _history_is_behind(rows: list[dict]) -> bool:
+    # This is a refresh hint, not a trading calendar (holidays may have no bar).
+    return not rows or rows[-1]['date'] < _expected_session_date()
+
+
+
+def _read_chart_cache(key: str) -> dict:
+    try:
+        payload = json.loads((_HISTORY_CACHE_DIR / f'{key}.json').read_text())
+        if isinstance(payload, dict) and isinstance(payload.get('rows'), list):
+            return payload
+    except (OSError, ValueError):
+        pass
+    return {}
+
+
+def _write_chart_cache(key: str, rows: list[dict]) -> None:
+    temporary = None
+    try:
+        _HISTORY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode='w', dir=_HISTORY_CACHE_DIR, delete=False) as handle:
+            temporary = handle.name
+            json.dump({'saved_at': time.time(), 'rows': rows}, handle)
+        os.replace(temporary, _HISTORY_CACHE_DIR / f'{key}.json')
+    except OSError:
+        logger.warning('Unable to persist adjusted chart history', exc_info=True)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def _vietcap_cache_ttl(now: datetime | None = None) -> int:
@@ -97,7 +153,7 @@ def register(stock_bp: Blueprint) -> None:
             logger.error(f"Error fetching price history from DB for {symbol}: {e}")
             return []
     
-    def get_price_history_from_vietcap(symbol: str, count_back: int, time_frame: str = "ONE_DAY") -> List[Dict]:
+    def get_price_history_from_vietcap(symbol: str, count_back: int, time_frame: str = "ONE_DAY", *, force: bool = False) -> List[Dict]:
         """
         Fetch gap-adjusted OHLC price history from Vietcap API.
         This handles stock splits correctly — prices are adjusted for continuity.
@@ -112,9 +168,17 @@ def register(stock_bp: Blueprint) -> None:
             List of price records sorted by date ascending
         """
         cache_key = f"{symbol}:{count_back}:{time_frame}"
+        disk_key = f"{symbol}_{count_back}_{time_frame}"
         cached = cache_get_ns("vietcapHistory", cache_key)
-        if cached is not None:
+        if cached is not None and not force:
             return cached
+
+        saved = _read_chart_cache(disk_key)
+        saved_rows = _valid_candles(saved.get('rows', []))
+        if not force and saved_rows and time.time() - saved.get('saved_at', 0) < _vietcap_cache_ttl():
+            return saved_rows
+        if not force and cache_get_ns('vietcapHistoryFailure', cache_key) is not None:
+            return saved_rows
 
         try:
             now_ts = int(time.time())
@@ -137,8 +201,20 @@ def register(stock_bp: Blueprint) -> None:
                 method="POST",
             )
 
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                raw = json.loads(resp.read().decode())
+            # Retry on a new connection: upstream sometimes stalls after TLS.
+            for attempt in range(_HISTORY_ATTEMPTS):
+                try:
+                    with urllib.request.urlopen(req, timeout=_HISTORY_TIMEOUT_SECONDS) as resp:
+                        body = resp.read()
+                        if resp.headers.get('Content-Encoding', '').lower() == 'gzip' or body[:2] == b'\x1f\x8b':
+                            body = gzip.decompress(body)
+                        raw = json.loads(body.decode())
+                    if not isinstance(raw, list) or not raw:
+                        raise ValueError('Vietcap returned no chart series')
+                    break
+                except Exception:
+                    if attempt + 1 == _HISTORY_ATTEMPTS:
+                        raise
 
             # Response: [{"symbol":"X","o":[...],"h":[...],"l":[...],"c":[...],"v":[...],"t":[...]}]
             if not raw or not isinstance(raw, list):
@@ -171,11 +247,41 @@ def register(stock_bp: Blueprint) -> None:
             result = sorted(_valid_candles(result), key=lambda x: x["date"])
             if result:
                 cache_set_ns("vietcapHistory", cache_key, result, ttl=_vietcap_cache_ttl())
-            return result
+                _write_chart_cache(disk_key, result)
+            else:
+                cache_set_ns('vietcapHistoryFailure', cache_key, True, ttl=_HISTORY_FAILURE_TTL)
+            return result or saved_rows
 
         except Exception as e:
-            logger.error(f"Error fetching price history from Vietcap for {symbol}: {e}")
-            return []
+            logger.warning('Vietcap chart failed for %s after %s attempts: %s: %s',
+                           symbol, _HISTORY_ATTEMPTS, type(e).__name__, e)
+            cache_set_ns('vietcapHistoryFailure', cache_key, True, ttl=_HISTORY_FAILURE_TTL)
+            return saved_rows
+
+    def refresh_chart_in_background(symbol: str, count_back: int) -> None:
+        key = f'{symbol}:{count_back}:ONE_DAY'
+        with _REFRESH_LOCK:
+            if key in _REFRESHING or cache_get_ns('chartRefreshCooldown', key) is not None:
+                return
+            if not _REFRESH_SLOTS.acquire(blocking=False):
+                return
+            _REFRESHING.add(key)
+            cache_set_ns('chartRefreshCooldown', key, True, ttl=60)
+
+        def refresh() -> None:
+            try:
+                for attempt in range(6):
+                    rows = get_price_history_from_vietcap(symbol, count_back, force=True)
+                    if rows and not _history_is_behind(rows):
+                        break
+                    if attempt < 5:
+                        time.sleep(2)
+            finally:
+                with _REFRESH_LOCK:
+                    _REFRESHING.discard(key)
+                    _REFRESH_SLOTS.release()
+
+        threading.Thread(target=refresh, name=f'chart-refresh-{symbol}', daemon=True).start()
 
     def get_price_history_from_vci(symbol: str, start_date: datetime, end_date: datetime) -> List[Dict]:
         """
@@ -244,10 +350,16 @@ def register(stock_bp: Blueprint) -> None:
                 history_data = get_price_history_from_vietcap(symbol, count_back)
                 data_source = "vietcap"
 
+                # A saved adjusted series must not hide a newer committed DB session.
+                db_history = get_price_history_from_db(symbol, start_date, end_date)
+                if history_data and db_history and db_history[-1]['date'] > history_data[-1]['date']:
+                    history_data = db_history
+                    data_source = 'sqlite'
+
                 # Fallback 1: SQLite DB
                 if not history_data:
                     logger.info(f"Vietcap unavailable for {symbol}, falling back to DB")
-                    history_data = get_price_history_from_db(symbol, start_date, end_date)
+                    history_data = db_history
                     data_source = "sqlite"
 
                 # Fallback 2: VCI API
@@ -256,10 +368,17 @@ def register(stock_bp: Blueprint) -> None:
                     history_data = get_price_history_from_vci(symbol, start_date, end_date)
                     data_source = "vci_api"
 
+                if data_source != 'vietcap' or _history_is_behind(history_data):
+                    refresh_chart_in_background(symbol, count_back)
+
                 if not history_data:
                     return jsonify({"success": False, "message": "No historical data available"}), 404
 
-                return jsonify({"symbol": symbol, "data": history_data, "count": len(history_data), "success": True, "source": data_source})
+                response = jsonify({"symbol": symbol, "data": history_data, "count": len(history_data),
+                                    "success": True, "source": data_source,
+                                    "latest_date": history_data[-1]['date']})
+                response.headers['Cache-Control'] = 'no-store'
+                return response
             except Exception as e:
                 logger.error(f"Error fetching history for {symbol}: {e}")
                 return jsonify({"success": False, "error": str(e)}), 500
