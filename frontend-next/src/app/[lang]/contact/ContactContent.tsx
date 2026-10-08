@@ -35,8 +35,8 @@ export default function ContactContent() {
                     <h2>{copy.direct}</h2>
                     <div className={styles.contactInfo}>
                         <div className={styles.contactItem}><span className={styles.label}>{copy.developer}</span><span className={styles.value}>Anh Quang Le</span></div>
-                        <div className={styles.contactItem}><span className={styles.label}>Email:</span><a href="mailto:quanganh.ibd@gmail.com" className={styles.link}>quanganh.ibd@gmail.com</a></div>
-                        <div className={styles.contactItem}><span className={styles.label}>{copy.phone}</span><a href="tel:+84813601054" className={styles.link}>+84 813 601 054</a></div>
+                        <div className={styles.contactItem}><span className={styles.label}>Email:</span>{' '}<a href="mailto:quanganh.ibd@gmail.com" className={styles.link}>quanganh.ibd@gmail.com</a></div>
+                        <div className={styles.contactItem}><span className={styles.label}>{copy.phone}</span>{' '}<a href="tel:+84813601054" className={styles.link}>+84 813 601 054</a></div>
                     </div>
                 </section>
                 <section className={styles.section}>
