@@ -49,7 +49,8 @@ export default function MacroSeriesChart({ points, label, formatValue, formatAxi
         }} />}
     </>;
 
-    return <div className={`${compact ? 'h-36 w-full' : 'h-72 w-full sm:h-80'} [&_.recharts-wrapper]:[outline:none] [&_.recharts-wrapper]:shadow-none [&_.recharts-surface]:[outline:none] [&_.recharts-surface]:shadow-none`} aria-label={label}>
+    // Recharts also focuses inner SVG layers on click; suppress their default focus box.
+    return <div className={`${compact ? 'h-36 w-full' : 'h-72 w-full sm:h-80'} [&_.recharts-wrapper]:[outline:none] [&_.recharts-wrapper]:shadow-none [&_.recharts-surface]:[outline:none] [&_.recharts-surface]:shadow-none [&_.recharts-surface_[tabindex]]:[outline:none] [&_.recharts-surface_[tabindex]]:shadow-none`} aria-label={label}>
         <ResponsiveContainer width="100%" height="100%" debounce={80}>
             {bar ? <BarChart data={data} margin={{ top: 12, right: 8, bottom: 0, left: compact ? 8 : 0 }} barCategoryGap="28%">
                 {axes}<Bar dataKey="close" fill={color} radius={[3, 3, 0, 0]} maxBarSize={compact ? 12 : 28} isAnimationActive={false} />
