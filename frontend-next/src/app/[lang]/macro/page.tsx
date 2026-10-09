@@ -205,7 +205,7 @@ function VietnamTvRow({ sym, points, onOpen }: { sym: string; points: PricePoint
     const { lang } = useLanguage();
     const cfg = TV_CONFIGS[sym];
     const label = macroLabel(sym, cfg.titleVN, lang);
-    if (!points) return <tr><td colSpan={5} className="px-4 py-4"><div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></td></tr>;
+    if (!points) return <tr><td colSpan={4} className="px-4 py-4"><div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></td></tr>;
     const summary = buildTvSummary(sym, points, lang);
     const tone = getDeltaDirection(summary.delta);
     const toneClass = tone === 'up' ? 'text-emerald-600' : tone === 'down' ? 'text-rose-600' : 'text-slate-500';
@@ -222,7 +222,6 @@ function VietnamTvRow({ sym, points, onOpen }: { sym: string; points: PricePoint
         </td>
         <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</td>
         <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${macroValue(Math.abs(summary.delta), sym, lang)}`}</td>
-        <td className={`hidden px-3 py-3.5 text-right text-sm font-semibold sm:table-cell md:px-4 ${toneClass}`}>{summary.comparisonLabel}</td>
         <td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ? macroDate(summary.updatedAt, lang) : '—'}</td>
     </tr>;
 }
@@ -286,7 +285,7 @@ function VietnamMacroTab() {
                 </div>
 
                 <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'Chọn một chỉ số để xem biểu đồ và dữ liệu.' : 'Select an indicator to view its chart and data.'}</p>
-                <div className="mt-3 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{copy.indicator}</th><th className="px-3 py-3 text-right md:px-4">{copy.latest}</th><th className="px-3 py-3 text-right md:px-4">{copy.change}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{copy.comparison}</th><th className="px-3 py-3 text-right md:px-4">{copy.date}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} onOpen={() => setSelected(sym)} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
+                <div className="mt-3 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{copy.indicator}</th><th className="px-3 py-3 text-right md:px-4">{copy.latest}</th><th className="px-3 py-3 text-right md:px-4">{copy.change}</th><th className="px-3 py-3 text-right md:px-4">{copy.date}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} onOpen={() => setSelected(sym)} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
 
 
             </section>
