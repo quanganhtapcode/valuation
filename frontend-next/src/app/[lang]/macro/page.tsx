@@ -92,22 +92,27 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle: string })
     );
 }
 
-function MarketSnapshotTable({ items, snapshots }: { items: readonly FFCardDef[]; snapshots: Map<string, FFPrice> }) {
+function MarketTableColumns() {
+    return <colgroup><col className="w-[28%]" /><col className="w-[18%]" /><col className="hidden w-[18%] sm:table-column" /><col className="w-[18%]" /><col className="w-[18%]" /></colgroup>;
+}
+
+function MarketSnapshotTable({ items, snapshots, showFlags = true }: { items: readonly FFCardDef[]; snapshots: Map<string, FFPrice>; showFlags?: boolean }) {
     const { lang } = useLanguage();
     const common = translations[lang].common;
     const marketFlag = (channel: string) => channel.startsWith('Nikkei') ? '🇯🇵' : channel.startsWith('KOSPI') ? '🇰🇷' : channel.startsWith('ASX') ? '🇦🇺' : channel.startsWith('DAX') ? '🇩🇪' : channel.startsWith('FTSE') ? '🇬🇧' : channel.startsWith('CAC') || channel.startsWith('STOXX') ? '🇪🇺' : '🇺🇸';
     return (
         <div className="overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <table className="min-w-full text-left text-sm">
+            <table className="w-full table-fixed text-left text-sm">
+                <MarketTableColumns />
                 <thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300">
-                    <tr><th className="px-2 py-3 md:px-4">{common.name}</th><th className="px-2 py-3 text-right md:px-4">{common.latest}</th><th className="hidden px-2 py-3 text-right sm:table-cell md:px-4">{common.open}</th><th className="px-2 py-3 text-right md:px-4">{common.change}</th><th className="px-2 py-3 text-right md:px-4">{common.changePercent}</th></tr>
+                    <tr><th className="px-3 py-3 md:px-4">{common.name}</th><th className="px-3 py-3 text-right md:px-4">{common.latest}</th><th className="hidden px-3 py-3 text-right sm:table-cell md:px-4">{common.open}</th><th className="px-3 py-3 text-right md:px-4">{common.change}</th><th className="px-3 py-3 text-right md:px-4">{common.changePercent}</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {items.map((item) => {
                         const snap = snapshots.get(item.channel);
                         const change = snap ? snap.price - snap.dayOpen : null;
                         const up = (snap?.changePercent ?? 0) >= 0;
-                        return <tr key={item.channel} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-2 py-3.5 font-semibold text-slate-900 md:px-4 dark:text-slate-100"><span className="mr-3">{marketFlag(item.channel)}</span>{item.label}</td><td className="px-2 py-3.5 text-right font-medium tabular-nums md:px-4">{snap ? item.fmt(snap.price) : <span className="inline-block h-4 w-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />}</td><td className="hidden px-2 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{snap ? item.fmt(snap.dayOpen) : '—'}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{change === null ? '—' : `${change >= 0 ? '+' : ''}${item.fmt(change)}`}</td><td className={`px-2 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{snap ? `${snap.changePercent >= 0 ? '+' : ''}${snap.changePercent.toFixed(2)}%` : '—'}</td></tr>;
+                        return <tr key={item.channel} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-3 py-3.5 font-semibold text-slate-900 md:px-4 dark:text-slate-100">{showFlags && <span className="mr-3">{marketFlag(item.channel)}</span>}{item.label}</td><td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{snap ? item.fmt(snap.price) : <span className="inline-block h-4 w-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />}</td><td className="hidden px-3 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{snap ? item.fmt(snap.dayOpen) : '—'}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{change === null ? '—' : `${change >= 0 ? '+' : ''}${item.fmt(change)}`}</td><td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{snap ? `${snap.changePercent >= 0 ? '+' : ''}${snap.changePercent.toFixed(2)}%` : '—'}</td></tr>;
                     })}
                 </tbody>
             </table>
@@ -124,7 +129,8 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
     return (
         <div>
             <div className="overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                <table className="min-w-full text-left text-sm">
+                <table className="w-full table-fixed text-left text-sm">
+                    <MarketTableColumns />
                     <thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300">
                         <tr>
                             <th className="px-3 py-3 md:px-4">{common.name}</th>
@@ -143,8 +149,8 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
                                 event.currentTarget.querySelector('button')?.focus({ preventScroll: true });
                                 openHistory(item.symbol);
                             }} className="cursor-pointer transition-colors hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20">
-                                <td className="px-3 py-3.5 md:px-4"><button type="button" aria-haspopup="dialog" aria-label={`${item.name}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`} className="text-left font-semibold text-slate-900 dark:text-slate-100">{item.name}</button>{item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
-                                <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{format(item.price)}{item.updatedAt && <p className="mt-0.5 whitespace-nowrap text-xs font-normal text-slate-400">{macroDate(item.updatedAt, lang)}</p>}</td>
+                                <td className="px-3 py-3.5 md:px-4"><button type="button" aria-haspopup="dialog" aria-label={`${item.name}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`} className="text-left font-semibold text-slate-900 dark:text-slate-100">{item.name}</button>{!isVnd && item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
+                                <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{format(item.price)}{!isVnd && item.updatedAt && <p className="mt-0.5 whitespace-nowrap text-xs font-normal text-slate-400">{macroDate(item.updatedAt, lang)}</p>}</td>
                                 <td className="hidden px-3 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{format(item.price - item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%</td>
@@ -375,7 +381,7 @@ function WorldTab() {
             {/* Forex */}
             <section>
                 <SectionHeader title={copy.globalFx} subtitle={copy.globalFxSubtitle} />
-                <MarketSnapshotTable items={FF_FOREX_CHANNELS} snapshots={ffForex} />
+                <MarketSnapshotTable items={FF_FOREX_CHANNELS} snapshots={ffForex} showFlags={false} />
             </section></>}
 
             {/* Commodities */}
