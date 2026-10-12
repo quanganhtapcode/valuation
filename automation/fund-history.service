@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh mutual fund NAV history
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/valuation
+Environment=PYTHONPATH=/var/www/valuation
+ExecStart=/var/www/valuation/.venv/bin/python -m automation.update_fund_history
+TimeoutStartSec=45min
+Nice=10

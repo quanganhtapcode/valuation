@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up fund NAV SQLite to OneDrive
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/valuation
+Environment=PYTHONPATH=/var/www/valuation
+ExecStart=/var/www/valuation/.venv/bin/python -m automation.backup_fund_history
+TimeoutStartSec=20min
+Nice=10

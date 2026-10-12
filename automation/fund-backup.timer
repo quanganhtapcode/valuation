@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily fund history backup to OneDrive
+
+[Timer]
+OnCalendar=*-*-* 23:00:00 Asia/Bangkok
+Persistent=true
+RandomizedDelaySec=120
+Unit=fund-backup.service
+
+[Install]
+WantedBy=timers.target

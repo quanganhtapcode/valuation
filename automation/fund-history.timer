@@ -1,0 +1,11 @@
+[Unit]
+Description=Collect fund NAV daily after evening publication
+
+[Timer]
+OnCalendar=*-*-* 21:30:00 Asia/Bangkok
+Persistent=true
+RandomizedDelaySec=120
+Unit=fund-history.service
+
+[Install]
+WantedBy=timers.target

@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { fundDetailCopy } from '@/lib/fundDetailCopy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/lib/languageContext';
 import { fundsCopy } from '@/lib/fundsCopy';
@@ -10,6 +12,7 @@ type SortKey = 'short_name' | 'nav' | 'nav_change_previous' | 'nav_change_1m' | 
 export default function FundsClient({ initial }: { initial: FundSnapshot | null }) {
     const { lang } = useLanguage();
     const t = fundsCopy[lang];
+    const headings = fundDetailCopy[lang];
     const locale = { vi: 'vi-VN', en: 'en-US' }[lang];
     const [snapshot, setSnapshot] = useState(initial);
     const [loading, setLoading] = useState(!initial);
@@ -66,22 +69,19 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
         { key: 'nav_change_previous', label: t.change }, { key: 'nav_change_1m', label: t.month },
         { key: 'nav_change_12m', label: t.year }, { key: 'nav_change_36m_annualized', label: t.annualized },
     ];
-    return <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-            <div><p className="mb-2 text-xs font-semibold tracking-[0.18em] text-blue-600 dark:text-blue-400">{t.eyebrow}</p>
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">{t.title}</h1>
-                <p className="mt-3 text-slate-500 dark:text-slate-400">{t.description}</p></div>
-            <button disabled={loading} onClick={() => void load()} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-slate-700">{t.refresh}{loading ? '…' : ''}</button>
-        </div>
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
-            {[{ label: t.funds, value: snapshot?.count ?? '—' }, { label: t.types, value: types.length || '—' },
-                { label: t.refreshed, value: snapshot?.fetched_at ? new Date(snapshot.fetched_at).toLocaleString(locale, { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '—' }]
-                .map(card => <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                    <p className="text-xs font-medium text-slate-500">{card.label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{card.value}</p></div>)}
-        </div>
+    return <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <section className="mx-auto max-w-[1600px] space-y-4 p-4 md:p-6">
+        <header className="mb-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div><h1 className="text-3xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100 md:text-4xl">{headings.title} <span className="text-emerald-600 dark:text-emerald-400">{headings.accent}</span></h1>
+                    <div className="mt-2 h-1 w-32 rounded bg-emerald-500" />
+                    <p className="mt-3 max-w-4xl text-sm text-slate-600 dark:text-slate-300 md:text-base">{t.description}</p></div>
+                <button disabled={loading} onClick={() => void load()} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-slate-700">{t.refresh}{loading ? '…' : ''}</button>
+            </div>
+        </header>
         <p className="mb-5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{t.note}</p>
         {(error || snapshot?.stale) && <p role="status" className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{snapshot ? t.stale : t.error}</p>}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="overflow-hidden border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap gap-3 border-b border-slate-100 p-4 dark:border-slate-800">
                 <input aria-label={t.search} value={search} onChange={event => setSearch(event.target.value)} placeholder={t.search} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700" />
                 <select aria-label={t.type} value={fundType} onChange={event => setFundType(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900">
@@ -95,14 +95,15 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                     <th scope="col" className="px-4 py-4 text-right font-medium">{t.date}</th>
                 </tr></thead>
                 <tbody>{rows.map((row: FundPrice) => <tr key={row.short_name} className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800/60 dark:hover:bg-slate-800/40">
-                    <td className="max-w-[360px] px-4 py-4"><div className="font-bold text-blue-600 dark:text-blue-400">{row.short_name}</div><div className="mt-1 truncate font-medium" title={row.name}>{row.name}</div><div className="mt-1 text-xs text-slate-500">{typeLabel(row.fund_type)} · {row.fund_owner_name}</div></td>
+                    <td className="max-w-[360px] px-4 py-4"><Link href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} className="block hover:underline"><span className="font-bold text-blue-600 dark:text-blue-400">{row.short_name}</span><div className="mt-1 truncate font-medium" title={row.name}>{row.name}</div></Link><div className="mt-1 text-xs text-slate-500">{typeLabel(row.fund_type)} · {row.fund_owner_name}</div></td>
                     <td className="px-4 py-4 text-right font-semibold tabular-nums">{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(row.nav)}</td>
                     {[row.nav_change_previous, row.nav_change_1m, row.nav_change_12m, row.nav_change_36m_annualized].map((value, index) => <td key={index} className="px-4 py-4 text-right tabular-nums">{percent(value)}</td>)}
                     <td className="whitespace-nowrap px-4 py-4 text-right text-xs text-slate-500">{row.nav_update_at || '—'}</td>
                 </tr>)}</tbody>
             </table></div>
             {!rows.length && <p role="status" className="p-10 text-center text-sm text-slate-500">{loading ? t.loading : error ? t.error : t.empty}</p>}
-            <div className="flex flex-wrap justify-between gap-2 px-4 py-3 text-xs text-slate-500"><span>{rows.length} {t.result}</span><a href="https://fmarket.vn/" target="_blank" rel="noreferrer" className="hover:text-blue-600">{t.source}</a></div>
+            <div className="flex flex-wrap justify-between gap-2 px-4 py-3 text-xs text-slate-500"><a href="https://fmarket.vn/" target="_blank" rel="noreferrer" className="hover:text-blue-600">{t.source}</a></div>
         </div>
-    </section>;
+        </section>
+    </div>;
 }

@@ -30,6 +30,8 @@ def publish_snapshot(records, path=None):
         rows.append(row)
     snapshot = {"success": True, "data": rows, "count": len(rows), "source": "Fmarket",
                 "source_url": "https://fmarket.vn/", "fetched_at": datetime.now(timezone.utc).isoformat()}
+    from backend.fund_store import save_listing
+    save_listing(rows)
     target = Path(path or os.getenv("FUNDS_SNAPSHOT_PATH", str(DEFAULT_PATH)))
     target.parent.mkdir(parents=True, exist_ok=True)
     name = None

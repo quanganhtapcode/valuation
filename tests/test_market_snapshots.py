@@ -55,7 +55,8 @@ class MarketSnapshots(unittest.TestCase):
     def test_funds_atomic_validation_and_stale(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'funds.json'
-            good = publish_snapshot([{'short_name': 'TEST', 'nav': '12345.67', 'nav_change_1m': 'NaN'}], path)
+            with patch.dict(os.environ, {'FUNDS_DB_PATH': str(Path(directory) / 'funds.sqlite')}):
+                good = publish_snapshot([{'short_name': 'TEST', 'fund_id_fmarket': 1, 'nav_update_at': '2026-10-12', 'nav': '12345.67', 'nav_change_1m': 'NaN'}], path)
             self.assertEqual(good['data'][0]['nav'], 12345.67)
             self.assertIsNone(good['data'][0]['nav_change_1m'])
             for records in [[], [{'short_name': 'TEST', 'nav': 'NaN'}]]:

@@ -12,6 +12,7 @@ export interface FundPrice {
     nav_change_12m: number | null;
     nav_change_36m_annualized: number | null;
     management_fee: number | null;
+    inception_date: string;
 }
 
 export interface FundSnapshot {
@@ -25,4 +26,15 @@ export interface FundSnapshot {
 
 export function fetchFundPrices(): Promise<FundSnapshot> {
     return fetchAPI<FundSnapshot>('/api/market/funds');
+}
+
+export interface FundDetail {
+    success: boolean;
+    fund: FundPrice;
+    history: { date: string; nav: number }[];
+    yearly_returns: { year: number; start_date: string; end_date: string; start_nav: number; end_nav: number; return_pct: number; partial: boolean; ytd: boolean }[];
+    history_available: boolean;
+    history_stale: boolean;
+    history_updated_at: string | null;
+    conflicting_dates: number;
 }
