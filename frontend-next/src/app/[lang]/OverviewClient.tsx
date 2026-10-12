@@ -21,6 +21,9 @@ import {
 import styles from './page.module.css';
 import { useVisiblePolling } from '@/lib/useVisiblePolling';
 import DeferredPanel from '@/components/ui/DeferredPanel';
+import { useLanguage } from '@/lib/languageContext';
+import { translations } from '@/lib/translations';
+import TradingViewForexTable from '@/components/Macro/TradingViewForexTable';
 
 const moversDelay = () => isTradingHours() ? 30000 : 300000;
 const newsDelay = () => 120000;
@@ -53,9 +56,6 @@ const MarketPulse = dynamic(() => import('@/components/Sidebar/MarketPulse'), {
     loading: () => <PanelSkeleton height="h-64" />,
 });
 const FFWorldMarkets = dynamic(() => import('@/components/Sidebar/FFWorldMarkets'), {
-    loading: () => <PanelSkeleton height="h-48" />,
-});
-const FFForexRates = dynamic(() => import('@/components/Sidebar/FFForexRates'), {
     loading: () => <PanelSkeleton height="h-48" />,
 });
 const CryptoPrices = dynamic(() => import('@/components/Sidebar/CryptoPrices'), {
@@ -118,6 +118,7 @@ export default function OverviewClient({
     initialLosers,
     initialGoldPrices,
 }: OverviewClientProps) {
+    const { lang } = useLanguage();
     const [indices, setIndices] = useState<IndexData[]>(initialIndices);
     const [news, setNews] = useState<NewsItem[]>(initialNews);
     const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
@@ -298,6 +299,10 @@ export default function OverviewClient({
 
                     <div className="order-2">
                         <NewsSection news={news} isLoading={newsLoading} error={newsError} />
+                        <section className="mt-6" aria-labelledby="overview-forex-title">
+                            <h2 id="overview-forex-title" className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">{translations[lang].macro.global.globalFx}</h2>
+                            <DeferredPanel height={360}><TradingViewForexTable /></DeferredPanel>
+                        </section>
                     </div>
                 </div>
 
@@ -305,7 +310,6 @@ export default function OverviewClient({
                     <DeferredPanel height={208}><WatchlistCard /></DeferredPanel>
                     <DeferredPanel height={256}><MarketPulse gainers={gainers} losers={losers} isLoading={moversLoading} /></DeferredPanel>
                     <DeferredPanel><FFWorldMarkets /></DeferredPanel>
-                    <DeferredPanel><FFForexRates /></DeferredPanel>
                     <DeferredPanel><CryptoPrices /></DeferredPanel>
                     <GoldPrice prices={goldPrices} isLoading={false} source={goldSource} stale={goldStale} />
                     <DeferredPanel height={480}><PolymarketEvents /></DeferredPanel>
