@@ -127,6 +127,7 @@ export default function OverviewClient({
     const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
     const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
     const [goldSource, setGoldSource] = useState<string>('Phú Quý');
+    const [goldStale, setGoldStale] = useState(false);
 
     const newsInFlightRef = useRef(false);
     const moversInFlightRef = useRef(false);
@@ -160,9 +161,11 @@ export default function OverviewClient({
         try {
             const result = await fetchGoldPrices();
             setGoldPrices(result.data);
+            setGoldStale(Boolean(result.stale));
             if (result.source) setGoldSource(result.source);
         } catch (error) {
             console.error('Error loading gold prices:', error);
+            setGoldStale(true);
         }
     }, []);
 
@@ -304,7 +307,7 @@ export default function OverviewClient({
                     <DeferredPanel><FFWorldMarkets /></DeferredPanel>
                     <DeferredPanel><FFForexRates /></DeferredPanel>
                     <DeferredPanel><CryptoPrices /></DeferredPanel>
-                    <GoldPrice prices={goldPrices} isLoading={false} source={goldSource} />
+                    <GoldPrice prices={goldPrices} isLoading={false} source={goldSource} stale={goldStale} />
                     <DeferredPanel height={480}><PolymarketEvents /></DeferredPanel>
                     <p className="px-1 text-[11px] leading-relaxed text-justify text-gray-400 dark:text-gray-500">
                         Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.

@@ -3,6 +3,8 @@ export type Lang = "vi" | "en";
 export const translations = {
     vi: {
         nav: {
+            funds: "Quỹ đầu tư",
+            fundsDesc: "NAV & hiệu suất quỹ mở",
             market: "Thị trường",
             stocks: "Cổ phiếu",
             overview: "Tổng quan",
@@ -261,6 +263,8 @@ export const translations = {
     },
     en: {
         nav: {
+            funds: "Investment funds",
+            fundsDesc: "Mutual fund NAV & performance",
             market: "Market",
             stocks: "Stocks",
             overview: "Overview",

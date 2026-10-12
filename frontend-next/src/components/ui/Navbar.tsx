@@ -69,6 +69,7 @@ export function Navbar() {
                 { label: t.overview, href: localizedPath('/', lang), icon: RiPieChartLine, desc: t.overviewDesc },
                 { label: t.foreign, href: localizedPath('/foreign', lang), icon: RiGlobalLine, desc: t.foreignDesc },
                 { label: t.macro, href: localizedPath('/macro', lang), icon: RiLineChartLine, desc: t.macroDesc },
+                { label: t.funds, href: localizedPath('/funds', lang), icon: RiPieChartLine, desc: t.fundsDesc },
                 { label: t.events, href: localizedPath('/events', lang), icon: RiCalendarEventLine, desc: t.eventsDesc },
             ],
         },

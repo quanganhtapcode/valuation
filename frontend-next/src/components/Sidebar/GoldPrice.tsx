@@ -9,18 +9,23 @@ interface GoldPriceProps {
     prices: GoldPriceItem[];
     isLoading?: boolean;
     source?: string;
+    stale?: boolean;
 }
 
-export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps) {
+export default function GoldPrice({ prices, isLoading, source, stale }: GoldPriceProps) {
     const { lang } = useLanguage();
     const t = translations[lang].dashboard;
+    const labels = {
+        vi: { stale: 'Chưa làm mới được giá; đang hiển thị bản lưu gần nhất.', updated: 'Nguồn cập nhật: ', locale: 'vi-VN' },
+        en: { stale: 'Refresh unavailable; showing the last saved quotes.', updated: 'Source updated: ', locale: 'en-US' },
+    }[lang];
     // Show 3 gold classes + silver bar if available
     const displayPrices = prices?.filter(p =>
-        ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)', 'Bạc Thỏi Phú Quý 999'].includes(p.TypeName)
+        ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)', 'Vàng Phú Quý (Miếng)', 'Bạc Thỏi Phú Quý 999'].includes(p.TypeName)
     ) || [];
 
     // Order: SJC, ring 9999, PQ bar 9999, silver bar
-    const order = ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)', 'Bạc Thỏi Phú Quý 999'];
+    const order = ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)', 'Vàng Phú Quý (Miếng)', 'Bạc Thỏi Phú Quý 999'];
     displayPrices.sort((a, b) => order.indexOf(a.TypeName) - order.indexOf(b.TypeName));
 
     const sourceLabel = source === 'BTMC' ? 'BTMC' : 'Phú Quý';
@@ -28,6 +33,7 @@ export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps)
     return (
         <SidebarCard title={t.goldSilver} icon="🏆">
             <div className="px-5 pb-2">
+                {stale && <p role="status" className="py-2 text-xs text-amber-600">{labels.stale}</p>}
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-10">
                         <div className="animate-spin rounded-full h-6 w-6 border-2 border-amber-500 border-t-transparent" />
@@ -58,6 +64,7 @@ export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps)
                                             </span>
                                             <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">
                                                 {item.BranchName || sourceLabel}
+                                                {item.Unit ? ` · ${item.Unit}` : ''}
                                             </span>
                                         </div>
                                     </div>
@@ -82,6 +89,7 @@ export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps)
                         })}
                     </div>
                 )}
+                {displayPrices[0]?.UpdateTime && <p className="py-2 text-[11px] text-gray-500">{labels.updated}{new Date(displayPrices[0].UpdateTime).toLocaleString(labels.locale, { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
             </div>
         </SidebarCard>
     );

@@ -1,208 +1,163 @@
-"""
-Gold & Silver Price Service
-Primary source: gold.quanganh.org/api/gold-prices
-Fallback:       BTMC XML API
-"""
-
+"""Phu Quy HTML quotes fetched and cached on the valuation VPS."""
+from __future__ import annotations
+import fcntl
+import json
 import logging
-import time
-import xml.etree.ElementTree as ET
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-
+import os
+import re
+import tempfile
+import unicodedata
+from datetime import datetime, timezone, timedelta
+from html import unescape
+from html.parser import HTMLParser
+from pathlib import Path
 import requests
 
 logger = logging.getLogger(__name__)
+GOLD_URL = "https://phuquygroup.vn/giavang"
+CACHE_PATH = Path(os.getenv("GOLD_SNAPSHOT_PATH", str(Path(__file__).resolve().parents[2] / "data/cache/gold-prices.json")))
 
 
-# ─── Primary source: gold.quanganh.org ───────────────────────────────────────
+class PriceTableParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.rows = []
+        self.cells = None
+        self.text = None
 
-_QUANGANH_URL = "https://gold.quanganh.org/api/gold-prices"
+    def handle_starttag(self, tag, attrs):
+        if tag == "tr":
+            self.cells = []
+        elif tag == "td" and self.cells is not None:
+            self.text = []
 
-# Which types to show and their display names
-_QA_TYPE_MAP = {
-    'vàng miếng sjc':          'Vàng SJC (Miếng)',
-    'nhẫn tròn phú quý 999.9': 'Nhẫn Vàng 9999',
-    'phú quý 1 lượng 999.9':   'Vàng PQ 9999 (Miếng)',
-    'bạc thỏi phú quý 999':    'Bạc Thỏi Phú Quý 999',
-}
+    def handle_data(self, data):
+        if self.text is not None:
+            self.text.append(data)
 
-_QA_SORT = [
-    'vàng miếng sjc',
-    'nhẫn tròn phú quý 999.9',
-    'phú quý 1 lượng 999.9',
-    'bạc thỏi phú quý 999',
-]
+    def handle_endtag(self, tag):
+        if tag == "td" and self.text is not None:
+            self.cells.append(" ".join("".join(self.text).split()))
+            self.text = None
+        elif tag == "tr" and self.cells is not None:
+            self.rows.append(self.cells)
+            self.cells = None
+            self.text = None
 
 
-def _fetch_quanganh() -> Dict[str, Any]:
-    r = requests.get(_QUANGANH_URL, timeout=10)
-    r.raise_for_status()
-    payload = r.json()
-    prices: List[dict] = payload.get("prices") or []
-    updated = payload.get("last_updated") or payload.get("scraped_at") or ""
+def normalized(text):
+    return "".join(c for c in unicodedata.normalize("NFD", text.casefold()) if not unicodedata.combining(c)).replace("đ", "d")
 
-    result: Dict[str, dict] = {}
-    for item in prices:
-        raw_type = (item.get("type") or "").strip()
-        key = raw_type.lower()
 
-        # prefix match against our map
-        matched_key: Optional[str] = None
-        for k in _QA_TYPE_MAP:
-            if key.startswith(k) or k in key:
-                matched_key = k
-                break
-        if not matched_key:
+def price(text):
+    if not re.fullmatch(r"\d[\d,.]*", text.strip()):
+        return None
+    value = int(re.sub(r"[,.]", "", text))
+    return value if value > 0 else None
+
+
+def quote(identifier, name, raw_name, buy, sell, unit):
+    if buy is None or sell is None or sell < buy:
+        raise ValueError("Invalid retail quote")
+    return {"Id": identifier, "TypeName": name, "SourceProduct": raw_name,
+            "BranchName": "Phú Quý", "Buy": f"{buy:,}".replace(",", "."),
+            "Sell": f"{sell:,}".replace(",", "."), "buy_price": buy,
+            "sell_price": sell, "Unit": unit, "UpdateTime": ""}
+
+
+def parse_gold(html):
+    if "vnd/chi" not in normalized(unescape(html)).replace(" ", ""):
+        raise ValueError("Unexpected price unit")
+    parser = PriceTableParser()
+    parser.feed(html)
+    result = {}
+    names = {"vang mieng sjc": (1, "Vàng SJC (Miếng)"),
+             "nhan tron phu quy 999.9": (2, "Nhẫn Vàng 9999"),
+             "phu quy 1 luong 999.9": (3, "Vàng PQ 9999 (Miếng)")}
+    for cells in parser.rows:
+        if len(cells) != 3:
             continue
-
-        buy  = item.get("buy_price")
-        sell = item.get("sell_price")
-        if not buy:
-            continue
-
-        if matched_key not in result:
-            result[matched_key] = {
-                "Id":         abs(hash(matched_key)) % 1000,
-                "TypeName":   _QA_TYPE_MAP[matched_key],
-                "BranchName": "Phú Quý",
-                "Buy":        f"{int(buy):,}".replace(",", "."),
-                "Sell":       f"{int(sell):,}".replace(",", ".") if sell else "-",
-                "UpdateTime": updated[:16].replace("T", " ") if updated else "",
-            }
-
-    if not result:
-        return {"success": False, "data": []}
-
-    gold_data = [result[k] for k in _QA_SORT if k in result]
-    return {
-        "success":    True,
-        "data":       gold_data,
-        "source":     "gold.quanganh.org",
-        "updated_at": updated,
-    }
+        key = normalized(cells[0])
+        selected = names.get(key)
+        if key.startswith("bac thoi phu quy 999"):
+            selected = (4, "Bạc Thỏi Phú Quý 999")
+        if selected:
+            identifier, name = selected
+            result[identifier] = quote(identifier, name, cells[0], price(cells[1]), price(cells[2]), "VNĐ/chỉ")
+    if set(result) != {1, 2, 3, 4}:
+        raise ValueError("Missing expected Phu Quy gold or silver rows")
+    return [result[k] for k in sorted(result)]
 
 
-# ─── Fallback: BTMC XML API ───────────────────────────────────────────────────
-
-_BTMC_URL = "http://api.btmc.vn/api/BTMCAPI/getpricebtmc?key=3kd8ub1llcg9t45hnoh8hmn7t5kc2v"
-_BTMC_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Accept': 'application/xml',
-}
-_BTMC_PRODUCTS = {
-    'VÀNG MIẾNG SJC':  'Vàng SJC (Miếng)',
-    'VÀNG MIẾNG VRTL': 'Vàng VRTL (Miếng)',
-    'NHẪN TRÒN TRƠN':  'Nhẫn Vàng 9999',
-    'BẠC MIẾNG':       'Bạc 1kg',
-}
-_BTMC_SORT = ['VÀNG MIẾNG SJC', 'VÀNG MIẾNG VRTL', 'NHẪN TRÒN TRƠN', 'BẠC MIẾNG']
+def issuer_timestamp(html):
+    text = normalized(" ".join(unescape(html).split()))
+    match = re.search(r"cap nhat lan cuoi luc (\d{2}:\d{2}) (\d{2}/\d{2}/\d{4})", text)
+    if not match:
+        raise ValueError("Missing issuer update timestamp")
+    return datetime.strptime(" ".join(match.groups()), "%H:%M %d/%m/%Y").replace(tzinfo=timezone(timedelta(hours=7))).isoformat()
 
 
-def _match_btmc(name: str):
-    n = name.upper()
-    if 'VÀNG MIẾNG SJC' in n:
-        return 'VÀNG MIẾNG SJC', 'Vàng SJC (Miếng)'
-    if 'VÀNG MIẾNG VRTL' in n or 'VÀNG RỒNG THĂNG LONG' in n:
-        if 'NHẪN' in n or 'TRÒN TRƠN' in n:
-            return 'NHẪN TRÒN TRƠN', 'Nhẫn Vàng 9999'
-        if 'MIẾNG' in n:
-            return 'VÀNG MIẾNG VRTL', 'Vàng VRTL (Miếng)'
-    if 'BẠC' in n and 'MIẾNG' in n:
-        return 'BẠC MIẾNG', 'Bạc 1kg'
-    return None, None
+def read_cache():
+    try:
+        value = json.loads(CACHE_PATH.read_text())
+        return value if GoldService.validate_response(value) else None
+    except (OSError, ValueError):
+        return None
 
 
-def _fetch_btmc() -> Dict[str, Any]:
-    r = requests.get(_BTMC_URL, headers=_BTMC_HEADERS, timeout=15)
-    if r.status_code != 200:
-        return {"success": False, "data": []}
+def age(value):
+    try:
+        return max(0, (datetime.now(timezone.utc) - datetime.fromisoformat(value["fetched_at"])).total_seconds())
+    except (KeyError, ValueError, TypeError):
+        return float("inf")
 
-    root = ET.fromstring(r.content)
-    latest: Dict[str, dict] = {}
-
-    for elem in root.findall('Data'):
-        row = elem.get('row')
-        if not row:
-            continue
-        name       = " ".join(elem.get(f'n_{row}', '').split()).strip()
-        karat      = elem.get(f'k_{row}', '').strip().lower()
-        buy_price  = "".join(elem.get(f'pb_{row}', '0').split())
-        sell_price = "".join(elem.get(f'ps_{row}', '0').split())
-        time_str   = elem.get(f'd_{row}', '').strip()
-
-        if not name or (buy_price == '0' and sell_price == '0'):
-            continue
-        key, display = _match_btmc(name)
-        if not key:
-            continue
-        is_gold = 'VÀNG' in key or 'TRÒN TRƠN' in key
-        if is_gold and karat not in ['24k', '999.9', '99.99', '']:
-            continue
-        try:
-            dt = datetime.strptime(time_str, '%d/%m/%Y %H:%M')
-        except Exception:
-            dt = datetime.now()
-        try:
-            buy_val  = int(float(buy_price))
-            sell_val = int(float(sell_price))
-        except Exception:
-            continue
-
-        if key not in latest or dt >= latest[key]['_dt']:
-            latest[key] = {
-                'Id':         hash(key) % 1000,
-                'TypeName':   display,
-                'BranchName': 'BTMC',
-                'Buy':        f"{buy_val:,}".replace(',', '.'),
-                'Sell':       f"{sell_val:,}".replace(',', '.') if sell_val > 0 else '-',
-                'UpdateTime': time_str or dt.strftime('%d/%m/%Y %H:%M'),
-                '_dt':        dt,
-            }
-
-    if not latest:
-        return {"success": False, "data": []}
-
-    latest_time = max(v['_dt'] for v in latest.values()).strftime('%Y-%m-%dT%H:%M:00')
-    gold_data = []
-    for k in _BTMC_SORT:
-        if k in latest:
-            item = {kk: vv for kk, vv in latest[k].items() if kk != '_dt'}
-            gold_data.append(item)
-
-    return {"success": True, "data": gold_data, "source": "BTMC", "updated_at": latest_time}
-
-
-# ─── Public GoldService class (keeps existing interface) ─────────────────────
 
 class GoldService:
     @classmethod
-    def fetch_once(cls) -> Dict[str, Any]:
-        try:
-            result = _fetch_quanganh()
-            if result.get("success") and result.get("data"):
+    def fetch_once(cls):
+        cached = read_cache()
+        if cached and age(cached) < 60:
+            return {**cached, "stale": False}
+        CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(str(CACHE_PATH) + ".lock", "a") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return {**cached, "stale": True} if cached else {"success": False, "data": [], "error": "Quotes are refreshing"}
+            try:
+                cached = read_cache()
+                if cached and age(cached) < 60:
+                    return {**cached, "stale": False}
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154.0.0.0 Safari/537.36", "Accept": "text/html", "Accept-Language": "vi-VN,vi;q=0.9"}
+                response = requests.get(GOLD_URL, headers=headers, timeout=(5, 12))
+                response.raise_for_status()
+                response.encoding = "utf-8"
+                rows = parse_gold(response.text)
+                updated_at = issuer_timestamp(response.text)
+                for row in rows:
+                    row["UpdateTime"] = updated_at
+                result = {"success": True, "data": rows, "source": "Phú Quý",
+                          "source_url": GOLD_URL, "fetched_at": datetime.now(timezone.utc).isoformat(),
+                          "updated_at": updated_at, "stale": False, "silver_available": True}
+                # Retrieval time is not an issuer-reported quote timestamp.
+                temporary = None
+                try:
+                    with tempfile.NamedTemporaryFile(mode="w", dir=CACHE_PATH.parent, delete=False, encoding="utf-8") as handle:
+                        temporary = handle.name
+                        json.dump(result, handle, ensure_ascii=False)
+                    os.replace(temporary, CACHE_PATH)
+                finally:
+                    if temporary and os.path.exists(temporary):
+                        os.unlink(temporary)
                 return result
-        except Exception as e:
-            logger.warning("gold.quanganh.org failed, falling back to BTMC: %s", e)
-
-        try:
-            return _fetch_btmc()
-        except Exception as e:
-            logger.error("BTMC fallback also failed: %s", e)
-            return {"success": False, "data": [], "error": str(e)}
+            except (requests.RequestException, ValueError, OSError) as exc:
+                logger.warning("Direct gold quote refresh failed: %s", type(exc).__name__)
+                return {**cached, "stale": True} if cached else {"success": False, "data": [], "error": "Gold quotes temporarily unavailable"}
 
     @classmethod
-    def fetch_with_retry(cls, max_retries: int = 3) -> Dict[str, Any]:
-        for attempt in range(max_retries):
-            result = cls.fetch_once()
-            if result.get('success') and result.get('data'):
-                return result
-            if attempt < max_retries - 1:
-                logger.warning("Gold fetch empty/failed, retrying... (%d/%d)", attempt + 1, max_retries)
-                time.sleep(1)
-        logger.error("Gold fetch failed after %d attempts", max_retries)
-        return {"success": False, "data": []}
+    def fetch_with_retry(cls, max_retries=3):
+        return cls.fetch_once()
 
     @staticmethod
-    def validate_response(data: Dict) -> bool:
-        return bool(data.get('success')) and len(data.get('data') or []) > 0
+    def validate_response(data):
+        return isinstance(data, dict) and bool(data.get("success")) and len(data.get("data") or []) >= 2

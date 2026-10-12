@@ -33,6 +33,7 @@ const REALTIME_PATH_PREFIXES = [
 ];
 
 const SHORT_CACHE_PATH_PREFIXES = [
+    'market/funds',
     'valuation/',
     'market/news',
     'news/',
