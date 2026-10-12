@@ -10,7 +10,7 @@ type SortKey = 'short_name' | 'nav' | 'nav_change_previous' | 'nav_change_1m' | 
 export default function FundsClient({ initial }: { initial: FundSnapshot | null }) {
     const { lang } = useLanguage();
     const t = fundsCopy[lang];
-    const locale = lang === 'vi' ? 'vi-VN' : 'en-US';
+    const locale = { vi: 'vi-VN', en: 'en-US' }[lang];
     const [snapshot, setSnapshot] = useState(initial);
     const [loading, setLoading] = useState(!initial);
     const [error, setError] = useState(false);
@@ -66,7 +66,7 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
         { key: 'nav_change_previous', label: t.change }, { key: 'nav_change_1m', label: t.month },
         { key: 'nav_change_12m', label: t.year }, { key: 'nav_change_36m_annualized', label: t.annualized },
     ];
-    return <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    return <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <div><p className="mb-2 text-xs font-semibold tracking-[0.18em] text-blue-600 dark:text-blue-400">{t.eyebrow}</p>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">{t.title}</h1>
@@ -104,5 +104,5 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
             {!rows.length && <p role="status" className="p-10 text-center text-sm text-slate-500">{loading ? t.loading : error ? t.error : t.empty}</p>}
             <div className="flex flex-wrap justify-between gap-2 px-4 py-3 text-xs text-slate-500"><span>{rows.length} {t.result}</span><a href="https://fmarket.vn/" target="_blank" rel="noreferrer" className="hover:text-blue-600">{t.source}</a></div>
         </div>
-    </main>;
+    </section>;
 }
