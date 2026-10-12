@@ -49,11 +49,11 @@ export default function FundDetailClient({ detail }: { detail: FundDetail }) {
                 </div>
                 {detail.history_stale && <p role="status" className="mb-3 text-sm text-amber-600">{detail.history_available ? t.stale : t.noHistory}</p>}
                 {points.length > 1 ? <div className="h-[340px] rounded-lg border border-slate-200 bg-white p-3 sm:h-[420px] dark:border-slate-800 dark:bg-slate-900">
-                    <ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{ top: 20, right: 16, left: 5, bottom: 12 }}>
+                    <ResponsiveContainer width="100%" height="100%"><LineChart data={points.map(point => ({ ...point, time: Date.parse(`${point.date}T00:00:00Z`) }))} margin={{ top: 20, right: 16, left: 5, bottom: 12 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.15} />
-                        <XAxis dataKey="date" minTickGap={60} tick={{ fontSize: 11 }} tickFormatter={value => String(value).slice(0, 7)} />
+                        <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} minTickGap={60} tick={{ fontSize: 11 }} tickFormatter={value => new Date(Number(value)).toISOString().slice(0, 7)} />
                         <YAxis width={75} domain={['auto', 'auto']} tick={{ fontSize: 11 }} tickFormatter={value => format(Number(value))} />
-                        <Tooltip content={({ active, payload, label }) => active && payload?.length ? <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-md dark:border-slate-700 dark:bg-slate-900"><p className="text-slate-500">{label}</p><p className="mt-1 font-semibold text-emerald-600">NAV: {format(Number(payload[0].value))} VNĐ/CCQ</p></div> : null} />
+                        <Tooltip content={({ active, payload, label }) => active && payload?.length ? <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-md dark:border-slate-700 dark:bg-slate-900"><p className="text-slate-500">{new Date(Number(label)).toISOString().slice(0, 10)}</p><p className="mt-1 font-semibold text-emerald-600">NAV: {format(Number(payload[0].value))} VNĐ/CCQ</p></div> : null} />
                         <Line type="monotone" dataKey="nav" stroke="#059669" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart></ResponsiveContainer>
                 </div> : <p className="py-12 text-center text-sm text-slate-500">{t.noHistory}</p>}
