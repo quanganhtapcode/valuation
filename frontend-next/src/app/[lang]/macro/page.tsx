@@ -8,6 +8,7 @@ import { macroDate } from '@/components/Macro/macroData';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
 import { useLanguage } from '@/lib/languageContext';
 import { translations } from '@/lib/translations';
+import TradingViewForexTable from '@/components/Macro/TradingViewForexTable';
 import {
     FF_ALL_INDEX_CHANNELS,
     FF_AMERICAS_CHANNELS,
@@ -380,7 +381,10 @@ function WorldTab() {
             {/* Forex */}
             <section>
                 <SectionHeader title={copy.globalFx} subtitle={copy.globalFxSubtitle} />
-                <MarketSnapshotTable items={FF_FOREX_CHANNELS} snapshots={ffForex} showFlags={false} />
+                <div className="space-y-4">
+                    <TradingViewForexTable />
+                    <MarketSnapshotTable items={FF_FOREX_CHANNELS} snapshots={ffForex} showFlags={false} />
+                </div>
             </section></>}
 
             {/* Commodities */}
