@@ -19,7 +19,7 @@ export default function TradingViewForexTable() {
         {failed ? <p role="status" className="px-4 py-8 text-sm text-slate-500">{copy.error} <a href="https://www.tradingview.com/markets/currencies/" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{copy.open}</a></p> :
             createElement('tv-forex-table', {
                 theme: resolvedTheme === 'dark' ? 'dark' : 'light',
-                style: { display: 'block', width: '100%', height: '360px' },
+                style: { display: 'block', width: '100%', height: 'auto' },
             })}
     </div>;
 }

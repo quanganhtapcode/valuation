@@ -21,8 +21,6 @@ import {
 import styles from './page.module.css';
 import { useVisiblePolling } from '@/lib/useVisiblePolling';
 import DeferredPanel from '@/components/ui/DeferredPanel';
-import { useLanguage } from '@/lib/languageContext';
-import { translations } from '@/lib/translations';
 import TradingViewForexTable from '@/components/Macro/TradingViewForexTable';
 
 const moversDelay = () => isTradingHours() ? 30000 : 300000;
@@ -118,7 +116,6 @@ export default function OverviewClient({
     initialLosers,
     initialGoldPrices,
 }: OverviewClientProps) {
-    const { lang } = useLanguage();
     const [indices, setIndices] = useState<IndexData[]>(initialIndices);
     const [news, setNews] = useState<NewsItem[]>(initialNews);
     const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
@@ -299,8 +296,7 @@ export default function OverviewClient({
 
                     <div className="order-2">
                         <NewsSection news={news} isLoading={newsLoading} error={newsError} />
-                        <section className="mt-6" aria-labelledby="overview-forex-title">
-                            <h2 id="overview-forex-title" className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">{translations[lang].macro.global.globalFx}</h2>
+                        <section className="mt-4" aria-label="TradingView forex rates">
                             <DeferredPanel height={360}><TradingViewForexTable /></DeferredPanel>
                         </section>
                     </div>
