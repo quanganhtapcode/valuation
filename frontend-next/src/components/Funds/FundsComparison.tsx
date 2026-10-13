@@ -1,5 +1,6 @@
 'use client';
 
+import IssuerLogo from '@/components/Funds/IssuerLogo';
 import { chartSeriesColors, chartAxisTick, chartCursor, chartTooltipStyle } from '@/lib/chartTheme';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Brush, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -107,7 +108,7 @@ export default function FundsComparison({ funds, initialDetail }: { funds?: Fund
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">{selected.filter(symbol => first[symbol] != null).map(symbol => {
                     const value = fundCagr(first[symbol], last[symbol], first.time, last.time);
-                    return <div key={symbol} className="rounded-lg bg-slate-100 px-3 py-2 text-xs dark:bg-slate-800"><span style={{ color: colors[selected.indexOf(symbol)] }} className="font-semibold">{symbol}</span><div className="mt-1">CAGR <span className="font-semibold">{value == null ? '—' : `${value.toLocaleString(vi ? 'vi-VN' : 'en-US', { maximumFractionDigits: 2 })}%`}</span> {vi ? '/ năm' : '/ year'}</div></div>;
+                    return <div key={symbol} className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs dark:bg-slate-800"><IssuerLogo manager={loaded[symbol]?.fund.fund_owner_name ?? ''} compact /><div className="min-w-0"><span style={{ color: colors[selected.indexOf(symbol)] }} className="font-semibold">{symbol}</span><div className="mt-1">CAGR <span className="font-semibold">{value == null ? '—' : `${value.toLocaleString(vi ? 'vi-VN' : 'en-US', { maximumFractionDigits: 2 })}%`}</span> {vi ? '/ năm' : '/ year'}</div></div></div>;
                 })}</div>
                 <p className="mt-2 text-xs text-slate-500">{vi ? 'Thay đổi NAV (%), cùng mốc bắt đầu = 0%. Giữa các kỳ công bố dùng NAV gần nhất; khoảng so sánh là phần lịch sử chung. CAGR được quy đổi theo năm từ NAV trong khoảng ngày đang xem.' : 'NAV change (%), rebased to 0% at a shared start. Latest published NAV is carried between dates; comparison uses the shared history window. CAGR annualizes NAV change over the visible dates.'}</p>
             </> : <p role="status" className="py-20 text-center text-sm text-slate-500">{selected.length ? (vi ? 'Không đủ lịch sử chung cho khoảng thời gian này.' : 'Not enough shared history for this period.') : (vi ? 'Chọn quỹ phía dưới để so sánh.' : 'Select funds to compare.')}</p>}
@@ -124,7 +125,8 @@ export default function FundsComparison({ funds, initialDetail }: { funds?: Fund
                 </div>
                 <div className="mt-3 grid max-h-72 grid-cols-2 gap-2 overflow-y-auto md:grid-cols-3 lg:grid-cols-5">{filtered.map(fund => <label key={fund.short_name} className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border p-2 ${selected.includes(fund.short_name) ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-slate-200 dark:border-slate-800'}`}>
                     <input type="checkbox" checked={selected.includes(fund.short_name)} disabled={!selected.includes(fund.short_name) && selected.length >= 8} onChange={event => { const checked = event.target.checked; setSelected(current => checked ? current.length < 8 && !current.includes(fund.short_name) ? [...current, fund.short_name] : current : current.filter(symbol => symbol !== fund.short_name)); }} className="accent-emerald-600" />
-                    <span className="min-w-0"><span className="block text-sm font-semibold">{fund.short_name}</span><span className="block truncate text-xs text-slate-500" title={formatFundDisplayName(fund.name)}>{fundIssuers[fund.fund_owner_name]?.shortName || formatFundDisplayName(fund.fund_owner_name)}</span></span>
+                    <IssuerLogo manager={fund.fund_owner_name} compact />
+                    <span className="min-w-0"><span className="block truncate text-sm font-semibold" title={fund.short_name}>{fund.short_name}</span><span className="block truncate text-xs text-slate-500" title={formatFundDisplayName(fund.name)}>{fundIssuers[fund.fund_owner_name]?.shortName || formatFundDisplayName(fund.fund_owner_name)}</span></span>
                 </label>)}</div>
                 {!filtered.length && <p className="py-4 text-sm text-slate-500">{vi ? 'Không có quỹ phù hợp.' : 'No matching funds.'}</p>}
 

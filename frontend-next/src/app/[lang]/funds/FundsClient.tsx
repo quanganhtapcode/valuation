@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import FundsComparison from '@/components/Funds/FundsComparison';
 import FundsTabs from '@/components/Funds/FundsTabs';
-import Image from 'next/image';
+import IssuerLogo from '@/components/Funds/IssuerLogo';
 import { fundIssuers } from '@/lib/fundIssuers';
 import { fundDetailCopy } from '@/lib/fundDetailCopy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -14,15 +14,6 @@ import { fetchFundPrices, type FundPrice, type FundSnapshot } from '@/lib/fundsA
 
 type SortKey = 'short_name' | 'fund_owner_name' | 'nav' | 'nav_change_12m' | 'nav_change_36m_annualized';
 
-function IssuerLogo({ manager }: { manager: string }) {
-    const issuer = fundIssuers[manager];
-    const [failedUrl, setFailedUrl] = useState<string | null>(null);
-    return <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-white">
-        {issuer && failedUrl !== issuer.logoUrl
-            ? <Image src={issuer.logoUrl} alt="" width={36} height={36} unoptimized className="h-9 w-9 object-contain" onError={() => setFailedUrl(issuer.logoUrl)} />
-            : <span className="text-xs font-semibold text-slate-500">{issuer?.shortName.slice(0, 3) || '—'}</span>}
-    </span>;
-}
 
 export default function FundsClient({ initial }: { initial: FundSnapshot | null }) {
     const { lang } = useLanguage();
