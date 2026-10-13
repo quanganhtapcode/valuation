@@ -18,7 +18,6 @@ export interface MacroSeries {
     formatAxis?: (value: number) => string;
     // Express raw observations in the unit shown in the table and CSV.
     valueScale?: number;
-    bar?: boolean;
     defaultDays?: number;
 }
 
@@ -139,7 +138,7 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
                         }} onClick={() => setView(tab)} className={`border-b-2 px-3 py-3 text-sm font-semibold ${view === tab ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-500 dark:text-slate-400'}`}>{c[tab]}</button>)}</div><span className="text-xs tabular-nums text-slate-400">{filtered.length} {c.points}</span></div>
                         <div id="macro-history-content" role="tabpanel" aria-labelledby={`macro-${view}-tab`}>
                             {!filtered.length ? <div className="flex h-64 items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">{c.empty}</div>
-                                : view === 'chart' ? <MacroSeriesChart points={filtered} label={series.title} formatValue={series.formatValue} formatAxis={series.formatAxis} bar={series.bar} />
+                                : view === 'chart' ? <MacroSeriesChart points={filtered} label={series.title} formatValue={series.formatValue} formatAxis={series.formatAxis} />
                                     : <div className="space-y-4"><div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800"><table className="w-full text-sm"><thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-950 dark:text-slate-400"><tr><th className="px-3 py-3 text-left">{c.date}</th><th className="px-3 py-3 text-right">{c.value} ({series.unit})</th><th className="px-3 py-3 text-right">{c.change}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(point => <tr key={point.date}><td className="whitespace-nowrap px-3 py-3 tabular-nums text-slate-500 dark:text-slate-400">{macroDate(point.date, lang)}</td><td className="px-3 py-3 text-right font-medium tabular-nums">{series.formatValue(point.close)}</td><td className="px-3 py-3 text-right tabular-nums text-slate-500 dark:text-slate-400">{point.change === null ? '—' : `${point.change > 0 ? '+' : ''}${series.formatValue(point.change)}`}</td></tr>)}</tbody></table></div><Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} /></div>}
                         </div>
                         <div className="border-t border-slate-100 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400"><p>{c.source}: {series.source}</p>{points.length > 0 && <p>{c.available}: {macroDate(points[0].date, lang)} – {macroDate(points.at(-1)!.date, lang)}</p>}</div>

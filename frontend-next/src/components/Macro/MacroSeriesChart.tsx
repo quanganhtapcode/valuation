@@ -1,10 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { chartColors, chartAxisTick, chartCursor, chartTooltipClass } from '@/lib/chartTheme';
-import { useId, useMemo } from 'react';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
-
 import { macroDate, type MacroPoint } from './macroData';
 
 interface MacroSeriesChartProps {
@@ -12,53 +11,53 @@ interface MacroSeriesChartProps {
     label: string;
     formatValue: (value: number) => string;
     formatAxis?: (value: number) => string;
-    bar?: boolean;
     compact?: boolean;
 }
 
-export default function MacroSeriesChart({ points, label, formatValue, formatAxis = formatValue, bar = false, compact = false }: MacroSeriesChartProps) {
+export default function MacroSeriesChart({ points, label, formatValue, formatAxis = formatValue, compact = false }: MacroSeriesChartProps) {
     const { lang } = useLanguage();
-    const gradientId = useId().replaceAll(':', '');
     const data = useMemo(() => points.map(point => ({ ...point, time: Date.parse(`${point.date}T00:00:00Z`) })), [points]);
-    let min = Infinity;
-    let max = -Infinity;
-    for (const point of points) { min = Math.min(min, point.close); max = Math.max(max, point.close); }
-    if (!points.length) return null;
+    if (!data.length) return null;
+    const min = Math.min(...points.map(point => point.close));
+    const max = Math.max(...points.map(point => point.close));
     const padding = (max - min || Math.abs(max) || 1) * 0.12;
-    const domain: [number, number] = bar ? [Math.min(0, min), Math.max(0, max) + padding] : [min - padding, max + padding];
+    const span = data.at(-1)!.time - data[0].time;
     const dateTick = (time: number) => {
         const date = new Date(time).toISOString().slice(0, 10);
-        return data.at(-1)!.time - data[0].time < 180 * 86400000
-            ? `${date.slice(8, 10)}/${date.slice(5, 7)}`
-            : `${date.slice(5, 7)}/${date.slice(2, 4)}`;
+        if (span > 4 * 365.25 * 86400000) return date.slice(0, 4);
+        if (span < 180 * 86400000) return `${date.slice(8, 10)}/${date.slice(5, 7)}`;
+        return `${date.slice(5, 7)}/${date.slice(2, 4)}`;
     };
-    const color = bar ? chartColors.secondary : chartColors.primary;
-    const axes = <>
-        {!compact && <CartesianGrid vertical={false} stroke="currentColor" strokeDasharray="3 4" className="text-slate-200 dark:text-slate-800" />}
-        <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={dateTick}
-            axisLine={false} tickLine={false} minTickGap={compact ? 65 : 45} tick={chartAxisTick} tickMargin={12} height={30} />
-        <YAxis hide={compact} domain={domain} tickFormatter={formatAxis} axisLine={false} tickLine={false}
-            width={72} tick={{ ...chartAxisTick, className: '-translate-x-14 [text-anchor:start] sm:translate-x-0 sm:[text-anchor:end]' }} tickCount={5} />
-        {min < 0 && max > 0 && <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />}
-        {!compact && <Tooltip cursor={chartCursor} content={({ active, payload }) => {
-            const point = payload?.[0]?.payload as MacroPoint | undefined;
-            return active && point ? <div className={chartTooltipClass}>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{macroDate(point.date, lang)}</p>
-                <p className="mt-1 hidden text-xs font-medium text-slate-600 dark:text-slate-300 sm:block">{label}</p>
-                <p className="mt-1 text-base font-semibold tabular-nums text-slate-900 dark:text-white">{formatValue(point.close)}</p>
-            </div> : null;
-        }} />}
-    </>;
-
-    return <div className={`${compact ? 'h-36 w-full' : 'h-72 w-full sm:h-80'}`} aria-label={label}>
+    // Tick actual publication dates, with unique labels instead of repeated months/years.
+    const tickDates = Array.from({ length: Math.min(data.length, compact ? 3 : 5) }, (_, index) =>
+        data[Math.round(index * (data.length - 1) / Math.max(1, Math.min(data.length, compact ? 3 : 5) - 1))].time);
+    const labels = new Set<string>();
+    const ticks = tickDates.filter(time => {
+        const label = dateTick(time);
+        if (labels.has(label)) return false;
+        labels.add(label);
+        return true;
+    });
+    return <div className={compact ? 'h-36 w-full' : 'h-72 w-full sm:h-80'} aria-label={label}>
         <ResponsiveContainer width="100%" height="100%" debounce={80}>
-            {bar ? <BarChart data={data} margin={{ top: 12, right: 8, bottom: 0, left: compact ? 8 : 0 }} barCategoryGap="28%">
-                {axes}<Bar dataKey="close" fill={color} radius={[3, 3, 0, 0]} maxBarSize={compact ? 12 : 28} isAnimationActive={false} />
-            </BarChart> : <AreaChart data={data} margin={{ top: 12, right: 8, bottom: 0, left: compact ? 8 : 0 }}>
-                <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.18} /><stop offset="100%" stopColor={color} stopOpacity={0.01} /></linearGradient></defs>
-                {axes}<Area type="linear" dataKey="close" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`}
-                    dot={data.length === 1 ? { r: 4, fill: color } : false} activeDot={compact ? false : { r: 4, strokeWidth: 2 }} isAnimationActive={false} />
-            </AreaChart>}
+            <LineChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
+                {!compact && <CartesianGrid vertical={false} stroke="var(--chart-grid)" strokeDasharray="3 4" />}
+                <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} ticks={ticks} tickFormatter={dateTick}
+                    axisLine={false} tickLine={false} minTickGap={32} tick={chartAxisTick} tickMargin={10} height={32} />
+                <YAxis hide={compact} domain={[min - padding, max + padding]} tickFormatter={formatAxis} axisLine={false} tickLine={false}
+                    width={64} tick={chartAxisTick} tickCount={4} tickMargin={8} />
+                {min < 0 && max > 0 && <ReferenceLine y={0} stroke="var(--chart-muted)" strokeDasharray="4 4" />}
+                {!compact && <Tooltip cursor={chartCursor} content={({ active, payload }) => {
+                    const point = payload?.[0]?.payload as MacroPoint | undefined;
+                    return active && point ? <div className={chartTooltipClass}>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{macroDate(point.date, lang)}</p>
+                        <p className="mt-1 font-semibold tabular-nums">{formatValue(point.close)}</p>
+                    </div> : null;
+                }} />}
+                <Line type="linear" dataKey="close" stroke={chartColors.primary} strokeWidth={2}
+                    dot={data.length === 1 ? { r: 4, fill: chartColors.primary } : false}
+                    activeDot={compact ? false : { r: 4, stroke: 'var(--chart-surface)', strokeWidth: 2 }} isAnimationActive={false} />
+            </LineChart>
         </ResponsiveContainer>
     </div>;
 }

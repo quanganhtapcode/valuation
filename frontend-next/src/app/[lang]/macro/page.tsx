@@ -222,7 +222,7 @@ function VietnamTvRow({ sym, points, onOpen }: { sym: string; points: PricePoint
             <p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p>
         </td>
         <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{summary.latest === null ? '—' : macroValue(summary.latest, sym, lang)}</td>
-        <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : ''}${macroValue(Math.abs(summary.delta), sym, lang)}`}</td>
+        <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${toneClass}`}>{summary.delta === null ? '—' : `${summary.delta >= 0 ? '+' : '-'}${macroValue(Math.abs(summary.delta), sym, lang)}`}</td>
         <td className="px-3 py-3.5 text-right text-sm text-slate-500 md:px-4">{summary.updatedAt ? macroDate(summary.updatedAt, lang) : '—'}</td>
     </tr>;
 }
@@ -301,7 +301,7 @@ function vietnamSeries(sym: string, lang: 'vi' | 'en'): MacroSeries {
         symbol: sym, title: macroLabel(sym, cfg.titleVN, lang), unit: macroUnit(cfg.unitLabel, lang),
         source: cfg.source.split(' · ')[0], formatValue: value => macroValue(value, sym, lang),
         formatAxis: value => formatMacroAxisValue(value, sym), valueScale: macroValueScale(sym),
-        bar: cfg.barChart, defaultDays: cfg.defaultDays,
+        defaultDays: 1825,
     };
 }
 
