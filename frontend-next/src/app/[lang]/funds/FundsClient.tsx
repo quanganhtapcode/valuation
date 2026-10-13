@@ -15,9 +15,9 @@ type SortKey = 'short_name' | 'fund_owner_name' | 'nav' | 'nav_change_12m' | 'na
 function IssuerLogo({ manager }: { manager: string }) {
     const issuer = fundIssuers[manager];
     const [failedUrl, setFailedUrl] = useState<string | null>(null);
-    return <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-white">
+    return <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-white">
         {issuer && failedUrl !== issuer.logoUrl
-            ? <Image src={issuer.logoUrl} alt="" width={48} height={48} unoptimized className="h-12 w-12 object-contain" onError={() => setFailedUrl(issuer.logoUrl)} />
+            ? <Image src={issuer.logoUrl} alt="" width={36} height={36} unoptimized className="h-9 w-9 object-contain" onError={() => setFailedUrl(issuer.logoUrl)} />
             : <span className="text-xs font-semibold text-slate-500">{issuer?.shortName.slice(0, 3) || '—'}</span>}
     </span>;
 }
@@ -94,7 +94,6 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                 <div><h1 className="text-3xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100 md:text-4xl">{headings.title} <span className="text-emerald-600 dark:text-emerald-400">{headings.accent}</span></h1>
                     <div className="mt-2 h-1 w-32 rounded bg-emerald-500" />
                     <p className="mt-3 max-w-4xl text-sm text-slate-600 dark:text-slate-300 md:text-base">{t.description}</p></div>
-                <button disabled={loading} onClick={() => void load()} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-slate-700">{t.refresh}{loading ? '…' : ''}</button>
             </div>
         </header>
         {(error || snapshot?.stale) && <p role="status" className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{snapshot ? t.stale : t.error}</p>}
@@ -108,25 +107,25 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                     <option value="">{t.allManagers}</option>{managers.map(manager => <option key={manager} value={manager}>{fundIssuers[manager]?.shortName || formatFundDisplayName(manager)}</option>)}
                 </select>
             </div>
-            <div className="overflow-x-auto"><table className="w-full min-w-[960px] table-fixed text-sm md:text-base">
-                <thead><tr className="border-b border-slate-100 bg-blue-50/70 text-slate-700 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-200">
-                    {columns.map(column => <th key={column.key} scope="col" className={`px-4 py-5 font-semibold ${column.key === 'short_name' || column.key === 'fund_owner_name' ? 'text-left' : 'text-right'}`} aria-sort={sort.key === column.key ? sort.descending ? 'descending' : 'ascending' : 'none'}>
+            <div className="overflow-x-auto"><table className="w-full min-w-[960px] table-fixed text-left text-sm">
+                <thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr>
+                    {columns.map(column => <th key={column.key} scope="col" className={`px-3 py-3 font-semibold md:px-4 ${column.key === 'short_name' || column.key === 'fund_owner_name' ? 'text-left' : 'text-right'}`} aria-sort={sort.key === column.key ? sort.descending ? 'descending' : 'ascending' : 'none'}>
                         <button className="inline-flex items-center gap-2" onClick={() => changeSort(column.key)}><span>{column.label}</span><span aria-hidden="true" className={sort.key === column.key ? 'text-blue-600' : 'text-slate-300'}>{sort.key === column.key && !sort.descending ? '▴' : '▾'}</span></button>
                     </th>)}
                 </tr></thead>
-                <tbody>{rows.map((row: FundPrice) => <tr key={row.short_name} className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800/60 dark:hover:bg-slate-800/40">
-                    <td className="px-4 py-5"><div className="flex items-center gap-3">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row: FundPrice) => <tr key={row.short_name} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <td className="px-3 py-3.5 md:px-4"><div className="flex items-center gap-3">
                         <IssuerLogo manager={row.fund_owner_name} />
                         <div className="min-w-0"><Link href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} aria-label={`${row.short_name} — ${formatFundDisplayName(row.name)}`} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">{row.short_name}</Link>
-                            <div className="mt-1 text-sm text-slate-400">{typeLabel(row.fund_type)}</div>
+                            <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{typeLabel(row.fund_type)}</div>
                         </div>
                     </div></td>
-                    <td className="px-4 py-5" title={formatFundDisplayName(row.fund_owner_name)}>{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</td>
-                    <td className="px-4 py-5 text-right tabular-nums">
+                    <td className="px-3 py-3.5 md:px-4" title={formatFundDisplayName(row.fund_owner_name)}>{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</td>
+                    <td className="px-3 py-3.5 md:px-4 text-right font-medium tabular-nums">
                         <div>{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(row.nav)}</div>
-                        <div className="mt-1 text-sm text-slate-400">{t.navAsOf} {row.nav_update_at ? row.nav_update_at.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1') : '—'}</div>
+                        <div className="mt-0.5 whitespace-nowrap text-xs font-normal text-slate-400">{t.navAsOf} {row.nav_update_at ? row.nav_update_at.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1') : '—'}</div>
                     </td>
-                    {[row.nav_change_12m, row.nav_change_36m_annualized].map((value, index) => <td key={index} className="px-4 py-5 text-right tabular-nums">{percent(value)}</td>)}
+                    {[row.nav_change_12m, row.nav_change_36m_annualized].map((value, index) => <td key={index} className="px-3 py-3.5 md:px-4 text-right font-semibold tabular-nums">{percent(value)}</td>)}
                 </tr>)}</tbody>
             </table></div>
             {!rows.length && <p role="status" className="p-10 text-center text-sm text-slate-500">{loading ? t.loading : error ? t.error : t.empty}</p>}
