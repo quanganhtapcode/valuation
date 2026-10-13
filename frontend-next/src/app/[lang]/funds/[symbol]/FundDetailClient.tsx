@@ -33,8 +33,8 @@ export default function FundDetailClient({ detail }: { detail: FundDetail }) {
                 <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight md:text-4xl">{fund.short_name} <span className="text-emerald-600 dark:text-emerald-400">{t.history}</span></h1>
                 <div className="mt-2 h-1 w-32 rounded bg-emerald-500" />
                 <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 md:text-base">{fund.name}</p>
+                <FundsTabs value={tab} onChange={value => { setTab(value); if (value === 'compare') setComparisonVisited(true); }} />
             </header>
-            <FundsTabs value={tab} onChange={value => { setTab(value); if (value === 'compare') setComparisonVisited(true); }} />
             <div id="fund-panel-compare" role="tabpanel" aria-labelledby="fund-tab-compare" hidden={tab !== 'compare'}>{comparisonVisited && <FundsComparison initialDetail={detail} />}</div>
             <div id="fund-panel-nav" role="tabpanel" aria-labelledby="fund-tab-nav" hidden={tab !== 'nav'} className="space-y-6">
             <dl className="grid gap-x-8 gap-y-4 border-y border-slate-200 py-5 sm:grid-cols-2 lg:grid-cols-3 dark:border-slate-800">

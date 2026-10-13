@@ -99,8 +99,8 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                     <div className="mt-2 h-1 w-32 rounded bg-emerald-500" />
                     <p className="mt-3 max-w-4xl text-sm text-slate-600 dark:text-slate-300 md:text-base">{t.description}</p></div>
             </div>
+            <FundsTabs value={tab} onChange={value => { setTab(value); if (value === 'compare') setComparisonVisited(true); }} />
         </header>
-        <FundsTabs value={tab} onChange={value => { setTab(value); if (value === 'compare') setComparisonVisited(true); }} />
         {(error || snapshot?.stale) && <p role="status" className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{snapshot ? t.stale : t.error}</p>}
         <div id="fund-panel-compare" role="tabpanel" aria-labelledby="fund-tab-compare" hidden={tab !== 'compare'}>{comparisonVisited && <FundsComparison funds={snapshot?.data ?? []} />}</div>
         <div id="fund-panel-nav" role="tabpanel" aria-labelledby="fund-tab-nav" hidden={tab !== 'nav'} className="overflow-hidden border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
