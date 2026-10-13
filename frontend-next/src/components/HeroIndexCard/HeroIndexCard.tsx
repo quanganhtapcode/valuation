@@ -299,8 +299,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 fontFamily:  getComputedStyle(document.body).fontFamily,
             },
             grid: {
-                vertLines: { visible: false },
-                horzLines: { visible: false },
+                vertLines: { visible: true, color: t0.gridLine },
+                horzLines: { visible: true, color: t0.gridLine },
             },
             crosshair: {
                 mode:     CrosshairMode.Normal,
@@ -456,7 +456,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     useEffect(() => {
         chartRef.current?.applyOptions({
             layout:          { textColor: theme.text },
-            grid:            { vertLines: { visible: false }, horzLines: { visible: false } },
+            grid:            { vertLines: { visible: true, color: theme.gridLine }, horzLines: { visible: true, color: theme.gridLine } },
             rightPriceScale: { borderColor: theme.border },
             leftPriceScale:  { borderColor: theme.border },
             timeScale:       { borderColor: theme.border },

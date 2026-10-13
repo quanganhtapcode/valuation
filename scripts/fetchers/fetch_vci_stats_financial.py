@@ -22,6 +22,7 @@ import logging
 import os
 import random
 import sqlite3
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -29,6 +30,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
+
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.financials.merge_ssi_metrics import restore_ssi_history
 
 logging.basicConfig(
     level=logging.INFO,
@@ -324,11 +330,19 @@ def upsert_history_rows(
 ) -> int:
     """Insert/replace all historical rows for a symbol into stats_financial_history."""
     count = 0
+    has_provenance = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stock_metrics_provenance'"
+    ).fetchone()
     for row in entries:
         yq = _parse_year_quarter(row)
         if yq is None:
             continue
         year, quarter = yq
+        if has_provenance:
+            conn.execute(
+                "DELETE FROM stock_metrics_provenance WHERE ticker=? AND year_report=? AND quarter_report=?",
+                (symbol.upper(), year, quarter),
+            )
         conn.execute("""
             INSERT INTO stats_financial_history (
               ticker, year_report, quarter_report, period_date,
@@ -425,6 +439,7 @@ def upsert_history_rows(
             fetched_at,
         ))
         count += 1
+    restore_ssi_history(conn, symbol)
     return count
 
 

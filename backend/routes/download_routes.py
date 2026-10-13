@@ -35,6 +35,19 @@ FINANCIAL_TABLES = (
 FINANCIAL_TABLE_BY_ID = {item[0]: item for item in FINANCIAL_TABLES}
 STOCK_METRICS_TABLE = ("stock_metrics", "stock_metrics", "Stock Metrics")
 STOCK_METRICS_HISTORY_TABLE = ("stock_metrics_history", "stock_metrics_history", "Stock Metrics History")
+STOCK_METRICS_SOURCE_NOTE_VI = (
+    "Nguồn chỉ số cổ phiếu: Vietcap; lịch sử được bổ sung từ SSI tại các kỳ hoặc ô còn thiếu "
+    "sau khi đối chiếu chỉ số theo cùng mã và kỳ báo cáo. Ưu tiên giá trị Vietcap khi có. "
+    "PE/PB năm được bổ sung trực tiếp từ SSI khi thiếu; cách xác định giá giữa hai nguồn có thể khác nhau. "
+    "Độ phủ tùy mã và chỉ số; dữ liệu sớm nhất hiện có là 2006, chưa bảo đảm đầy đủ từ IPO."
+)
+STOCK_METRICS_SOURCE_NOTE_EN = (
+    "Stock metric source: Vietcap, with SSI backfilling missing historical periods or values "
+    "after matching metrics for the same ticker and reporting period. Existing Vietcap values "
+    "take priority. Missing annual PE/PB values are taken directly from SSI; source valuation price conventions may differ. "
+    "Coverage varies by ticker and metric; available history starts in 2006 "
+    "and is not guaranteed to cover every ticker from IPO."
+)
 # Level 1 provides most of the compression benefit for tabular CSV while using
 # substantially less CPU than the default level 6. Exports run alongside the
 # public market API, so keeping this path CPU-light matters more than a
@@ -49,7 +62,9 @@ STOCK_METRIC_COLUMNS = (
     ("ev_to_ebitda", "EV/EBITDA", "multiple"),
     ("roe", "ROE", "percent"),
     ("roa", "ROA", "percent"),
+    ("roic", "ROIC", "percent"),
     ("gross_margin", "Biên lợi nhuận gộp", "percent"),
+    ("ebit_margin", "Biên EBIT", "percent"),
     ("pre_tax_margin", "Biên lợi nhuận trước thuế", "percent"),
     ("after_tax_margin", "Biên lợi nhuận sau thuế", "percent"),
     ("debt_to_equity", "Nợ/Vốn chủ sở hữu", "multiple"),
@@ -58,6 +73,10 @@ STOCK_METRIC_COLUMNS = (
     ("quick_ratio", "Hệ số thanh toán nhanh", "multiple"),
     ("cash_ratio", "Hệ số tiền mặt", "multiple"),
     ("asset_turnover", "Vòng quay tài sản", "multiple"),
+    ("day_sale_outstanding", "Số ngày thu tiền bình quân", "number"),
+    ("days_inventory_outstanding", "Số ngày tồn kho bình quân", "number"),
+    ("days_payable_outstanding", "Số ngày trả tiền bình quân", "number"),
+    ("dividend_yield", "Tỷ suất cổ tức", "percent"),
     ("market_cap", "Vốn hóa thị trường", "number"),
     ("shares", "Số cổ phiếu lưu hành", "number"),
     ("net_interest_margin", "NIM", "percent"),
@@ -477,6 +496,8 @@ def _csv_readme(metric_tables: list[str], statement_sections: list[str]) -> str:
         "For annual rows, `quarter` is empty. In `Stock Metrics History.csv`, annual observations use `quarter = 5`.",
         "",
         "## Stock metrics", "",
+        STOCK_METRICS_SOURCE_NOTE_VI, "",
+        STOCK_METRICS_SOURCE_NOTE_EN, "",
         "`Stock Metrics.csv` contains the latest available snapshot. `Stock Metrics History.csv` contains the selected annual and/or quarterly history.",
         "Multiples such as `pe` and `pb` are expressed in x. Rate fields such as `roe`, `roa`, margins, NIM, CIR, CAR, CASA, NPL and LDR are decimal ratios (for example `0.15` means 15%).",
         "",
@@ -491,6 +512,34 @@ def _csv_readme(metric_tables: list[str], statement_sections: list[str]) -> str:
         lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items())
         lines.append("")
     return "\n".join(lines + statement_sections)
+
+
+def _write_export_readme(workbook, metric_tables: list[str]) -> None:
+    """Include source and interpretation notes in normal and streaming workbooks."""
+    from openpyxl.cell import WriteOnlyCell
+    from openpyxl.styles import Alignment
+
+    worksheet = workbook.create_sheet("README")
+    worksheet.column_dimensions["A"].width = 110
+    worksheet.freeze_panes = "A2"
+    lines = [
+        "Financial data export / Hướng dẫn dữ liệu",
+        "Nguồn dữ liệu chỉ số cổ phiếu / Stock metric sources",
+        STOCK_METRICS_SOURCE_NOTE_VI,
+        STOCK_METRICS_SOURCE_NOTE_EN,
+        "Stock Metrics: chỉ số mới nhất từ Vietcap / latest available Vietcap snapshot.",
+        "Stock Metrics History: lịch sử Vietcap + SSI / combined Vietcap + SSI history.",
+        "Kỳ báo cáo / Reporting periods: quarters 1–4; annual observations use quarter_report = 5.",
+        "Đơn vị / Units: monetary values in VND; valuation multiples in x; rate fields formatted as percentages.",
+        "Ô trống / Blank cells: source value unavailable or mapping not confirmed; values are not imputed.",
+    ]
+    if "stock_metrics_history" in metric_tables:
+        lines.append("Chỉ số / Metric columns")
+        lines.extend(f"{field}: {label}" for field, label, _ in STOCK_METRIC_COLUMNS)
+    for line in lines:
+        cell = WriteOnlyCell(worksheet, value=line)
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+        worksheet.append([cell])
 
 
 def _is_empty_financial_value(value: object) -> bool:
@@ -826,20 +875,8 @@ def _write_stock_metrics_worksheet(worksheet, tickers: list[str], single_ticker:
         worksheet.freeze_panes = "A7"
         return
 
-    header = ["Mã"] + [labels[field][0] for field in fields]
-    for column, value in enumerate(header, start=1):
-        cell = worksheet.cell(1, column, value)
-        cell.font, cell.fill, cell.border = header_font, header_fill, border
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        worksheet.column_dimensions[get_column_letter(column)].width = 18
-    for row_index, row in enumerate(rows, start=2):
-        for column, field in enumerate(["ticker", *fields], start=1):
-            cell = worksheet.cell(row_index, column, row[field])
-            cell.font = body_font
-            if field in labels:
-                kind = labels[field][1]
-                cell.number_format = "0.00%" if kind == "percent" else "#,##0" if kind == "number" else "0.00x" if kind == "multiple" else "General"
     worksheet.freeze_panes = "B2"
+    _append_stock_metric_rows(worksheet, fields, rows, ["ticker"], labels)
 
 
 def _write_stock_metrics_csv(handle, tickers: list[str]) -> int:
@@ -892,31 +929,42 @@ def _stats_financial_history_rows(tickers: list[str]) -> tuple[list[str], list[s
         return [], []
 
 
-def _write_stock_metrics_history_worksheet(worksheet, tickers: list[str]) -> None:
+def _append_stock_metric_rows(worksheet, fields, rows, identifiers, labels) -> None:
+    """Append typed metric rows to normal and streaming Excel worksheets."""
+    from openpyxl.cell import WriteOnlyCell
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
 
+    identifier_labels = {"ticker": "Mã", "year_report": "Năm", "quarter_report": "Quý"}
+    header = [identifier_labels[field] for field in identifiers] + [labels[field][0] for field in fields]
+    side = Side(style="thin", color="00308C")
+    cells = []
+    for column, value in enumerate(header, start=1):
+        worksheet.column_dimensions[get_column_letter(column)].width = 18
+        cell = WriteOnlyCell(worksheet, value=value)
+        cell.font = Font(name="Calibri", size=12, bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="00308C")
+        cell.border = Border(left=side, right=side, top=side, bottom=side)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cells.append(cell)
+    worksheet.append(cells)
+    formats = {"percent": "0.00%", "number": "#,##0", "multiple": "0.00x"}
+    for row in rows:
+        cells = []
+        for field in [*identifiers, *fields]:
+            cell = WriteOnlyCell(worksheet, value=row[field])
+            cell.font = Font(name="Calibri", size=11)
+            if field in labels:
+                cell.number_format = formats.get(labels[field][1], "General")
+            cells.append(cell)
+        worksheet.append(cells)
+
+
+def _write_stock_metrics_history_worksheet(worksheet, tickers: list[str]) -> None:
     fields, rows = _stats_financial_history_rows(tickers)
     labels = {field: (label, kind) for field, label, kind in STOCK_METRIC_COLUMNS}
-    side = Side(style="thin", color="00308C")
-    border = Border(left=side, right=side, top=side, bottom=side)
-    header_fill = PatternFill("solid", fgColor="00308C")
-    header_font = Font(name="Calibri", size=12, bold=True, color="FFFFFF")
-    body_font = Font(name="Calibri", size=11)
-    header = ["Mã", "Năm", "Quý"] + [labels[field][0] for field in fields]
-    for column, value in enumerate(header, start=1):
-        cell = worksheet.cell(1, column, value)
-        cell.font, cell.fill, cell.border = header_font, header_fill, border
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        worksheet.column_dimensions[get_column_letter(column)].width = 18
-    for row_index, row in enumerate(rows, start=2):
-        for column, field in enumerate(["ticker", "year_report", "quarter_report", *fields], start=1):
-            cell = worksheet.cell(row_index, column, row[field])
-            cell.font = body_font
-            if field in labels:
-                kind = labels[field][1]
-                cell.number_format = "0.00%" if kind == "percent" else "#,##0" if kind == "number" else "0.00x" if kind == "multiple" else "General"
     worksheet.freeze_panes = "D2"
+    _append_stock_metric_rows(worksheet, fields, rows, ["ticker", "year_report", "quarter_report"], labels)
 
 
 def _write_stock_metrics_history_csv(handle, tickers: list[str]) -> int:
@@ -1003,6 +1051,10 @@ def financial_bulk_export():
                         _append_financial_worksheet_rows(
                             worksheet, connection, table, fields, period_clause, period_params,
                         )
+                _write_export_readme(workbook, [
+                    table for _, table, _ in selected_tables
+                    if table in ("stock_metrics", "stock_metrics_history")
+                ])
                 workbook.save(output_path)
                 download_name = "financial-statements.xlsx"
                 mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

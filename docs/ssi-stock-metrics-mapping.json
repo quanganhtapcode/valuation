@@ -1,0 +1,668 @@
+{
+  "policy": "Compare the same ticker/year/quarter; nonzero finite values only. Keep VCI values, fill nulls only. Mappings are period-specific; no quarterly/TTM extrapolation.",
+  "evidence": {
+    "annual": {
+      "pe": [
+        {
+          "field": "ryd21",
+          "scale": 1,
+          "n": 6902,
+          "tickers": 893,
+          "match_2pct": 0.2583309185743263,
+          "median_error": 0.07387494246806467
+        }
+      ],
+      "pb": [
+        {
+          "field": "ryd25",
+          "scale": 1,
+          "n": 6623,
+          "tickers": 869,
+          "match_2pct": 0.3024309225426544,
+          "median_error": 0.056333333760588675
+        }
+      ],
+      "ps": [
+        {
+          "field": "ryd26",
+          "scale": 1,
+          "n": 6620,
+          "tickers": 861,
+          "match_2pct": 0.3054380664652568,
+          "median_error": 0.05663221404639761
+        }
+      ],
+      "roe": [
+        {
+          "field": "ryq12",
+          "scale": 1,
+          "n": 6915,
+          "tickers": 893,
+          "match_2pct": 0.8707158351409978,
+          "median_error": 1.1445495334597458e-06
+        }
+      ],
+      "roa": [
+        {
+          "field": "ryq14",
+          "scale": 1,
+          "n": 6915,
+          "tickers": 893,
+          "match_2pct": 0.972234273318872,
+          "median_error": 3.9415996820994423e-07
+        }
+      ],
+      "gross_margin": [
+        {
+          "field": "ryq25",
+          "scale": 1,
+          "n": 6656,
+          "tickers": 869,
+          "match_2pct": 0.9897836538461539,
+          "median_error": 1.3755714508309093e-08
+        }
+      ],
+      "after_tax_margin": [
+        {
+          "field": "ryq29",
+          "scale": 1,
+          "n": 6691,
+          "tickers": 869,
+          "match_2pct": 0.9805709161560305,
+          "median_error": 3.7252549949746526e-08
+        }
+      ],
+      "net_interest_margin": [
+        {
+          "field": "ryq44",
+          "scale": 1,
+          "n": 160,
+          "tickers": 22,
+          "match_2pct": 0.86875,
+          "median_error": 0.004926266973495515
+        }
+      ],
+      "cir": [],
+      "car": [
+        {
+          "field": "nob151",
+          "scale": 1,
+          "n": 148,
+          "tickers": 22,
+          "match_2pct": 1.0,
+          "median_error": 0.0
+        }
+      ],
+      "casa_ratio": [
+        {
+          "field": "casa",
+          "scale": 1,
+          "n": 160,
+          "tickers": 22,
+          "match_2pct": 0.20625,
+          "median_error": 0.037012390663594574
+        }
+      ],
+      "npl": [
+        {
+          "field": "ryq58",
+          "scale": 1,
+          "n": 160,
+          "tickers": 22,
+          "match_2pct": 0.9875,
+          "median_error": 1.3998965119902445e-07
+        }
+      ],
+      "ldr": [
+        {
+          "field": "ryq57",
+          "scale": 1,
+          "n": 160,
+          "tickers": 22,
+          "match_2pct": 0.88125,
+          "median_error": 0.012725635730091372
+        }
+      ],
+      "loans_growth": [
+        {
+          "field": "rtq50",
+          "scale": 1,
+          "n": 160,
+          "tickers": 22,
+          "match_2pct": 0.6875,
+          "median_error": 0.01132956580803204
+        }
+      ],
+      "deposit_growth": [
+        {
+          "field": "rtq51",
+          "scale": 1,
+          "n": 160,
+          "tickers": 22,
+          "match_2pct": 1.0,
+          "median_error": 1.6649631548624062e-08
+        }
+      ],
+      "price_to_cash_flow": [],
+      "ev_to_ebitda": [
+        {
+          "field": "ryd30",
+          "scale": 1,
+          "n": 6748,
+          "tickers": 871,
+          "match_2pct": 0.3157972732661529,
+          "median_error": 0.05297897967199153
+        }
+      ],
+      "roic": [],
+      "ebit_margin": [
+        {
+          "field": "ryq27",
+          "scale": 1,
+          "n": 6692,
+          "tickers": 869,
+          "match_2pct": 0.9757919904363419,
+          "median_error": 3.064274240646314e-08
+        }
+      ],
+      "pre_tax_margin": [
+        {
+          "field": "ryq29",
+          "scale": 1,
+          "n": 6691,
+          "tickers": 869,
+          "match_2pct": 0.16888357495142728,
+          "median_error": 0.19827291803156333
+        }
+      ],
+      "current_ratio": [
+        {
+          "field": "ryq3",
+          "scale": 1,
+          "n": 6758,
+          "tickers": 871,
+          "match_2pct": 0.9881621781592187,
+          "median_error": 1.397496400968716e-09
+        }
+      ],
+      "quick_ratio": [
+        {
+          "field": "ryq2",
+          "scale": 1,
+          "n": 6758,
+          "tickers": 871,
+          "match_2pct": 0.9630068067475585,
+          "median_error": 2.7342097830523366e-09
+        }
+      ],
+      "cash_ratio": [
+        {
+          "field": "ryq1",
+          "scale": 1,
+          "n": 6758,
+          "tickers": 871,
+          "match_2pct": 0.9643385617046464,
+          "median_error": 1.4526449085978322e-08
+        }
+      ],
+      "debt_to_equity": [
+        {
+          "field": "ryq10",
+          "scale": 1,
+          "n": 6758,
+          "tickers": 871,
+          "match_2pct": 0.9877182598401893,
+          "median_error": 2.4125536069789665e-09
+        }
+      ],
+      "financial_leverage": [
+        {
+          "field": "ryq10",
+          "scale": 1,
+          "n": 6758,
+          "tickers": 871,
+          "match_2pct": 0.9877182598401893,
+          "median_error": 2.4125536069789665e-09
+        }
+      ],
+      "asset_turnover": [
+        {
+          "field": "ryq31",
+          "scale": 1,
+          "n": 6692,
+          "tickers": 869,
+          "match_2pct": 0.9881948595337716,
+          "median_error": 3.159929783868532e-09
+        }
+      ],
+      "dividend_yield": [],
+      "market_cap": [],
+      "shares": [
+        {
+          "field": "ryd3",
+          "scale": 1,
+          "n": 6922,
+          "tickers": 893,
+          "match_2pct": 0.8782143889049407,
+          "median_error": 0.0
+        }
+      ],
+      "day_sale_outstanding": [
+        {
+          "field": "ryq16",
+          "scale": 1,
+          "n": 6480,
+          "tickers": 846,
+          "match_2pct": 0.9807098765432098,
+          "median_error": 4.5901517251008187e-10
+        }
+      ],
+      "days_inventory_outstanding": [
+        {
+          "field": "ryq18",
+          "scale": 1,
+          "n": 6226,
+          "tickers": 830,
+          "match_2pct": 0.9861869579184067,
+          "median_error": 5.469715227936071e-10
+        }
+      ],
+      "days_payable_outstanding": [
+        {
+          "field": "ryq20",
+          "scale": 1,
+          "n": 6556,
+          "tickers": 862,
+          "match_2pct": 0.9505796217205613,
+          "median_error": 4.0508502606428755e-10
+        }
+      ]
+    },
+    "quarterly": {
+      "pe": [
+        {
+          "field": "ryd21",
+          "scale": 1,
+          "n": 22393,
+          "tickers": 751,
+          "match_2pct": 0.6358236949046577,
+          "median_error": 0.00357142917065015
+        }
+      ],
+      "pb": [
+        {
+          "field": "ryd25",
+          "scale": 1,
+          "n": 21880,
+          "tickers": 737,
+          "match_2pct": 0.6328153564899451,
+          "median_error": 0.003674971921762028
+        }
+      ],
+      "ps": [
+        {
+          "field": "ryd26",
+          "scale": 1,
+          "n": 21597,
+          "tickers": 727,
+          "match_2pct": 0.6255035421586331,
+          "median_error": 0.003846160255154026
+        }
+      ],
+      "roe": [
+        {
+          "field": "ryq12",
+          "scale": 1,
+          "n": 21850,
+          "tickers": 737,
+          "match_2pct": 0.8009153318077803,
+          "median_error": 4.529214400938535e-06
+        }
+      ],
+      "roa": [
+        {
+          "field": "ryq14",
+          "scale": 1,
+          "n": 22331,
+          "tickers": 751,
+          "match_2pct": 0.9291567775737763,
+          "median_error": 5.174811014300465e-06
+        }
+      ],
+      "gross_margin": [],
+      "after_tax_margin": [],
+      "net_interest_margin": [
+        {
+          "field": "ryq44",
+          "scale": 1,
+          "n": 641,
+          "tickers": 22,
+          "match_2pct": 0.8923556942277691,
+          "median_error": 0.00046090463509711253
+        }
+      ],
+      "cir": [],
+      "car": [
+        {
+          "field": "nob151",
+          "scale": 1,
+          "n": 85,
+          "tickers": 21,
+          "match_2pct": 1.0,
+          "median_error": 0.0
+        }
+      ],
+      "casa_ratio": [
+        {
+          "field": "casa",
+          "scale": 1,
+          "n": 641,
+          "tickers": 22,
+          "match_2pct": 0.21060842433697347,
+          "median_error": 0.03697869905453248
+        }
+      ],
+      "npl": [
+        {
+          "field": "ryq58",
+          "scale": 1,
+          "n": 639,
+          "tickers": 22,
+          "match_2pct": 0.9233176838810642,
+          "median_error": 1.3700968974784175e-07
+        }
+      ],
+      "ldr": [
+        {
+          "field": "ryq57",
+          "scale": 1,
+          "n": 644,
+          "tickers": 22,
+          "match_2pct": 0.84472049689441,
+          "median_error": 0.013338164714128353
+        }
+      ],
+      "loans_growth": [
+        {
+          "field": "rtq50",
+          "scale": 1,
+          "n": 644,
+          "tickers": 22,
+          "match_2pct": 0.15527950310559005,
+          "median_error": 0.7400867388164518
+        }
+      ],
+      "deposit_growth": [
+        {
+          "field": "rtq51",
+          "scale": 1,
+          "n": 644,
+          "tickers": 22,
+          "match_2pct": 0.21894409937888198,
+          "median_error": 0.6901161679899404
+        }
+      ],
+      "price_to_cash_flow": [],
+      "ev_to_ebitda": [
+        {
+          "field": "ryd30",
+          "scale": 1,
+          "n": 21649,
+          "tickers": 729,
+          "match_2pct": 0.6365190078063652,
+          "median_error": 0.004765400857335888
+        }
+      ],
+      "roic": [],
+      "ebit_margin": [],
+      "pre_tax_margin": [],
+      "current_ratio": [
+        {
+          "field": "ryq3",
+          "scale": 1,
+          "n": 21805,
+          "tickers": 730,
+          "match_2pct": 0.9109837193304288,
+          "median_error": 1.8468035895871454e-09
+        }
+      ],
+      "quick_ratio": [
+        {
+          "field": "ryq2",
+          "scale": 1,
+          "n": 21805,
+          "tickers": 730,
+          "match_2pct": 0.23343269892226554,
+          "median_error": 0.09646062540001132
+        },
+        {
+          "field": "ryq3",
+          "scale": 1,
+          "n": 21805,
+          "tickers": 730,
+          "match_2pct": 0.15170832377894977,
+          "median_error": 0.2549004857724761
+        }
+      ],
+      "cash_ratio": [
+        {
+          "field": "ryq1",
+          "scale": 1,
+          "n": 21805,
+          "tickers": 730,
+          "match_2pct": 0.8651685393258427,
+          "median_error": 2.8411357065641636e-08
+        }
+      ],
+      "debt_to_equity": [
+        {
+          "field": "ryq10",
+          "scale": 1,
+          "n": 21806,
+          "tickers": 730,
+          "match_2pct": 0.9161240025681006,
+          "median_error": 3.5619536860791856e-09
+        }
+      ],
+      "financial_leverage": [
+        {
+          "field": "ryq10",
+          "scale": 1,
+          "n": 21806,
+          "tickers": 730,
+          "match_2pct": 0.9161240025681006,
+          "median_error": 3.5619536860791856e-09
+        }
+      ],
+      "asset_turnover": [],
+      "dividend_yield": [],
+      "market_cap": [
+        {
+          "field": "ryd11",
+          "scale": 1,
+          "n": 22451,
+          "tickers": 752,
+          "match_2pct": 0.911496147164937,
+          "median_error": 0.0
+        }
+      ],
+      "shares": [
+        {
+          "field": "ryd3",
+          "scale": 1,
+          "n": 22466,
+          "tickers": 752,
+          "match_2pct": 0.997907949790795,
+          "median_error": 0.0
+        }
+      ],
+      "day_sale_outstanding": [],
+      "days_inventory_outstanding": [],
+      "days_payable_outstanding": []
+    }
+  },
+  "approved": {
+    "annual": {
+      "roe": {
+        "field": "ryq12",
+        "scale": 1
+      },
+      "roa": {
+        "field": "ryq14",
+        "scale": 1
+      },
+      "gross_margin": {
+        "field": "ryq25",
+        "scale": 1
+      },
+      "after_tax_margin": {
+        "field": "ryq29",
+        "scale": 1
+      },
+      "net_interest_margin": {
+        "field": "ryq44",
+        "scale": 1
+      },
+      "car": {
+        "field": "nob151",
+        "scale": 1
+      },
+      "npl": {
+        "field": "ryq58",
+        "scale": 1
+      },
+      "ldr": {
+        "field": "ryq57",
+        "scale": 1
+      },
+      "deposit_growth": {
+        "field": "rtq51",
+        "scale": 1
+      },
+      "ebit_margin": {
+        "field": "ryq27",
+        "scale": 1
+      },
+      "current_ratio": {
+        "field": "ryq3",
+        "scale": 1
+      },
+      "quick_ratio": {
+        "field": "ryq2",
+        "scale": 1
+      },
+      "cash_ratio": {
+        "field": "ryq1",
+        "scale": 1
+      },
+      "debt_to_equity": {
+        "field": "ryq10",
+        "scale": 1
+      },
+      "financial_leverage": {
+        "field": "ryq10",
+        "scale": 1
+      },
+      "asset_turnover": {
+        "field": "ryq31",
+        "scale": 1
+      },
+      "shares": {
+        "field": "ryd3",
+        "scale": 1
+      },
+      "day_sale_outstanding": {
+        "field": "ryq16",
+        "scale": 1
+      },
+      "days_inventory_outstanding": {
+        "field": "ryq18",
+        "scale": 1
+      },
+      "days_payable_outstanding": {
+        "field": "ryq20",
+        "scale": 1
+      },
+      "pe": {
+        "field": "ryd21",
+        "scale": 1,
+        "note": "Annual SSI backfill explicitly approved by user on 2026-10-13. Source valuation price conventions differ; do not treat values as identical to Vietcap. Preserve all existing Vietcap values."
+      },
+      "pb": {
+        "field": "ryd25",
+        "scale": 1,
+        "note": "Annual SSI backfill explicitly approved by user on 2026-10-13. Source valuation price conventions differ; do not treat values as identical to Vietcap. Preserve all existing Vietcap values."
+      }
+    },
+    "quarterly": {
+      "roe": {
+        "field": "ryq12",
+        "scale": 1
+      },
+      "roa": {
+        "field": "ryq14",
+        "scale": 1
+      },
+      "net_interest_margin": {
+        "field": "ryq44",
+        "scale": 1
+      },
+      "car": {
+        "field": "nob151",
+        "scale": 1
+      },
+      "npl": {
+        "field": "ryq58",
+        "scale": 1
+      },
+      "ldr": {
+        "field": "ryq57",
+        "scale": 1
+      },
+      "current_ratio": {
+        "field": "ryq3",
+        "scale": 1
+      },
+      "cash_ratio": {
+        "field": "ryq1",
+        "scale": 1
+      },
+      "debt_to_equity": {
+        "field": "ryq10",
+        "scale": 1
+      },
+      "financial_leverage": {
+        "field": "ryq10",
+        "scale": 1
+      },
+      "market_cap": {
+        "field": "ryd11",
+        "scale": 1
+      },
+      "shares": {
+        "field": "ryd3",
+        "scale": 1
+      },
+      "pe": {
+        "field": "ryd21",
+        "scale": 1,
+        "note": "Source valuation prices differ; 60%+ of overlapping observations match within 2%, median error below 1%."
+      },
+      "pb": {
+        "field": "ryd25",
+        "scale": 1,
+        "note": "Source valuation prices differ; 60%+ of overlapping observations match within 2%, median error below 1%."
+      },
+      "ps": {
+        "field": "ryd26",
+        "scale": 1,
+        "note": "Source valuation prices differ; 60%+ of overlapping observations match within 2%, median error below 1%."
+      },
+      "ev_to_ebitda": {
+        "field": "ryd30",
+        "scale": 1,
+        "note": "Source valuation prices differ; 60%+ of overlapping observations match within 2%, median error below 1%."
+      }
+    }
+  }
+}
