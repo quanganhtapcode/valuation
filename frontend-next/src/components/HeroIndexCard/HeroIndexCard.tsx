@@ -1,5 +1,7 @@
 'use client';
 
+import { chartColors, getChartTheme } from '@/lib/chartTheme';
+
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     createChart,
@@ -55,9 +57,9 @@ const INDEX_TABS = [
     { id: 'upcom',   label: 'UPCOM'    },
 ];
 
-const PE_COLOR  = '#818cf8';
-const PB_COLOR  = '#34d399';
-const AREA_COLOR = '#0E6BFF';
+const PE_COLOR  = chartColors.secondary;
+const PB_COLOR  = chartColors.tertiary;
+const AREA_COLOR = chartColors.primary;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -89,19 +91,7 @@ function fmtVal(n: number): string {
     return ty >= 1000 ? `${(ty / 1000).toFixed(2)} N.Tỷ` : `${ty.toFixed(2)} Tỷ`;
 }
 
-function buildTheme(isDark: boolean) {
-    return {
-        isDark,
-        text:          isDark ? '#9ca3af' : '#6b7280',
-        border:        isDark ? '#1f2937' : '#e5e7eb',
-        crosshair:     isDark ? '#4b5563' : '#d1d5db',
-        gridLine:      isDark ? 'rgba(55,65,81,0.3)' : 'rgba(229,231,235,0.6)',
-        tooltipBg:     isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
-        tooltipBorder: isDark ? '#334155' : '#e2e8f0',
-        tooltipText:   isDark ? '#e2e8f0' : '#0f172a',
-        tooltipMuted:  isDark ? '#64748b' : '#94a3b8',
-    };
-}
+const buildTheme = getChartTheme;
 
 function useDarkMode(): boolean {
     const [isDark, setIsDark] = useState<boolean>(() =>

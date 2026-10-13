@@ -1,5 +1,6 @@
 'use client';
 
+import { chartColors, chartAxisTick, chartCursor, chartTooltipClass } from '@/lib/chartTheme';
 import { useId, useMemo } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -31,17 +32,17 @@ export default function MacroSeriesChart({ points, label, formatValue, formatAxi
             ? `${date.slice(8, 10)}/${date.slice(5, 7)}`
             : `${date.slice(5, 7)}/${date.slice(2, 4)}`;
     };
-    const color = bar ? '#3b82f6' : '#059669';
+    const color = bar ? chartColors.secondary : chartColors.primary;
     const axes = <>
         {!compact && <CartesianGrid vertical={false} stroke="currentColor" strokeDasharray="3 4" className="text-slate-200 dark:text-slate-800" />}
         <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={dateTick}
-            axisLine={false} tickLine={false} minTickGap={compact ? 65 : 45} tick={{ fill: '#94a3b8', fontSize: 11 }} tickMargin={12} height={30} />
+            axisLine={false} tickLine={false} minTickGap={compact ? 65 : 45} tick={chartAxisTick} tickMargin={12} height={30} />
         <YAxis hide={compact} domain={domain} tickFormatter={formatAxis} axisLine={false} tickLine={false}
-            width={72} tick={{ fill: '#94a3b8', fontSize: 11, className: '-translate-x-14 [text-anchor:start] sm:translate-x-0 sm:[text-anchor:end]' }} tickCount={5} />
+            width={72} tick={{ ...chartAxisTick, className: '-translate-x-14 [text-anchor:start] sm:translate-x-0 sm:[text-anchor:end]' }} tickCount={5} />
         {min < 0 && max > 0 && <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />}
-        {!compact && <Tooltip cursor={{ stroke: '#94a3b8', strokeDasharray: '4 4', fill: '#94a3b812' }} content={({ active, payload }) => {
+        {!compact && <Tooltip cursor={chartCursor} content={({ active, payload }) => {
             const point = payload?.[0]?.payload as MacroPoint | undefined;
-            return active && point ? <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg dark:border-slate-700 dark:bg-slate-900 sm:px-4 sm:py-3">
+            return active && point ? <div className={chartTooltipClass}>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{macroDate(point.date, lang)}</p>
                 <p className="mt-1 hidden text-xs font-medium text-slate-600 dark:text-slate-300 sm:block">{label}</p>
                 <p className="mt-1 text-base font-semibold tabular-nums text-slate-900 dark:text-white">{formatValue(point.close)}</p>
@@ -49,8 +50,7 @@ export default function MacroSeriesChart({ points, label, formatValue, formatAxi
         }} />}
     </>;
 
-    // Recharts also focuses inner SVG layers on click; suppress their default focus box.
-    return <div className={`${compact ? 'h-36 w-full' : 'h-72 w-full sm:h-80'} [&_.recharts-wrapper]:[outline:none] [&_.recharts-wrapper]:shadow-none [&_.recharts-surface]:[outline:none] [&_.recharts-surface]:shadow-none [&_.recharts-surface_[tabindex]]:[outline:none] [&_.recharts-surface_[tabindex]]:shadow-none`} aria-label={label}>
+    return <div className={`${compact ? 'h-36 w-full' : 'h-72 w-full sm:h-80'}`} aria-label={label}>
         <ResponsiveContainer width="100%" height="100%" debounce={80}>
             {bar ? <BarChart data={data} margin={{ top: 12, right: 8, bottom: 0, left: compact ? 8 : 0 }} barCategoryGap="28%">
                 {axes}<Bar dataKey="close" fill={color} radius={[3, 3, 0, 0]} maxBarSize={compact ? 12 : 28} isAnimationActive={false} />

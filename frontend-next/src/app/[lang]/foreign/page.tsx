@@ -1,5 +1,6 @@
 'use client';
 
+import ChartTooltip from '@/components/charts/ChartTooltip';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     BarList,
@@ -147,6 +148,7 @@ function CumulativeNetChart({
                                         categories={[chartKey]}
                                         colors={[color]}
                                         valueFormatter={yFormatter}
+                                        customTooltip={props => <ChartTooltip {...props} valueFormatter={yFormatter} />}
                                         yAxisWidth={65}
                                         tickGap={10}
                                         showLegend={false}
@@ -158,6 +160,7 @@ function CumulativeNetChart({
                                         categories={[chartKey]}
                                         colors={[color]}
                                         valueFormatter={yFormatter}
+                                        customTooltip={props => <ChartTooltip {...props} valueFormatter={yFormatter} />}
                                         showYAxis={false}
                                         showLegend={false}
                                         startEndOnly={true}

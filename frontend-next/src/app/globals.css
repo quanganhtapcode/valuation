@@ -384,3 +384,46 @@ img {
 .recharts-layer.recharts-line-curve {
     pointer-events: stroke;
 }
+
+/* Shared chart theme: Recharts/Tremor SVGs and Lightweight Charts canvases. */
+:root {
+    --chart-surface: #ffffff;
+    --chart-text: #0f172a;
+    --chart-muted: #64748b;
+    --chart-border: #e2e8f0;
+    --chart-grid: #e2e8f0;
+    --chart-hover: #94a3b812;
+}
+.dark {
+    --chart-surface: #0f172a;
+    --chart-text: #e2e8f0;
+    --chart-muted: #94a3b8;
+    --chart-border: #334155;
+    --chart-grid: #1e293b;
+    --chart-hover: #94a3b818;
+}
+.recharts-wrapper {
+    font-family: var(--font-family-base);
+    font-size: 11px;
+}
+.recharts-cartesian-axis-tick text {
+    fill: var(--chart-muted);
+    font-size: 11px;
+}
+.recharts-cartesian-grid line {
+    stroke: var(--chart-grid);
+    stroke-dasharray: 3 4;
+}
+.recharts-cartesian-axis-line, .recharts-cartesian-axis-tick-line {
+    stroke: var(--chart-border);
+}
+.chart-tooltip, .recharts-default-tooltip {
+    background-color: var(--chart-surface) !important;
+    border-color: var(--chart-border) !important;
+    color: var(--chart-text) !important;
+    border-radius: 8px;
+    font-family: var(--font-family-base);
+    font-size: 12px;
+}
+.recharts-surface:focus:not(:focus-visible) { outline: none; }
+.recharts-surface:focus-visible { outline: 1px solid #059669; outline-offset: 2px; }

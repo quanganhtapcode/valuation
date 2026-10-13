@@ -1,5 +1,7 @@
 'use client';
 
+import { getChartTheme } from '@/lib/chartTheme';
+
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { API_BASE, isTradingHours, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -211,9 +213,10 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
     };
   }, [load, useExternalOnly]);
 
-  const svgBg = isDark ? '#0f1117' : '#ffffff';
-  const labelBg = isDark ? '#0f1117' : '#ffffff';
-  const labelText = isDark ? '#94a3b8' : '#64748b';
+  const theme = getChartTheme(isDark);
+  const svgBg = theme.tooltipBg;
+  const labelBg = theme.tooltipBg;
+  const labelText = theme.text;
 
   const sectorTiles = useMemo(
     () => squarifyTile(data?.sectors ?? [], s => s.totalCap, 0, 0, cw, ch),
@@ -221,7 +224,7 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
   );
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 p-0.5 shadow-sm dark:border-slate-800 dark:bg-[#0f1117]">
+    <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 p-0.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       {!useExternalOnly && (
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
           <div>
@@ -362,12 +365,12 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
               const isUp = hover.change > 0; const isDown = hover.change < 0;
               const color = isUp ? (isDark ? '#86efac' : '#065f46') : (isDown ? (isDark ? '#fda4af' : '#991b1b') : '#64748b');
               const bgSubtle = isUp ? (isDark ? '#14532d' : '#f0fdf4') : (isDown ? (isDark ? '#881337' : '#fef2f2') : (isDark ? '#334155' : '#f8fafc'));
-              const tBg = isDark ? '#1e2230' : '#ffffff';
-              const tStroke = isDark ? '#334155' : '#e2e8f0';
+              const tBg = theme.tooltipBg;
+              const tStroke = theme.tooltipBorder;
               return (
                 <g style={{ pointerEvents: 'none' }}>
-                  <rect x={tx} y={ty} width={TW} height={TH} fill={tBg} rx={10} stroke={tStroke} strokeWidth={1} filter="drop-shadow(0 4px 8px rgba(0,0,0,0.08))" />
-                  <text x={tx + 12} y={ty + 20} fill="#94a3b8" fontSize={10} fontWeight="600">{hover.sector}</text>
+                  <rect x={tx} y={ty} width={TW} height={TH} fill={tBg} rx={8} stroke={tStroke} strokeWidth={1} filter="drop-shadow(0 4px 8px rgba(0,0,0,0.08))" />
+                  <text x={tx + 12} y={ty + 20} fill={theme.tooltipMuted} fontSize={11} fontWeight="600">{hover.sector}</text>
                   <text x={tx + 12} y={ty + 42} fill={isDark ? '#f8fafc' : '#0f172a'} fontSize={15} fontWeight="800">{hover.ticker}</text>
                   <text x={tx + 12} y={ty + 58} fill={isDark ? '#f1f5f9' : '#0f172a'} fontSize={13} fontWeight="700">
                     {hover.price > 0 ? hover.price.toLocaleString('vi-VN') : '--'}

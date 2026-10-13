@@ -1,5 +1,6 @@
 'use client';
 
+import { chartSeriesColors, chartAxisTick, chartCursor, chartTooltipStyle } from '@/lib/chartTheme';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Brush, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -9,7 +10,7 @@ import { fundIssuers } from '@/lib/fundIssuers';
 import { formatFundDisplayName } from '@/lib/fundDisplayName';
 import { compareFundHistories, fundCagr, type ComparisonRange } from '@/lib/fundComparison';
 
-const colors = ['#059669', '#7c3aed', '#2563eb', '#e11d48', '#d97706', '#0891b2', '#db2777', '#64748b'];
+const colors = chartSeriesColors;
 const ranges: ComparisonRange[] = ['ytd', '1m', '3m', '6m', '1y', '3y', '5y', 'all'];
 
 export default function FundsComparison({ funds, initialDetail }: { funds?: FundPrice[]; initialDetail?: FundDetail }) {
@@ -91,11 +92,11 @@ export default function FundsComparison({ funds, initialDetail }: { funds?: Fund
             {busy ? <p role="status" className="py-20 text-center text-sm text-slate-500">{vi ? 'Đang tải lịch sử NAV…' : 'Loading NAV history…'}</p> : data.length > 1 ? <>
                 <p className="mb-3 text-right text-xs text-slate-500">{dateLabel(first.time)} → {dateLabel(last.time)}</p>
                 <div className="-mx-2 h-[320px] sm:mx-0 sm:h-[520px] [&_.recharts-surface]:outline-none [&_.recharts-surface:focus-visible]:outline [&_.recharts-surface:focus-visible]:outline-1 [&_.recharts-surface:focus-visible]:outline-emerald-500"><ResponsiveContainer width="100%" height="100%"><LineChart key={windowKey} data={data} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-                    <CartesianGrid stroke="#94a3b8" opacity={0.15} />
-                    <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={{ fontSize: 11 }} minTickGap={50} tickFormatter={time => new Date(Number(time)).toISOString().slice(0, 7)} />
-                    <YAxis width={42} tick={{ fontSize: 11 }} tickFormatter={value => `${Number(value).toFixed(0)}%`} />
+                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={chartAxisTick} axisLine={false} tickLine={false} minTickGap={50} tickFormatter={time => new Date(Number(time)).toISOString().slice(0, 7)} />
+                    <YAxis width={42} tick={chartAxisTick} axisLine={false} tickLine={false} tickFormatter={value => `${Number(value).toFixed(0)}%`} />
                     <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                    <Tooltip labelFormatter={time => new Date(Number(time)).toISOString().slice(0, 10)} formatter={value => `${Number(value).toLocaleString(vi ? 'vi-VN' : 'en-US', { maximumFractionDigits: 2 })}%`} contentStyle={{ background: 'var(--background, #fff)', borderRadius: 8, fontSize: 12 }} />
+                    <Tooltip cursor={chartCursor} labelStyle={{ color: 'var(--chart-muted)' }} labelFormatter={time => new Date(Number(time)).toISOString().slice(0, 10)} formatter={value => `${Number(value).toLocaleString(vi ? 'vi-VN' : 'en-US', { maximumFractionDigits: 2 })}%`} contentStyle={chartTooltipStyle} />
                     {selected.filter(symbol => data[0][symbol] != null).map(symbol => <Line key={symbol} dataKey={symbol} stroke={colors[selected.indexOf(symbol)]} strokeWidth={2} dot={false} type="stepAfter" isAnimationActive={false} />)}
                     <Brush dataKey="time" startIndex={startIndex} endIndex={endIndex} onChange={indices => { if (indices.startIndex != null && indices.endIndex != null && indices.endIndex > indices.startIndex) setWindow({ key: windowKey, start: indices.startIndex, end: indices.endIndex }); }} travellerWidth={16} height={44} stroke="#059669" tickFormatter={time => new Date(Number(time)).toISOString().slice(0, 7)} />
                 </LineChart></ResponsiveContainer></div>

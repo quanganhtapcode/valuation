@@ -1,5 +1,7 @@
 'use client';
 
+import { chartColors, getChartTheme, chartTooltipClass } from '@/lib/chartTheme';
+
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
     createChart,
@@ -23,7 +25,7 @@ interface HistoricalData {
     volume: number;
 }
 
-const CROSSHAIR_COLOR = '#0E6BFF';
+const CROSSHAIR_COLOR = chartColors.secondary;
 
 interface TradingViewChartProps {
     data: HistoricalData[];
@@ -43,15 +45,7 @@ interface BarDisplay {
     changePct: number;
 }
 
-function buildTheme(isDark: boolean) {
-    return {
-        isDark,
-        text:      isDark ? '#9ca3af' : '#6b7280',
-        border:    isDark ? '#1f2937' : '#e5e7eb',
-        gridLine:  isDark ? 'rgba(55,65,81,0.3)' : 'rgba(229,231,235,0.6)',
-        crosshair: isDark ? '#4b5563' : '#d1d5db',
-    };
-}
+const buildTheme = getChartTheme;
 
 /** Reactive dark-mode hook — watches the <html> class list */
 function useDarkMode(): boolean {
@@ -132,7 +126,7 @@ function OHLCVOverlay({ bar }: { bar: BarDisplay | null }) {
     const isUp = bar.change >= 0;
     return (
         <div className="absolute top-2 left-2 z-20 pointer-events-none">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-[11px] shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
+            <div className={`${chartTooltipClass} flex flex-wrap items-center gap-x-3 gap-y-1`}>
                 <span className="text-slate-500 dark:text-slate-400 font-medium">{bar.time}</span>
                 <span className="flex items-center gap-1">
                     <span className="text-slate-400">O</span>
@@ -224,10 +218,10 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
         });
 
         const candleSeries = chart.addSeries(CandlestickSeries, {
-            upColor: '#22c55e',
-            downColor: '#ef4444',
-            wickUpColor: '#22c55e',
-            wickDownColor: '#ef4444',
+            upColor: chartColors.positive,
+            downColor: chartColors.negative,
+            wickUpColor: chartColors.positive,
+            wickDownColor: chartColors.negative,
             borderVisible: false,
             priceLineVisible: false,
             lastValueVisible: true,

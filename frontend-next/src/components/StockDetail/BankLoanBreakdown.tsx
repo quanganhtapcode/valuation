@@ -1,5 +1,6 @@
 'use client';
 
+import { chartSeriesColors, chartTooltipClass } from '@/lib/chartTheme';
 import { useEffect, useState } from 'react';
 import {
     PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -18,10 +19,7 @@ interface LoanBreakdownData {
     npl: LoanItem[];
 }
 
-const INDUSTRY_COLORS = [
-    '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
-    '#ef4444', '#06b6d4', '#f97316', '#84cc16',
-];
+const INDUSTRY_COLORS = chartSeriesColors;
 
 const NPL_COLORS = ['#22c55e', '#facc15', '#f97316', '#ef4444', '#7f1d1d'];
 
@@ -45,7 +43,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: any[] 
     const value: number = entry.value;
     const total: number = entry.payload?.total ?? 0;
     return (
-        <div className="rounded-lg border border-tremor-border bg-white px-3 py-2 text-xs shadow-md dark:border-dark-tremor-border dark:bg-gray-900">
+        <div className={chartTooltipClass}>
             <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong mb-0.5">{name}</p>
             <p className="text-tremor-content dark:text-dark-tremor-content">{fmt(value)}</p>
             {total > 0 && (
@@ -82,6 +80,7 @@ function PieSection({
                         outerRadius={80}
                         paddingAngle={2}
                         dataKey="value"
+                        stroke="var(--chart-surface)"
                     >
                         {enriched.map((_, i) => (
                             <Cell key={i} fill={colors[i % colors.length]} />
