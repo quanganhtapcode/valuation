@@ -51,6 +51,9 @@ CRON_FIREANT_MACRO="0 7 * * * cd /var/www/valuation && bash automation/vci_safe_
 
 CRON_MACRO_HISTORY="30 1 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name macro_history --db data/sqlite/macro_history.sqlite --retries 2 --retry-sleep 15 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_macro_history.py --db data/sqlite/macro_history.sqlite --workers 1\" >> logs/cron_macro_history.log 2>&1"
 
+# Vietnam economic observations, separate from the Yahoo history job.
+CRON_VIETNAM_MACRO="0 8 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name vietnam_macro --db data/sqlite/macro_history.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vietnam_macro.py --db data/sqlite/macro_history.sqlite\" >> logs/cron_vietnam_macro.log 2>&1"
+
 # ── Weekly jobs ───────────────────────────────────────────────────────────────
 
 # Sunday 02:00. Refresh metadata, regenerate the frontend ticker catalogue, and
@@ -69,7 +72,7 @@ CRON_TELEGRAM="*/30 * * * * /var/www/valuation/scripts/telegram_uptime_report.sh
 render_crontab() {
   # Preserve unrelated jobs, remove all previous forms of managed fetchers.
   { crontab -l 2>/dev/null || true; } \
-    | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_market_news\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history(\.py)?|backend\.updater\.update_price_history|backend\.updater\.batch_news|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py|fetch_vci_company\.py|fetch_vci_financial_statement\.py|fetch_vci\.py|fetch_vci_index_history\.py|fetch_fireant_macro\.py|fetch_fireant_beta\.py|fetch_macro_history\.py|automation/vci_safe_run\.sh" \
+    | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_market_news\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history(\.py)?|backend\.updater\.update_price_history|backend\.updater\.batch_news|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py|fetch_vci_company\.py|fetch_vci_financial_statement\.py|fetch_vci\.py|fetch_vci_index_history\.py|fetch_fireant_macro\.py|fetch_fireant_beta\.py|fetch_macro_history\.py|fetch_vietnam_macro\.py|automation/vci_safe_run\.sh" \
     | tr -d '\r' || true
 
   local line minute hour day month weekday command
@@ -77,7 +80,7 @@ render_crontab() {
     "$CRON_SCREENER" "$CRON_FOREIGN" "$CRON_NEWS" "$CRON_STATS_FINANCIAL" \
     "$CRON_PRICE_HISTORY" "$CRON_RATIO_DAILY" "$CRON_SHAREHOLDERS" \
     "$CRON_INDEX_HISTORY" "$CRON_VALUATION" "$CRON_FINANCIALS" \
-    "$CRON_NEWS_EVENTS" "$CRON_FIREANT_MACRO" "$CRON_MACRO_HISTORY" \
+    "$CRON_NEWS_EVENTS" "$CRON_FIREANT_MACRO" "$CRON_MACRO_HISTORY" "$CRON_VIETNAM_MACRO" \
     "$CRON_COMPANY" "$CRON_FIREANT_BETA" "$CRON_TELEGRAM"; do
     read -r minute hour day month weekday command <<< "$line"
     printf '%s %s %s %s %s systemd-run --scope --quiet --collect --slice=valuation.slice /bin/bash -lc %q\n' \

@@ -20,6 +20,7 @@ openpyxl>=3.1.0
 requests>=2.31.0
 urllib3>=2.0.0
 python-socketio[client]>=5.11.0
+websocket-client>=1.8.0
 curl_cffi>=0.7.0
 
 # AWS S3 / Cloudflare R2
