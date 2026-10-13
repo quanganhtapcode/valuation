@@ -86,7 +86,7 @@ export default function FundsComparison({ funds, initialDetail }: { funds?: Fund
         `${fund.short_name} ${fund.name} ${fundIssuers[fund.fund_owner_name]?.shortName ?? fund.fund_owner_name}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
     ).sort((a, b) => a.short_name.localeCompare(b.short_name)), [listing, fundType, manager, search]);
     const missingHistory = selected.filter(symbol => loaded[symbol] && loaded[symbol].history.length < 2);
-    return <div className="space-y-4">
+    return <div className="space-y-4 border-y border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
         <section className="min-w-0" aria-label={vi ? 'Biểu đồ so sánh quỹ' : 'Fund comparison chart'}>
             <div className="mb-3 flex gap-1 overflow-x-auto">{ranges.map(value => <button key={value} onClick={() => setRange(value)} aria-pressed={range === value} className={`shrink-0 rounded-full border px-2.5 py-1.5 text-xs font-medium ${range === value ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' : 'border-slate-200 dark:border-slate-700'}`}>{value === 'all' ? (vi ? 'Tất cả' : 'All') : value.toUpperCase()}</button>)}</div>
             {busy ? <p role="status" className="py-20 text-center text-sm text-slate-500">{vi ? 'Đang tải lịch sử NAV…' : 'Loading NAV history…'}</p> : data.length > 1 ? <>
@@ -112,7 +112,7 @@ export default function FundsComparison({ funds, initialDetail }: { funds?: Fund
             {missingHistory.length > 0 && <p role="status" className="mt-3 text-sm text-amber-600">{vi ? 'Chưa có đủ lịch sử NAV:' : 'Insufficient NAV history:'} {missingHistory.join(', ')}</p>}
             {(errors.length > 0 || listingError) && <div role="alert" className="mt-3 text-sm text-rose-600">{vi ? 'Không tải được dữ liệu:' : 'Unable to load:'} {listingError ? (vi ? 'danh sách quỹ' : 'fund listing') : errors.join(', ')} <button className="underline" onClick={() => setRetry(current => current + 1)}>{vi ? 'Thử lại' : 'Retry'}</button></div>}
         </section>
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800">
+        <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <h2 className="px-3 pt-3 text-sm font-semibold">{vi ? 'Chọn quỹ so sánh' : 'Select funds'} <span className="ml-2 text-xs font-normal text-slate-500">{selected.length}/8</span></h2>
             <div id="fund-comparison-picker" className="p-3">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -120,7 +120,7 @@ export default function FundsComparison({ funds, initialDetail }: { funds?: Fund
                     <select aria-label={vi ? 'Loại quỹ' : 'Fund type'} value={fundType} onChange={event => { setFundType(event.target.value); }} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs dark:border-slate-700 dark:bg-slate-900"><option value="">{vi ? 'Tất cả loại quỹ' : 'All fund types'}</option>{types.map(type => <option key={type} value={type}>{formatFundDisplayName(type)}</option>)}</select>
                     <select aria-label={vi ? 'Công ty quản lý' : 'Fund manager'} value={manager} onChange={event => { setManager(event.target.value); }} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs dark:border-slate-700 dark:bg-slate-900"><option value="">{vi ? 'Tất cả công ty' : 'All managers'}</option>{managers.map(name => <option key={name} value={name}>{fundIssuers[name]?.shortName || formatFundDisplayName(name)}</option>)}</select>
                 </div>
-                <div className="mt-3 grid max-h-72 grid-cols-2 gap-2 overflow-y-auto md:grid-cols-3 lg:grid-cols-5">{filtered.map(fund => <label key={fund.short_name} className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border p-2 ${selected.includes(fund.short_name) ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-slate-200 dark:border-slate-800'}`}>
+                <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">{filtered.map(fund => <label key={fund.short_name} className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border p-2 ${selected.includes(fund.short_name) ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-slate-200 dark:border-slate-800'}`}>
                     <input type="checkbox" checked={selected.includes(fund.short_name)} disabled={!selected.includes(fund.short_name) && selected.length >= 8} onChange={event => { const checked = event.target.checked; setSelected(current => checked ? current.length < 8 && !current.includes(fund.short_name) ? [...current, fund.short_name] : current : current.filter(symbol => symbol !== fund.short_name)); }} className="accent-emerald-600" />
                     <IssuerLogo manager={fund.fund_owner_name} compact />
                     <span className="min-w-0"><span className="block truncate text-sm font-semibold" title={fund.short_name}>{fund.short_name}</span><span className="block truncate text-xs text-slate-500" title={formatFundDisplayName(fund.name)}>{fundIssuers[fund.fund_owner_name]?.shortName || formatFundDisplayName(fund.fund_owner_name)}</span></span>
