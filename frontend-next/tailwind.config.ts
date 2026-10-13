@@ -13,7 +13,7 @@ const config: Config = {
     current: 'currentColor',
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        sans: ['var(--font-family-base)'],
       },
       colors: {
         // Tremor color palette

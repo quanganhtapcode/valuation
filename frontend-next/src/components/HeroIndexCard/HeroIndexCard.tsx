@@ -306,7 +306,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 background:  { type: ColorType.Solid, color: 'transparent' },
                 textColor:   t0.text,
                 fontSize:    11,
-                fontFamily:  "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                fontFamily:  getComputedStyle(document.body).fontFamily,
             },
             grid: {
                 vertLines: { color: t0.gridLine },

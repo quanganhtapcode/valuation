@@ -257,7 +257,7 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
             width={cw} height={ch}
             style={{
               display: 'block',
-              fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif',
+              fontFamily: 'var(--font-family-base)',
               userSelect: 'none'
             }}
             onMouseLeave={() => setHover(null)}

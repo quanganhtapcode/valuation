@@ -743,7 +743,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                                 <code className="text-xs text-tremor-content-subtle">{isVietnamese ? meta.formulaVi : meta.formulaEn}</code>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Text className="font-mono font-semibold">{val > 0 ? fmt(val) : '—'}</Text>
+                                                <Text className="font-sans font-semibold">{val > 0 ? fmt(val) : '—'}</Text>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 {val > 0 && manualPrice > 0 ? <UpsideBadge value={up} /> : <Text className="text-tremor-content-subtle text-xs">—</Text>}
@@ -766,7 +766,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                         <Text className="font-bold">{copy.weightedAverage}</Text>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Text className="font-mono font-black text-blue-600">{fmt(weightedAvg)}</Text>
+                                        <Text className="font-sans font-black text-blue-600">{fmt(weightedAvg)}</Text>
                                     </TableCell>
                                     <TableCell className="text-right"><UpsideBadge value={finalUpside} /></TableCell>
                                     <TableCell className="text-right"><Text className="font-semibold">100%</Text></TableCell>
