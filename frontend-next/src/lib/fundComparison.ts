@@ -33,3 +33,11 @@ export function compareFundHistories(histories: Record<string, NavPoint[]>, rang
         return row;
     });
 }
+
+export function fundCagr(startChange: number, endChange: number, startTime: number, endTime: number): number | null {
+    const years = (endTime - startTime) / (365.25 * 86400000);
+    const ratio = (1 + endChange / 100) / (1 + startChange / 100);
+    if (!(years > 0) || !(ratio > 0) || startChange <= -100 || !Number.isFinite(ratio)) return null;
+    const value = (Math.pow(ratio, 1 / years) - 1) * 100;
+    return Number.isFinite(value) ? value : null;
+}

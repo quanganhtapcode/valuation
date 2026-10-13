@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compareFundHistories } from './fundComparison';
+import { compareFundHistories, fundCagr } from './fundComparison';
 
 test('rebases unequal publication schedules over the common history window', () => {
     const rows = compareFundHistories({
@@ -34,4 +34,12 @@ test('clamps month-end ranges and uses the last NAV before the boundary', () => 
 test('handles empty histories and invalid NAVs', () => {
     assert.deepEqual(compareFundHistories({}, 'all'), []);
     assert.deepEqual(compareFundHistories({ A: [{ date: '2026-01-01', nav: 0 }, { date: '2026-02-01', nav: 10 }] }, 'all'), []);
+});
+
+test('CAGR annualizes the visible interval, including a nonzero starting return', () => {
+    const start = Date.parse('2024-01-01T00:00:00Z');
+    const end = start + 365.25 * 86400000 * 2;
+    assert.ok(Math.abs(fundCagr(10, 33.1, start, end)! - 10) < 1e-9);
+    assert.ok(Math.abs(fundCagr(0, -19, start, end)! + 10) < 1e-9);
+    assert.equal(fundCagr(0, 10, start, start), null);
 });
