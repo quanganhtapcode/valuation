@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import FundsComparison from '@/components/Funds/FundsComparison';
+import FundsTabs from '@/components/Funds/FundsTabs';
 import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -11,6 +13,8 @@ export default function FundDetailClient({ detail }: { detail: FundDetail }) {
     const { lang } = useLanguage();
     const t = fundDetailCopy[lang];
     const locale = { vi: 'vi-VN', en: 'en-US' }[lang];
+    const [tab, setTab] = useState<'nav' | 'compare'>('nav');
+    const [comparisonVisited, setComparisonVisited] = useState(false);
     const [range, setRange] = useState('3');
     const fund = detail.fund;
     const format = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
@@ -30,6 +34,9 @@ export default function FundDetailClient({ detail }: { detail: FundDetail }) {
                 <div className="mt-2 h-1 w-32 rounded bg-emerald-500" />
                 <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 md:text-base">{fund.name}</p>
             </header>
+            <FundsTabs value={tab} onChange={value => { setTab(value); if (value === 'compare') setComparisonVisited(true); }} />
+            <div id="fund-panel-compare" role="tabpanel" aria-labelledby="fund-tab-compare" hidden={tab !== 'compare'}>{comparisonVisited && <FundsComparison initialDetail={detail} />}</div>
+            <div id="fund-panel-nav" role="tabpanel" aria-labelledby="fund-tab-nav" hidden={tab !== 'nav'} className="space-y-6">
             <dl className="grid gap-x-8 gap-y-4 border-y border-slate-200 py-5 sm:grid-cols-2 lg:grid-cols-3 dark:border-slate-800">
                 {[{ label: t.nav, value: `${format(fund.nav)} VNĐ/CCQ · ${fund.nav_update_at}` },
                     { label: t.fee, value: fund.management_fee == null ? t.unavailable : `${format(fund.management_fee)}${t.perYear}` },
@@ -56,6 +63,7 @@ export default function FundDetailClient({ detail }: { detail: FundDetail }) {
                 </div> : <p className="py-12 text-center text-sm text-slate-500">{t.noHistory}</p>}
                 {points.length > 0 && <p className="mt-2 text-xs text-slate-500">{points[0].date} — {points[points.length - 1].date} · {t.source}</p>}
             </section>
+            </div>
         </div>
     </div>;
 }

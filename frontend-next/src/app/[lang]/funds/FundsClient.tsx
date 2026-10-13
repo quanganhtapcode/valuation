@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import FundsComparison from '@/components/Funds/FundsComparison';
+import FundsTabs from '@/components/Funds/FundsTabs';
 import Image from 'next/image';
 import { fundIssuers } from '@/lib/fundIssuers';
 import { fundDetailCopy } from '@/lib/fundDetailCopy';
@@ -30,6 +32,8 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
     const [snapshot, setSnapshot] = useState(initial);
     const [loading, setLoading] = useState(!initial);
     const [error, setError] = useState(false);
+    const [tab, setTab] = useState<'nav' | 'compare'>('nav');
+    const [comparisonVisited, setComparisonVisited] = useState(false);
     const [search, setSearch] = useState('');
     const [fundType, setFundType] = useState('');
     const [fundManager, setFundManager] = useState('');
@@ -96,8 +100,10 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                     <p className="mt-3 max-w-4xl text-sm text-slate-600 dark:text-slate-300 md:text-base">{t.description}</p></div>
             </div>
         </header>
+        <FundsTabs value={tab} onChange={value => { setTab(value); if (value === 'compare') setComparisonVisited(true); }} />
         {(error || snapshot?.stale) && <p role="status" className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{snapshot ? t.stale : t.error}</p>}
-        <div className="overflow-hidden border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div id="fund-panel-compare" role="tabpanel" aria-labelledby="fund-tab-compare" hidden={tab !== 'compare'}>{comparisonVisited && <FundsComparison funds={snapshot?.data ?? []} />}</div>
+        <div id="fund-panel-nav" role="tabpanel" aria-labelledby="fund-tab-nav" hidden={tab !== 'nav'} className="overflow-hidden border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap gap-3 border-b border-slate-100 p-4 dark:border-slate-800">
                 <input aria-label={t.search} value={search} onChange={event => setSearch(event.target.value)} placeholder={t.search} className="w-full min-w-0 rounded-lg sm:w-80 border border-slate-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700" />
                 <select aria-label={t.type} value={fundType} onChange={event => setFundType(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:w-auto dark:border-slate-700 dark:bg-slate-900">
