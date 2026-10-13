@@ -59,7 +59,7 @@ const INDEX_TABS = [
 
 const PE_COLOR  = chartColors.secondary;
 const PB_COLOR  = chartColors.tertiary;
-const AREA_COLOR = chartColors.primary;
+const AREA_COLOR = '#0E6BFF';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -299,8 +299,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 fontFamily:  getComputedStyle(document.body).fontFamily,
             },
             grid: {
-                vertLines: { color: t0.gridLine },
-                horzLines: { color: t0.gridLine },
+                vertLines: { visible: false },
+                horzLines: { visible: false },
             },
             crosshair: {
                 mode:     CrosshairMode.Normal,
@@ -456,7 +456,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     useEffect(() => {
         chartRef.current?.applyOptions({
             layout:          { textColor: theme.text },
-            grid:            { vertLines: { color: theme.gridLine }, horzLines: { color: theme.gridLine } },
+            grid:            { vertLines: { visible: false }, horzLines: { visible: false } },
             rightPriceScale: { borderColor: theme.border },
             leftPriceScale:  { borderColor: theme.border },
             timeScale:       { borderColor: theme.border },
