@@ -1,13 +1,26 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
+import { fundIssuers } from '@/lib/fundIssuers';
 import { fundDetailCopy } from '@/lib/fundDetailCopy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { formatFundDisplayName } from '@/lib/fundDisplayName';
 import { fundsCopy } from '@/lib/fundsCopy';
 import { fetchFundPrices, type FundPrice, type FundSnapshot } from '@/lib/fundsApi';
 
-type SortKey = 'short_name' | 'nav' | 'nav_change_previous' | 'nav_change_1m' | 'nav_change_12m' | 'nav_change_36m_annualized';
+type SortKey = 'short_name' | 'fund_owner_name' | 'nav' | 'nav_change_12m' | 'nav_change_36m_annualized';
+
+function IssuerLogo({ manager }: { manager: string }) {
+    const issuer = fundIssuers[manager];
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
+    return <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-white">
+        {issuer && failedUrl !== issuer.logoUrl
+            ? <Image src={issuer.logoUrl} alt="" width={48} height={48} unoptimized className="h-12 w-12 object-contain" onError={() => setFailedUrl(issuer.logoUrl)} />
+            : <span className="text-xs font-semibold text-slate-500">{issuer?.shortName.slice(0, 3) || '—'}</span>}
+    </span>;
+}
 
 export default function FundsClient({ initial }: { initial: FundSnapshot | null }) {
     const { lang } = useLanguage();
@@ -19,7 +32,8 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
     const [error, setError] = useState(false);
     const [search, setSearch] = useState('');
     const [fundType, setFundType] = useState('');
-    const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: 'short_name', descending: false });
+    const [fundManager, setFundManager] = useState('');
+    const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: 'nav_change_12m', descending: true });
     const load = useCallback(async () => {
         setLoading(true);
         try {
@@ -36,37 +50,41 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
         return () => clearInterval(timer);
     }, [initial, load]);
     const types = useMemo(() => [...new Set((snapshot?.data ?? []).map(row => row.fund_type).filter(Boolean))].sort(), [snapshot]);
+    const managers = useMemo(() => [...new Set((snapshot?.data ?? []).map(row => row.fund_owner_name).filter(Boolean))]
+        .sort((a, b) => (fundIssuers[a]?.shortName || formatFundDisplayName(a)).localeCompare(fundIssuers[b]?.shortName || formatFundDisplayName(b), locale)), [snapshot, locale]);
     const rows = useMemo(() => {
         const query = search.trim().toLocaleLowerCase();
         const filtered = (snapshot?.data ?? []).filter(row => (!fundType || row.fund_type === fundType) &&
-            `${row.short_name} ${row.name} ${row.fund_owner_name}`.toLocaleLowerCase().includes(query));
+            (!fundManager || row.fund_owner_name === fundManager) &&
+            `${row.short_name} ${row.name} ${row.fund_owner_name} ${fundIssuers[row.fund_owner_name]?.shortName ?? ''}`.toLocaleLowerCase().includes(query));
         return filtered.sort((a, b) => {
-            const av = a[sort.key], bv = b[sort.key];
+            const av = sort.key === 'fund_owner_name' ? fundIssuers[a.fund_owner_name]?.shortName || a.fund_owner_name : a[sort.key];
+            const bv = sort.key === 'fund_owner_name' ? fundIssuers[b.fund_owner_name]?.shortName || b.fund_owner_name : b[sort.key];
             if (av == null) return bv == null ? 0 : 1;
             if (bv == null) return -1;
             const diff = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv));
             return sort.descending ? -diff : diff;
         });
-    }, [snapshot, search, fundType, sort]);
+    }, [snapshot, search, fundType, fundManager, sort]);
     function changeSort(key: SortKey) {
-        setSort(current => ({ key, descending: current.key === key ? !current.descending : key !== 'short_name' }));
+        setSort(current => ({ key, descending: current.key === key ? !current.descending : key !== 'short_name' && key !== 'fund_owner_name' }));
     }
     function typeLabel(value: string) {
         const name = value.toLowerCase();
-        if (name.includes('cổ phiếu') || name.includes('stock')) return t.equity;
-        if (name.includes('trái phiếu') || name.includes('bond')) return t.bond;
-        if (name.includes('cân bằng') || name.includes('balanced')) return t.balanced;
+        if (name.includes('cổ phiếu') || name.includes('stock')) return lang === 'vi' ? `Quỹ ${t.equity.toLowerCase()}` : t.equity;
+        if (name.includes('trái phiếu') || name.includes('bond')) return lang === 'vi' ? `Quỹ ${t.bond.toLowerCase()}` : t.bond;
+        if (name.includes('cân bằng') || name.includes('balanced')) return lang === 'vi' ? `Quỹ ${t.balanced.toLowerCase()}` : t.balanced;
         return value;
     }
     function percent(value: number | null) {
         if (value == null) return <span className="text-slate-400">—</span>;
         return <span className={value > 0 ? 'text-emerald-600 dark:text-emerald-400' : value < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'}>
-            {value > 0 ? '+' : ''}{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value)}%
+            {new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value)}%
         </span>;
     }
     const columns: { key: SortKey; label: string }[] = [
-        { key: 'short_name', label: t.name }, { key: 'nav', label: t.nav },
-        { key: 'nav_change_previous', label: t.change }, { key: 'nav_change_1m', label: t.month },
+        { key: 'short_name', label: t.name }, { key: 'fund_owner_name', label: t.issuer },
+        { key: 'nav', label: t.nav },
         { key: 'nav_change_12m', label: t.year }, { key: 'nav_change_36m_annualized', label: t.annualized },
     ];
     return <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -79,26 +97,36 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                 <button disabled={loading} onClick={() => void load()} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-slate-700">{t.refresh}{loading ? '…' : ''}</button>
             </div>
         </header>
-        <p className="mb-5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{t.note}</p>
         {(error || snapshot?.stale) && <p role="status" className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{snapshot ? t.stale : t.error}</p>}
         <div className="overflow-hidden border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap gap-3 border-b border-slate-100 p-4 dark:border-slate-800">
-                <input aria-label={t.search} value={search} onChange={event => setSearch(event.target.value)} placeholder={t.search} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700" />
-                <select aria-label={t.type} value={fundType} onChange={event => setFundType(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900">
+                <input aria-label={t.search} value={search} onChange={event => setSearch(event.target.value)} placeholder={t.search} className="w-full min-w-0 rounded-lg sm:w-80 border border-slate-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700" />
+                <select aria-label={t.type} value={fundType} onChange={event => setFundType(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:w-auto dark:border-slate-700 dark:bg-slate-900">
                     <option value="">{t.allTypes}</option>{types.map(type => <option key={type} value={type}>{typeLabel(type)}</option>)}
                 </select>
+                <select aria-label={t.manager} value={fundManager} onChange={event => setFundManager(event.target.value)} className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:w-80 dark:border-slate-700 dark:bg-slate-900">
+                    <option value="">{t.allManagers}</option>{managers.map(manager => <option key={manager} value={manager}>{fundIssuers[manager]?.shortName || formatFundDisplayName(manager)}</option>)}
+                </select>
             </div>
-            <div className="overflow-x-auto"><table className="w-full min-w-[960px] text-sm">
-                <thead><tr className="border-b border-slate-100 text-xs text-slate-500 dark:border-slate-800">
-                    {columns.map(column => <th key={column.key} scope="col" className={`px-4 py-4 font-medium ${column.key === 'short_name' ? 'text-left' : 'text-right'}`} aria-sort={sort.key === column.key ? sort.descending ? 'descending' : 'ascending' : 'none'}>
-                        <button onClick={() => changeSort(column.key)}>{column.label} {sort.key === column.key ? sort.descending ? '↓' : '↑' : ''}</button></th>)}
-                    <th scope="col" className="px-4 py-4 text-right font-medium">{t.date}</th>
+            <div className="overflow-x-auto"><table className="w-full min-w-[960px] table-fixed text-sm md:text-base">
+                <thead><tr className="border-b border-slate-100 bg-blue-50/70 text-slate-700 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-200">
+                    {columns.map(column => <th key={column.key} scope="col" className={`px-4 py-5 font-semibold ${column.key === 'short_name' || column.key === 'fund_owner_name' ? 'text-left' : 'text-right'}`} aria-sort={sort.key === column.key ? sort.descending ? 'descending' : 'ascending' : 'none'}>
+                        <button className="inline-flex items-center gap-2" onClick={() => changeSort(column.key)}><span>{column.label}</span><span aria-hidden="true" className={sort.key === column.key ? 'text-blue-600' : 'text-slate-300'}>{sort.key === column.key && !sort.descending ? '▴' : '▾'}</span></button>
+                    </th>)}
                 </tr></thead>
                 <tbody>{rows.map((row: FundPrice) => <tr key={row.short_name} className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800/60 dark:hover:bg-slate-800/40">
-                    <td className="max-w-[360px] px-4 py-4"><Link href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} className="block hover:underline"><span className="font-bold text-blue-600 dark:text-blue-400">{row.short_name}</span><div className="mt-1 truncate font-medium" title={row.name}>{row.name}</div></Link><div className="mt-1 text-xs text-slate-500">{typeLabel(row.fund_type)} · {row.fund_owner_name}</div></td>
-                    <td className="px-4 py-4 text-right font-semibold tabular-nums">{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(row.nav)}</td>
-                    {[row.nav_change_previous, row.nav_change_1m, row.nav_change_12m, row.nav_change_36m_annualized].map((value, index) => <td key={index} className="px-4 py-4 text-right tabular-nums">{percent(value)}</td>)}
-                    <td className="whitespace-nowrap px-4 py-4 text-right text-xs text-slate-500">{row.nav_update_at || '—'}</td>
+                    <td className="px-4 py-5"><div className="flex items-center gap-3">
+                        <IssuerLogo manager={row.fund_owner_name} />
+                        <div className="min-w-0"><Link href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} aria-label={`${row.short_name} — ${formatFundDisplayName(row.name)}`} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">{row.short_name}</Link>
+                            <div className="mt-1 text-sm text-slate-400">{typeLabel(row.fund_type)}</div>
+                        </div>
+                    </div></td>
+                    <td className="px-4 py-5" title={formatFundDisplayName(row.fund_owner_name)}>{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</td>
+                    <td className="px-4 py-5 text-right tabular-nums">
+                        <div>{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(row.nav)}</div>
+                        <div className="mt-1 text-sm text-slate-400">{t.navAsOf} {row.nav_update_at ? row.nav_update_at.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1') : '—'}</div>
+                    </td>
+                    {[row.nav_change_12m, row.nav_change_36m_annualized].map((value, index) => <td key={index} className="px-4 py-5 text-right tabular-nums">{percent(value)}</td>)}
                 </tr>)}</tbody>
             </table></div>
             {!rows.length && <p role="status" className="p-10 text-center text-sm text-slate-500">{loading ? t.loading : error ? t.error : t.empty}</p>}
