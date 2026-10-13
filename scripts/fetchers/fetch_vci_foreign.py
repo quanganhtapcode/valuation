@@ -17,7 +17,6 @@ import json
 import random
 import sqlite3
 import sys
-import time
 import urllib.request
 from typing import Any
 

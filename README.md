@@ -84,13 +84,21 @@ Browser
 |---|---|
 | `frontend-next/` | Ứng dụng Next.js: routes, components, API clients và giao diện |
 | `backend/` | Flask API, nghiệp vụ định giá và các dịch vụ dữ liệu |
-| `automation/` | Tác vụ cập nhật dữ liệu, xuất báo cáo và vận hành định kỳ |
+| `automation/` | Tác vụ cập nhật dữ liệu, backup và vận hành định kỳ |
 | `scripts/fetchers/` | Các công cụ thu thập và xử lý dữ liệu thị trường |
 | `data/sqlite/` | Cơ sở dữ liệu SQLite, WAL/SHM và backup runtime (không commit) |
 | `data/financial-statements/` | Dữ liệu báo cáo tài chính đã tải về (không commit) |
 | `config/` | Cấu hình và metadata được quản lý theo Git |
 | `runtime/`, `logs/` | Trạng thái tạm thời và nhật ký vận hành (không commit) |
 | `docs/` | Tài liệu kỹ thuật và vận hành |
+
+## Automation
+
+- `setup_cron_vps.sh` quản lý lịch crawl SQLite; `--dry-run` xem lịch trước khi cài.
+- `vci_safe_run.sh` và `sqlite_backup.py` bảo vệ cập nhật dữ liệu bằng khóa, snapshot và rollback.
+- Các file `.service`/`.timer` phục vụ backend, dữ liệu dẫn xuất, AI, cảnh báo báo cáo tài chính, Excel, NAV quỹ và giám sát dung lượng VPS.
+- `optimize_sqlite.py` là công cụ bảo trì chạy thủ công, được mô tả trong [hướng dẫn SQLite](docs/sqlite-maintenance.md).
+- `publish_ticker_catalog.sh` được job công ty gọi để cập nhật danh mục mã cổ phiếu cho frontend.
 
 ## Kiểm tra chất lượng
 

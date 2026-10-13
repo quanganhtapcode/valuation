@@ -335,7 +335,6 @@ def fetch_to_sqlite(
     if end_page is not None and end_page < start_page:
         raise ValueError("end_page must be >= start_page")
 
-    base_opener = build_opener()
     headers = default_headers(device_id or random_device_id_hex())
     filters = [] if disable_filter else default_filter_payload()
 
@@ -374,7 +373,7 @@ def fetch_to_sqlite(
             return p, content, data.get("totalPages")
 
         # 1. Fetch start_page to get total pages
-        page_num, content, total_pages = _fetch_single_page(start_page)
+        _, content, total_pages = _fetch_single_page(start_page)
         fetched_at = utc_now_iso()
         changed, skipped = upsert_items(conn, content, fetched_at)
         total_changed += changed

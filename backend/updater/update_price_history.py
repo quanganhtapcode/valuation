@@ -11,6 +11,7 @@ import logging
 import time
 import random
 import math
+import threading
 from datetime import datetime, timezone
 from contextlib import closing
 from backend.sqlite_utils import read_connection
@@ -24,10 +25,7 @@ os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/price_history_update.log'),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
@@ -65,13 +63,17 @@ class PriceHistoryUpdater:
     def __init__(
         self,
         max_workers: int = 3,
-        delay: float = 1.2,
+        delay: float = 0.3,
         pages_per_symbol: int = 5,
         incremental: bool = True,
         recent_page_size: int = 250,
         retries: int = 2,
         retry_backoff: float = 1.5,
     ):
+        if max_workers < 1 or delay < 0 or pages_per_symbol < 1 or retries < 0:
+            raise ValueError("Workers/pages must be positive; delay/retries non-negative")
+        self._request_lock = threading.Lock()
+        self._next_request_at = 0.0
         self.price_db_path = resolve_price_history_db_path()
         self.screening_db_path = resolve_vci_screening_db_path()
         self.max_workers = max_workers
@@ -100,6 +102,13 @@ class PriceHistoryUpdater:
         """
         max_attempts = self.retries + 1
         for attempt in range(1, max_attempts + 1):
+            # Reserve request starts globally, including retries and new symbols.
+            # Release the lock before network I/O so workers can overlap latency.
+            with self._request_lock:
+                remaining = self._next_request_at - time.monotonic()
+                if remaining > 0:
+                    time.sleep(remaining)
+                self._next_request_at = time.monotonic() + self.delay
             result = VCIClient.fetch_price_history(
                 symbol=symbol,
                 page=page,
@@ -111,7 +120,8 @@ class PriceHistoryUpdater:
                 result = None
             if result is not None:
                 if attempt > 1:
-                    self.stats['retried_ok'] += 1
+                    with self._request_lock:
+                        self.stats['retried_ok'] += 1
                 return result
             if attempt < max_attempts:
                 sleep_sec = (self.retry_backoff ** (attempt - 1)) + random.uniform(0, 0.4)
@@ -139,73 +149,44 @@ class PriceHistoryUpdater:
         if not records:
             return 0
 
-        conn = sqlite3.connect(self.price_db_path)
-        cursor = conn.cursor()
-        inserted = 0
+        rows = []
+        for record in records:
+            if not isinstance(record, dict):
+                raise ValueError('Price record must be an object')
+            trading_date = str(record.get('tradingDate') or record.get('time') or record.get('date') or '')[:10]
+            datetime.strptime(trading_date, '%Y-%m-%d')
 
-        try:
-            for record in records:
-                if not isinstance(record, dict):
-                    continue
+            def first_value(*keys, default=None):
+                return next((record[k] for k in keys if record.get(k) is not None), default)
 
-                trading_date = record.get('tradingDate') or record.get('time') or record.get('date')
-                if not trading_date:
-                    continue
+            values = [first_value('openPrice', 'open'), first_value('highestPrice', 'high'),
+                      first_value('lowestPrice', 'low'), first_value('closePrice', 'matchPrice', 'close')]
+            if not all(math.isfinite(float(v)) and float(v) > 0 for v in values):
+                raise ValueError('OHLC values must be finite and positive')
+            volume = float(first_value('totalVolume', 'totalMatchVolume', 'volume', default=0))
+            if not math.isfinite(volume) or volume < 0 or not volume.is_integer():
+                raise ValueError('Volume must be a non-negative integer')
+            rows.append((symbol, trading_date, *values, int(volume)))
 
-                # Normalize: strip time component if present (e.g. "2026-03-17T00:00:00")
-                try:
-                    trading_date = str(trading_date)[:10]
-                    datetime.strptime(trading_date, '%Y-%m-%d')
-                except ValueError:
-                    continue
-
-                # VCI API uses openPrice/closePrice/highestPrice/lowestPrice/totalVolume
-                # Fall back to short-form open/high/low/close/volume for compatibility
-                open_val = record.get('openPrice') or record.get('open')
-                high_val = record.get('highestPrice') or record.get('high')
-                low_val = record.get('lowestPrice') or record.get('low')
-                close_val = record.get('closePrice') or record.get('matchPrice') or record.get('close')
-                volume_val = record.get('totalVolume') or record.get('totalMatchVolume') or record.get('volume') or 0
-
-                try:
-                    if not all(math.isfinite(float(v)) and float(v) > 0
-                               for v in (open_val, high_val, low_val, close_val)):
-                        continue
-                except (TypeError, ValueError):
-                    continue
-
-                cursor.execute(
+        # Validate the entire symbol before opening a write transaction. This
+        # prevents a bad later candle from committing an incomplete backfill.
+        with closing(sqlite3.connect(self.price_db_path, timeout=30)) as conn:
+            with conn:
+                conn.executemany(
                     """
                     INSERT INTO stock_price_history (symbol, time, open, high, low, close, volume)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(symbol, time) DO UPDATE SET
-                        open   = excluded.open,
-                        high   = excluded.high,
-                        low    = excluded.low,
-                        close  = excluded.close,
-                        volume = excluded.volume
-                    """,
-                    (
-                        symbol,
-                        trading_date,
-                        open_val,
-                        high_val,
-                        low_val,
-                        close_val,
-                        volume_val,
-                    ),
+                        open=excluded.open, high=excluded.high, low=excluded.low,
+                        close=excluded.close, volume=excluded.volume
+                    WHERE stock_price_history.open IS NOT excluded.open
+                       OR stock_price_history.high IS NOT excluded.high
+                       OR stock_price_history.low IS NOT excluded.low
+                       OR stock_price_history.close IS NOT excluded.close
+                       OR stock_price_history.volume IS NOT excluded.volume
+                    """, rows,
                 )
-                inserted += 1
-
-            conn.commit()
-        except Exception as e:
-            logger.error(f"DB write error for {symbol}: {e}")
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
-        return inserted
+        return len(rows)
 
     def fetch_and_store_symbol(self, symbol: str) -> Dict:
         try:
@@ -228,8 +209,6 @@ class PriceHistoryUpdater:
                     break
                 if latest_date and page + 1 == self.pages_per_symbol:
                     raise ValueError('Incremental gap exceeds page limit; rerun with --pages increased')
-                if self.delay:
-                    time.sleep(self.delay)
 
             if not records:
                 if latest_date and batch:
@@ -341,7 +320,11 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Pages per symbol (default: 1 incremental, 25 full)",
     )
+    parser.add_argument("--workers", type=int, default=3, help="Concurrent fetch workers (default: 3)")
+    parser.add_argument("--delay", type=float, default=0.3, help="Minimum seconds between request starts across all workers (default: 0.3)")
     args = parser.parse_args()
+    if not 1 <= args.workers <= 20 or args.delay < 0:
+        parser.error("workers must be 1..20 and delay must be non-negative")
     if args.pages is not None and args.pages < 1:
         parser.error("--pages must be at least 1")
     return args
@@ -355,8 +338,8 @@ def main() -> int:
     pages_per_symbol = args.pages if args.pages is not None else (1 if incremental else 25)
 
     updater = PriceHistoryUpdater(
-        max_workers=3,
-        delay=1.2,
+        max_workers=args.workers,
+        delay=args.delay,
         pages_per_symbol=pages_per_symbol,
         incremental=incremental,
         retries=2,

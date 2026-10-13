@@ -89,13 +89,20 @@ def _fetch_symbol(
                     raw = gzip.decompress(raw)
                 data = json.loads(raw.decode("utf-8", errors="replace"))
                 if isinstance(data, list):
+                    if any(not isinstance(item, dict) for item in data):
+                        raise ValueError("Invalid statistics-financial rows")
                     return data
                 if isinstance(data, dict):
+                    if data.get("successful") is False or data.get("status") not in (None, 200, "200"):
+                        raise ValueError("Unsuccessful statistics-financial response")
                     # Some responses wrap in {"data": [...]}
-                    inner = data.get("data") or data.get("result") or data.get("items")
+                    inner = next((data[key] for key in ("data", "result", "items")
+                                  if data.get(key) is not None), None)
                     if isinstance(inner, list):
+                        if any(not isinstance(item, dict) for item in inner):
+                            raise ValueError("Invalid statistics-financial rows")
                         return inner
-                return None
+                raise ValueError("Invalid statistics-financial response")
         except urllib.error.HTTPError as e:
             last_err = e
             if e.code == 404:
@@ -583,16 +590,20 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--db", default=None, help="Output SQLite path (default: data/sqlite/vci_stats_financial.sqlite)")
     p.add_argument("--screening-db", default=None, help="Path to vci_screening.sqlite for symbol list")
     p.add_argument("--symbols", default=None, help="Comma-separated symbol list (overrides auto-discovery)")
-    p.add_argument("--workers", type=int, default=20, help="Concurrent HTTP workers (default: 20)")
+    p.add_argument("--incremental", action="store_true", help="Skip symbols successfully written today (UTC); retries only fetch missing symbols")
+    p.add_argument("--workers", type=int, default=3, help="Concurrent HTTP workers (default: 3)")
     p.add_argument("--timeout", type=int, default=15, help="Per-request timeout in seconds (default: 15)")
     p.add_argument("--retries", type=int, default=3, help="Retries per symbol (default: 3)")
     p.add_argument("--delay", type=float, default=0.0, help="Extra delay between requests in seconds (default: 0)")
     p.add_argument("--batch-commit", type=int, default=50, help="Commit every N upserts (default: 50)")
     p.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
-    return p.parse_args()
+    args = p.parse_args()
+    if not 1 <= args.workers <= 20 or args.batch_commit < 1 or args.timeout <= 0 or args.delay < 0 or not 0 <= args.retries <= 5:
+        p.error("workers must be 1..20, batch/timeout positive, delay non-negative, retries 0..5")
+    return args
 
 
-def main() -> None:
+def main() -> int:
     args = parse_args()
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -602,23 +613,57 @@ def main() -> None:
 
     symbols = collect_symbols(args)
     if not symbols:
-        return
+        log.error("No symbols to fetch")
+        return 1
 
     log.info(f"Fetching stats-financial for {len(symbols)} symbols → {db_path}")
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=30)
     ensure_schema(conn)
+    if args.incremental:
+        today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+        fetched = {row[0] for row in conn.execute(
+            "SELECT ticker FROM stats_financial WHERE fetched_at >= ?", (today,))}
+        symbols = [symbol for symbol in symbols if symbol not in fetched]
+        log.info("Incremental: %d symbols remain", len(symbols))
     conn.execute(
         "INSERT OR REPLACE INTO meta VALUES ('last_run_started', ?)",
         (dt.datetime.now(tz=dt.timezone.utc).isoformat(),),
     )
+    conn.executemany("INSERT OR REPLACE INTO meta VALUES (?, ?)", [
+        ("last_run_status", "running"),
+        ("last_run_total", str(len(symbols))),
+        ("last_run_scope", "subset" if args.symbols else "full"),
+    ])
     conn.commit()
 
     fetched_at = dt.datetime.now(tz=dt.timezone.utc).replace(microsecond=0).isoformat()
     ok_count = 0
     err_count = 0
     skip_count = 0
-    pending_upserts = 0
+    pending = []
+
+    def flush_results():
+        nonlocal ok_count, err_count
+        # Build batches while fetching, then write them in a short transaction.
+        # SAVEPOINT isolates a failed symbol from successful rows in this batch.
+        with conn:
+            if pending:
+                conn.execute("BEGIN")
+            for symbol, row, data in pending:
+                conn.execute("SAVEPOINT symbol_write")
+                try:
+                    upsert_row(conn, symbol, row, fetched_at)
+                    upsert_history_rows(conn, symbol, data, fetched_at)
+                except Exception as exc:
+                    conn.execute("ROLLBACK TO symbol_write")
+                    err_count += 1
+                    log.warning("%s: upsert failed — %s", symbol, exc)
+                else:
+                    ok_count += 1
+                finally:
+                    conn.execute("RELEASE symbol_write")
+        pending.clear()
 
     def _worker(symbol: str) -> tuple[str, list[dict] | None, Exception | None]:
         opener = _build_opener()
@@ -647,20 +692,11 @@ def main() -> None:
                 skip_count += 1
                 continue
 
-            try:
-                upsert_row(conn, symbol, row, fetched_at)
-                upsert_history_rows(conn, symbol, data, fetched_at)
-                pending_upserts += 1
-                ok_count += 1
-                if args.verbose:
-                    log.debug(f"  {symbol}: pe={row.get('pe')} pb={row.get('pb')} roe={row.get('roe')} history={len(data)}")
-            except Exception as upsert_exc:
-                log.warning(f"  {symbol}: upsert failed — {upsert_exc}")
-                err_count += 1
+            pending.append((symbol, row, data))
+            if len(pending) >= args.batch_commit:
+                flush_results()
 
-            if pending_upserts >= args.batch_commit:
-                conn.commit()
-                pending_upserts = 0
+    flush_results()
 
     conn.commit()
     conn.execute(
@@ -671,13 +707,19 @@ def main() -> None:
         "INSERT OR REPLACE INTO meta VALUES ('last_run_ok_count', ?)",
         (str(ok_count),),
     )
+    conn.executemany("INSERT OR REPLACE INTO meta VALUES (?, ?)", [
+        ("last_run_status", "partial" if err_count else "ok"),
+        ("last_run_success", str(ok_count)), ("last_run_failed", str(err_count)),
+        ("last_run_skipped", str(skip_count)),
+    ])
     conn.commit()
     conn.close()
 
     log.info(
         f"Done: {ok_count} upserted, {skip_count} skipped (no data), {err_count} errors"
     )
+    return 75 if err_count else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

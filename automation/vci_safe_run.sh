@@ -80,6 +80,7 @@ db_basename="$(basename "$DB_PATH")"
 ts="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_file="$BACKUP_DIR/${db_basename}.${ts}.bak"
 last_backup="$BACKUP_DIR/${db_basename}.last_good.bak"
+rollback_available=0
 
 sql_scalar() {
   local db="$1"
@@ -258,6 +259,7 @@ after_total=0
 after_quality=0
 if [[ -f "$DB_PATH" ]]; then
   python3 "$SCRIPT_DIR/sqlite_backup.py" "$DB_PATH" "$backup_file" "$last_backup"
+  rollback_available=1
   IFS='|' read -r before_total before_quality <<< "$(calc_metrics "$DB_PATH" "$db_basename")"
   echo "[safe-run][$JOB_NAME] before total=$before_total quality=$before_quality backup=$backup_file"
 else
@@ -271,7 +273,7 @@ last_exit=0
 partial_run=0
 while [[ $attempt -le $max_attempts ]]; do
   echo "[safe-run][$JOB_NAME] attempt=$attempt/$max_attempts"
-  if [[ $attempt -gt 1 && $last_exit -ne 75 && -f "$last_backup" ]]; then
+  if [[ $attempt -gt 1 && $last_exit -ne 75 && $rollback_available -eq 1 ]]; then
     python3 "$SCRIPT_DIR/sqlite_backup.py" --restore "$last_backup" "$DB_PATH"
     echo "[safe-run][$JOB_NAME] restored last backup before retry: $last_backup"
   fi
@@ -300,7 +302,7 @@ done
 
 if [[ $run_ok -ne 1 && $partial_run -ne 1 ]]; then
   echo "[safe-run][$JOB_NAME] all attempts failed"
-  if [[ -f "$last_backup" ]]; then
+  if [[ $rollback_available -eq 1 ]]; then
     python3 "$SCRIPT_DIR/sqlite_backup.py" --restore "$last_backup" "$DB_PATH"
     echo "[safe-run][$JOB_NAME] rollback applied from $last_backup"
   fi
@@ -330,7 +332,7 @@ if [[ "$before_quality" =~ ^[0-9]+$ ]] && [[ "$after_quality" =~ ^[0-9]+$ ]] && 
 fi
 
 if [[ $should_rollback -eq 1 ]]; then
-  if [[ -f "$last_backup" ]]; then
+  if [[ $rollback_available -eq 1 ]]; then
     python3 "$SCRIPT_DIR/sqlite_backup.py" --restore "$last_backup" "$DB_PATH"
     echo "[safe-run][$JOB_NAME] rollback applied due to health check"
   else

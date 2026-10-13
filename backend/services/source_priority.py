@@ -325,46 +325,6 @@ def _load_ratio_daily_rows(symbols: list[str]) -> dict[str, dict]:
             conn.close()
 
 
-def get_ratio_daily_metrics(
-    symbol: str,
-    cache_get: CacheGet | None = None,
-    cache_set: CacheSet | None = None,
-) -> dict | None:
-    symbol_u = str(symbol or "").upper().strip()
-    if not symbol_u:
-        return None
-
-    cache_key = f"ratio_daily_{symbol_u}"
-    cached = _cache_get(cache_get, cache_key)
-    if cached is not None:
-        return cached
-
-    rows = _load_ratio_daily_rows([symbol_u])
-    result = rows.get(symbol_u)
-    _cache_set(cache_set, cache_key, result)
-    return result
-
-
-def get_stats_financial_metrics(
-    symbol: str,
-    cache_get: CacheGet | None = None,
-    cache_set: CacheSet | None = None,
-) -> dict | None:
-    symbol_u = str(symbol or "").upper().strip()
-    if not symbol_u:
-        return None
-
-    cache_key = f"stats_financial_{symbol_u}"
-    cached = _cache_get(cache_get, cache_key)
-    if cached is not None:
-        return cached
-
-    rows = _load_stats_financial_rows([symbol_u])
-    result = rows.get(symbol_u)
-    _cache_set(cache_set, cache_key, result)
-    return result
-
-
 def get_stats_financial_metrics_map(
     symbols: list[str],
     cache_get: CacheGet | None = None,
@@ -395,26 +355,6 @@ def get_stats_financial_metrics_map(
                 out[symbol] = value
 
     return out
-
-
-def get_screening_metrics(
-    symbol: str,
-    cache_get: CacheGet | None = None,
-    cache_set: CacheSet | None = None,
-) -> dict | None:
-    symbol_u = str(symbol or "").upper().strip()
-    if not symbol_u:
-        return None
-
-    cache_key = f"screening_metrics_{symbol_u}"
-    cached = _cache_get(cache_get, cache_key)
-    if cached is not None:
-        return cached
-
-    rows = _load_screening_rows([symbol_u])
-    result = rows.get(symbol_u)
-    _cache_set(cache_set, cache_key, result)
-    return result
 
 
 def get_ratio_daily_metrics_map(
@@ -477,105 +417,6 @@ def get_screening_metrics_map(
             _cache_set(cache_set, cache_key, value)
             if isinstance(value, dict):
                 out[symbol] = value
-
-    return out
-
-
-def _apply_overlay(out: dict, src: dict, src_label: str) -> None:
-    """Apply a metrics overlay dict onto out, preferring non-None/non-zero values."""
-    pe = _to_json_number(src.get("pe"))
-    pb = _to_json_number(src.get("pb"))
-    roe = src.get("roe")
-    market_cap = _to_json_number(src.get("market_cap"))
-
-    if pe > 0:
-        out["pe"] = pe
-        out["pe_ratio"] = pe
-        out["pe_source"] = src_label
-    if pb > 0:
-        out["pb"] = pb
-        out["pb_ratio"] = pb
-        out["pb_source"] = src_label
-    if roe is not None and roe != 0:
-        out["roe"] = float(roe)
-        out["roe_source"] = src_label
-    if market_cap > 0:
-        out["market_cap"] = market_cap
-        out["marketCap"] = market_cap
-        out["market_cap_source"] = src_label
-
-    for field in (
-        # Profitability
-        "roa", "gross_margin", "net_margin", "net_profit_margin",
-        "pre_tax_margin", "revenue_growth", "profit_growth",
-        # Banking KPIs (canonical names)
-        "nim", "cir", "car", "casa", "npl", "npl_ratio", "ldr",
-        "loans_growth", "deposit_growth",
-        "cof", "yield_on_assets", "fee_income_ratio", "llr_coverage", "dividend_yield",
-        # Legacy banking aliases
-        "net_interest_margin", "casa_ratio",
-        # Leverage / liquidity (non-banks)
-        "debt_to_equity", "financial_leverage",
-        "current_ratio", "quick_ratio", "cash_ratio", "asset_turnover",
-    ):
-        v = src.get(field)
-        if v is not None:
-            out[field] = float(v)
-            out[f"{field}_source"] = src_label
-
-    # Ensure cross-aliases stay in sync after overlay
-    if src.get("net_margin") is not None:
-        out.setdefault("net_profit_margin", out["net_margin"])
-    if src.get("net_profit_margin") is not None:
-        out.setdefault("net_margin", out["net_profit_margin"])
-    if src.get("nim") is not None:
-        out.setdefault("net_interest_margin", out["nim"])
-    if src.get("casa") is not None:
-        out.setdefault("casa_ratio", out["casa"])
-    if src.get("npl") is not None:
-        out.setdefault("npl_ratio", out["npl"])
-
-    out["fresh_metrics_source"] = src_label
-
-
-def apply_source_priority(
-    data: dict,
-    symbol: str,
-    cache_get: CacheGet | None = None,
-    cache_set: CacheSet | None = None,
-) -> dict:
-    if not isinstance(data, dict):
-        return data
-
-    out = dict(data)
-    out.setdefault("source_priority", SOURCE_PRIORITY_LABEL)
-
-    # Remove self-calculated PE/PB from overview (stocks_optimized.db) — use VCI sources only
-    out["pe"] = None
-    out["pb"] = None
-    out["pe_ratio"] = None
-    out["pb_ratio"] = None
-
-    # Layer 1 (lowest): VCI ratio-daily — PE/PB TTM against today's closing price
-    ratio_daily = get_ratio_daily_metrics(symbol, cache_get=cache_get, cache_set=cache_set)
-    if ratio_daily:
-        _apply_overlay(out, ratio_daily, ratio_daily["source"])
-        if ratio_daily.get("pe_ttm"):
-            out["pe_ttm"] = ratio_daily["pe_ttm"]
-        if ratio_daily.get("pb_ttm"):
-            out["pb_ttm"] = ratio_daily["pb_ttm"]
-        if ratio_daily.get("trading_date"):
-            out["ratio_daily_date"] = ratio_daily["trading_date"]
-
-    # Layer 2: VCI stats-financial (updated every 60 min, richer data)
-    stats_fin = get_stats_financial_metrics(symbol, cache_get=cache_get, cache_set=cache_set)
-    if stats_fin:
-        _apply_overlay(out, stats_fin, stats_fin["source"])
-
-    # Layer 3 (highest priority): VCI screening — updated every 5 min, most current
-    screening = get_screening_metrics(symbol, cache_get=cache_get, cache_set=cache_set)
-    if screening:
-        _apply_overlay(out, screening, screening["source"])
 
     return out
 

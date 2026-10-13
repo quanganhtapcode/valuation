@@ -145,26 +145,6 @@ def fetch_ratio_daily_history(
     return []
 
 
-def fetch_ratio_daily(
-    opener: urllib.request.OpenerDirector,
-    symbol: str,
-    *,
-    timeout_s: int = 15,
-    retries: int = 3,
-    backoff_base_s: float = 1.0,
-) -> dict[str, Any] | None:
-    """Fetch the latest PE/PB entry for symbol. Returns dict with pe, pb, trading_date or None."""
-    rows = fetch_ratio_daily_history(
-        opener,
-        symbol,
-        length_report=1,
-        timeout_s=timeout_s,
-        retries=retries,
-        backoff_base_s=backoff_base_s,
-    )
-    return rows[0] if rows else None
-
-
 # ---------------------------------------------------------------------------
 # SQLite
 # ---------------------------------------------------------------------------

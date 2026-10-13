@@ -15,9 +15,10 @@ import sqlite3
 import sys
 import time
 import random
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import date, datetime, timezone
-from contextlib import closing
+from contextlib import ExitStack, closing
 
 from backend.sqlite_utils import read_connection
 from pathlib import Path
@@ -51,6 +52,7 @@ TABS: dict[str, dict] = {
 
 MAX_WORKERS = 4   # concurrent HTTP requests
 PAGE_SIZE   = 50   # items per request
+_thread_http = threading.local()
 
 # ── DB path ───────────────────────────────────────────────────────────────────
 
@@ -111,7 +113,10 @@ def _fetch_tab(symbol: str, tab: str) -> list[dict]:
         "size": str(PAGE_SIZE),
         **cfg["extra"],
     }
-    resp = requests.get(
+    # Each pool worker owns its session; reuse TCP/TLS connections without
+    # sharing mutable session state across threads.
+    http = getattr(_thread_http, 'session', requests)
+    resp = http.get(
         f"{VCI_IQ_BASE}/{cfg['path']}",
         params=params,
         headers=VCI_HEADERS,
@@ -187,7 +192,7 @@ def _store_result(conn: sqlite3.Connection, symbol: str, tab: str, items: list[d
 
 def run(incremental: bool = False, *, symbols: list[str] | None = None, workers: int = MAX_WORKERS, retries: int = 2,
         max_runtime: float = 1800, max_consecutive_errors: int = 20) -> int:
-    if max_runtime <= 0 or max_consecutive_errors < 1:
+    if max_runtime <= 0 or max_consecutive_errors < 1 or not 1 <= workers <= 20 or not 0 <= retries <= 5:
         raise ValueError("Runtime and consecutive-error limits must be positive")
     deadline = time.monotonic() + max_runtime
     db_path = _db_path()
@@ -239,38 +244,64 @@ def run(incremental: bool = False, *, symbols: list[str] | None = None, workers:
         consecutive_errors = 0
         stop_reason = ''
 
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {pool.submit(_work, sym, tab, retries): (sym, tab) for sym, tab in tasks}
-            for future in as_completed(futures):
-                if time.monotonic() >= deadline:
-                    stop_reason = 'time_budget'
-                    for pending in futures:
-                        pending.cancel()
-                    break
-                symbol, tab, count, err, items = future.result()
-                errors_before = errors
-                done += 1
+        session_lock = threading.Lock()
+        with ExitStack() as sessions:
+            def init_http_worker():
+                with session_lock:
+                    _thread_http.session = sessions.enter_context(requests.Session())
 
-                if err:
-                    errors += 1
-                    if done % 100 == 0 or errors <= 5:
-                        logger.warning("ERR %s/%s: %s", symbol, tab, err)
-                    # Keep last successful freshness metadata on upstream errors.
-                else:
-                    try:
-                        _store_result(conn, symbol, tab, items)
-                    except (sqlite3.Error, ValueError) as exc:
+            with ThreadPoolExecutor(max_workers=workers, initializer=init_http_worker) as pool:
+                # Keep at most one request per worker in flight. A failed upstream
+                # must not leave thousands of queued requests behind the breaker.
+                task_iter = iter(tasks)
+                futures = set()
+                def fill_workers():
+                    while len(futures) < workers:
+                        task = next(task_iter, None)
+                        if task is None:
+                            break
+                        futures.add(pool.submit(_work, *task, retries))
+
+                fill_workers()
+                while futures:
+                    if time.monotonic() >= deadline:
+                        stop_reason = 'time_budget'
+                        for pending in futures:
+                            pending.cancel()
+                        break
+                    completed, _ = wait(futures, timeout=1, return_when=FIRST_COMPLETED)
+                    if not completed:
+                        continue
+                    future = next(iter(completed))
+                    futures.remove(future)
+                    symbol, tab, count, err, items = future.result()
+                    errors_before = errors
+                    done += 1
+
+                    if err:
                         errors += 1
-                        logger.error("Store failed %s/%s: %s", symbol, tab, exc)
+                        if done % 100 == 0 or errors <= 5:
+                            logger.warning("ERR %s/%s: %s", symbol, tab, err)
+                        # Keep last successful freshness metadata on upstream errors.
+                    else:
+                        try:
+                            _store_result(conn, symbol, tab, items)
+                        except (sqlite3.Error, ValueError) as exc:
+                            errors += 1
+                            logger.error("Store failed %s/%s: %s", symbol, tab, exc)
 
-                consecutive_errors = consecutive_errors + 1 if errors > errors_before else 0
-                if consecutive_errors >= max_consecutive_errors:
-                    stop_reason = 'consecutive_errors'
-                    for pending in futures:
-                        pending.cancel()
-                    break
-                if done % 100 == 0:
-                    logger.info("Progress: %d/%d (errors: %d)", done, len(tasks), errors)
+                    consecutive_errors = consecutive_errors + 1 if errors > errors_before else 0
+                    if consecutive_errors >= max_consecutive_errors:
+                        stop_reason = 'consecutive_errors'
+                        for pending in futures:
+                            pending.cancel()
+                        break
+                    if done % 100 == 0:
+                        logger.info("Progress: %d/%d (errors: %d)", done, len(tasks), errors)
+                    # Drain completed work before scheduling replacements so that
+                    # the failure streak can stop further network calls promptly.
+                    if not any(f.done() for f in futures):
+                        fill_workers()
 
         conn.executemany("INSERT OR REPLACE INTO meta VALUES (?,?)", [
             ('last_run_finished', datetime.now(timezone.utc).isoformat()),
