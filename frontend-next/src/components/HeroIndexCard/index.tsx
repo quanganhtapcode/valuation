@@ -160,7 +160,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const userChartInteractionRef = useRef(false);
     const fittedViewForRef = useRef<string | null>(null);
     const selectedIdRef = useRef(selectedId);
-    const pendingVisibleRangeRef = useRef<{ from: BusinessDay; to: BusinessDay } | null>(null);
+    const preserveVisibleRangeRef = useRef(false);
     const vnLoadingRef = useRef(vnLoad);
 
     useEffect(() => { vnLoadingRef.current = vnLoad; }, [vnLoad]);
@@ -185,6 +185,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     useEffect(() => {
         const cached = vnCache.current.get(vnTimeframe);
         if (cached) {
+            vnLoadingRef.current = false;
             setVnRows(cached);
             return;
         }
@@ -203,8 +204,29 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         return () => controller.abort();
     }, [vnTimeframe]);
 
+    // Fetch the next range ahead of a pan, after the current chart renders.
+    useEffect(() => {
+        if (vnLoad || !vnRows.length || vnTimeframe === 'ALL') return;
+        const next: VnTimeframe = vnTimeframe === '1Y' ? '2Y' : vnTimeframe === '2Y' ? '5Y' : 'ALL';
+        if (vnCache.current.has(next)) return;
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => {
+            fetchPEChartByRange(next, 'both', { signal: controller.signal })
+                .then(({ series }) => { vnCache.current.set(next, series); })
+                .catch(error => {
+                    if (error.name !== 'AbortError') console.error(error);
+                });
+        }, 200);
+        return () => {
+            window.clearTimeout(timer);
+            controller.abort();
+        };
+    }, [vnLoad, vnRows, vnTimeframe]);
+
     useEffect(() => {
         selectedIdRef.current = selectedId;
+        preserveVisibleRangeRef.current = false;
+        userChartInteractionRef.current = false;
         // Switching an index should fit that index once; extending its history
         // must preserve the user's current pan position.
         fittedViewForRef.current = null;
@@ -415,15 +437,18 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         ro.observe(wrapRef.current);
 
         const onVisibleRangeChange = (range: { from: number; to: number } | null) => {
-            if (!range || vnLoadingRef.current || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex' || range.from > 8) return;
-            // A range update also fires when new data is applied. Consume this
-            // gesture so one pan loads exactly one additional history range.
-            userChartInteractionRef.current = false;
-            pendingVisibleRangeRef.current = chart.timeScale().getVisibleRange() as { from: BusinessDay; to: BusinessDay } | null;
+            if (!range || vnLoadingRef.current || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex') return;
+            // Load with half a screen of history still available.
+            if (range.from > Math.max(60, (range.to - range.from) * 0.5)) return;
+            // Lock synchronously, before React processes the next range event.
+            vnLoadingRef.current = true;
+            preserveVisibleRangeRef.current = true;
             setVnTimeframe(current => {
                 if (current === '1Y') return '2Y';
                 if (current === '2Y') return '5Y';
                 if (current === '5Y') return 'ALL';
+                vnLoadingRef.current = false;
+                preserveVisibleRangeRef.current = false;
                 return current;
             });
         };
@@ -452,6 +477,10 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     // ── Push price data ───────────────────────────────────────────────────────
     useEffect(() => {
         if (!areaRef.current || !volRef.current || !priceTV.length) return;
+        // Preserve the latest view, including pans made while loading.
+        const visibleRange = preserveVisibleRangeRef.current
+            ? chartRef.current?.timeScale().getVisibleRange()
+            : null;
         areaRef.current.setData(priceTV.map(d => ({ time: d.time, value: d.value })));
         previousCloseMap.current = new Map(priceTV.slice(1).map((d, i) => [dayKey(d.time), priceTV[i].value]));
         volRef.current.setData(priceTV.map((d, i) => ({
@@ -466,9 +495,9 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         }
         // Fit only a newly selected index. Do not snap the chart back to the
         // latest year when older history arrives during a user pan.
-        if (pendingVisibleRangeRef.current) {
-            chartRef.current?.timeScale().setVisibleRange(pendingVisibleRangeRef.current);
-            pendingVisibleRangeRef.current = null;
+        if (visibleRange) {
+            chartRef.current?.timeScale().setVisibleRange(visibleRange);
+            preserveVisibleRangeRef.current = false;
             fittedViewForRef.current = selectedId;
             return;
         }
