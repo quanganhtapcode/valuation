@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import "../globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -12,9 +12,10 @@ import { WatchlistProvider } from "@/contexts/WatchlistContext"
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { getRequestLang } from "@/lib/i18nRouting";
 
-const manrope = Manrope({
-  subsets: ["latin", "vietnamese"],
-  weight: ['400', '500', '600', '700'],
+const manrope = localFont({
+  src: "../../assets/fonts/Manrope-Variable.ttf",
+  weight: "400 700",
+  style: "normal",
   display: 'swap',
   preload: false,
   variable: '--font-manrope',
