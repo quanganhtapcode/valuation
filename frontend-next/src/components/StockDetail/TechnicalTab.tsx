@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { formatNumber } from '@/lib/api';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchCurrentPrice } from '@/lib/stockApi';
 import { translations } from '@/lib/translations';
 import { StockTabDropdown } from './StockTabControls';

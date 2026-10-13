@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { legalContent, type LegalDocumentId } from '@/lib/legalContent';
 import styles from './LegalDocument.module.css';
 

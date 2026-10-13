@@ -4,8 +4,8 @@ import { useCallback, useState } from 'react';
 import SidebarCard from './SidebarCard';
 import { fetchPolymarketEvents, PolymarketEvent } from '@/lib/polymarketApi';
 import MarketChange from './MarketChange';
-import { useVisiblePolling } from '@/lib/useVisiblePolling';
-import { useLanguage } from '@/lib/languageContext';
+import { useVisiblePolling } from '@/hooks/useVisiblePolling';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const getRefreshDelay = () => 5 * 60 * 1000;
 

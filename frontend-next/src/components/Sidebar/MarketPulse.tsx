@@ -6,8 +6,8 @@ import {
 } from '@tremor/react';
 import Link from 'next/link';
 import { TopMoverItem } from '@/lib/api';
-import { siteConfig } from '@/app/siteConfig';
-import { useLanguage } from '@/lib/languageContext';
+import { siteConfig } from '@/config/siteConfig';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { getTickerData } from '@/lib/tickerCache';
 import { localizedPath } from '@/lib/localePath';

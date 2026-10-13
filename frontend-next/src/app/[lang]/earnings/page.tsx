@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useI18n } from '@/lib/languageContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { localizedPath } from '@/lib/localePath';
 

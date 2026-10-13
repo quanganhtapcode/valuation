@@ -4,11 +4,11 @@ import { useState, useEffect, useTransition, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { API, formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
-import { useWatchlist } from '@/lib/watchlistContext';
+import { useWatchlist } from '@/contexts/WatchlistContext';
 import { RiStarFill, RiStarLine } from '@remixicon/react';
 import styles from './page.module.css';
-import { siteConfig } from '@/app/siteConfig';
-import { useLanguage } from "@/lib/languageContext";
+import { siteConfig } from '@/config/siteConfig';
+import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/lib/translations";
 import { profileToText } from '@/lib/profileText';
 

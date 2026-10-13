@@ -49,4 +49,4 @@ export const siteConfig = {
     stockLogoUrl: (symbol: string) => `https://vietcap-documents.s3.ap-southeast-1.amazonaws.com/sentiment/logo/${symbol.toUpperCase()}.jpeg`,
 }
 
-export type siteConfig = typeof siteConfig
+export type SiteConfig = typeof siteConfig

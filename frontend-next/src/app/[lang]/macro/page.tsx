@@ -6,7 +6,7 @@ import { API } from '@/lib/api';
 import type { MacroSeries } from '@/components/Macro/MacroHistoryModal';
 import { macroDate } from '@/components/Macro/macroData';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import TradingViewForexTable from '@/components/Macro/TradingViewForexTable';
 import {

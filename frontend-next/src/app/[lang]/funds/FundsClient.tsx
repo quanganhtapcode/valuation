@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { fundDetailCopy } from '@/lib/fundDetailCopy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { fundsCopy } from '@/lib/fundsCopy';
 import { fetchFundPrices, type FundPrice, type FundSnapshot } from '@/lib/fundsApi';
 

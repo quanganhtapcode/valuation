@@ -30,7 +30,7 @@ import {
     RiFileZipLine,
 } from '@remixicon/react';
 import type { ValuationResult, StockApiData } from '@/lib/types';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 function classNames(...classes: Array<string | false | undefined | null>) {

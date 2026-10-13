@@ -16,6 +16,7 @@ from backend.updater import batch_news, update_price_history as price
 from backend.routes.health_routes import _check_ingestion
 from scripts.fetchers import fetch_vci_financial_statement as financial
 from scripts.fetchers import fetch_vci_stats_financial as stats_financial
+from scripts.fetchers import fetch_vci_index_history as index_history
 
 
 def candle(day):
@@ -106,6 +107,80 @@ class PriceTests(unittest.TestCase):
         self.assertEqual(stats['failed'], 1)
         health = _check_ingestion(self.path, finished_key='last_run_finished', max_age_minutes=60)
         self.assertEqual((health['status'], health['run_status'], health['scope']), ('warn', 'partial', 'subset'))
+
+
+class IndexHistoryTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / 'index.sqlite'
+        with closing(sqlite3.connect(self.path)) as conn:
+            index_history.ensure_schema(conn)
+            index_history.upsert_items(conn, index_code='VNINDEX', items=[
+                {'tradingDate': '2026-09-18', 'indexValue': 100},
+                {'tradingDate': '2026-09-10', 'indexValue': 90},
+            ], fetched_at='old')
+
+    def run_fetch(self):
+        index_history.fetch_pages_to_sqlite(index_code='VNINDEX', start_page=0, end_page=45,
+            size=3, db_path=str(self.path), device_id='test', timeout_s=1, retries=0,
+            backoff_base_s=0, workers=10, sleep_between_pages_s=0, incremental=True)
+
+    def test_overlap_refreshes_existing_candle_and_stops_before_old_pages(self):
+        response = page([{'tradingDate': '2026-09-21', 'indexValue': 110},
+                         {'tradingDate': '2026-09-18', 'indexValue': 105},
+                         {'tradingDate': '2026-09-11', 'indexValue': 95}])
+        with patch.object(index_history, 'request_json', return_value=response) as fetch:
+            self.run_fetch()
+        self.assertEqual(fetch.call_count, 1)
+        with closing(sqlite3.connect(self.path)) as conn:
+            self.assertEqual(conn.execute('SELECT tradingDate,indexValue FROM market_index_history ORDER BY tradingDate').fetchall(),
+                [('2026-09-10', 90), ('2026-09-11', 95), ('2026-09-18', 105), ('2026-09-21', 110)])
+
+    def test_gap_fetches_more_than_one_page_until_overlap(self):
+        first = page([{'tradingDate': day, 'indexValue': 110}
+                      for day in ['2026-09-24', '2026-09-23', '2026-09-22']])
+        second = page([{'tradingDate': day, 'indexValue': 100}
+                       for day in ['2026-09-18', '2026-09-11', '2026-09-10']])
+        with patch.object(index_history, 'request_json', side_effect=[first, second]) as fetch:
+            self.run_fetch()
+        self.assertEqual(fetch.call_count, 2)
+
+    def test_empty_database_bootstraps_until_short_page(self):
+        with closing(sqlite3.connect(self.path)) as conn:
+            conn.execute('DELETE FROM market_index_history')
+            conn.commit()
+        response = page([{'tradingDate': '2026-09-21', 'indexValue': 110}])
+        with patch.object(index_history, 'request_json', return_value=response) as fetch:
+            self.run_fetch()
+        self.assertEqual(fetch.call_count, 1)
+        with closing(sqlite3.connect(self.path)) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM market_index_history').fetchone()[0], 1)
+
+    def test_unsorted_page_is_rejected_before_price_writes(self):
+        response = page([{'tradingDate': '2026-09-18', 'indexValue': 105},
+                         {'tradingDate': '2026-09-21', 'indexValue': 110}])
+        with patch.object(index_history, 'request_json', return_value=response):
+            with self.assertRaisesRegex(ValueError, 'newest-first'):
+                self.run_fetch()
+        with closing(sqlite3.connect(self.path)) as conn:
+            self.assertEqual(conn.execute('SELECT MAX(tradingDate) FROM market_index_history').fetchone()[0], '2026-09-18')
+
+    def test_application_failure_does_not_look_like_empty_success(self):
+        with patch.object(index_history, 'request_json', return_value={'status': 200, 'successful': False, 'data': {'content': []}}):
+            with self.assertRaises(RuntimeError):
+                self.run_fetch()
+
+    def test_page_limit_cannot_silently_leave_a_gap(self):
+        response = page([{'tradingDate': day, 'indexValue': 110}
+                         for day in ['2026-09-24', '2026-09-23', '2026-09-22']])
+        with patch.object(index_history, 'request_json', return_value=response):
+            with self.assertRaisesRegex(ValueError, 'page limit'):
+                index_history.fetch_pages_to_sqlite(index_code='VNINDEX', start_page=0, end_page=0,
+                    size=3, db_path=str(self.path), device_id='test', timeout_s=1, retries=0,
+                    backoff_base_s=0, workers=1, sleep_between_pages_s=0, incremental=True)
+        with closing(sqlite3.connect(self.path)) as conn:
+            self.assertEqual(conn.execute('SELECT MAX(tradingDate) FROM market_index_history').fetchone()[0], '2026-09-18')
 
 
 class NewsTests(unittest.TestCase):

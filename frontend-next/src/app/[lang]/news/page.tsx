@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { NewsItem, formatRelativeTime } from '@/lib/api';
 import styles from './page.module.css';
-import Pagination from '@/components/Pagination';
-import { siteConfig } from '@/app/siteConfig';
-import { useI18n } from '@/lib/languageContext';
+import Pagination from '@/components/ui/Pagination';
+import { siteConfig } from '@/config/siteConfig';
+import { useI18n } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 export default function NewsPage() {

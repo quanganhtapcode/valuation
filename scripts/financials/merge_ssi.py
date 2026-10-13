@@ -10,10 +10,12 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
-if __package__:
-    from .financial_statement_storage import META, TABLES, ensure_provenance, write_statement
-else:
-    from financial_statement_storage import META, TABLES, ensure_provenance, write_statement
+if not __package__:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.financials.storage import META, TABLES, ensure_provenance, write_statement
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SSI_DB = ROOT / "data/financial-statements/vci_financial_statement_data/vci_financial_statements.sqlite"

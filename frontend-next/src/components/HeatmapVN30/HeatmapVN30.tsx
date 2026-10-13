@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { API_BASE, isTradingHours, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 //  Types

@@ -1,6 +1,6 @@
 'use client';
 
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface PaginationProps {
     page: number;

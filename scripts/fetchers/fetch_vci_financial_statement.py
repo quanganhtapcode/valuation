@@ -32,10 +32,12 @@ from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
 
-if __package__:
-    from .financial_statement_storage import ensure_provenance, write_statement
-else:
-    from financial_statement_storage import ensure_provenance, write_statement
+if not __package__:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.financials.storage import ensure_provenance, write_statement
+
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
@@ -1249,10 +1251,7 @@ def main() -> int:
         log.warning("Restored %d missing VCI-only note periods from %s", restored_notes, notes_fallback_path)
 
     if not args.no_wide_convert:
-        if __package__:
-            from .merge_ssi_into_vci_financials import DEFAULT_SSI_DB, merge_ssi
-        else:
-            from merge_ssi_into_vci_financials import DEFAULT_SSI_DB, merge_ssi
+        from scripts.financials.merge_ssi import DEFAULT_SSI_DB, merge_ssi
         fallback = Path(args.ssi_fallback_db).resolve() if args.ssi_fallback_db else DEFAULT_SSI_DB
         if args.ssi_fallback_db or (db_path == _default_db_path() and fallback.is_file()):
             if fallback.resolve() == db_path.resolve():

@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Card } from '@tremor/react';
 import { RiEqualizerLine, RiCloseLine, RiArrowRightSLine, RiSearchLine } from '@remixicon/react';
-import { useWatchlist } from '@/lib/watchlistContext';
+import { useWatchlist } from '@/contexts/WatchlistContext';
 import { formatNumber, isTradingHours, PRICE_SYNC_INTERVAL_MS, IDLE_REFRESH_INTERVAL_MS } from '@/lib/api';
 import { getTickerData } from '@/lib/tickerCache';
-import { siteConfig } from '@/app/siteConfig';
-import { useLanguage } from '@/lib/languageContext';
+import { siteConfig } from '@/config/siteConfig';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { localizedPath } from '@/lib/localePath';
 

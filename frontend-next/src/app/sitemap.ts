@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { readFile } from 'node:fs/promises';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
-import { siteConfig } from '@/app/siteConfig';
+import { siteConfig } from '@/config/siteConfig';
 import { localizedPath } from '@/lib/localePath';
 
 export const revalidate = 86400;

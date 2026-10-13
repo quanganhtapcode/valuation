@@ -11,7 +11,7 @@ const BankLoanBreakdown = dynamic(() => import('./BankLoanBreakdown'), {
 import AiInsightCard from './AiInsightCard';
 import FinancialMetricsPanel from './FinancialMetricsPanel';
 import { fetchAiAnalysis } from '@/lib/api';
-import { useLanguage } from "@/lib/languageContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { translations } from "@/lib/translations"
 
 function formatRelativeTime(dateStr: string, tOv: typeof translations.vi.overview): string {

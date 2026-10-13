@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { fetchAPI, formatNumber } from '@/lib/api';
 import { cx } from '@/lib/utils';
-import { useLanguage } from "@/lib/languageContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { translations } from "@/lib/translations"
 import { getFieldCodes } from "@/lib/fieldCodesCache"
 import ValuationHistoryChart from './ValuationHistoryChart'

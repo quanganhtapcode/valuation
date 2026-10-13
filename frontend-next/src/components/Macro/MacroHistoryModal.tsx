@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogPanel } from '@tremor/react';
 import { RiArrowDownSLine, RiCloseLine, RiDownloadLine } from '@remixicon/react';
 import { API } from '@/lib/api';
-import { useLanguage } from '@/lib/languageContext';
-import Pagination from '@/components/Pagination';
+import { useLanguage } from '@/contexts/LanguageContext';
+import Pagination from '@/components/ui/Pagination';
 import MacroSeriesChart from './MacroSeriesChart';
 import { macroDate, normalizeMacroPoints, type MacroPoint } from './macroData';
 

@@ -1,9 +1,9 @@
 "use client"
 
-import { siteConfig } from "@/app/siteConfig"
-import useScroll from "@/lib/use-scroll"
+import { siteConfig } from "@/config/siteConfig"
+import useScroll from "@/hooks/useScroll"
 import { cx, focusInput } from "@/lib/utils"
-import { useLanguage } from "@/lib/languageContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { translations } from "@/lib/translations"
 import {
     RiArrowDownSLine,
@@ -22,7 +22,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useDebounce } from "use-debounce"
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { DatabaseLogo } from "@/components/DatabaseLogo"
-import { Button } from "@/components/Button"
+import { Button } from "@/components/ui/Button"
 import { getTickerData } from "@/lib/tickerCache"
 import ThemeSwitch from "@/components/ThemeSwitch"
 import LanguageSwitch from "@/components/LanguageSwitch"

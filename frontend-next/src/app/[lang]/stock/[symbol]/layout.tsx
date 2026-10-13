@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
-import { siteConfig } from '@/app/siteConfig';
+import { siteConfig } from '@/config/siteConfig';
 import tickerData from '../../../../../public/ticker_data.json';
 import { getRequestLang, localizedPath } from '@/lib/i18nRouting';
 import type { Lang } from '@/lib/translations';

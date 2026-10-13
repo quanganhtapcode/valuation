@@ -1,15 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import "../globals.css";
-import { Navbar } from "@/components/ui/Navbar";
-import Footer from "@/components/ui/Footer";
-import MainWrapper from "@/components/ui/MainWrapper";
+import { Navbar } from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import MainWrapper from "@/components/layout/MainWrapper";
 import { ThemeProvider } from "next-themes";
 import { LazyTickerTape } from "@/components/TickerTape";
 import { ClientErrorBoundary } from "@/components/ui/ClientErrorBoundary";
-import { siteConfig } from "@/app/siteConfig";
-import { WatchlistProvider } from "@/lib/watchlistContext"
-import { LanguageProvider } from "@/lib/languageContext";
+import { siteConfig } from "@/config/siteConfig";
+import { WatchlistProvider } from "@/contexts/WatchlistContext"
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { getRequestLang } from "@/lib/i18nRouting";
 
 const manrope = Manrope({

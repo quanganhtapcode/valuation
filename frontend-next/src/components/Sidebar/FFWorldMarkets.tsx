@@ -5,7 +5,7 @@ import MarketChange from './MarketChange';
 import SidebarCard from './SidebarCard';
 import { useEffect, useState } from 'react';
 import { getFFWS, FFPrice } from '@/lib/ffWS';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 const ITEMS = [

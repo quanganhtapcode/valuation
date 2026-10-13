@@ -2,7 +2,7 @@
 
 import { useId, useMemo } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 import { macroDate, type MacroPoint } from './macroData';
 

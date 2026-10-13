@@ -18,7 +18,7 @@ import { cx } from '@/lib/utils';
 import { RiHistoryLine } from '@remixicon/react';
 import dynamic from 'next/dynamic';
 
-const IndexHistoryModal = dynamic(() => import('@/components/IndexCard/IndexHistoryModal'), {
+const IndexHistoryModal = dynamic(() => import('@/components/HeroIndexCard/IndexHistoryModal'), {
     ssr: false,
 });
 

@@ -19,7 +19,7 @@ import {
     GoldPriceItem,
 } from '@/lib/api';
 import styles from './page.module.css';
-import { useVisiblePolling } from '@/lib/useVisiblePolling';
+import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import DeferredPanel from '@/components/ui/DeferredPanel';
 import TradingViewForexTable from '@/components/Macro/TradingViewForexTable';
 

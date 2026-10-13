@@ -3,7 +3,7 @@
 import { createElement, useState } from 'react';
 import Script from 'next/script';
 import { useTheme } from 'next-themes';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function TradingViewForexTable() {
     const { resolvedTheme } = useTheme();

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { API } from '@/lib/api';
-import { siteConfig } from '@/app/siteConfig';
-import { useI18n } from '@/lib/languageContext';
+import { siteConfig } from '@/config/siteConfig';
+import { useI18n } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { localizedPath } from '@/lib/localePath';
 

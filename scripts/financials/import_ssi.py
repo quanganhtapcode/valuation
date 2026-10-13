@@ -17,12 +17,12 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-if __package__:
-    from .fetch_vci_financial_statement import SECTION_TABLE_MAP, _ensure_wide_table, ensure_schema, upsert_metrics
-    from .financial_statement_storage import write_statement
-else:
-    from fetch_vci_financial_statement import SECTION_TABLE_MAP, _ensure_wide_table, ensure_schema, upsert_metrics
-    from financial_statement_storage import write_statement
+if not __package__:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.fetchers.fetch_vci_financial_statement import SECTION_TABLE_MAP, _ensure_wide_table, ensure_schema, upsert_metrics
+from scripts.financials.storage import write_statement
 
 
 log = logging.getLogger(__name__)

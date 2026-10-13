@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import Pagination from '@/components/Pagination';
+import Pagination from '@/components/ui/Pagination';
 import {
   fetchScreener,
   fetchScreenerIcbSectors,
@@ -11,7 +11,7 @@ import {
   ScreenerItem,
   ScreenerSortKey,
 } from '@/lib/api';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { localizedPath } from '@/lib/localePath';
 

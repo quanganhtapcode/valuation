@@ -1,5 +1,5 @@
 import styles from '../../app/[lang]/stock/[symbol]/page.module.css';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 interface FinancialData {

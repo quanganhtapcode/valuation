@@ -1,5 +1,5 @@
 "use client"
-import { useLanguage } from "@/lib/languageContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { RadioGroup, RadioGroupItem } from "@/components/ThemeSwitch"
 import { usePathname, useRouter } from "next/navigation"
 import { localizedPath } from "@/lib/localePath"

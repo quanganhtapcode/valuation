@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { siteConfig } from '@/app/siteConfig';
+import { siteConfig } from '@/config/siteConfig';
 import type { Lang } from '@/lib/translations';
 import { isLang, localizedPath } from '@/lib/localePath';
 

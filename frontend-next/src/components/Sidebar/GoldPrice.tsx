@@ -2,7 +2,7 @@
 
 import SidebarCard from './SidebarCard';
 import type { GoldPriceItem } from '@/lib/goldApi';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 interface GoldPriceProps {

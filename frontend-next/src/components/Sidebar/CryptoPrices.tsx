@@ -2,7 +2,7 @@
 
 import MarketChange from './MarketChange';
 import SidebarCard from './SidebarCard';
-import { OKX_INSTRUMENTS, useOkxTickers } from '@/lib/useOkxTickers';
+import { OKX_INSTRUMENTS, useOkxTickers } from '@/hooks/useOkxTickers';
 
 function formatPrice(symbol: string, price: number): string {
     const decimals = symbol === 'BTC' ? 2 : 4;

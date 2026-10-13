@@ -39,7 +39,7 @@ CRON_RATIO_DAILY="35 16 * * 1-5 cd /var/www/valuation && bash automation/vci_saf
 
 CRON_SHAREHOLDERS="10 13 * * 0 cd /var/www/valuation && bash automation/vci_safe_run.sh --name shareholders --db data/sqlite/vci_shareholders.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_shareholders.py --db data/sqlite/vci_shareholders.sqlite --workers 1 --delay 1 --retries 2\" >> logs/cron_shareholders.log 2>&1"
 
-CRON_INDEX_HISTORY="45 15 * * 1-5 cd /var/www/valuation && bash automation/vci_safe_run.sh --name index_history --db data/sqlite/vci_index_history.sqlite --retries 2 --retry-sleep 15 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci.py --indexes VNINDEX,HNXIndex,HNXUpcomIndex,VN30 --start-page 0 --end-page 45 --size 50 --db data/sqlite/vci_index_history.sqlite --retries 3 --backoff 0.8\" >> logs/cron_index_history.log 2>&1"
+CRON_INDEX_HISTORY="45 15 * * 1-5 cd /var/www/valuation && bash automation/vci_safe_run.sh --name index_history --db data/sqlite/vci_index_history.sqlite --retries 2 --retry-sleep 15 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_index_history.py --incremental --indexes VNINDEX,HNXIndex,HNXUpcomIndex,VN30 --start-page 0 --end-page 45 --size 50 --db data/sqlite/vci_index_history.sqlite --retries 3 --backoff 0.8\" >> logs/cron_index_history.log 2>&1"
 
 CRON_VALUATION="30 18 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name valuation --db data/sqlite/vci_valuation.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_valuation.py --db data/sqlite/vci_valuation.sqlite\" >> logs/cron_valuation.log 2>&1"
 
@@ -69,7 +69,7 @@ CRON_TELEGRAM="*/30 * * * * /var/www/valuation/scripts/telegram_uptime_report.sh
 render_crontab() {
   # Preserve unrelated jobs, remove all previous forms of managed fetchers.
   { crontab -l 2>/dev/null || true; } \
-    | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_market_news\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history(\.py)?|backend\.updater\.update_price_history|backend\.updater\.batch_news|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py|fetch_vci_company\.py|fetch_vci_financial_statement\.py|fetch_vci\.py|fetch_fireant_macro\.py|fetch_fireant_beta\.py|fetch_macro_history\.py|automation/vci_safe_run\.sh" \
+    | grep -v -E "fetch_vci_screener\.py|fetch_vci_stats_financial\.py|fetch_vci_shareholders\.py|fetch_vci_market_news\.py|fetch_vci_news\.py|fetch_vci_standouts\.py|fetch_vci_ratio_daily\.py|update_price_history(\.py)?|backend\.updater\.update_price_history|backend\.updater\.batch_news|telegram_uptime_report\.sh|fetch_vci_valuation\.py|fetch_vci_foreign\.py|fetch_vci_company\.py|fetch_vci_financial_statement\.py|fetch_vci\.py|fetch_vci_index_history\.py|fetch_fireant_macro\.py|fetch_fireant_beta\.py|fetch_macro_history\.py|automation/vci_safe_run\.sh" \
     | tr -d '\r' || true
 
   local line minute hour day month weekday command

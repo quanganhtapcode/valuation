@@ -92,6 +92,8 @@ Browser
 | `runtime/`, `logs/` | Trạng thái tạm thời và nhật ký vận hành (không commit) |
 | `docs/` | Tài liệu kỹ thuật và vận hành |
 
+Quy ước đặt tên và vị trí module được mô tả trong [cấu trúc code](docs/code-organization.md).
+
 ## Automation
 
 - `setup_cron_vps.sh` quản lý lịch crawl SQLite; `--dry-run` xem lịch trước khi cài.
@@ -111,8 +113,11 @@ npm run build
 Với thay đổi ở backend hoặc pipeline, hãy chạy trực tiếp tác vụ liên quan, ví dụ:
 
 ```bash
-python run_pipeline.py
+.venv/bin/python -m unittest discover -s tests
 ```
+
+`python run_pipeline.py` dùng để cập nhật dữ liệu dẫn xuất khi cần; lệnh này có
+ghi database nên không thay thế bộ test offline.
 
 ## Đóng góp
 

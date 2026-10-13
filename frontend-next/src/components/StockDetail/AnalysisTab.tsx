@@ -12,7 +12,7 @@ import {
     TableCell,
 } from '@tremor/react';
 import { cx } from '@/lib/utils';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import BankingPeerTable from './BankingPeerTable';
 import { localizedPath } from '@/lib/localePath';

@@ -4,7 +4,7 @@ import { NewsItem, formatRelativeTime } from '@/lib/api';
 import { Card, Icon } from '@tremor/react';
 import { RiArrowRightUpLine, RiNewspaperLine } from '@remixicon/react';
 import Link from 'next/link';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 interface NewsSectionProps {

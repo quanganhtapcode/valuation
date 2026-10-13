@@ -17,8 +17,8 @@ import {
     ForeignNetItem,
     ForeignVolumePoint,
 } from '@/lib/api';
-import { siteConfig } from '@/app/siteConfig';
-import { useLanguage } from '@/lib/languageContext';
+import { siteConfig } from '@/config/siteConfig';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 const REFRESH_MS = 60_000;

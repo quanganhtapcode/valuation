@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState, useTransition } from 'react';
-import Pagination from '@/components/Pagination';
+import Pagination from '@/components/ui/Pagination';
 import { formatNumber } from '@/lib/api';
 import type { PriceData } from '@/lib/types';
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { DownloadIcon, StockTabDropdown, StockTabIconButton } from './StockTabControls';
 

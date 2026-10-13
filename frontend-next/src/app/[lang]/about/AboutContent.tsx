@@ -1,6 +1,6 @@
 'use client';
 
-import { useLanguage } from '@/lib/languageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import styles from './page.module.css';
 
