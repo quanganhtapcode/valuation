@@ -35,6 +35,7 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
     const [tab, setTab] = useState<'nav' | 'compare'>('nav');
     const [comparisonVisited, setComparisonVisited] = useState(false);
     const [search, setSearch] = useState('');
+    const [mobileVisible, setMobileVisible] = useState(12);
     const [fundType, setFundType] = useState('');
     const [fundManager, setFundManager] = useState('');
     const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: 'nav_change_12m', descending: true });
@@ -104,16 +105,16 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
         {(error || snapshot?.stale) && <p role="status" className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{snapshot ? t.stale : t.error}</p>}
         <div id="fund-panel-compare" role="tabpanel" aria-labelledby="fund-tab-compare" hidden={tab !== 'compare'}>{comparisonVisited && <FundsComparison funds={snapshot?.data ?? []} />}</div>
         <div id="fund-panel-nav" role="tabpanel" aria-labelledby="fund-tab-nav" hidden={tab !== 'nav'} className="overflow-hidden border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex flex-wrap gap-3 border-b border-slate-100 p-4 dark:border-slate-800">
-                <input aria-label={t.search} value={search} onChange={event => setSearch(event.target.value)} placeholder={t.search} className="w-full min-w-0 rounded-lg sm:w-80 border border-slate-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700" />
-                <select aria-label={t.type} value={fundType} onChange={event => setFundType(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:w-auto dark:border-slate-700 dark:bg-slate-900">
+            <div className="grid grid-cols-2 gap-2 border-b border-slate-100 p-3 sm:flex sm:flex-wrap sm:gap-3 sm:p-4 dark:border-slate-800">
+                <input aria-label={t.search} value={search} onChange={event => { setSearch(event.target.value); setMobileVisible(12); }} placeholder={t.search} className="col-span-2 w-full min-w-0 rounded-lg sm:w-80 border border-slate-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700" />
+                <select aria-label={t.type} value={fundType} onChange={event => { setFundType(event.target.value); setMobileVisible(12); }} className="min-w-0 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:w-auto dark:border-slate-700 dark:bg-slate-900">
                     <option value="">{t.allTypes}</option>{types.map(type => <option key={type} value={type}>{typeLabel(type)}</option>)}
                 </select>
-                <select aria-label={t.manager} value={fundManager} onChange={event => setFundManager(event.target.value)} className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:w-80 dark:border-slate-700 dark:bg-slate-900">
+                <select aria-label={t.manager} value={fundManager} onChange={event => { setFundManager(event.target.value); setMobileVisible(12); }} className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm sm:w-80 dark:border-slate-700 dark:bg-slate-900">
                     <option value="">{t.allManagers}</option>{managers.map(manager => <option key={manager} value={manager}>{fundIssuers[manager]?.shortName || formatFundDisplayName(manager)}</option>)}
                 </select>
             </div>
-            <div className="overflow-x-auto"><table className="w-full min-w-[960px] table-fixed text-left text-sm">
+            <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[960px] table-fixed text-left text-sm">
                 <thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr>
                     {columns.map(column => <th key={column.key} scope="col" className={`px-3 py-3 font-semibold md:px-4 ${column.key === 'short_name' || column.key === 'fund_owner_name' ? 'text-left' : 'text-right'}`} aria-sort={sort.key === column.key ? sort.descending ? 'descending' : 'ascending' : 'none'}>
                         <button className="inline-flex items-center gap-2" onClick={() => changeSort(column.key)}><span>{column.label}</span><span aria-hidden="true" className={sort.key === column.key ? 'text-blue-600' : 'text-slate-300'}>{sort.key === column.key && !sort.descending ? '▴' : '▾'}</span></button>
@@ -134,6 +135,14 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                     {[row.nav_change_12m, row.nav_change_36m_annualized].map((value, index) => <td key={index} className="px-3 py-3.5 md:px-4 text-right font-semibold tabular-nums">{percent(value)}</td>)}
                 </tr>)}</tbody>
             </table></div>
+            <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+                <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-slate-500"><span>{rows.length} {t.result}</span><select aria-label={lang === 'vi' ? 'Sắp xếp quỹ' : 'Sort funds'} value={`${sort.key}:${sort.descending}`} onChange={event => { const [key, descending] = event.target.value.split(':'); setSort({ key: key as SortKey, descending: descending === 'true' }); }} className="min-w-0 max-w-[65%] rounded border border-slate-200 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-900">{columns.flatMap(column => [false, true].map(descending => <option key={`${column.key}:${descending}`} value={`${column.key}:${descending}`}>{column.label} {descending ? '↓' : '↑'}</option>))}</select></div>
+                {rows.slice(0, mobileVisible).map(row => <article key={row.short_name} className="px-3 py-3">
+                    <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><IssuerLogo manager={row.fund_owner_name} /><div className="min-w-0"><Link href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} className="text-sm font-semibold text-blue-600 dark:text-blue-400">{row.short_name}</Link><p className="truncate text-[11px] text-slate-500">{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</p></div></div><div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums">{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(row.nav)}</p><p className="text-[10px] text-slate-400">{row.nav_update_at || '—'}</p></div></div>
+                    <div className="mt-2 flex items-center justify-between gap-2 text-[11px]"><span className="text-slate-500">{typeLabel(row.fund_type)}</span><span className="whitespace-nowrap">{lang === 'vi' ? '1 năm' : '1Y'} <span className="font-semibold">{percent(row.nav_change_12m)}</span></span><span className="whitespace-nowrap">{lang === 'vi' ? '3 năm/năm' : '3Y ann.'} <span className="font-semibold">{percent(row.nav_change_36m_annualized)}</span></span></div>
+                </article>)}
+                {rows.length > mobileVisible && <button type="button" onClick={() => setMobileVisible(count => count + 12)} className="w-full py-3 text-sm font-medium text-blue-600 dark:text-blue-400">{lang === 'vi' ? 'Xem thêm quỹ' : 'Show more funds'} ({Math.min(mobileVisible, rows.length)}/{rows.length})</button>}
+            </div>
             {!rows.length && <p role="status" className="p-10 text-center text-sm text-slate-500">{loading ? t.loading : error ? t.error : t.empty}</p>}
             <div className="flex flex-wrap justify-between gap-2 px-4 py-3 text-xs text-slate-500"><a href="https://fmarket.vn/" target="_blank" rel="noreferrer" className="hover:text-blue-600">{t.source}</a></div>
         </div>
