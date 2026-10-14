@@ -38,13 +38,13 @@ STOCK_METRICS_HISTORY_TABLE = ("stock_metrics_history", "stock_metrics_history",
 STOCK_METRICS_SOURCE_NOTE_VI = (
     "Nguồn chỉ số cổ phiếu: Vietcap; lịch sử được bổ sung từ SSI tại các kỳ hoặc ô còn thiếu "
     "sau khi đối chiếu chỉ số theo cùng mã và kỳ báo cáo. Ưu tiên giá trị Vietcap khi có. "
-    "PE/PB năm được bổ sung trực tiếp từ SSI khi thiếu; cách xác định giá giữa hai nguồn có thể khác nhau. "
+    "PE/PB lịch sử được xuất riêng thành pe_ssi, pe_vietcap, pb_ssi, pb_vietcap; cách xác định giá giữa hai nguồn có thể khác nhau. "
     "Độ phủ tùy mã và chỉ số; dữ liệu sớm nhất hiện có là 2006, chưa bảo đảm đầy đủ từ IPO."
 )
 STOCK_METRICS_SOURCE_NOTE_EN = (
     "Stock metric source: Vietcap, with SSI backfilling missing historical periods or values "
     "after matching metrics for the same ticker and reporting period. Existing Vietcap values "
-    "take priority. Missing annual PE/PB values are taken directly from SSI; source valuation price conventions may differ. "
+    "take priority. Historical PE/PB are exported separately as pe_ssi, pe_vietcap, pb_ssi, pb_vietcap; source valuation price conventions may differ. "
     "Coverage varies by ticker and metric; available history starts in 2006 "
     "and is not guaranteed to cover every ticker from IPO."
 )
@@ -57,6 +57,10 @@ STOCK_METRIC_COLUMNS = (
     ("period_date", "Kỳ dữ liệu", "text"),
     ("pe", "P/E", "multiple"),
     ("pb", "P/B", "multiple"),
+    ("pe_ssi", "pe_ssi", "multiple"),
+    ("pe_vietcap", "pe_vietcap", "multiple"),
+    ("pb_ssi", "pb_ssi", "multiple"),
+    ("pb_vietcap", "pb_vietcap", "multiple"),
     ("ps", "P/S", "multiple"),
     ("price_to_cash_flow", "P/CF", "multiple"),
     ("ev_to_ebitda", "EV/EBITDA", "multiple"),
@@ -505,11 +509,11 @@ def _csv_readme(metric_tables: list[str], statement_sections: list[str]) -> str:
     metric_labels = {field: label for field, label, _ in STOCK_METRIC_COLUMNS}
     if "stock_metrics" in metric_tables:
         lines.extend(["### Stock Metrics.csv", "", "Current snapshot fields include `ticker` and the following fields when available:", "", "| CSV column | Original name |", "| --- | --- |"])
-        lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items())
+        lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items() if field not in ("pe_ssi", "pe_vietcap", "pb_ssi", "pb_vietcap"))
         lines.append("")
     if "stock_metrics_history" in metric_tables:
         lines.extend(["### Stock Metrics History.csv", "", "Historical fields include `ticker`, `year_report`, `quarter_report`, and the following fields when available:", "", "| CSV column | Original name |", "| --- | --- |"])
-        lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items())
+        lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items() if field not in ("pe", "pb"))
         lines.append("")
     return "\n".join(lines + statement_sections)
 
@@ -527,6 +531,7 @@ def _write_export_readme(workbook, metric_tables: list[str]) -> None:
         "Nguồn dữ liệu chỉ số cổ phiếu / Stock metric sources",
         STOCK_METRICS_SOURCE_NOTE_VI,
         STOCK_METRICS_SOURCE_NOTE_EN,
+        "PE/PB history columns are source-specific: pe_ssi/pb_ssi contain SSI values even when Vietcap also has data; pe_vietcap/pb_vietcap contain only Vietcap values. Missing source values remain blank. Latest Stock Metrics retains pe/pb from Vietcap.",
         "Stock Metrics: chỉ số mới nhất từ Vietcap / latest available Vietcap snapshot.",
         "Stock Metrics History: lịch sử Vietcap + SSI / combined Vietcap + SSI history.",
         "Kỳ báo cáo / Reporting periods: quarters 1–4; annual observations use quarter_report = 5.",
@@ -905,22 +910,50 @@ def _stats_financial_history_rows(tickers: list[str]) -> tuple[list[str], list[s
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as connection:
             connection.row_factory = sqlite3.Row
             available = {row[1] for row in connection.execute("PRAGMA table_info(stats_financial_history)")}
-            fields = [field for field, _, _ in STOCK_METRIC_COLUMNS if field in available]
+            fields = [field for field, _, _ in STOCK_METRIC_COLUMNS
+                      if (field in available and field not in ("pe", "pb"))
+                      or field in ("pe_ssi", "pe_vietcap", "pb_ssi", "pb_vietcap")]
+            tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            has_ssi = "ssi_stats_financial_history" in tables
+            has_provenance = "stock_metrics_provenance" in tables
+            if has_ssi and not has_provenance:
+                raise sqlite3.OperationalError("SSI history exists without source provenance")
+            join = (
+                "LEFT JOIN ssi_stats_financial_history s USING(ticker,year_report,quarter_report)"
+                if has_ssi else ""
+            )
+            expressions = []
+            for field in fields:
+                if field in ("pe_ssi", "pb_ssi"):
+                    metric = field.split("_")[0]
+                    expressions.append(f"{'s.' + metric if has_ssi else 'NULL'} AS {field}")
+                elif field in ("pe_vietcap", "pb_vietcap"):
+                    metric = field.split("_")[0]
+                    value = f"h.{metric}" if metric in available else "NULL"
+                    if has_provenance:
+                        value = f"""CASE WHEN EXISTS (
+                            SELECT 1 FROM stock_metrics_provenance p
+                            WHERE p.ticker=h.ticker AND p.year_report=h.year_report
+                            AND p.quarter_report=h.quarter_report AND p.field='{metric}'
+                            AND p.data_source='SSI') THEN NULL ELSE {value} END"""
+                    expressions.append(f"{value} AS {field}")
+                else:
+                    expressions.append(f"h.{_quote_identifier(field)}")
             if not fields:
                 return [], []
             placeholders = ",".join("?" for _ in tickers)
-            where = [f"UPPER(ticker) IN ({placeholders})", "year_report BETWEEN ? AND ?"]
+            where = [f"UPPER(h.ticker) IN ({placeholders})", "h.year_report BETWEEN ? AND ?"]
             params: list[object] = [ticker.upper() for ticker in tickers] + [from_year, to_year]
             if kind == "year":
-                where.append("quarter_report = 5")
+                where.append("h.quarter_report = 5")
             elif kind == "quarter":
-                where.append("quarter_report BETWEEN 1 AND 4")
-                where.append("(year_report * 4 + quarter_report) BETWEEN ? AND ?")
+                where.append("h.quarter_report BETWEEN 1 AND 4")
+                where.append("(h.year_report * 4 + h.quarter_report) BETWEEN ? AND ?")
                 params.extend([from_year * 4 + from_quarter, to_year * 4 + to_quarter])
             rows = connection.execute(
-                f"SELECT ticker, year_report, quarter_report, {', '.join(_quote_identifier(field) for field in fields)} "
-                f"FROM stats_financial_history WHERE {' AND '.join(where)} "
-                "ORDER BY ticker, year_report, quarter_report",
+                f"SELECT h.ticker, h.year_report, h.quarter_report, {', '.join(expressions)} "
+                f"FROM stats_financial_history h {join} WHERE {' AND '.join(where)} "
+                "ORDER BY h.ticker, h.year_report, h.quarter_report",
                 params,
             ).fetchall()
         return fields, rows

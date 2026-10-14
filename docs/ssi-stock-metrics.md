@@ -53,3 +53,7 @@ The Downloads page includes a source note in Vietnamese and English. CSV package
 ## Annual PE/PB extension
 
 On 2026-10-13, added 6,629 missing annual PE/PB cells from SSI, preserving every previously populated metric cell. The yearly export uses these stored annual SSI values directly, not averages of quarterly values. The Downloads footer and CSV/Excel README notes explicitly disclose that source valuation price conventions may differ. Source-null values remain blank; this is not complete IPO coverage. A new pre-merge backup is `data/sqlite/vci_stats_financial.pre-ssi-metrics-20261013T154641828728Z.sqlite`.
+
+## Source-specific PE/PB exports
+
+Stock Metrics History CSV and Excel exports replace merged `pe`/`pb` with `pe_ssi`, `pe_vietcap`, `pb_ssi`, `pb_vietcap`. SSI values come directly from the normalized SSI history, including periods where Vietcap already has values. Vietcap values come from the shared history only when the cell has no SSI provenance. Missing source values remain blank; numeric zeroes are preserved. This applies to annual and quarterly exports. The latest Stock Metrics snapshot remains Vietcap `pe`/`pb`. No stored history values were changed for this export change.
