@@ -551,11 +551,10 @@ def _append_metric_source_note(worksheet) -> None:
     from openpyxl.styles import Alignment, Font
 
     worksheet.append([])
-    for text in (STOCK_METRICS_SOURCE_NOTE_VI, STOCK_METRICS_SOURCE_NOTE_EN):
-        cell = WriteOnlyCell(worksheet, value=text)
-        cell.font = Font(name="Calibri", size=10, italic=True, color="666666")
-        cell.alignment = Alignment(vertical="top")
-        worksheet.append([cell])
+    cell = WriteOnlyCell(worksheet, value="PE/PB có hai nguồn dữ liệu: SSI và Vietcap.")
+    cell.font = Font(name="Calibri", size=10, italic=True, color="666666")
+    cell.alignment = Alignment(vertical="top")
+    worksheet.append([cell])
 
 
 def _history_identifier_fields() -> list[str]:
