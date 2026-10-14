@@ -57,3 +57,7 @@ On 2026-10-13, added 6,629 missing annual PE/PB cells from SSI, preserving every
 ## Source-specific PE/PB exports
 
 Stock Metrics History CSV and Excel exports replace merged `pe`/`pb` with `pe_ssi`, `pe_vietcap`, `pb_ssi`, `pb_vietcap`. SSI values come directly from the normalized SSI history, including periods where Vietcap already has values. Vietcap values come from the shared history only when the cell has no SSI provenance. Missing source values remain blank; numeric zeroes are preserved. This applies to annual and quarterly exports. The latest Stock Metrics snapshot remains Vietcap `pe`/`pb`. No stored history values were changed for this export change.
+
+## Bank-only export fields
+
+NIM, CIR, CAR, CASA, NPL, LDR, loans growth and deposit growth are exported only for banks identified by the security catalog's boolean `isbank` flag (legacy bank-symbol fallback when classification is unavailable). Exports containing no banks omit these columns entirely. Mixed exports retain the columns for banks and leave nonbank cells blank, including misleading source zeroes. Applies to latest/history datasets and CSV/Excel.

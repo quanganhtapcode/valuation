@@ -108,6 +108,33 @@ BANK_SYMBOLS = {
     "TPB", "LPB", "MSB", "OCB", "EIB", "ABB", "NAB", "PGB", "VAB", "VIB",
     "SSB", "BAB", "KLB", "BVB", "KBS", "SGB", "NVB",
 }
+BANK_ONLY_METRICS = frozenset({
+    "net_interest_margin", "cir", "car", "casa_ratio", "npl", "ldr",
+    "loans_growth", "deposit_growth",
+})
+
+
+def _selected_bank_tickers(tickers: list[str]) -> set[str]:
+    """Use the security catalog's explicit bank classification, with a legacy fallback."""
+    flags = {}
+    try:
+        payload = json.loads((PROJECT_ROOT / "frontend-next/public/ticker_data.json").read_text())
+        for item in payload.get("tickers", []):
+            if isinstance(item, dict) and isinstance(item.get("isbank"), bool):
+                flags[str(item.get("symbol", "")).upper()] = item["isbank"]
+    except (OSError, ValueError, AttributeError):
+        pass
+    return {ticker.upper() for ticker in tickers
+            if flags.get(ticker.upper(), ticker.upper() in BANK_SYMBOLS)}
+
+
+def _bank_metric_expression(field: str, value: str, banks: set[str], ticker_column: str) -> str:
+    if field in BANK_ONLY_METRICS:
+        symbols = ",".join("'" + ticker.replace("'", "''") + "'" for ticker in sorted(banks))
+        value = f"CASE WHEN UPPER({ticker_column}) IN ({symbols}) THEN {value} ELSE NULL END" if symbols else "NULL"
+    return f"{value} AS {_quote_identifier(field)}"
+
+
 # Vietcap's standard income-statement hierarchy for banks. The order matches the
 # Financials tab, while zero-only fields are still excluded per export scope.
 BANK_INCOME_FIELDS = (
@@ -821,12 +848,15 @@ def _stats_financial_rows(tickers: list[str]) -> tuple[list[str], list[sqlite3.R
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as connection:
             connection.row_factory = sqlite3.Row
             available = {row[1] for row in connection.execute("PRAGMA table_info(stats_financial)")}
-            fields = [field for field, _, _ in STOCK_METRIC_COLUMNS if field in available]
+            banks = _selected_bank_tickers(tickers)
+            fields = [field for field, _, _ in STOCK_METRIC_COLUMNS
+                      if field in available and (field not in BANK_ONLY_METRICS or banks)]
+            expressions = [_bank_metric_expression(field, _quote_identifier(field), banks, "ticker") for field in fields]
             if not fields:
                 return [], []
             placeholders = ",".join("?" for _ in tickers)
             rows = connection.execute(
-                f"SELECT ticker, {', '.join(_quote_identifier(field) for field in fields)} "
+                f"SELECT ticker, {', '.join(expressions)} "
                 f"FROM stats_financial WHERE UPPER(ticker) IN ({placeholders}) ORDER BY ticker",
                 [ticker.upper() for ticker in tickers],
             ).fetchall()
@@ -913,6 +943,8 @@ def _stats_financial_history_rows(tickers: list[str]) -> tuple[list[str], list[s
             fields = [field for field, _, _ in STOCK_METRIC_COLUMNS
                       if (field in available and field not in ("pe", "pb"))
                       or field in ("pe_ssi", "pe_vietcap", "pb_ssi", "pb_vietcap")]
+            banks = _selected_bank_tickers(tickers)
+            fields = [field for field in fields if field not in BANK_ONLY_METRICS or banks]
             tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             has_ssi = "ssi_stats_financial_history" in tables
             has_provenance = "stock_metrics_provenance" in tables
@@ -938,7 +970,7 @@ def _stats_financial_history_rows(tickers: list[str]) -> tuple[list[str], list[s
                             AND p.data_source='SSI') THEN NULL ELSE {value} END"""
                     expressions.append(f"{value} AS {field}")
                 else:
-                    expressions.append(f"h.{_quote_identifier(field)}")
+                    expressions.append(_bank_metric_expression(field, f"h.{_quote_identifier(field)}", banks, "h.ticker"))
             if not fields:
                 return [], []
             placeholders = ",".join("?" for _ in tickers)
