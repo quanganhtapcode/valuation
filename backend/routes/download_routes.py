@@ -524,7 +524,7 @@ def _csv_readme(metric_tables: list[str], statement_sections: list[str]) -> str:
         "All statement CSV files use wide format: one row represents one ticker and reporting period; each financial item is a separate column.",
         "Statement-variable columns are the original Vietcap codes (`isa*`, `isb*`, `bsa*`, `cfa*`, `cfb*`). Their human-readable labels are listed under each CSV section below.",
         "Values are reported in VND unless otherwise noted. Blank values mean the source did not provide a value for that period.",
-        "For annual rows, `quarter` is empty. In `Stock Metrics History.csv`, annual observations use `quarter = 5`.",
+        "For annual rows, `quarter` is empty. Annual-only Stock Metrics History exports omit `quarter_report` and `period_date`; in mixed history, annual observations use `quarter_report = 5`.",
         "",
         "## Stock metrics", "",
         STOCK_METRICS_SOURCE_NOTE_VI, "",
@@ -539,39 +539,30 @@ def _csv_readme(metric_tables: list[str], statement_sections: list[str]) -> str:
         lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items() if field not in ("pe_ssi", "pe_vietcap", "pb_ssi", "pb_vietcap"))
         lines.append("")
     if "stock_metrics_history" in metric_tables:
-        lines.extend(["### Stock Metrics History.csv", "", "Historical fields include `ticker`, `year_report`, `quarter_report`, and the following fields when available:", "", "| CSV column | Original name |", "| --- | --- |"])
-        lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items() if field not in ("pe", "pb"))
+        lines.extend(["### Stock Metrics History.csv", "", "Historical fields include `ticker`, `year_report`, and metric columns. Quarterly/mixed exports also include `quarter_report` and `period_date`:", "", "| CSV column | Original name |", "| --- | --- |"])
+        lines.extend(f"| `{field}` | {label} |" for field, label in metric_labels.items() if field not in ("pe", "pb") and (field != "period_date" or len(_history_identifier_fields()) == 3))
         lines.append("")
     return "\n".join(lines + statement_sections)
 
 
-def _write_export_readme(workbook, metric_tables: list[str]) -> None:
-    """Include source and interpretation notes in normal and streaming workbooks."""
+def _append_metric_source_note(worksheet) -> None:
+    """Place source attribution below Excel metric data without a separate sheet."""
     from openpyxl.cell import WriteOnlyCell
-    from openpyxl.styles import Alignment
+    from openpyxl.styles import Alignment, Font
 
-    worksheet = workbook.create_sheet("README")
-    worksheet.column_dimensions["A"].width = 110
-    worksheet.freeze_panes = "A2"
-    lines = [
-        "Financial data export / Hướng dẫn dữ liệu",
-        "Nguồn dữ liệu chỉ số cổ phiếu / Stock metric sources",
-        STOCK_METRICS_SOURCE_NOTE_VI,
-        STOCK_METRICS_SOURCE_NOTE_EN,
-        "PE/PB history columns are source-specific: pe_ssi/pb_ssi contain SSI values even when Vietcap also has data; pe_vietcap/pb_vietcap contain only Vietcap values. Missing source values remain blank. Latest Stock Metrics retains pe/pb from Vietcap.",
-        "Stock Metrics: chỉ số mới nhất từ Vietcap / latest available Vietcap snapshot.",
-        "Stock Metrics History: lịch sử Vietcap + SSI / combined Vietcap + SSI history.",
-        "Kỳ báo cáo / Reporting periods: quarters 1–4; annual observations use quarter_report = 5.",
-        "Đơn vị / Units: monetary values in VND; valuation multiples in x; rate fields formatted as percentages.",
-        "Ô trống / Blank cells: source value unavailable or mapping not confirmed; values are not imputed.",
-    ]
-    if "stock_metrics_history" in metric_tables:
-        lines.append("Chỉ số / Metric columns")
-        lines.extend(f"{field}: {label}" for field, label, _ in STOCK_METRIC_COLUMNS)
-    for line in lines:
-        cell = WriteOnlyCell(worksheet, value=line)
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
+    worksheet.append([])
+    for text in (STOCK_METRICS_SOURCE_NOTE_VI, STOCK_METRICS_SOURCE_NOTE_EN):
+        cell = WriteOnlyCell(worksheet, value=text)
+        cell.font = Font(name="Calibri", size=10, italic=True, color="666666")
+        cell.alignment = Alignment(vertical="top")
         worksheet.append([cell])
+
+
+def _history_identifier_fields() -> list[str]:
+    fields = ["ticker", "year_report"]
+    if (request.args.get("period_kind") or "year").strip().lower() != "year":
+        fields.append("quarter_report")
+    return fields
 
 
 def _is_empty_financial_value(value: object) -> bool:
@@ -943,6 +934,8 @@ def _stats_financial_history_rows(tickers: list[str]) -> tuple[list[str], list[s
             fields = [field for field, _, _ in STOCK_METRIC_COLUMNS
                       if (field in available and field not in ("pe", "pb"))
                       or field in ("pe_ssi", "pe_vietcap", "pb_ssi", "pb_vietcap")]
+            if kind == "year":
+                fields = [field for field in fields if field != "period_date"]
             banks = _selected_bank_tickers(tickers)
             fields = [field for field in fields if field not in BANK_ONLY_METRICS or banks]
             tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -1028,16 +1021,18 @@ def _append_stock_metric_rows(worksheet, fields, rows, identifiers, labels) -> N
 def _write_stock_metrics_history_worksheet(worksheet, tickers: list[str]) -> None:
     fields, rows = _stats_financial_history_rows(tickers)
     labels = {field: (label, kind) for field, label, kind in STOCK_METRIC_COLUMNS}
-    worksheet.freeze_panes = "D2"
-    _append_stock_metric_rows(worksheet, fields, rows, ["ticker", "year_report", "quarter_report"], labels)
+    identifiers = _history_identifier_fields()
+    worksheet.freeze_panes = "C2" if len(identifiers) == 2 else "D2"
+    _append_stock_metric_rows(worksheet, fields, rows, identifiers, labels)
 
 
 def _write_stock_metrics_history_csv(handle, tickers: list[str]) -> int:
     fields, rows = _stats_financial_history_rows(tickers)
     writer = csv.writer(handle)
-    writer.writerow(["ticker", "year_report", "quarter_report"] + fields)
+    identifiers = _history_identifier_fields()
+    writer.writerow(identifiers + fields)
     for row in rows:
-        writer.writerow([row["ticker"], row["year_report"], row["quarter_report"]] + [row[field] for field in fields])
+        writer.writerow([row[field] for field in identifiers + fields])
     return len(rows)
 
 
@@ -1092,9 +1087,11 @@ def financial_bulk_export():
                     worksheet = workbook.create_sheet(sheet_name[:31])
                     if table == "stock_metrics":
                         _write_stock_metrics_worksheet(worksheet, tickers, single_ticker)
+                        _append_metric_source_note(worksheet)
                         continue
                     if table == "stock_metrics_history":
                         _write_stock_metrics_history_worksheet(worksheet, tickers)
+                        _append_metric_source_note(worksheet)
                         continue
                     template_rows = template_fields.get(table, ())
                     fields = [field for field, _, _ in template_rows] or _export_fields(
@@ -1116,10 +1113,6 @@ def financial_bulk_export():
                         _append_financial_worksheet_rows(
                             worksheet, connection, table, fields, period_clause, period_params,
                         )
-                _write_export_readme(workbook, [
-                    table for _, table, _ in selected_tables
-                    if table in ("stock_metrics", "stock_metrics_history")
-                ])
                 workbook.save(output_path)
                 download_name = "financial-statements.xlsx"
                 mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

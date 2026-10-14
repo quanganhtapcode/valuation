@@ -29,6 +29,8 @@ class SourceExportTests(unittest.TestCase):
                     self.assertEqual(exports._write_stock_metrics_history_csv(output,['AAA']),2)
                     rows = list(csv.DictReader(io.StringIO(output.getvalue())))
                     self.assertNotIn('pe',rows[0])
+                    self.assertNotIn('quarter_report',rows[0])
+                    self.assertNotIn('period_date',rows[0])
                     self.assertEqual(rows[0]['pe_ssi'],'9.0')
                     self.assertEqual(rows[0]['pe_vietcap'],'')
                     self.assertEqual(rows[1]['pe_ssi'],'19.0')
@@ -36,7 +38,7 @@ class SourceExportTests(unittest.TestCase):
                     self.assertEqual(rows[1]['pb_vietcap'],'0.0')
                     book = Workbook()
                     exports._write_stock_metrics_history_worksheet(book.active,['AAA'])
-                    self.assertEqual([c.value for c in book.active[1]][3:7],['pe_ssi','pe_vietcap','pb_ssi','pb_vietcap'])
+                    self.assertEqual([c.value for c in book.active[1]][2:6],['pe_ssi','pe_vietcap','pb_ssi','pb_vietcap'])
                 with app.test_request_context('/?from_year=2024&to_year=2024&period_kind=quarter'):
                     _, rows = exports._stats_financial_history_rows(['AAA'])
                     self.assertIsNone(rows[0]['pe_ssi'])

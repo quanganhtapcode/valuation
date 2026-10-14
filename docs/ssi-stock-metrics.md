@@ -61,3 +61,7 @@ Stock Metrics History CSV and Excel exports replace merged `pe`/`pb` with `pe_ss
 ## Bank-only export fields
 
 NIM, CIR, CAR, CASA, NPL, LDR, loans growth and deposit growth are exported only for banks identified by the security catalog's boolean `isbank` flag (legacy bank-symbol fallback when classification is unavailable). Exports containing no banks omit these columns entirely. Mixed exports retain the columns for banks and leave nonbank cells blank, including misleading source zeroes. Applies to latest/history datasets and CSV/Excel.
+
+## Simplified yearly exports
+
+Annual-only Stock Metrics History exports contain `ticker`, `year_report` and metrics; `quarter_report` and `period_date` are omitted from both CSV and Excel. Quarterly and mixed exports retain those period fields. Excel no longer contains a README worksheet; source attribution is placed below the data in each metric worksheet. CSV ZIP packages retain README.md.
