@@ -60,6 +60,7 @@ interface StockInfo {
 }
 interface PriceData {
     price: number;
+    source?: 'summary' | 'history' | 'realtime';
     change: number;
     changePercent: number;
     open: number;
@@ -242,7 +243,8 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     }
 
                     // Set initial Price Data from DB to show header immediately
-                    setPriceData({
+                    setPriceData(prev => prev?.source === 'realtime' || prev?.source === 'history' ? prev : {
+                        source: 'summary',
                         price: currentPriceValue,
                         change: data.price_change || data.change || 0,
                         changePercent: data.price_change_percent || data.changePercent || data.pctChange || 0,
@@ -291,7 +293,10 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     if (newPrice > 0) {
                         setPriceData(prev => ({
                             ...prev!,
+                            source: 'realtime',
                             price: newPrice,
+                            change: data.price_change ?? 0,
+                            changePercent: data.price_change_percent ?? 0,
                             // Only overwrite these if API provides them (non-zero)
                             ...(data.open > 0 && { open: data.open }),
                             ...(data.high > 0 && { high: data.high }),
@@ -358,6 +363,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         // Bootstrap from WS snapshot before HTTP fetch completes
                         if (curPrice <= 0 && refPrice <= 0) return prev;
                         return {
+                            source: curPrice > 0 ? 'realtime' : undefined,
                             price: curPrice,
                             change,
                             changePercent,
@@ -370,12 +376,11 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     }
                     return {
                         ...prev,
-                        ...(curPrice > 0 && { price: curPrice }),
+                        ...(curPrice > 0 && { price: curPrice, source: 'realtime' as const }),
                         ...(refPrice > 0 && { ref: refPrice }),
                         ...(vo != null && { volume: vo }),
                         ...(obFormatted && { orderbook: obFormatted }),
-                        ...(change !== 0 && { change }),
-                        ...(changePercent !== 0 && { changePercent }),
+                        ...(curPrice > 0 && refPrice > 0 && { change, changePercent }),
                     };
                 });
             },
@@ -391,6 +396,35 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
             unsub();
         };
     }, [symbol]);
+
+    // Historical closes supersede the undated summary, but never a live quote.
+    // This also handles history completing before the summary request.
+    useEffect(() => {
+        if (historicalData.length === 0) return;
+        const latest = historicalData[historicalData.length - 1];
+        if (!(latest.close > 0)) return;
+        const previousClose = historicalData.length > 1
+            ? historicalData[historicalData.length - 2].close : latest.open;
+        const change = latest.close - previousClose;
+        setPriceData(prev => {
+            if (prev?.source === 'realtime') return prev;
+            return {
+                ...prev,
+                source: 'history',
+                price: latest.close,
+                change,
+                changePercent: previousClose > 0 ? change / previousClose * 100 : 0,
+                open: latest.open,
+                high: latest.high,
+                low: latest.low,
+                volume: latest.volume,
+                ref: previousClose,
+                value: 0,
+                ceiling: 0,
+                floor: 0,
+            };
+        });
+    }, [historicalData]);
 
     // Load the visible year first; older sessions are requested only on demand.
     useEffect(() => {
@@ -423,34 +457,6 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         // Sort by date ascending to ensure proper charting
                         mapped.sort((a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime());
                         setHistory({ symbol, rows: mapped });
-
-                        // Update priceData with latest session info (high, low, open, change)
-                        if (mapped.length > 0 && historyPeriod === '1Y') {
-                            const latest = mapped[mapped.length - 1];
-                            const prevClose = mapped.length > 1 ? mapped[mapped.length - 2].close : latest.open;
-                            const histChange = latest.close - prevClose;
-                            const histChangePercent = prevClose > 0 ? (histChange / prevClose) * 100 : 0;
-
-                            setPriceData(prev => {
-                                if (!prev) return prev;
-                                const currentPrice = (prev.price && prev.price > 0) ? prev.price : latest.close;
-                                // If we already have a ref price from the realtime API, use it for change
-                                // (gap-adjusted history gives wrong prev-close vs actual session ref price)
-                                const refPrice = prev.ref > 0 ? prev.ref : 0;
-                                const change = refPrice > 0 ? currentPrice - refPrice : histChange;
-                                const changePercent = refPrice > 0 ? (change / refPrice) * 100 : histChangePercent;
-                                return {
-                                    ...prev,
-                                    price: currentPrice,
-                                    open: latest.open,
-                                    high: latest.high,
-                                    low: latest.low,
-                                    volume: latest.volume,
-                                    change,
-                                    changePercent,
-                                };
-                            });
-                        }
                     }
                 }
             } catch (e) {
