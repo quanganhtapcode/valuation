@@ -290,7 +290,12 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
 
                     // Only update price if we got a valid realtime price
                     // Preserve history-based open/high/low/change if API doesn't provide them
-                    if (newPrice > 0) {
+                    // Before the first trade, the provider can substitute the
+                    // reference price for a missing last price. Keep the close.
+                    const referenceOnly = data.volume === 0
+                        && newPrice === (data.ref_price || data.ref)
+                        && !(data.high > 0) && !(data.low > 0);
+                    if (newPrice > 0 && !referenceOnly) {
                         setPriceData(prev => ({
                             ...prev!,
                             source: 'realtime',
@@ -349,7 +354,9 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 if (c == null && ref == null) return;
 
                 const refPrice = ref ?? 0;
-                const curPrice = c ?? 0;
+                // An opening snapshot with no trades is a reference quote.
+                const referenceOnly = vo === 0 && c === ref;
+                const curPrice = referenceOnly ? 0 : (c ?? 0);
                 const change = refPrice > 0 ? curPrice - refPrice : 0;
                 const changePercent = refPrice > 0 ? (change / refPrice) * 100 : 0;
 
