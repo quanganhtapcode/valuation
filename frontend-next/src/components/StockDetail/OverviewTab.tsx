@@ -85,6 +85,8 @@ interface StockInfo {
 
 interface PriceData {
     price: number;
+    source?: 'summary' | 'history' | 'realtime';
+    sessionDate?: string;
     change: number;
     changePercent: number;
     open: number;
@@ -205,6 +207,11 @@ export default function OverviewTab({
                             key={_symbol}
                             onLoadOlderHistory={onLoadOlderHistory}
                             data={historicalData}
+                            liveQuote={priceData?.source === 'realtime' && priceData.sessionDate ? {
+                                time: priceData.sessionDate,
+                                price: priceData.price,
+                                volume: priceData.volume,
+                            } : undefined}
                             isLoading={isLoading}
                         />
                     </div>

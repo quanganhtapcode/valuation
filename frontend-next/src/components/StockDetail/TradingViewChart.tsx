@@ -1,5 +1,7 @@
 'use client';
 
+import { mergeLiveCandle, type LiveQuote, type DailyCandle } from '@/lib/liveCandle';
+
 import { chartColors, getChartTheme, chartTooltipClass } from '@/lib/chartTheme';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
@@ -30,6 +32,7 @@ const CROSSHAIR_COLOR = chartColors.secondary;
 interface TradingViewChartProps {
     data: HistoricalData[];
     isLoading: boolean;
+    liveQuote?: LiveQuote;
     onLoadOlderHistory?: () => void;
 }
 
@@ -157,7 +160,8 @@ function OHLCVOverlay({ bar }: { bar: BarDisplay | null }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }: TradingViewChartProps) {
+export default function TradingViewChart({ data, isLoading, onLoadOlderHistory, liveQuote }: TradingViewChartProps) {
+    const liveCandleRef = useRef<DailyCandle | null>(null);
     const chartContainerRef    = useRef<HTMLDivElement>(null);
     const chartRef             = useRef<IChartApi | null>(null);
     const candleSeriesRef      = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -367,6 +371,44 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory }
             to: normalizedData.length - 1 + 5,
         });
     }, [normalizedData]);
+
+    // Apply the header's accepted quote directly, and reapply after a slower
+    // history refresh so an older REST candle cannot roll the live close back.
+    useEffect(() => {
+        if (!liveQuote || !normalizedData.length || !candleSeriesRef.current || !volumeSeriesRef.current) return;
+        const latest = normalizedData[normalizedData.length - 1];
+        const historyBar = mergeLiveCandle(latest, liveQuote);
+        if (!historyBar) return;
+        const bar = mergeLiveCandle(liveCandleRef.current || historyBar, {
+            ...liveQuote,
+            open: historyBar.open,
+            high: historyBar.high,
+            low: historyBar.low,
+            volume: historyBar.volume,
+        });
+        if (!bar) return;
+        // Once REST has today's full candle, use its actual opening price.
+        if (dayKey(latest.time) === liveQuote.time) bar.open = latest.open;
+        liveCandleRef.current = bar;
+        candleSeriesRef.current.update({
+            time: toBusinessDay(bar.time),
+            open: bar.open, high: bar.high, low: bar.low, close: bar.close,
+        });
+        volumeSeriesRef.current.update({
+            time: toBusinessDay(bar.time),
+            value: bar.volume,
+            color: bar.close >= bar.open ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
+        });
+        const previous = dayKey(latest.time) === liveQuote.time
+            ? normalizedData[normalizedData.length - 2] : latest;
+        const change = bar.close - (previous?.close || bar.open);
+        const time = formatDate(toBusinessDay(bar.time));
+        barsByDateRef.current.set(time, {
+            ...bar, time, change,
+            changePct: (previous?.close || bar.open) > 0
+                ? change / (previous?.close || bar.open) * 100 : 0,
+        });
+    }, [liveQuote, normalizedData]);
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (

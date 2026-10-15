@@ -11,6 +11,7 @@ import { siteConfig } from '@/config/siteConfig';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/lib/translations";
 import { profileToText } from '@/lib/profileText';
+import { quoteSessionDate } from '@/lib/liveCandle';
 
 type StockTabId = 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical';
 
@@ -61,6 +62,7 @@ interface StockInfo {
 interface PriceData {
     price: number;
     source?: 'summary' | 'history' | 'realtime';
+    sessionDate?: string;
     change: number;
     changePercent: number;
     open: number;
@@ -299,6 +301,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         setPriceData(prev => ({
                             ...prev!,
                             source: 'realtime',
+                            sessionDate: quoteSessionDate(),
                             price: newPrice,
                             change: data.price_change ?? 0,
                             changePercent: data.price_change_percent ?? 0,
@@ -371,6 +374,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         if (curPrice <= 0 && refPrice <= 0) return prev;
                         return {
                             source: curPrice > 0 ? 'realtime' : undefined,
+                            sessionDate: curPrice > 0 ? quoteSessionDate() : undefined,
                             price: curPrice,
                             change,
                             changePercent,
@@ -383,7 +387,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     }
                     return {
                         ...prev,
-                        ...(curPrice > 0 && { price: curPrice, source: 'realtime' as const }),
+                        ...(curPrice > 0 && { price: curPrice, source: 'realtime' as const, sessionDate: quoteSessionDate() }),
                         ...(refPrice > 0 && { ref: refPrice }),
                         ...(vo != null && { volume: vo }),
                         ...(obFormatted && { orderbook: obFormatted }),
