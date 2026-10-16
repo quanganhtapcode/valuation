@@ -19,11 +19,11 @@ import {
 } from "@remixicon/react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { useDebounce } from "use-debounce"
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import React, { useState, useEffect, useRef, useCallback, useMemo, useDeferredValue } from "react"
 import { DatabaseLogo } from "@/components/DatabaseLogo"
 import { Button } from "@/components/ui/Button"
 import { getTickerData } from "@/lib/tickerCache"
+import { requestStockQuote } from '@/lib/stockQuoteRequest'
 import ThemeSwitch from "@/components/ThemeSwitch"
 import LanguageSwitch from "@/components/LanguageSwitch"
 import { localizedPath } from "@/lib/localePath"
@@ -90,7 +90,7 @@ export function Navbar() {
     const [settingsOpen, setSettingsOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [debouncedQuery] = useDebounce(searchQuery, 300);
+    const deferredQuery = useDeferredValue(searchQuery);
     const [allTickers, setAllTickers] = useState<Ticker[]>([]);
     const [searchResults, setSearchResults] = useState<Ticker[]>([]);
     const [tickersLoaded, setTickersLoaded] = useState(false);
@@ -161,12 +161,12 @@ export function Navbar() {
     }, [searchOpen, settingsOpen]);
 
     useEffect(() => {
-        if (typeof debouncedQuery !== 'string' || debouncedQuery.length < 1) {
+        if (typeof deferredQuery !== 'string' || deferredQuery.length < 1) {
             setSearchResults([]);
             return;
         }
-        const upper = debouncedQuery.toUpperCase();
-        const lower = debouncedQuery.toLowerCase();
+        const upper = deferredQuery.toUpperCase();
+        const lower = deferredQuery.toLowerCase();
         const filtered = allTickers.filter(t =>
             t && (
                 (t.symbol || '').toUpperCase().includes(upper) ||
@@ -183,7 +183,19 @@ export function Navbar() {
             return 0;
         }).slice(0, 10);
         setSearchResults(filtered);
-    }, [debouncedQuery, allTickers]);
+    }, [deferredQuery, allTickers]);
+
+    useEffect(() => {
+        const first = searchResults[0];
+        if (searchOpen && first?.symbol === searchQuery.trim().toUpperCase()) {
+            void requestStockQuote(first.symbol);
+        }
+    }, [searchOpen, searchResults, searchQuery]);
+
+    const prepareStockNavigation = useCallback((symbol: string) => {
+        router.prefetch(localizedPath(`/stock/${symbol}`, lang));
+        void requestStockQuote(symbol);
+    }, [router, lang]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!tickersLoaded) void ensureTickersLoaded();
@@ -351,6 +363,7 @@ export function Navbar() {
                                         }
                                     }}
                                     onFocus={() => { setSearchOpen(true); if (!tickersLoaded) void ensureTickersLoaded(); }}
+                                    onPointerEnter={() => { if (!tickersLoaded) void ensureTickersLoaded(); }}
                                 />
                                 <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center">
                                     <kbd aria-label="Command K" className="inline-flex h-5 items-center gap-0.5 rounded border border-gray-200 bg-white px-1.5 font-sans text-[11px] font-medium leading-none text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
@@ -373,8 +386,9 @@ export function Navbar() {
                                                     href={localizedPath(`/stock/${result.symbol}`, lang)}
                                                     prefetch={result.symbol === searchResults[0]?.symbol ? true : undefined}
                                                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 group"
-                                                    onMouseEnter={() => router.prefetch(localizedPath(`/stock/${result.symbol}`, lang))}
-                                                    onFocus={() => router.prefetch(localizedPath(`/stock/${result.symbol}`, lang))}
+                                                    onMouseEnter={() => prepareStockNavigation(result.symbol)}
+                                                    onFocus={() => prepareStockNavigation(result.symbol)}
+                                                    onTouchStart={() => prepareStockNavigation(result.symbol)}
                                                     onClick={() => setSearchOpen(false)}
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
@@ -548,6 +562,7 @@ export function Navbar() {
                                     value={searchQuery}
                                     onChange={handleSearch}
                                     onFocus={() => { if (!tickersLoaded) void ensureTickersLoaded(); }}
+                                    onPointerEnter={() => { if (!tickersLoaded) void ensureTickersLoaded(); }}
                                 />
                             </div>
                             {searchResults.length > 0 && (
@@ -558,8 +573,9 @@ export function Navbar() {
                                             href={localizedPath(`/stock/${result.symbol}`, lang)}
                                             prefetch={result.symbol === searchResults[0]?.symbol ? true : undefined}
                                             className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-900"
-                                            onMouseEnter={() => router.prefetch(localizedPath(`/stock/${result.symbol}`, lang))}
-                                            onFocus={() => router.prefetch(localizedPath(`/stock/${result.symbol}`, lang))}
+                                            onMouseEnter={() => prepareStockNavigation(result.symbol)}
+                                            onFocus={() => prepareStockNavigation(result.symbol)}
+                                            onTouchStart={() => prepareStockNavigation(result.symbol)}
                                             onClick={() => setSearchOpen(false)}
                                         >
                                             <div className="flex items-center gap-2">

@@ -1,16 +1,26 @@
 let cachedTickers: any = null;
+let pendingTickers: Promise<any> | null = null;
 
 export async function getTickerData() {
     if (cachedTickers) return cachedTickers;
+    if (pendingTickers) return pendingTickers;
 
-    try {
-        const response = await fetch('/ticker_data.json');
-        if (response.ok) {
-            cachedTickers = await response.json();
-            return cachedTickers;
+    // Navbar, watchlist and search can request the same directory simultaneously.
+    pendingTickers = (async () => {
+        try {
+            const response = await fetch('/ticker_data.json');
+            if (response.ok) {
+                cachedTickers = await response.json();
+                return cachedTickers;
+            }
+        } catch (e) {
+            console.error('Error loading ticker cache:', e);
         }
-    } catch (e) {
-        console.error('Error loading ticker cache:', e);
+        return null;
+    })();
+    try {
+        return await pendingTickers;
+    } finally {
+        pendingTickers = null;
     }
-    return null;
 }

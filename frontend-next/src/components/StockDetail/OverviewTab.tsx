@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import styles from '../../app/[lang]/stock/[symbol]/page.module.css';
-import TradingViewChart from './TradingViewChart';
 import OrderBook from './OrderBook';
 import dynamic from 'next/dynamic';
 import DeferredPanel from '@/components/ui/DeferredPanel';
+
+const TradingViewChart = dynamic(() => import('./TradingViewChart'), {
+    loading: () => <div className="h-[400px] animate-pulse rounded bg-slate-100 dark:bg-slate-800" />,
+});
 
 const BankLoanBreakdown = dynamic(() => import('./BankLoanBreakdown'), {
     loading: () => <div className="min-h-[432px] animate-pulse rounded bg-slate-100 dark:bg-slate-800" />,

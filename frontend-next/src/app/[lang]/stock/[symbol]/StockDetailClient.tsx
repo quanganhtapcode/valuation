@@ -12,6 +12,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/lib/translations";
 import { profileToText } from '@/lib/profileText';
 import { quoteSessionDate } from '@/lib/liveCandle';
+import { requestStockQuote } from '@/lib/stockQuoteRequest';
+import OverviewTab from '@/components/StockDetail/OverviewTab';
 
 type StockTabId = 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical';
 
@@ -23,7 +25,6 @@ function TabLoading() {
     );
 }
 
-const OverviewTab = dynamic(() => import('@/components/StockDetail/OverviewTab'), { loading: TabLoading });
 const FinancialsTab = dynamic(() => import('@/components/StockDetail/FinancialsTab'), { loading: TabLoading });
 const PriceHistoryTab = dynamic(() => import('@/components/StockDetail/PriceHistoryTab'), { loading: TabLoading });
 const ValuationTab = dynamic(() => import('@/components/StockDetail/ValuationTab'), { loading: TabLoading });
@@ -182,9 +183,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
             try {
                 // Start realtime price request immediately so it runs in parallel
                 // with ticker/overview fetching instead of waiting for them.
-                void fetch(API.CURRENT_PRICE(symbol), { signal: controller.signal })
-                    .then(r => r.ok ? r.json() : null)
-                    .catch(() => null)
+                void requestStockQuote(symbol)
                     .then(priceRes => {
                         if (!controller.signal.aborted && priceRes && priceRes.success) {
                             const data = priceRes.data || priceRes;
@@ -199,7 +198,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                             // reference price for a missing last price. Keep the close.
                             const referenceOnly = data.volume === 0
                                 && newPrice === (data.ref_price || data.ref)
-                                && !(data.high > 0) && !(data.low > 0);
+                                && !((data.high ?? 0) > 0) && !((data.low ?? 0) > 0);
                             if (newPrice > 0 && !referenceOnly) {
                                 // A stream quote received during this request is newer.
                                 setPriceData(prev => prev?.source === 'realtime' ? prev : ({
@@ -211,10 +210,10 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                                     change: data.price_change ?? 0,
                                     changePercent: data.price_change_percent ?? 0,
                                     // Only overwrite these if API provides them (non-zero)
-                                    ...(data.open > 0 && { open: data.open }),
-                                    ...(data.high > 0 && { high: data.high }),
-                                    ...(data.low > 0 && { low: data.low }),
-                                    ...(data.volume > 0 && { volume: data.volume }),
+                                    ...(data.open !== undefined && data.open > 0 && { open: data.open }),
+                                    ...(data.high !== undefined && data.high > 0 && { high: data.high }),
+                                    ...(data.low !== undefined && data.low > 0 && { low: data.low }),
+                                    ...(data.volume !== undefined && data.volume > 0 && { volume: data.volume }),
                                     ceiling: data.ceiling || data.priceHigh || 0,
                                     floor: data.floor || data.priceLow || 0,
                                     ref: data.ref_price || data.ref || 0,

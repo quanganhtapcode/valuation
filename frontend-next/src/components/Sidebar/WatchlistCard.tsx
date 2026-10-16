@@ -10,6 +10,7 @@ import { getTickerData } from '@/lib/tickerCache';
 import { siteConfig } from '@/config/siteConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
+import { requestStockQuote } from '@/lib/stockQuoteRequest';
 import { localizedPath } from '@/lib/localePath';
 
 interface ExternalWatchlistPrice {
@@ -188,7 +189,14 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                             {items.map(item => (
                                 <div key={item.symbol} className="flex items-center gap-2 px-4 py-2.5">
                                     <StockLogo symbol={item.symbol} />
-                                    <Link href={localizedPath(`/stock/${item.symbol}`, lang)} prefetch={true} className="flex-1 min-w-0 hover:opacity-75 transition-opacity">
+                                    <Link
+                                        href={localizedPath(`/stock/${item.symbol}`, lang)}
+                                        prefetch={true}
+                                        onMouseEnter={() => { void requestStockQuote(item.symbol); }}
+                                        onFocus={() => { void requestStockQuote(item.symbol); }}
+                                        onTouchStart={() => { void requestStockQuote(item.symbol); }}
+                                        className="flex-1 min-w-0 hover:opacity-75 transition-opacity"
+                                    >
                                         <div className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong truncate leading-tight">{item.name}</div>
                                         <div className="flex items-center gap-1.5 text-xs text-tremor-content dark:text-dark-tremor-content">
                                             <span className="font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">{item.symbol}</span>
