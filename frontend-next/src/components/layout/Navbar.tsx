@@ -371,9 +371,11 @@ export function Navbar() {
                                                 <Link
                                                     key={result.symbol}
                                                     href={localizedPath(`/stock/${result.symbol}`, lang)}
-                                                    prefetch={false}
+                                                    prefetch={result.symbol === searchResults[0]?.symbol ? true : undefined}
                                                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 group"
-                                                    onMouseDown={() => router.push(localizedPath(`/stock/${result.symbol}`, lang))}
+                                                    onMouseEnter={() => router.prefetch(localizedPath(`/stock/${result.symbol}`, lang))}
+                                                    onFocus={() => router.prefetch(localizedPath(`/stock/${result.symbol}`, lang))}
+                                                    onClick={() => setSearchOpen(false)}
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div className="shrink-0 relative w-8 h-8 rounded-lg bg-white border border-gray-100 dark:border-gray-800 flex items-center justify-center p-1 group-hover:border-blue-200 transition-colors shadow-sm overflow-hidden">
@@ -554,9 +556,11 @@ export function Navbar() {
                                         <Link
                                             key={result.symbol}
                                             href={localizedPath(`/stock/${result.symbol}`, lang)}
-                                            prefetch={false}
+                                            prefetch={result.symbol === searchResults[0]?.symbol ? true : undefined}
                                             className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-900"
-                                            onMouseDown={() => router.push(localizedPath(`/stock/${result.symbol}`, lang))}
+                                            onMouseEnter={() => router.prefetch(localizedPath(`/stock/${result.symbol}`, lang))}
+                                            onFocus={() => router.prefetch(localizedPath(`/stock/${result.symbol}`, lang))}
+                                            onClick={() => setSearchOpen(false)}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-gray-900 dark:text-gray-50">{result.symbol}</span>

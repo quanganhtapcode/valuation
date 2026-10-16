@@ -113,7 +113,11 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
     const t = translations[lang]
 
     const [stockInfo, setStockInfo] = useState<StockInfo | null>(initialStockInfo);
-    const [priceData, setPriceData] = useState<PriceData | null>(null);
+    const [storedPriceData, setPriceData] = useState<PriceData | null>(null);
+    const [priceRequestSettled, setPriceRequestSettled] = useState(false);
+    // Only show fallback quotes after the current-price request finishes.
+    const priceData = storedPriceData?.source === 'realtime' || priceRequestSettled
+        ? storedPriceData : null;
     const [targetPrice, setTargetPrice] = useState<number | null>(null);
     const [financials, setFinancials] = useState<FinancialData | null>({});
     const [history, setHistory] = useState<{ symbol: string; rows: HistoricalData[] }>({ symbol: '', rows: [] });
@@ -178,9 +182,55 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
             try {
                 // Start realtime price request immediately so it runs in parallel
                 // with ticker/overview fetching instead of waiting for them.
-                const realtimePricePromise = fetch(API.CURRENT_PRICE(symbol), { signal: controller.signal })
+                void fetch(API.CURRENT_PRICE(symbol), { signal: controller.signal })
                     .then(r => r.ok ? r.json() : null)
-                    .catch(() => null);
+                    .catch(() => null)
+                    .then(priceRes => {
+                        if (!controller.signal.aborted && priceRes && priceRes.success) {
+                            const data = priceRes.data || priceRes;
+
+                            // Backend normalizes all prices to full VND
+                            const newPrice = data.current_price || data.price || 0;
+                            const ob = data.orderbook;
+
+                            // Only update price if we got a valid realtime price
+                            // Preserve history-based open/high/low/change if API doesn't provide them
+                            // Before the first trade, the provider can substitute the
+                            // reference price for a missing last price. Keep the close.
+                            const referenceOnly = data.volume === 0
+                                && newPrice === (data.ref_price || data.ref)
+                                && !(data.high > 0) && !(data.low > 0);
+                            if (newPrice > 0 && !referenceOnly) {
+                                // A stream quote received during this request is newer.
+                                setPriceData(prev => prev?.source === 'realtime' ? prev : ({
+                                    open: 0, high: 0, low: 0, volume: 0, value: 0,
+                                    ...prev,
+                                    source: 'realtime',
+                                    sessionDate: quoteSessionDate(),
+                                    price: newPrice,
+                                    change: data.price_change ?? 0,
+                                    changePercent: data.price_change_percent ?? 0,
+                                    // Only overwrite these if API provides them (non-zero)
+                                    ...(data.open > 0 && { open: data.open }),
+                                    ...(data.high > 0 && { high: data.high }),
+                                    ...(data.low > 0 && { low: data.low }),
+                                    ...(data.volume > 0 && { volume: data.volume }),
+                                    ceiling: data.ceiling || data.priceHigh || 0,
+                                    floor: data.floor || data.priceLow || 0,
+                                    ref: data.ref_price || data.ref || 0,
+                                    ...(ob && {
+                                        orderbook: {
+                                            bid: (ob.bid || []).slice(0, 3).map((b: any) => ({ price: b?.price || 0, volume: b?.volume || 0 })),
+                                            ask: (ob.ask || []).slice(0, 3).map((a: any) => ({ price: a?.price || 0, volume: a?.volume || 0 })),
+                                        },
+                                    }),
+                                }));
+                            }
+                        }
+                    })
+                    .finally(() => {
+                        if (!controller.signal.aborted) setPriceRequestSettled(true);
+                    });
 
                 // Retry a missing profile independently; never queue it behind summary.
                 if (!initialStockInfo.overview?.description) fetch(`/api/company-profile/${symbol}?lang=${lang}`, { signal: controller.signal })
@@ -244,7 +294,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         }));
                     }
 
-                    // Set initial Price Data from DB to show header immediately
+                    // Save summary as a fallback while the current quote is loading.
                     setPriceData(prev => prev?.source === 'realtime' || prev?.source === 'history' ? prev : {
                         source: 'summary',
                         price: currentPriceValue,
@@ -261,7 +311,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     });
                 }
 
-                // Render Header immediately with DB data
+                // Render company information independently of the current quote.
                 setIsLoading(false);
 
                 // PHASE 2: Non-critical overview enrichments. Keep them off the
@@ -280,48 +330,6 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         });
 
                 }));
-
-                // PHASE 2: Apply real-time price when available
-                const priceRes = await realtimePricePromise;
-                if (priceRes && priceRes.success) {
-                    const data = priceRes.data || priceRes;
-
-                    // Backend normalizes all prices to full VND
-                    const newPrice = data.current_price || data.price || 0;
-                    const ob = data.orderbook;
-
-                    // Only update price if we got a valid realtime price
-                    // Preserve history-based open/high/low/change if API doesn't provide them
-                    // Before the first trade, the provider can substitute the
-                    // reference price for a missing last price. Keep the close.
-                    const referenceOnly = data.volume === 0
-                        && newPrice === (data.ref_price || data.ref)
-                        && !(data.high > 0) && !(data.low > 0);
-                    if (newPrice > 0 && !referenceOnly) {
-                        setPriceData(prev => ({
-                            ...prev!,
-                            source: 'realtime',
-                            sessionDate: quoteSessionDate(),
-                            price: newPrice,
-                            change: data.price_change ?? 0,
-                            changePercent: data.price_change_percent ?? 0,
-                            // Only overwrite these if API provides them (non-zero)
-                            ...(data.open > 0 && { open: data.open }),
-                            ...(data.high > 0 && { high: data.high }),
-                            ...(data.low > 0 && { low: data.low }),
-                            ...(data.volume > 0 && { volume: data.volume }),
-                            ceiling: data.ceiling || data.priceHigh || 0,
-                            floor: data.floor || data.priceLow || 0,
-                            ref: data.ref_price || data.ref || 0,
-                            ...(ob && {
-                                orderbook: {
-                                    bid: (ob.bid || []).slice(0, 3).map((b: any) => ({ price: b?.price || 0, volume: b?.volume || 0 })),
-                                    ask: (ob.ask || []).slice(0, 3).map((a: any) => ({ price: a?.price || 0, volume: a?.volume || 0 })),
-                                },
-                            }),
-                        }));
-                    }
-                }
 
             } catch (err) {
                 console.error('Error loading static data:', err);
@@ -371,7 +379,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
 
                     if (!prev) {
                         // Bootstrap from WS snapshot before HTTP fetch completes
-                        if (curPrice <= 0 && refPrice <= 0) return prev;
+                        if (curPrice <= 0) return prev;
                         return {
                             source: curPrice > 0 ? 'realtime' : undefined,
                             sessionDate: curPrice > 0 ? quoteSessionDate() : undefined,
@@ -411,7 +419,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
     // Historical closes supersede the undated summary, but never a live quote.
     // This also handles history completing before the summary request.
     useEffect(() => {
-        if (historicalData.length === 0) return;
+        if (!priceRequestSettled || historicalData.length === 0) return;
         const latest = historicalData[historicalData.length - 1];
         if (!(latest.close > 0)) return;
         const previousClose = historicalData.length > 1
@@ -435,7 +443,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 floor: 0,
             };
         });
-    }, [historicalData]);
+    }, [historicalData, priceRequestSettled]);
 
     // Load the visible year first; older sessions are requested only on demand.
     useEffect(() => {
@@ -480,13 +488,8 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 if (!controller.signal.aborted) setIsChartLoading(false);
             }
         }
-        // User-requested history expansion should start immediately while panning.
-        let cancelIdle = () => {};
-        if (historyPeriod === '1Y') {
-            cancelIdle = scheduleIdleWork(loadHistory, 900);
-        } else {
-            void loadHistory();
-        }
+        // The chart is visible on arrival; start its request alongside the quote.
+        void loadHistory();
         const refreshVisibleHistory = () => {
             if (document.visibilityState === 'visible') void loadHistory();
         };
@@ -494,7 +497,6 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         document.addEventListener('visibilitychange', refreshVisibleHistory);
         window.addEventListener('focus', refreshVisibleHistory);
         return () => {
-            cancelIdle();
             window.clearInterval(refreshTimer);
             document.removeEventListener('visibilitychange', refreshVisibleHistory);
             window.removeEventListener('focus', refreshVisibleHistory);
