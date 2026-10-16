@@ -70,9 +70,18 @@ export default function EarningsSeason() {
                     <p className="text-xs text-gray-400 dark:text-gray-500">{copy.subtitle}</p>
                 </div>
                 {takeaways && (
-                    <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
-                        {new Date(takeaways.generated_at).toLocaleString(translations[lang].overview.locale)}
-                    </span>
+                    <div className="shrink-0 text-right text-xs text-gray-400 dark:text-gray-500">
+                        {takeaways.market_session_date && (
+                            <p>
+                                HOSE · {isEnglish ? 'Session' : 'Phiên'}{' '}
+                                {new Date(`${takeaways.market_session_date}T12:00:00+07:00`).toLocaleDateString(translations[lang].overview.locale, { timeZone: 'Asia/Ho_Chi_Minh' })}
+                            </p>
+                        )}
+                        <p>
+                            {isEnglish ? 'Updated' : 'Cập nhật'}{' '}
+                            {new Date(takeaways.generated_at).toLocaleTimeString(translations[lang].overview.locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' })}
+                        </p>
+                    </div>
                 )}
             </div>
 
@@ -88,7 +97,7 @@ export default function EarningsSeason() {
                                     ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                                     : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
                             }`}>
-                                {takeaways.available ? 'AI' : 'Fallback'}
+                                {takeaways.available ? 'AI' : (isEnglish ? 'Summary' : 'Tổng hợp')}
                             </span>
                         </div>
                         <div className="space-y-3">

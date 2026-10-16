@@ -75,7 +75,7 @@ export const translations = {
         dashboard: {
             eyebrow: "NHỊP ĐẬP THỊ TRƯỜNG",
             title: "Toàn cảnh thị trường Việt Nam.",
-            aiTakeaways: { title: "Tổng hợp thị trường AI", subtitle: "Tin tức và biến động trong 24 giờ gần nhất", waiting: "Đang chờ bản tổng hợp mới.", up: "Tăng", down: "Giảm", neutral: "Tin nổi bật", largestMoves: "Biến động giá mạnh", recentNews: "Tin tức trong 24 giờ", summary: "Tổng hợp thị trường" },
+            aiTakeaways: { title: "Tổng hợp thị trường AI", subtitle: "Diễn biến trong phiên và tin tức 24 giờ", waiting: "Đang chờ bản tổng hợp mới.", up: "Tăng", down: "Giảm", neutral: "Tin nổi bật", largestMoves: "Diễn biến giá", recentNews: "Tin tức trong 24 giờ", summary: "Tổng hợp thị trường" },
             subtitle: "Theo dõi chỉ số trực tiếp, độ rộng thị trường và những tín hiệu quan trọng trong hôm nay.",
             liveData: "Dữ liệu thị trường trực tiếp",
             heatmap: "Bản đồ nhiệt thị trường",
@@ -335,7 +335,7 @@ export const translations = {
         dashboard: {
             eyebrow: "MARKET PULSE",
             title: "Vietnam market, at a glance.",
-            aiTakeaways: { title: "AI market takeaways", subtitle: "News and market moves from the last 24 hours", waiting: "Awaiting the next market summary.", up: "Up", down: "Down", neutral: "Market news", largestMoves: "Largest price moves", recentNews: "News in the last 24 hours", summary: "Market summary" },
+            aiTakeaways: { title: "AI market takeaways", subtitle: "Session price moves and news from the last 24 hours", waiting: "Awaiting the next market summary.", up: "Up", down: "Down", neutral: "Market news", largestMoves: "Price moves", recentNews: "News in the last 24 hours", summary: "Market summary" },
             subtitle: "A focused view of live indices, market breadth, and the signals that matter today.",
             liveData: "Live market data",
             heatmap: "Market Heatmap",

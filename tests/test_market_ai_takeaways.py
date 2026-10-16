@@ -116,7 +116,7 @@ class MarketAIValidation(unittest.TestCase):
                       'summary': 'Profit increased 20%.', 'summary_vi': 'Lợi nhuận tăng 20%.'}],
         })
         self.assertTrue(data['available'])
-        self.assertIn('PNJ +2.00%', ' '.join(data['market_summary_vi']))
+        self.assertIn('PNJ tăng 2,00%', ' '.join(data['market_summary_vi']))
         self.assertNotIn('-6.99', ' '.join(data['summary_vi']))
         self.assertNotIn('PNJ giảm sàn', data['headline_vi'])
         self.assertEqual(data['news_sources'][0]['url'], 'https://example.org/fpt')

@@ -173,26 +173,27 @@ def _fallback_takeaways(movers: list[dict[str, Any]], recent_news: list[dict[str
                              'direction': 'up' if change > 0 else 'down'})
     movers = verified
     market_en, market_vi = [], []
-    for direction, label_en, label_vi in (
-        ('up', 'Largest observed gains', 'Nhóm tăng trong snapshot'),
-        ('down', 'Largest observed declines', 'Nhóm giảm trong snapshot'),
+    for direction, verb_en, verb_vi in (
+        ('up', 'rose', 'tăng'), ('down', 'fell', 'giảm'),
     ):
-        rows = [m for m in movers if m.get('direction') == direction
-                and (_safe_float(m.get('change_pct')) > 0 if direction == 'up'
-                     else _safe_float(m.get('change_pct')) < 0)][:3]
+        rows = [m for m in movers if m.get('direction') == direction][:3]
         if rows:
-            values = ', '.join(f"{m['symbol']} {m['change_pct']:+.2f}%" for m in rows)
-            market_en.append(f"{label_en} ({session}, HOSE): {values}.")
-            market_vi.append(f"{label_vi} (phiên {session}, HOSE): {values}.")
+            english = [f"{m['symbol']} {verb_en} {abs(m['change_pct']):.2f}%" for m in rows]
+            vietnamese = [f"{m['symbol']} {verb_vi} {abs(m['change_pct']):.2f}%".replace('.', ',')
+                          for m in rows]
+            market_en.append((', '.join(english[:-1]) + ' and ' + english[-1]
+                              if len(english) > 1 else english[0]) + '.')
+            market_vi.append((', '.join(vietnamese[:-1]) + ' và ' + vietnamese[-1]
+                              if len(vietnamese) > 1 else vietnamese[0]) + '.')
     if not market_en:
-        market_en = [f"No verified price snapshot for session {session}; no price-move ranking is available."]
-        market_vi = [f"Chưa có snapshot giá được xác minh cho phiên {session}; chưa đủ dữ liệu để xếp hạng tăng giảm."]
+        market_en = ["Price data for this session is not available yet."]
+        market_vi = ["Chưa có dữ liệu giá cập nhật cho phiên này."]
     recent_news = _eligible_news(recent_news, now)
     news = [item['title'] for item in recent_news[:3]]
     return {
         "schema_version": _SCHEMA_VERSION, "market_session_date": session,
         "market_data_available": bool(movers),
-        "headline": "Market snapshot and recent news", "headline_vi": "Snapshot thị trường và tin mới",
+        "headline": "Market highlights", "headline_vi": "Điểm nhấn thị trường",
         "market_summary": market_en, "market_summary_vi": market_vi,
         "news_summary": news, "news_summary_vi": news,
         "summary": (market_en + news)[:5], "summary_vi": (market_vi + news)[:5],
@@ -307,6 +308,12 @@ def read_market_ai_takeaways() -> dict[str, Any] | None:
                 or payload.get('market_session_date') != expected_session_date(now)
                 or generated.tzinfo is None or not timedelta(0) <= now - generated <= timedelta(hours=6)):
             return None
+        # Reformat existing valid snapshots without another provider call.
+        presentation = _fallback_takeaways(payload.get('movers', []), [], now)
+        for key in ('headline', 'headline_vi', 'market_summary', 'market_summary_vi'):
+            payload[key] = presentation[key]
+        payload['summary'] = (payload['market_summary'] + payload.get('news_summary', []))[:5]
+        payload['summary_vi'] = (payload['market_summary_vi'] + payload.get('news_summary_vi', []))[:5]
         return payload
     except (OSError, sqlite3.Error, ValueError, TypeError) as exc:
         logger.warning("Unable to read market AI takeaways cache: %s", exc)
