@@ -6,6 +6,7 @@ import { fetchMarketTakeaways, MarketTakeawaysData } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { localizedPath } from '@/lib/localePath';
+import NewsSourceLogos from './NewsSourceLogos';
 
 function Skeleton() {
     return (
@@ -117,24 +118,7 @@ export default function EarningsSeason() {
                         </div>
                     </div>
 
-                    {!!takeaways.news_sources?.length && (
-                        <details className="mb-4 text-xs text-gray-500 dark:text-gray-400">
-                            <summary className="cursor-pointer font-medium">
-                                {isEnglish ? 'News sources used' : 'Nguồn tin đã dùng'}
-                            </summary>
-                            <ul className="mt-2 space-y-2">
-                                {takeaways.news_sources.map(source => (
-                                    <li key={source.url}>
-                                        <a href={source.url} target="_blank" rel="noopener noreferrer"
-                                            className="text-blue-600 hover:underline dark:text-blue-400">
-                                            {source.title}
-                                        </a>
-                                        <p>{source.source} · {new Date(source.published_at).toLocaleString(translations[lang].overview.locale)}</p>
-                                    </li>
-                                ))}
-                            </ul>
-                        </details>
-                    )}
+                    <NewsSourceLogos sources={takeaways.news_sources} label={isEnglish ? 'Sources' : 'Nguồn'} />
 
                     {takeaways.watchlist && takeaways.watchlist.length > 0 && (
                         <div className="grid gap-2 sm:grid-cols-2">
