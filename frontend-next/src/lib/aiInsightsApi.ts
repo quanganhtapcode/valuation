@@ -28,6 +28,14 @@ export interface MarketTakeawayWatchItem {
 
 export interface MarketTakeawaysData {
     available: boolean;
+    market_session_date?: string;
+    market_data_available?: boolean;
+    news_sources?: Array<{
+        title: string;
+        url: string;
+        source?: string;
+        published_at: string;
+    }>;
     headline: string;
     headline_vi?: string;
     summary: string[];

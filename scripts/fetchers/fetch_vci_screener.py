@@ -283,7 +283,21 @@ def upsert_items(conn: sqlite3.Connection, items: list[dict[str, Any]], fetched_
         "stockStrength",
     }
     placeholders = ",".join(["?"] * len(cols))
-    updates = ",".join([f"{c}=excluded.{c}" for c in cols if c != "ticker"])
+    # The unfiltered price feed omits fundamentals and identity enrichment.
+    # Erasing them makes vci_safe_run roll back the entire refresh, including
+    # valid new prices. Preserve unavailable enrichment, but replace quote
+    # fields together so old references cannot leak into a new quote.
+    quote_columns = {
+        "refPrice", "ceiling", "marketPrice", "floor", "accumulatedValue",
+        "accumulatedVolume", "dailyPriceChangePercent", "matchPriceTime",
+        "emaTime", "lastModifiedDate", "raw_json", "fetched_at",
+    }
+    updates = ",".join(
+        f"{c}=excluded.{c}" if c in quote_columns else
+        f"{c}=COALESCE(excluded.{c}, screening_data.{c})" if c in numeric_cols else
+        f"{c}=COALESCE(NULLIF(excluded.{c}, ''), screening_data.{c})"
+        for c in cols if c != "ticker"
+    )
     sql = f"INSERT INTO screening_data ({','.join(cols)}) VALUES ({placeholders}) ON CONFLICT(ticker) DO UPDATE SET {updates}"
 
     changed = 0
@@ -445,14 +459,14 @@ def sync_financial_metrics(db_path: str) -> None:
                 conn.execute("""
                     UPDATE screening_data
                     SET
-                        ttmPe      = (SELECT sf.pe               FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)),
-                        ttmPb      = (SELECT sf.pb               FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)),
-                        ttmRoe     = (SELECT sf.roe * 100.0      FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)),
-                        netMargin  = (SELECT sf.after_tax_margin * 100.0 FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)),
-                        grossMargin= (SELECT sf.gross_margin * 100.0     FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker))
+                        ttmPe = COALESCE(screening_data.ttmPe, (SELECT sf.pe FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker))),
+                        ttmPb = COALESCE(screening_data.ttmPb, (SELECT sf.pb FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker))),
+                        ttmRoe = COALESCE(screening_data.ttmRoe, (SELECT sf.roe * 100.0 FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker))),
+                        netMargin = COALESCE(screening_data.netMargin, (SELECT sf.after_tax_margin * 100.0 FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker))),
+                        grossMargin = COALESCE(screening_data.grossMargin, (SELECT sf.gross_margin * 100.0 FROM sf.stats_financial sf WHERE UPPER(sf.ticker) = UPPER(screening_data.ticker)))
                 """)
-                conn.execute("DETACH DATABASE sf")
                 conn.commit()
+                conn.execute("DETACH DATABASE sf")
                 print(f"Synced PE/PB/ROE/margins from {sf_path}")
             except Exception as exc:
                 print(f"Warning: could not sync from stats_financial: {exc}")
@@ -464,7 +478,7 @@ def sync_financial_metrics(db_path: str) -> None:
                 conn.execute("""
                     UPDATE screening_data
                     SET
-                        revenueGrowthYoy = (
+                        revenueGrowthYoy = COALESCE(screening_data.revenueGrowthYoy, (
                             SELECT
                                 CASE WHEN prev.revenue > 0
                                      THEN (curr.revenue - prev.revenue) * 100.0 / prev.revenue
@@ -477,8 +491,8 @@ def sync_financial_metrics(db_path: str) -> None:
                             WHERE UPPER(curr.symbol) = UPPER(screening_data.ticker)
                             ORDER BY curr.year DESC
                             LIMIT 1
-                        ),
-                        npatmiGrowthYoyQm1 = (
+                        )),
+                        npatmiGrowthYoyQm1 = COALESCE(screening_data.npatmiGrowthYoyQm1, (
                             SELECT
                                 CASE WHEN prev.net_profit_parent_company > 0
                                      THEN (curr.net_profit_parent_company - prev.net_profit_parent_company) * 100.0 / prev.net_profit_parent_company
@@ -491,10 +505,10 @@ def sync_financial_metrics(db_path: str) -> None:
                             WHERE UPPER(curr.symbol) = UPPER(screening_data.ticker)
                             ORDER BY curr.year DESC
                             LIMIT 1
-                        )
+                        ))
                 """)
-                conn.execute("DETACH DATABASE main_db")
                 conn.commit()
+                conn.execute("DETACH DATABASE main_db")
                 print(f"Synced revenue/NP growth from {stocks_path}")
             except Exception as exc:
                 print(f"Warning: could not sync growth from stocks db: {exc}")

@@ -21,6 +21,6 @@ def register(market_bp: Blueprint) -> None:
             }), 503
 
         response = jsonify(data)
-        response.headers["Cache-Control"] = "public, max-age=60, s-maxage=600, stale-while-revalidate=3600"
+        response.headers["Cache-Control"] = "no-store"
         response.headers["X-Cache"] = "PERSISTENT"
         return response

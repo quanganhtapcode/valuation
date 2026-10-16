@@ -100,37 +100,46 @@ def query_market_news(
     return result
 
 
+_NEWS_TZ = dt.timezone(dt.timedelta(hours=7))
+
+
+def news_published_at(item: dict[str, Any]) -> dt.datetime | None:
+    value = item.get('publish_date') or item.get('PublishDate') or item.get('update_date')
+    try:
+        parsed = dt.datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        return parsed.replace(tzinfo=_NEWS_TZ) if parsed.tzinfo is None else parsed
+    except (TypeError, ValueError):
+        return None
+
+
 def query_recent_market_news(
-    db_path: str,
-    *,
-    since: dt.datetime,
-    limit: int = 30,
+    db_path: str, *, since: dt.datetime, limit: int = 30,
+    until: dt.datetime | None = None,
 ) -> list[dict[str, Any]]:
-    """Return market news published since a local timestamp, newest first."""
+    """Use Vietnam publication time, excluding undated and future articles."""
     if not db_path or not os.path.exists(db_path):
         return []
-
+    since = since.replace(tzinfo=_NEWS_TZ) if since.tzinfo is None else since
+    until = until or dt.datetime.now(dt.timezone.utc)
+    until = until.replace(tzinfo=_NEWS_TZ) if until.tzinfo is None else until
     limit = min(max(int(limit or 30), 1), 100)
-    cutoff = since.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+    # Publication timestamps upstream are local ICT strings. Parse again below
+    # so timezone-bearing values are compared as instants, not string dates.
     with read_connection(db_path) as conn:
         rows = conn.execute(
-            """
-            SELECT raw_json
-            FROM news_items
-            WHERE update_date >= ?
-            ORDER BY update_date DESC
-            LIMIT ?
-            """,
-            (cutoff, limit),
+            'SELECT raw_json FROM news_items ORDER BY update_date DESC LIMIT 1000'
         ).fetchall()
-
-    result: list[dict[str, Any]] = []
+    result = []
     for row in rows:
         try:
-            result.append(normalize_news_item(json.loads(row[0])))
-        except (TypeError, json.JSONDecodeError):
+            item = normalize_news_item(json.loads(row[0]))
+            published = news_published_at(item)
+            if published is not None and since <= published <= until:
+                result.append(item)
+        except (TypeError, ValueError):
             continue
-    return result
+    result.sort(key=lambda item: news_published_at(item), reverse=True)
+    return result[:limit]
 
 
 def normalize_news_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -193,6 +202,7 @@ def compact_news_item(item: dict[str, Any]) -> dict[str, Any]:
         "url": normalized.get("url") or normalized.get("Link") or normalized.get("NewsUrl") or "",
         "source": normalized.get("source") or normalized.get("Source") or "",
         "publish_date": normalized.get("publish_date") or normalized.get("PublishDate") or normalized.get("PostDate") or "",
+        "summary": normalized.get("news_short_content") or normalized.get("summary") or "",
         "image_url": normalized.get("image_url") or normalized.get("ImageThumb") or normalized.get("Avatar") or "",
         "sentiment": normalized.get("sentiment") or normalized.get("Sentiment") or "",
         "score": normalized.get("score") if normalized.get("score") is not None else normalized.get("Score"),
