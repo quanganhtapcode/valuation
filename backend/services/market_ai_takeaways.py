@@ -215,10 +215,12 @@ def _build_prompt(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]
         "No buy/sell advice. Use neutral language and attribute allegations to the source. "
         "Never describe an article outside the supplied window as current news. "
         "Return JSON only: {\"news\":[{\"source_id\":\"exact supplied source_id\","
+        "\"title\":\"Short English headline, max 80 characters\","
+        "\"title_vi\":\"Short Vietnamese headline, max 80 characters\","
         "\"summary\":\"English factual summary, max 350 characters\","
         "\"summary_vi\":\"Vietnamese equivalent, max 350 characters\"}]}. "
         "Select at most 3 articles. Every summary must cite exactly one provided source_id. "
-        "Do not return market-summary bullets, rankings, headlines, watchlists or unsupported numbers.\n"
+        "Headlines must be concise and distinct from the detailed summaries. Do not return market-summary bullets, rankings, watchlists or unsupported numbers.\n"
         "INPUT_JSON:\n" + json.dumps(payload, ensure_ascii=False, separators=(',', ':'))
     )
 
@@ -251,7 +253,7 @@ def compute_ai_takeaways() -> dict[str, Any]:
                 continue
             source = sources.get(item.get('source_id'))
             en, vi = item.get('summary'), item.get('summary_vi')
-            if source is None or source in used or not isinstance(en, str) or not isinstance(vi, str):
+            if source is None or any(row['source_id'] == source['source_id'] for row in used) or not isinstance(en, str) or not isinstance(vi, str):
                 continue
             if not en.strip() or not vi.strip() or max(len(en), len(vi)) > 350:
                 continue
@@ -265,6 +267,15 @@ def compute_ai_takeaways() -> dict[str, Any]:
                 continue
             news_en.append(en.strip())
             news_vi.append(vi.strip())
+            source = dict(source)
+            for field, target in (('title', 'title_en'), ('title_vi', 'title_vi')):
+                title = item.get(field)
+                if not isinstance(title, str) or not title.strip() or len(title) > 80:
+                    continue
+                title_symbols = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', title))
+                if (title_symbols <= supported | {'USD', 'VND', 'GDP', 'ROE', 'ROA', 'EPS'}
+                        and _numbers(title) <= supported_numbers):
+                    source[target] = title.strip()
             used.append(source)
             if len(used) >= 3:
                 break

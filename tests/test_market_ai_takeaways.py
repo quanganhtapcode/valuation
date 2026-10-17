@@ -122,6 +122,19 @@ class MarketAIValidation(unittest.TestCase):
         self.assertEqual(data['news_sources'][0]['url'], 'https://example.org/fpt')
         self.assertIn('input_snapshot', data)
 
+    def test_short_bilingual_titles_are_separate_and_grounded(self):
+        for title, accepted in [('Profit growth', True), ('Profit rises 99%', False)]:
+            with self.subTest(title=title):
+                data = self.compute(lambda payload: {'news': [{
+                    'source_id': payload['recent_news_24h'][0]['source_id'],
+                    'title': title, 'title_vi': 'Lợi nhuận tăng',
+                    'summary': 'Profit increased 20%.',
+                    'summary_vi': 'Lợi nhuận tăng 20%.',
+                }]})
+                self.assertTrue(data['available'])
+                self.assertEqual('title_en' in data['news_sources'][0], accepted)
+                self.assertEqual(data['news_sources'][0]['title_vi'], 'Lợi nhuận tăng')
+
     def test_unknown_source_or_invented_number_uses_safe_fallback(self):
         for source, number in [('unknown', '20'), ('valid', '99')]:
             with self.subTest(source=source, number=number):

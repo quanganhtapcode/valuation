@@ -108,9 +108,8 @@ export default function EarningsSeason() {
                                     <div className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-900">
                                         {section.items.slice(0, 3).map((item, index) => {
                                             const source = section.isNews ? takeaways.news_sources?.[index] : undefined;
-                                            const title = !isEnglish && source?.title
-                                                ? source.title
-                                                : item.split(/(?<=[.!?])\s/)[0];
+                                            const title = (isEnglish ? source?.title_en : source?.title_vi)
+                                                || (isEnglish ? `News update ${index + 1}` : source?.title || `Tin nổi bật ${index + 1}`);
                                             if (!section.isNews) {
                                                 return <p key={item} className="px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300">{item}</p>;
                                             }
