@@ -58,10 +58,10 @@ export default function EarningsSeason() {
     const newsSummary = uniqueTakeawayItems(isEnglish ? takeaways?.news_summary : takeaways?.news_summary_vi);
     const sections = marketSummary?.length || newsSummary?.length
         ? [
-            { title: copy.largestMoves, items: marketSummary || [], color: 'bg-emerald-500' },
-            { title: copy.recentNews, items: newsSummary || [], color: 'bg-blue-500' },
+            { title: copy.largestMoves, items: marketSummary || [], isNews: false },
+            { title: copy.recentNews, items: newsSummary || [], isNews: true },
         ].filter(section => section.items.length > 0)
-        : [{ title: copy.summary, items: summary || [], color: 'bg-blue-500' }];
+        : [{ title: copy.summary, items: summary || [], isNews: false }];
 
     return (
         <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800">
@@ -105,14 +105,35 @@ export default function EarningsSeason() {
                             {sections.map(section => (
                                 <div key={section.title}>
                                     <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{section.title}</p>
-                                    <ul className="space-y-1.5">
-                                        {section.items.slice(0, 3).map((item, index) => (
-                                            <li key={`${section.title}-${index}-${item}`} className="flex gap-2 text-sm leading-snug text-gray-600 dark:text-gray-300">
-                                                <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${section.color}`} />
-                                                <span>{item}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <div className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-900">
+                                        {section.items.slice(0, 3).map((item, index) => {
+                                            const source = section.isNews ? takeaways.news_sources?.[index] : undefined;
+                                            const title = !isEnglish && source?.title
+                                                ? source.title
+                                                : item.split(/(?<=[.!?])\s/)[0];
+                                            if (!section.isNews) {
+                                                return <p key={item} className="px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300">{item}</p>;
+                                            }
+                                            return (
+                                                <details key={`${section.title}-${index}-${item}`} className="group">
+                                                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-3 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500 dark:text-gray-100 dark:hover:bg-gray-800 [&::-webkit-details-marker]:hidden">
+                                                        <span className="line-clamp-2 group-open:line-clamp-none">{title}</span>
+                                                        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180">
+                                                            <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                    </summary>
+                                                    <div className="px-3 pb-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                                                        <p>{item}</p>
+                                                        {source && /^https?:\/\//i.test(source.url) && (
+                                                            <a href={source.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">
+                                                                {isEnglish ? 'Read source' : 'Đọc bài gốc'} ↗
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </details>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             ))}
                         </div>

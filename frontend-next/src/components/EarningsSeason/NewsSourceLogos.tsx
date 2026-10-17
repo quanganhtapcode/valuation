@@ -7,27 +7,22 @@ import { getNewsPublishers, type NewsPublisher } from '@/lib/newsPublishers';
 function PublisherLogo({ publisher }: { publisher: NewsPublisher }) {
     const [failed, setFailed] = useState(false);
     return (
-        <a
-            href={publisher.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={publisher.name}
-            aria-label={publisher.name}
-            className="inline-flex min-h-10 items-center rounded px-2 py-1 transition-opacity hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        <span
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white bg-white dark:border-gray-900"
             style={{ backgroundColor: failed ? undefined : publisher.background || '#ffffff' }}
         >
-            {failed ? <span className="text-xs font-medium">{publisher.name}</span> : (
+            {failed ? <span className="text-[9px] font-semibold text-gray-600">{publisher.name.charAt(0)}</span> : (
                 <Image
                     src={publisher.logo}
-                    alt={publisher.name}
+                    alt=""
                     width={publisher.width}
                     height={publisher.height}
                     unoptimized
-                    className="h-7 w-auto max-w-40 object-contain"
+                    className="h-full w-full object-contain p-0.5"
                     onError={() => setFailed(true)}
                 />
             )}
-        </a>
+        </span>
     );
 }
 
@@ -38,9 +33,27 @@ export default function NewsSourceLogos({ sources, label }: {
     const publishers = getNewsPublishers(sources);
     if (!publishers.length) return null;
     return (
-        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-gray-500 dark:text-gray-400">
-            <span className="text-xs font-medium">{label}:</span>
-            {publishers.map(publisher => <PublisherLogo key={publisher.domain} publisher={publisher} />)}
-        </div>
+        <details className="mb-3 text-gray-500 dark:text-gray-400">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-gray-200 px-2 py-1 text-xs transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-gray-700 dark:hover:bg-gray-800 [&::-webkit-details-marker]:hidden">
+                <span className="flex -space-x-1.5" aria-hidden="true">
+                    {publishers.slice(0, 3).map(publisher => <PublisherLogo key={publisher.domain} publisher={publisher} />)}
+                </span>
+                <span>{publishers.length} {label.toLocaleLowerCase()}</span>
+            </summary>
+            <div className="mt-2 flex flex-wrap gap-2">
+                {publishers.map(publisher => (
+                    <a
+                        key={publisher.domain}
+                        href={publisher.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2 py-1 text-xs hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:bg-gray-800 dark:hover:text-blue-400"
+                    >
+                        <PublisherLogo publisher={publisher} />
+                        {publisher.name}
+                    </a>
+                ))}
+            </div>
+        </details>
     );
 }

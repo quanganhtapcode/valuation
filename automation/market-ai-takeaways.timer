@@ -3,9 +3,9 @@ Description=Market AI Takeaways Refresh Timer
 Requires=market-ai-takeaways.service
 
 [Timer]
-# Refresh during the Vietnamese trading session, then once after market close.
-OnCalendar=Mon..Fri *-*-* 09..15:10:00
-OnCalendar=Mon..Fri *-*-* 18:10:00
+# The API expires snapshots after six hours and news uses a rolling 24-hour
+# window, so refresh hourly even overnight and on non-trading days.
+OnCalendar=*-*-* *:10:00
 Persistent=true
 RandomizedDelaySec=60
 
