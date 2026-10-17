@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { apiError } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,8 @@ export async function GET() {
             headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=86400' },
         });
     } catch {
-        return Response.json({ error: 'Financial field-code map is unavailable' }, { status: 404 });
+        return Response.json(apiError(404, 'Financial field-code map is unavailable'), {
+            status: 404, headers: { 'Cache-Control': 'no-store' },
+        });
     }
 }

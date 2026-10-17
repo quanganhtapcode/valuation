@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Pagination from '@/components/ui/Pagination';
 import {
@@ -220,22 +220,27 @@ export default function ScreenerPage() {
     return () => clearTimeout(t);
   }, [liveFilters]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await fetchScreener({ page, pageSize: PAGE_SIZE, sortBy, sortOrder, filters: debouncedFilters });
-      setItems(resp.items || []);
-      setTotal(resp.total || 0);
-      setHasValuationData(!!resp.hasValuationData);
-    } catch (e: any) {
-      setError(e?.message || t.loadFailed);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let active = true;
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const resp = await fetchScreener({ page, pageSize: PAGE_SIZE, sortBy, sortOrder, filters: debouncedFilters });
+        // Ignore a slower response from a previous page, filter, or sort order.
+        if (!active) return;
+        setItems(resp.items || []);
+        setTotal(resp.total || 0);
+        setHasValuationData(!!resp.hasValuationData);
+      } catch (error) {
+        if (active) setError(error instanceof Error ? error.message : t.loadFailed);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadData();
+    return () => { active = false; };
   }, [debouncedFilters, page, sortBy, sortOrder, t.loadFailed]);
-
-  useEffect(() => { loadData(); }, [loadData]);
 
   const toggleExchange = (ex: string) => {
     setExchanges((prev) => {
@@ -507,7 +512,7 @@ export default function ScreenerPage() {
                   return (
                     <tr key={row.ticker} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td className="py-2 pl-3 md:pl-0 pr-2">
-                        <Link href={localizedPath(`/stock/${row.ticker}`, lang)} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                        <Link prefetch={false} href={localizedPath(`/stock/${row.ticker}`, lang)} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                           {row.ticker}
                         </Link>
                         <div className="text-xs text-slate-400 truncate max-w-[90px] sm:max-w-none">

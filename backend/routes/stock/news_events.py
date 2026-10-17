@@ -175,10 +175,8 @@ def register(stock_bp: Blueprint) -> None:
 
             # SQLite cache (VCI AI)
             try:
-                items = query_news_for_symbol(default_news_db_path(), clean_symbol, limit=12)
+                items = query_news_for_symbol(default_news_db_path(), clean_symbol, limit=12, compact=compact)
                 if items:
-                    if compact:
-                        items = [compact_news_item(item) for item in items]
                     result = {"success": True, "data": items}
                     cache_set(cache_key, result)
                     return jsonify(result)

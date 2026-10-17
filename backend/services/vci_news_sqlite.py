@@ -4,6 +4,7 @@ import datetime as dt
 import json
 import math
 import os
+import sqlite3
 from backend.sqlite_utils import read_connection
 from typing import Any, Optional
 
@@ -67,6 +68,7 @@ def query_market_news(
     *,
     page: int = 1,
     page_size: int = 12,
+    compact: bool = False,
 ) -> list[dict[str, Any]]:
     """Return latest market news (mixed tickers) ordered by update_date desc."""
     if not db_path or not os.path.exists(db_path):
@@ -77,6 +79,10 @@ def query_market_news(
     offset = (page - 1) * page_size
 
     with read_connection(db_path) as conn:
+        if compact:
+            projected = _query_compact_news(conn, "ORDER BY update_date DESC LIMIT ? OFFSET ?", (page_size, offset))
+            if projected is not None:
+                return projected
         rows = conn.execute(
             """
             SELECT raw_json
@@ -93,7 +99,8 @@ def query_market_news(
         if not raw:
             continue
         try:
-            result.append(normalize_news_item(json.loads(raw)))
+            item = json.loads(raw)
+            result.append(compact_news_item(item) if compact else normalize_news_item(item))
         except Exception:
             # Fallback: expose minimal fields if raw_json is invalid
             continue
@@ -210,11 +217,42 @@ def compact_news_item(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _query_compact_news(
+    conn: sqlite3.Connection, clause: str, params: tuple,
+) -> list[dict[str, Any]] | None:
+    """Use stored card fields without reading/decoding upstream JSON blobs.
+
+    Older snapshots can contain only raw_json; let their caller use the legacy
+    decoder. The clause is provided only by the two fixed queries below.
+    """
+    try:
+        rows = conn.execute(
+            "SELECT id, news_title AS title, news_source_link AS url, "
+            "COALESCE(NULLIF(news_from_name, ''), news_from, '') AS source, "
+            "update_date AS publish_date, news_short_content AS summary, "
+            "news_image_url AS image_url, sentiment, score, ticker AS symbol "
+            f"FROM news_items {clause}", params,
+        ).fetchall()
+    except sqlite3.OperationalError as exc:
+        if "no such column" in str(exc):
+            return None
+        raise
+    text_fields = ("title", "url", "source", "publish_date", "summary", "image_url", "sentiment", "symbol")
+    result = []
+    for row in rows:
+        item = dict(row)
+        for field in text_fields:
+            item[field] = item[field] or ""
+        result.append(item)
+    return result
+
+
 def query_news_for_symbol(
     db_path: str,
     symbol: str,
     *,
     limit: int = 15,
+    compact: bool = False,
 ) -> list[dict[str, Any]]:
     if not db_path or not os.path.exists(db_path):
         return []
@@ -224,6 +262,12 @@ def query_news_for_symbol(
     limit = min(max(int(limit or 15), 1), 50)
 
     with read_connection(db_path) as conn:
+        if compact:
+            projected = _query_compact_news(
+                conn, "WHERE ticker = ? ORDER BY update_date DESC LIMIT ?", (symbol, limit),
+            )
+            if projected is not None:
+                return projected
         rows = conn.execute(
             """
             SELECT raw_json
@@ -241,7 +285,8 @@ def query_news_for_symbol(
         if not raw:
             continue
         try:
-            result.append(normalize_news_item(json.loads(raw)))
+            item = json.loads(raw)
+            result.append(compact_news_item(item) if compact else normalize_news_item(item))
         except Exception:
             continue
     return result

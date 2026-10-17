@@ -1,11 +1,12 @@
 import 'server-only';
 import { BACKEND_API } from './backendApi.server';
+import { backendApiPath } from './apiRouteRegistry';
 import { INDEX_MAP, type VciIndexItem } from './marketTypes';
 
 /** Small shared snapshot for first paint; the browser then subscribes to live data. */
 export async function getOverviewSnapshot() {
     try {
-        const response = await fetch(`${BACKEND_API}/market/vci-indices`, {
+        const response = await fetch(`${BACKEND_API}/${backendApiPath('market/indices')}`, {
             next: { revalidate: 15 },
             signal: AbortSignal.timeout(800),
         });

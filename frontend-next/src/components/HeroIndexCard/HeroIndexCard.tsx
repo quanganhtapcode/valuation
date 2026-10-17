@@ -233,7 +233,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
         setIdxLoad(true);
         setIdxBars([]);
-        fetch(`${API_BASE}/market/index-history?index=${info.vciSymbol}&days=-1&compact=1`)
+        fetch(`${API_BASE}/market/indices/history?index=${info.vciSymbol}&days=-1&compact=1`)
             .then(r => r.json())
             .then((rows: any[]) => {
                 if (!Array.isArray(rows)) return;

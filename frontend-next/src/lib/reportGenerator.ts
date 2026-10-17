@@ -186,7 +186,7 @@ export class ReportGenerator {
         const fetch3 = async (type: string) => {
             try {
                 const resp = await fetch(
-                    `/api/financial-report/${symbol}?type=${type}&period=year&limit=7`,
+                    `/api/stocks/${symbol}/financial-statements?type=${type}&period=year&limit=7`,
                     { cache: 'no-store' }
                 );
                 if (!resp.ok) return [];
@@ -233,7 +233,7 @@ export class ReportGenerator {
         for (const period of ['quarter', 'year'] as const) {
             try {
                 const resp = await fetch(
-                    `/api/financial-report/${symbol}?type=${type}&period=${period}&limit=1`,
+                    `/api/stocks/${symbol}/financial-statements?type=${type}&period=${period}&limit=1`,
                     { cache: 'no-store' }
                 );
                 if (!resp.ok) continue;
@@ -325,7 +325,7 @@ export class ReportGenerator {
             let statementsArrayBuffer: ArrayBuffer | null = null;
             try {
                 const resp = await fetch(
-                    `${API_BASE}/download/${encodeURIComponent(symbol)}?proxy=1`,
+                    `${API_BASE}/stocks/${encodeURIComponent(symbol)}/report-file?proxy=1`,
                     { cache: 'no-store' }
                 );
                 if (resp.ok) statementsArrayBuffer = await resp.arrayBuffer();

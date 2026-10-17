@@ -88,7 +88,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
             setError(null);
         });
 
-        fetch(`${API_BASE}/stock/holders/${symbol}`, {
+        fetch(`${API_BASE}/stocks/${symbol}/shareholders`, {
             cache: 'no-store',
             signal: controller.signal,
         })

@@ -200,7 +200,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
         const controller = new AbortController();
         const loadTechnical = async () => {
             try {
-                const response = await fetch(`/api/stock/${symbol}/technical/ONE_DAY`, { signal: controller.signal });
+                const response = await fetch(`/api/stocks/${symbol}/technical/ONE_DAY`, { signal: controller.signal });
                 if (!response.ok) return;
                 const next = toLiveTechnicalSnapshot(await response.json());
                 if (next) setLiveTechnical(next);

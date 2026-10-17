@@ -5,7 +5,7 @@ import logging
 from flask import Blueprint, jsonify, request
 
 from backend.services.news_service import NewsService
-from backend.services.vci_news_sqlite import compact_news_item, default_news_db_path, is_fresh, query_market_news
+from backend.services.vci_news_sqlite import compact_news_item, default_news_db_path, get_meta_value, is_fresh, query_market_news
 
 from .deps import cache_func, cache_ttl
 
@@ -16,20 +16,19 @@ logger = logging.getLogger(__name__)
 def register(market_bp: Blueprint) -> None:
     @market_bp.route("/news")
     def api_market_news():
-        page_index = request.args.get("page", "1")
-        page_size = request.args.get("size", "12")
         compact = request.args.get("compact") == "1"
         try:
-            page_size = str(min(int(page_size), 50))
+            page_index = max(1, int(request.args.get("page", "1")))
+            page_size = max(1, min(int(request.args.get("size", "12")), 50))
         except ValueError:
-            page_size = "12"
+            return jsonify({"success": False, "error": "page and size must be integers"}), 400
 
         try:
             news_db = default_news_db_path()
-            data = query_market_news(news_db, page=int(page_index), page_size=int(page_size))
-            if data:
-                if compact:
-                    data = [compact_news_item(item) for item in data]
+            data = query_market_news(news_db, page=page_index, page_size=page_size, compact=compact)
+            # An initialized snapshot may legitimately have no rows on this
+            # page. Do not turn pagination past the end into an upstream wait.
+            if data or get_meta_value(news_db, "last_fetch_utc"):
                 resp = jsonify({"success": True, "data": data})
                 resp.headers["X-Cache"] = "SQLITE"
                 resp.headers["X-News-Stale"] = "0" if is_fresh(

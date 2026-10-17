@@ -10,7 +10,7 @@ from flask import Blueprint, jsonify, request
 
 from backend.data_sources.vci import VCIClient
 from backend.services.news_service import NewsService
-from backend.services.vci_news_sqlite import default_news_db_path, query_market_news
+from backend.services.vci_news_sqlite import compact_news_item, default_news_db_path, query_market_news
 
 from .valuation_chart import fetch_vci_index_valuation_payload
 from .deps import cache_func
@@ -57,11 +57,11 @@ def _fetch_pe_chart(time_frame: str = "6M") -> dict[str, Any]:
     return fetch_vci_index_valuation_payload(metric="both", com_group_code="VNINDEX", time_frame=time_frame)
 
 
-def _fetch_news(news_size: int) -> list[dict[str, Any]]:
+def _fetch_news(news_size: int, *, compact: bool = False) -> list[dict[str, Any]]:
     try:
         news_db = default_news_db_path()
         if os.path.exists(news_db):
-            cached_news = query_market_news(news_db, page=1, page_size=news_size)
+            cached_news = query_market_news(news_db, page=1, page_size=news_size, compact=compact)
             if isinstance(cached_news, list):
                 return cached_news
     except Exception as exc:
@@ -70,7 +70,7 @@ def _fetch_news(news_size: int) -> list[dict[str, Any]]:
     try:
         data = NewsService.fetch_news(ticker="", page=1, page_size=news_size)
         if isinstance(data, list):
-            return data
+            return [compact_news_item(item) for item in data] if compact else data
     except Exception as exc:
         logger.error(f"overview-refresh upstream news fetch failed: {exc}")
 
@@ -80,6 +80,7 @@ def _fetch_news(news_size: int) -> list[dict[str, Any]]:
 def register(market_bp: Blueprint) -> None:
     @market_bp.route("/overview-refresh", methods=["GET"])
     def api_overview_refresh():
+        compact = request.args.get("compact") == "1"
         symbols_raw = request.args.get("symbols", "")
         symbols = [
             token.strip().upper()
@@ -112,9 +113,9 @@ def register(market_bp: Blueprint) -> None:
         )
 
         news, _ = cache_func()(
-            f"overview_refresh_news_{news_size}",
+            f"overview_refresh_news_{news_size}_{'compact' if compact else 'full'}",
             _NEWS_CACHE_SECONDS,
-            lambda: _fetch_news(news_size),
+            lambda: _fetch_news(news_size, compact=compact),
         )
 
         heatmap, _ = cache_func()(
@@ -128,7 +129,7 @@ def register(market_bp: Blueprint) -> None:
                 "success": True,
                 "serverTs": time.time(),
                 "watchlistPrices": prices,
-                "peChart": pe_chart,
+                **({"peChart": pe_chart} if not compact else {}),
                 "indexValuationChart": pe_chart,
                 "news": news,
                 "heatmap": heatmap,

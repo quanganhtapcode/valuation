@@ -122,7 +122,7 @@ export default function BankLoanBreakdown({ symbol }: { symbol: string }) {
             setError(null);
         });
         const yearParam = selectedYear ? `?year=${selectedYear}` : '';
-        fetchAPI<LoanBreakdownData>(`/api/stock/${symbol}/loan-breakdown${yearParam}`)
+        fetchAPI<LoanBreakdownData>(`/api/stocks/${symbol}/loan-breakdown${yearParam}`)
             .then((d: LoanBreakdownData) => {
                 setData(d);
             })

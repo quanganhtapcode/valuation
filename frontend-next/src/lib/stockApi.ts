@@ -48,11 +48,11 @@ function unwrapArray<T>(raw: unknown): T[] {
  */
 export async function fetchCompanyProfile(symbol: string): Promise<Company | null> {
     try {
-        const response = await fetch(`${API_BASE}/company/profile/${symbol}`);
+        const response = await fetch(API.COMPANY_PROFILE(symbol));
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
-        console.error(`Error fetching company profile for ${symbol}:`, error);
+        console.error(`Error fetching company profile for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
@@ -92,94 +92,94 @@ export async function searchCompanies(query: string, limit: number = 20): Promis
 
 /**
  * Lightweight stock summary: identity + price + key ratios (~500 B).
- * GET /api/stock/<symbol>/summary
+ * GET /api/stocks/<symbol>/summary
  */
 export async function fetchStockSummary(symbol: string): Promise<Record<string, any> | null> {
     try {
-        const response = await fetch(`${API_BASE}/stock/${symbol}/summary`);
+        const response = await fetch(API.STOCK_SUMMARY(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         return json.success ? json : null;
     } catch (error) {
-        console.error(`Error fetching stock summary for ${symbol}:`, error);
+        console.error(`Error fetching stock summary for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
 
 /**
  * Company profile: description, established date, employees (~1.5 KB).
- * GET /api/stock/<symbol>/profile
+ * GET /api/stocks/<symbol>/profile
  */
 export async function fetchStockProfile(symbol: string): Promise<Record<string, any> | null> {
     try {
-        const response = await fetch(`${API_BASE}/stock/${symbol}/profile`);
+        const response = await fetch(API.STOCK_PROFILE(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         return json.success ? json : null;
     } catch (error) {
-        console.error(`Error fetching stock profile for ${symbol}:`, error);
+        console.error(`Error fetching stock profile for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
 
 /**
  * 12-year PE/PB/ROE/ROA/Debt ratio history (~1.5 KB).
- * GET /api/stock/<symbol>/ratio-history
+ * GET /api/stocks/<symbol>/ratio-history
  */
 export async function fetchStockRatioHistory(symbol: string): Promise<Record<string, any> | null> {
     try {
-        const response = await fetch(`${API_BASE}/stock/${symbol}/ratio-history`);
+        const response = await fetch(API.STOCK_RATIO_HISTORY(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         return json.success ? json : null;
     } catch (error) {
-        console.error(`Error fetching stock ratio history for ${symbol}:`, error);
+        console.error(`Error fetching stock ratio history for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
 
 /**
  * Quarterly/annual ratio arrays for mini-charts (~500 B).
- * GET /api/stock/<symbol>/ratio-series
+ * GET /api/stocks/<symbol>/ratio-series
  */
 export async function fetchStockRatioSeries(symbol: string): Promise<Record<string, any> | null> {
     try {
-        const response = await fetch(`${API_BASE}/stock/${symbol}/ratio-series`);
+        const response = await fetch(API.STOCK_RATIO_SERIES(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         return json.success ? json : null;
     } catch (error) {
-        console.error(`Error fetching stock ratio series for ${symbol}:`, error);
+        console.error(`Error fetching stock ratio series for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
 
 /**
  * Legacy: Full overview — all 4 combined (~4 KB, backward compat).
- * GET /api/stock/<symbol>/overview-full
+ * GET /api/stocks/<symbol>/overview
  */
 export async function fetchStockOverviewFull(symbol: string): Promise<StockApiData | null> {
     try {
-        const response = await fetch(`${API_BASE}/stock/${symbol}/overview-full`);
+        const response = await fetch(API.STOCK_OVERVIEW_FULL(symbol));
         if (!response.ok) return null;
         return unwrap<StockApiData>(await response.json());
     } catch (error) {
-        console.error(`Error fetching stock overview-full for ${symbol}:`, error);
+        console.error(`Error fetching stock overview-full for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
 
 /**
  * Get stock overview (legacy, kept for backward compat).
- * GET /api/stock/<symbol>
+ * GET /api/stocks/<symbol>
  */
 export async function fetchStockOverview(symbol: string): Promise<StockApiData | null> {
     try {
-        const response = await fetch(`${API_BASE}/stock/${symbol}`);
+        const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}`);
         if (!response.ok) return null;
         return unwrap<StockApiData>(await response.json());
     } catch (error) {
-        console.error(`Error fetching stock overview for ${symbol}:`, error);
+        console.error(`Error fetching stock overview for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
@@ -189,12 +189,12 @@ export async function fetchStockOverview(symbol: string): Promise<StockApiData |
  */
 export async function fetchStockPeers(symbol: string): Promise<any[]> {
     try {
-        const response = await fetch(`${API_BASE}/stock/peers/${symbol}`);
+        const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/peers`);
         if (!response.ok) return [];
         const data = await response.json();
         return data.data || [];
     } catch (error) {
-        console.error(`Error fetching stock peers for ${symbol}:`, error);
+        console.error(`Error fetching stock peers for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return [];
     }
 }
@@ -204,7 +204,7 @@ export async function fetchStockPeers(symbol: string): Promise<any[]> {
  */
 export async function fetchBatchOverview(symbols: string[]): Promise<Record<string, StockOverview>> {
     try {
-        const response = await fetch(`${API_BASE}/batch-overview?symbols=${symbols.join(',')}`);
+        const response = await fetch(`${API_BASE}/stocks/overviews?symbols=${symbols.join(',')}`);
         if (!response.ok) return {};
         return await response.json();
     } catch (error) {
@@ -228,13 +228,13 @@ export async function fetchFinancialReport(
 ): Promise<FinancialReportBase[]> {
     try {
         const response = await fetch(
-            `${API_BASE}/financial-report/${symbol}?type=${type}&period=${period}`
+            `${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/financial-statements?type=${type}&period=${period}`
         );
         if (!response.ok) return [];
         const data = await response.json();
         return Array.isArray(data) ? data : (data.data || []);
     } catch (error) {
-        console.error(`Error fetching ${type} report for ${symbol}:`, error);
+        console.error(`Error fetching ${type} report for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return [];
     }
 }
@@ -290,7 +290,7 @@ export async function fetchCurrentPrice(symbol: string): Promise<RealtimePrice |
         if (!response.ok) return null;
         return unwrap<RealtimePrice>(await response.json());
     } catch (error) {
-        console.error(`Error fetching current price for ${symbol}:`, error);
+        console.error(`Error fetching current price for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
@@ -303,11 +303,11 @@ export async function fetchPriceHistory(
     period: '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | 'ALL' = '3M'
 ): Promise<PriceData[]> {
     try {
-        const response = await fetch(`${API_BASE}/stock/history/${symbol}?period=${period}`);
+        const response = await fetch(`${API.STOCK_HISTORY(symbol)}?period=${period}`);
         if (!response.ok) return [];
         return unwrapArray<PriceData>(await response.json());
     } catch (error) {
-        console.error(`Error fetching price history for ${symbol}:`, error);
+        console.error(`Error fetching price history for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return [];
     }
 }
@@ -317,7 +317,7 @@ export async function fetchPriceHistory(
  */
 export async function fetchBatchPrice(symbols: string[]): Promise<Record<string, RealtimePrice>> {
     try {
-        const response = await fetch(`${API_BASE}/batch-price?symbols=${symbols.join(',')}`);
+        const response = await fetch(`${API_BASE}/stocks/quotes?symbols=${symbols.join(',')}`);
         if (!response.ok) return {};
         return unwrap<Record<string, RealtimePrice>>(await response.json());
     } catch (error) {
@@ -333,7 +333,7 @@ export async function fetchBatchPrice(symbols: string[]): Promise<Record<string,
  */
 export async function fetchHistoricalChartData(symbol: string): Promise<HistoricalChartData | null> {
     try {
-        const response = await fetch(`${API_BASE}/historical-chart-data/${symbol}`);
+        const response = await fetch(API.HISTORICAL_CHART(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         if (!json.success) return null;
@@ -368,7 +368,7 @@ export async function fetchHistoricalChartData(symbol: string): Promise<Historic
         }
         return null;
     } catch (error) {
-        console.error(`Error fetching historical chart data for ${symbol}:`, error);
+        console.error(`Error fetching historical chart data for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
@@ -380,11 +380,11 @@ export async function fetchHistoricalChartData(symbol: string): Promise<Historic
  */
 export async function fetchStockNews(symbol: string): Promise<StockNews[]> {
     try {
-        const response = await fetch(`${API_BASE}/news/${symbol}`);
+        const response = await fetch(API.NEWS_STOCK(symbol));
         if (!response.ok) return [];
         return unwrapArray<StockNews>(await response.json());
     } catch (error) {
-        console.error(`Error fetching news for ${symbol}:`, error);
+        console.error(`Error fetching news for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return [];
     }
 }
@@ -435,11 +435,11 @@ export async function fetchSymbolsByIndustry(industry: string): Promise<StockLis
  */
 export async function checkDataFreshness(symbol: string): Promise<DataFreshness | null> {
     try {
-        const response = await fetch(`${API_BASE}/stock/${symbol}/freshness`);
+        const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/freshness`);
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
-        console.error(`Error checking data freshness for ${symbol}:`, error);
+        console.error(`Error checking data freshness for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
@@ -469,11 +469,11 @@ export async function fetchValuationData(symbol: string): Promise<{
     peers?: object[];
 } | null> {
     try {
-        const response = await fetch(`${API_BASE}/valuation/${symbol}`);
+        const response = await fetch(API.VALUATION(symbol));
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
-        console.error(`Error fetching valuation data for ${symbol}:`, error);
+        console.error(`Error fetching valuation data for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
@@ -483,7 +483,7 @@ export async function fetchValuationData(symbol: string): Promise<{
  */
 export async function calculateValuation(symbol: string, assumptions: Record<string, unknown>): Promise<ValuationResult | null> {
     try {
-        const response = await fetch(`${API_BASE}/valuation/${symbol}`, {
+        const response = await fetch(API.VALUATION(symbol), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -493,7 +493,7 @@ export async function calculateValuation(symbol: string, assumptions: Record<str
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
-        console.error(`Error calculating valuation for ${symbol}:`, error);
+        console.error(`Error calculating valuation for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
@@ -516,7 +516,7 @@ export async function fetchValuationSensitivity(symbol: string, params: {
     base_growth: number;
 } | null> {
     try {
-        const response = await fetch(`${API_BASE}/valuation/${symbol}/sensitivity`, {
+        const response = await fetch(`${API.VALUATION(symbol)}/sensitivity`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(params),
@@ -524,7 +524,7 @@ export async function fetchValuationSensitivity(symbol: string, params: {
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
-        console.error(`Error fetching valuation sensitivity for ${symbol}:`, error);
+        console.error(`Error fetching valuation sensitivity for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }
@@ -536,12 +536,12 @@ export async function fetchValuationSensitivity(symbol: string, params: {
  */
 export async function getExcelExportUrl(symbol: string): Promise<string | null> {
     try {
-        const response = await fetch(`${API_BASE}/stock/excel/${symbol}`);
+        const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/workbook`);
         if (!response.ok) return null;
         const data = await response.json();
         return data.success ? data.url : null;
     } catch (error) {
-        console.error(`Error getting Excel URL for ${symbol}:`, error);
+        console.error(`Error getting Excel URL for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;
     }
 }

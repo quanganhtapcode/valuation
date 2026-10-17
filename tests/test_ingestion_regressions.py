@@ -453,7 +453,10 @@ class CronInstallerTests(unittest.TestCase):
             self.assertEqual(render(), first)
             lines = first.splitlines()
             self.assertEqual(lines[0], unrelated)
-            self.assertEqual(len(lines), 17)
+            # Includes the daily Vietnam economic history job added alongside
+            # the existing Yahoo macro history refresh.
+            self.assertEqual(len(lines), 18)
+            self.assertEqual(sum('--name\\ vietnam_macro' in line for line in lines), 1)
             for line in lines[1:]:
                 argv = shlex.split(line.split(maxsplit=5)[5])
                 self.assertEqual(argv[:5], ['systemd-run', '--scope', '--quiet', '--collect', '--slice=valuation.slice'])

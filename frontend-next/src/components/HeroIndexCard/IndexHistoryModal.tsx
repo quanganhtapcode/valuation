@@ -27,7 +27,7 @@ export default function IndexHistoryModal({ isOpen, onClose, indexId, indexName 
         const fetchData = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`${API_BASE}/market/index-history?index=${symbol}&days=${days}`);
+                const res = await fetch(`${API_BASE}/market/indices/history?index=${symbol}&days=${days}`);
                 const json = await res.json();
                 if (Array.isArray(json)) {
                     setData(json);

@@ -325,7 +325,7 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
 
         Promise.allSettled(
             TIMEFRAMES.map(async (frame) => {
-                const response = await fetch(`/api/stock/${symbol}/technical/${frame}`, { signal: controller.signal });
+                const response = await fetch(`/api/stocks/${symbol}/technical/${frame}`, { signal: controller.signal });
                 const json = response.ok ? await response.json() : null;
                 return [frame, json] as const;
             }),

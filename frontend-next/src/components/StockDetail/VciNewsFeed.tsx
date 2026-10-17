@@ -250,7 +250,7 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
     if (data[tab] !== undefined || loading[tab]) return;
     setLoading(p => ({ ...p, [tab]: true }));
     try {
-      const json = await fetchAPI<any>(`/api/stock/vci-feed/${symbol}?tab=${tab}`);
+      const json = await fetchAPI<any>(`/api/stocks/${symbol}/feed?tab=${tab}`);
       if (!json.success) throw new Error(json.error || 'Failed');
       setData(p => ({ ...p, [tab]: json.data ?? [] }));
     } catch (e: any) {

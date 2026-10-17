@@ -134,6 +134,7 @@ Phát hành theo [giấy phép MIT](LICENSE).
 ### Chuẩn đường dẫn API frontend
 
 - HTTP từ trình duyệt luôn gọi đường dẫn tương đối `/api/...` trên domain website.
+- Quy tắc đặt tên, schema, lỗi và cache: [hợp đồng API](docs/api-contract.md). Đường dẫn mới dùng `/api/stocks/{symbol}/...`; alias cũ tiếp tục hoạt động.
 - Next.js proxy, snapshot trang chủ và ảnh chia sẻ dùng chung `src/lib/backendApi.server.ts`: `BACKEND_API_URL` cho production, `BACKEND_API_URL_LOCAL` cho development. Không đặt địa chỉ backend trực tiếp trong component.
 - WebSocket dùng duy nhất `NEXT_PUBLIC_BACKEND_WS_URL` và helper `getWsUrl()`; mặc định production là `wss://api.quanganh.org/v1/valuation`, development là `ws://127.0.0.1:8000`. WebSocket kết nối trực tiếp backend vì proxy HTTP trên Vercel không chuyển tiếp WebSocket.
 - `NEXT_PUBLIC_API_URL` và `NEXT_PUBLIC_REALTIME_API_URL` không còn được sử dụng. Khi thay đổi biến `NEXT_PUBLIC_*`, cần build/deploy lại frontend.

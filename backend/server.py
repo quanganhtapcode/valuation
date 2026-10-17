@@ -25,6 +25,7 @@ from backend.extensions import init_provider
 from backend.routes.market import market_bp, init_market_routes
 from backend.routes.download_routes import download_bp
 from backend.routes.health_routes import health_bp
+from backend.routes.aliases import register_api_aliases
 from backend.routes.stock import stock_bp
 from backend.data_sources.vci import VCIClient
 from backend.data_sources.ff_ws import ensure_started as ff_ensure_started, get_prices as ff_get_prices, register_client as ff_register, unregister_client as ff_unregister
@@ -33,6 +34,8 @@ from backend.telemetry import record_request_latency
 # Initialize Flask App
 class _UnsortedJSONProvider(DefaultJSONProvider):
     sort_keys = False
+    ensure_ascii = False
+    compact = True
 
 app = Flask(__name__)
 app.json_provider_class = _UnsortedJSONProvider
@@ -120,6 +123,7 @@ app.register_blueprint(stock_bp, url_prefix='/api')
 app.register_blueprint(market_bp)
 app.register_blueprint(download_bp)
 app.register_blueprint(health_bp)
+register_api_aliases(app)
 
 
 _ERROR_CODES = {
@@ -181,6 +185,8 @@ def after_request(response):
     # Endpoint implementations predate a shared error contract and return
     # several error shapes. Normalize every JSON error at the VPS boundary,
     # while leaving successful payloads untouched for backwards compatibility.
+    if response.status_code >= 400:
+        response.headers['Cache-Control'] = 'no-store'
     if response.status_code >= 400 and response.mimetype == 'application/json':
         payload = response.get_json(silent=True)
         if isinstance(payload, dict):
@@ -193,19 +199,17 @@ def after_request(response):
                         'code': _error_code(response.status_code),
                         'message': message,
                     },
-                }, ensure_ascii=False))
+                }, ensure_ascii=False, separators=(",", ":")))
 
     header = response.headers
     header['Access-Control-Allow-Origin'] = '*'
     header['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     header['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
 
-    # Keep API responses compact for browsers, but pretty-print for curl and
-    # explicit `?pretty=1` requests so terminal output is easier to read.
+    # Compact UTF-8 is the default for every client. Pretty printing is opt-in.
     if response.mimetype == 'application/json':
-        ua = (request.headers.get('User-Agent') or '').lower()
         pretty_flag = (request.args.get('pretty') or '').strip().lower()
-        wants_pretty = 'curl/' in ua or pretty_flag in {'1', 'true', 'yes'}
+        wants_pretty = pretty_flag in {'1', 'true', 'yes'}
         if wants_pretty:
             raw = response.get_data(as_text=True)
             if raw:
@@ -336,7 +340,7 @@ def _handle_prices_ws(ws):
             for sym, d in current_prices.items()
             if d.get('c') and d.get('ref')
         }
-        ws.send(json.dumps({'type': 'prices_init', 'data': init_data}, ensure_ascii=False))
+        ws.send(json.dumps({'type': 'prices_init', 'data': init_data}, ensure_ascii=False, separators=(",", ":")))
     except Exception:
         pass
 
@@ -355,7 +359,7 @@ def _handle_prices_ws(ws):
                         }
                         for sym, d in updates.items()
                     }
-                    ws.send(json.dumps({'type': 'prices_update', 'data': formatted}, ensure_ascii=False))
+                    ws.send(json.dumps({'type': 'prices_update', 'data': formatted}, ensure_ascii=False, separators=(",", ":")))
             except queue.Empty:
                 ws.send(json.dumps({'type': 'tick', 'serverTs': time.time()}))
     except Exception as exc:
@@ -380,7 +384,7 @@ def ws_ff_prices(ws):
     try:
         snapshot = ff_get_prices()
         if snapshot:
-            ws.send(json.dumps({"type": "ff_snapshot", "data": snapshot}, ensure_ascii=False))
+            ws.send(json.dumps({"type": "ff_snapshot", "data": snapshot}, ensure_ascii=False, separators=(",", ":")))
     except Exception:
         pass
 
@@ -389,7 +393,7 @@ def ws_ff_prices(ws):
         while True:
             try:
                 update = q.get(timeout=30)
-                ws.send(json.dumps({"type": "ff_update", "data": update}, ensure_ascii=False))
+                ws.send(json.dumps({"type": "ff_update", "data": update}, ensure_ascii=False, separators=(",", ":")))
             except queue.Empty:
                 ws.send(json.dumps({"type": "ff_ping"}))
     except Exception as exc:

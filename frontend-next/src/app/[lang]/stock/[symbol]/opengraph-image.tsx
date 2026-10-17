@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { BACKEND_API } from '@/lib/backendApi.server';
+import { backendApiPath } from '@/lib/apiRouteRegistry';
 
 type Props = {
   params: Promise<{ lang: string; symbol: string }>;
@@ -43,7 +44,7 @@ function formatChange(value: number | null): string {
 
 async function fetchStockCardData(symbol: string): Promise<StockCardData> {
   try {
-    const response = await fetch(`${BACKEND_API}/stock/${encodeURIComponent(symbol)}?fetch_price=true`, {
+    const response = await fetch(`${BACKEND_API}/${backendApiPath(`stocks/${encodeURIComponent(symbol)}`)}?fetch_price=true`, {
       headers: {
         'User-Agent': 'Next.js OG Image Renderer',
         Accept: 'application/json',

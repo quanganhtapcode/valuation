@@ -23,7 +23,7 @@ export interface OverviewRefreshData {
     success: boolean;
     serverTs: number;
     watchlistPrices: Record<string, WatchlistPriceSnapshot>;
-    peChart: any;
+    indexValuationChart: unknown;
     news: NewsItem[];
     heatmap: any;
 }
@@ -53,7 +53,7 @@ export async function fetchOverviewRefresh(options?: {
     news: NewsItem[];
     heatmap: any;
 }> {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ compact: '1' });
     if (options?.symbols && options.symbols.length > 0) {
         params.set('symbols', options.symbols.join(','));
     }
@@ -71,12 +71,12 @@ export async function fetchOverviewRefresh(options?: {
     }
 
     const query = params.toString();
-    const url = `${API_BASE}/market/overview-refresh${query ? `?${query}` : ''}`;
+    const url = `${API_BASE}/market/overview${query ? `?${query}` : ''}`;
     const response = await fetchAPI<OverviewRefreshData>(url);
 
     return {
         watchlistPrices: response.watchlistPrices || {},
-        peData: parsePEChartPayload(response.peChart || {}),
+        peData: parsePEChartPayload(response.indexValuationChart || {}),
         news: Array.isArray(response.news) ? response.news : [],
         heatmap: response.heatmap || null,
     };

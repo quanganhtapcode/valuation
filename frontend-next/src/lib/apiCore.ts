@@ -5,12 +5,14 @@
 export const API_BASE = '/api';
 export const REALTIME_API_BASE = API_BASE;
 
-// API Endpoints
+const stockSymbol = (symbol: string) => encodeURIComponent(symbol.trim().toUpperCase());
+
+// Canonical resource URLs. Legacy URLs are supported only at the backend boundary.
 export const API = {
     // Market Data
-    PE_CHART: `${API_BASE}/market/pe-chart`,
+    PE_CHART: `${API_BASE}/market/index-valuations`,
     SCREENER: `${API_BASE}/market/screener`,
-    VCI_INDICES: `${REALTIME_API_BASE}/market/vci-indices`,
+    VCI_INDICES: `${REALTIME_API_BASE}/market/indices`,
     NEWS: `${API_BASE}/market/news`,
     TOP_MOVERS: `${REALTIME_API_BASE}/market/top-movers`,
     FOREIGN_FLOW: `${API_BASE}/market/foreign-flow`,
@@ -21,13 +23,13 @@ export const API = {
     LOTTERY: `${API_BASE}/market/lottery`,
     EARNINGS_SEASON: `${API_BASE}/market/earnings-season`,
     AI_TAKEAWAYS: `${API_BASE}/market/ai-takeaways`,
-    STOCK_AI_ANALYSIS: (symbol: string) => `${API_BASE}/${symbol}/ai-analysis`,
+    STOCK_AI_ANALYSIS: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/ai-analysis`,
     MACRO_RATES: `${API_BASE}/market/macro/rates`,
     MACRO_ECONOMIC: `${API_BASE}/market/macro/economic`,
-    MACRO_FIREANT_GDP: `${API_BASE}/market/macro/fireant-gdp`,
+    MACRO_FIREANT_GDP: `${API_BASE}/market/macro/gdp`,
     MACRO_FIREANT: (types?: string) => types
-        ? `${API_BASE}/market/macro/fireant?types=${types}`
-        : `${API_BASE}/market/macro/fireant`,
+        ? `${API_BASE}/market/macro/indicators?types=${types}`
+        : `${API_BASE}/market/macro/indicators`,
     MARKET_EVENTS: (date: string) => `${API_BASE}/market/events?date=${date}`,
     MARKET_EVENTS_EXPORT: (fromDate: string, toDate: string) =>
         `${API_BASE}/market/events/export?fromDate=${fromDate}&toDate=${toDate}`,
@@ -38,24 +40,24 @@ export const API = {
     MACRO_HISTORY_BATCH: (symbols: string[], days: number) =>
         `${API_BASE}/market/macro/history/batch?symbols=${symbols.map(encodeURIComponent).join(',')}&days=${days}`,
 
-    // Stock Data (VCI Source via vnstock)
-    STOCK: (symbol: string) => `${API_BASE}/stock/${symbol}?fetch_price=true`,
-    STOCK_SUMMARY: (symbol: string) => `${API_BASE}/stock/${symbol}/summary`,
-    STOCK_PROFILE: (symbol: string) => `${API_BASE}/stock/${symbol}/profile`,
-    STOCK_RATIO_HISTORY: (symbol: string) => `${API_BASE}/stock/${symbol}/ratio-history`,
-    STOCK_RATIO_SERIES: (symbol: string) => `${API_BASE}/stock/${symbol}/ratio-series`,
-    STOCK_OVERVIEW_FULL: (symbol: string) => `${REALTIME_API_BASE}/stock/${symbol}/overview-full`,
-    APP_DATA: (symbol: string) => `${API_BASE}/app-data/${symbol}?fetch_price=true`,
-    CURRENT_PRICE: (symbol: string) => `${REALTIME_API_BASE}/stock/${symbol}/current-price`,
-    PRICE: (symbol: string) => `${API_BASE}/price/${symbol}`,
-    HISTORICAL_CHART: (symbol: string) => `${API_BASE}/historical-chart-data/${symbol}`,
-    STOCK_HISTORY: (symbol: string) => `${API_BASE}/stock/history/${symbol}`,
-    COMPANY_PROFILE: (symbol: string) => `${API_BASE}/company/profile/${symbol}`,
-    NEWS_STOCK: (symbol: string) => `${API_BASE}/news/${symbol}`,
-    EVENTS: (symbol: string) => `${API_BASE}/events/${symbol}`,
+    // Stock resources
+    STOCK: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}?fetch_price=true`,
+    STOCK_SUMMARY: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/summary`,
+    STOCK_PROFILE: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/profile`,
+    STOCK_RATIO_HISTORY: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/ratio-history`,
+    STOCK_RATIO_SERIES: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/ratio-series`,
+    STOCK_OVERVIEW_FULL: (symbol: string) => `${REALTIME_API_BASE}/stocks/${stockSymbol(symbol)}/overview`,
+    APP_DATA: (symbol: string) => `${API_BASE}/app-data/${stockSymbol(symbol)}?fetch_price=true`,
+    CURRENT_PRICE: (symbol: string) => `${REALTIME_API_BASE}/stocks/${stockSymbol(symbol)}/quote`,
+    PRICE: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/quote`,
+    HISTORICAL_CHART: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/chart-data`,
+    STOCK_HISTORY: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/price-history`,
+    COMPANY_PROFILE: (symbol: string) => `${API_BASE}/companies/${stockSymbol(symbol)}/profile`,
+    NEWS_STOCK: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/news`,
+    EVENTS: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/events`,
 
     // Valuation
-    VALUATION: (symbol: string) => `${API_BASE}/valuation/${symbol}`,
+    VALUATION: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/valuation`,
 
     // Utilities
     TICKERS: `${API_BASE}/tickers`,
@@ -65,6 +67,13 @@ export const API = {
 /**
  * Generic fetch wrapper with error handling.
  */
+export class ApiRequestError extends Error {
+    constructor(public readonly status: number, public readonly code: string, message: string) {
+        super(message);
+        this.name = 'ApiRequestError';
+    }
+}
+
 export async function fetchAPI<T>(url: string, options?: RequestInit): Promise<T> {
     try {
         const resolvedUrl =
@@ -76,16 +85,19 @@ export async function fetchAPI<T>(url: string, options?: RequestInit): Promise<T
                 ).toString()
                 : url;
 
+        const headers = new Headers(options?.headers);
+        headers.set('Accept', 'application/json');
+        if (options?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
         const response = await fetch(resolvedUrl, {
             ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options?.headers,
-            },
+            headers,
         });
 
         if (!response.ok) {
-            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+            const payload = await response.json().catch(() => null);
+            throw new ApiRequestError(response.status,
+                payload?.error?.code || 'REQUEST_FAILED',
+                payload?.error?.message || `API Error: ${response.status} ${response.statusText}`);
         }
 
         return response.json();

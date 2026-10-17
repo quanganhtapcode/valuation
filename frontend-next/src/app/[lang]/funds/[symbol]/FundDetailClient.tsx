@@ -2,13 +2,17 @@
 
 import { chartColors, chartAxisTick, chartCursor, chartTooltipClass } from '@/lib/chartTheme';
 import Link from 'next/link';
-import FundsComparison from '@/components/Funds/FundsComparison';
+import dynamic from 'next/dynamic';
 import FundsTabs from '@/components/Funds/FundsTabs';
 import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fundDetailCopy } from '@/lib/fundDetailCopy';
 import type { FundDetail } from '@/lib/fundsApi';
+
+const FundsComparison = dynamic(() => import('@/components/Funds/FundsComparison'), {
+    loading: () => <div aria-busy="true" className="h-[520px] animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
+});
 
 export default function FundDetailClient({ detail }: { detail: FundDetail }) {
     const { lang } = useLanguage();
@@ -18,7 +22,8 @@ export default function FundDetailClient({ detail }: { detail: FundDetail }) {
     const [comparisonVisited, setComparisonVisited] = useState(false);
     const [range, setRange] = useState('3');
     const fund = detail.fund;
-    const format = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
+    const numberFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }), [locale]);
+    const format = (value: number) => numberFormatter.format(value);
     const points = useMemo(() => {
         if (range === 'all' || !detail.history.length) return detail.history;
         const end = new Date(`${detail.history[detail.history.length - 1].date}T00:00:00Z`);
@@ -26,6 +31,7 @@ export default function FundDetailClient({ detail }: { detail: FundDetail }) {
         const start = end.toISOString().slice(0, 10);
         return detail.history.filter(point => point.date >= start);
     }, [detail.history, range]);
+    const chartPoints = useMemo(() => points.map(point => ({ ...point, time: Date.parse(`${point.date}T00:00:00Z`) })), [points]);
     const periods = [{ key: '1', label: t.one }, { key: '3', label: t.three }, { key: '5', label: t.five }, { key: 'all', label: t.all }];
     return <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <div className="mx-auto max-w-[1600px] space-y-6 p-4 md:p-6">
@@ -54,7 +60,7 @@ export default function FundDetailClient({ detail }: { detail: FundDetail }) {
                 </div>
                 {detail.history_stale && <p role="status" className="mb-3 text-sm text-amber-600">{detail.history_available ? t.stale : t.noHistory}</p>}
                 {points.length > 1 ? <div className="h-[340px] sm:h-[420px]">
-                    <ResponsiveContainer width="100%" height="100%"><LineChart data={points.map(point => ({ ...point, time: Date.parse(`${point.date}T00:00:00Z`) }))} margin={{ top: 20, right: 16, left: 5, bottom: 12 }}>
+                    <ResponsiveContainer width="100%" height="100%"><LineChart data={chartPoints} margin={{ top: 20, right: 16, left: 5, bottom: 12 }}>
                         <CartesianGrid strokeDasharray="3 4" stroke="var(--chart-grid)" vertical={false} />
                         <XAxis dataKey="time" type="number" scale="time" domain={['dataMin', 'dataMax']} minTickGap={60} tick={chartAxisTick} axisLine={false} tickLine={false} tickFormatter={value => new Date(Number(value)).toISOString().slice(0, 7)} />
                         <YAxis width={75} domain={['auto', 'auto']} tick={chartAxisTick} axisLine={false} tickLine={false} tickFormatter={value => format(Number(value))} />

@@ -232,7 +232,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     });
 
                 // Retry a missing profile independently; never queue it behind summary.
-                if (!initialStockInfo.overview?.description) fetch(`/api/company-profile/${symbol}?lang=${lang}`, { signal: controller.signal })
+                if (!initialStockInfo.overview?.description) fetch(`/api/companies/${symbol}/description?lang=${lang}`, { signal: controller.signal })
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         if (res?.available && typeof res.profile === 'string') {
@@ -316,7 +316,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 // PHASE 2: Non-critical overview enrichments. Keep them off the
                 // critical path so first paint is not competing with extra API calls.
                 idleCleanups.push(scheduleIdleWork(() => {
-                    fetch(`/api/stock/${symbol}/news?compact=1`, { signal: controller.signal })
+                    fetch(`/api/stocks/${symbol}/news?compact=1`, { signal: controller.signal })
                         .then(r => r.ok ? r.json() : null)
                         .then(res => {
                             const newsData = res?.data || res;
@@ -456,7 +456,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
             if (fetching || controller.signal.aborted) return;
             fetching = true;
             try {
-                const res = await fetch(`/api/stock/history/${symbol}?period=${historyPeriod}&nocache=1`, {
+                const res = await fetch(`/api/stocks/${symbol}/price-history?period=${historyPeriod}&nocache=1`, {
                     signal: controller.signal, cache: 'no-store',
                 });
                 if (!res.ok) throw new Error(`History request failed: ${res.status}`);

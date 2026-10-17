@@ -158,7 +158,7 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
         queueMicrotask(() => {
             if (!cancelled) setLoading(true);
         });
-        fetchAPI<any>(`/api/stock/peers-vci/${symbol}?mode=${mode}`)
+        fetchAPI<any>(`/api/stocks/${symbol}/peer-valuations?mode=${mode}`)
             .then(res => {
                 if (cancelled) return;
                 if (res?.success) {

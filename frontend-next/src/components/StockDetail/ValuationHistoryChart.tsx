@@ -41,7 +41,7 @@ export default function ValuationHistoryChart({ symbol, lang }: { symbol: string
 
     useEffect(() => {
         const controller = new AbortController();
-        fetch(`/api/stock/${symbol}/ratio-daily-history?limit=250`, { signal: controller.signal })
+        fetch(`/api/stocks/${symbol}/valuation-history?limit=250`, { signal: controller.signal })
             .then((response) => response.ok ? response.json() : null)
             .then((response) => { if (response) setRows(toRows(response)); })
             .catch(() => undefined);

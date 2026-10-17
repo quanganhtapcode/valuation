@@ -22,6 +22,7 @@ import sqlite3
 import time as _time
 from datetime import datetime
 from pathlib import Path
+from threading import RLock
 
 from flask import Blueprint, jsonify, request
 
@@ -40,6 +41,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 # Simple in-memory cache (reuse pattern from stock_routes)
 _cache: dict = {}
 _CACHE_TTL = 600  # 10 min
+_CACHE_MAX_ENTRIES = 300
+_CACHE_LOCK = RLock()
 
 # Fallback labels for fields that exist in statement values but are not exposed
 # with titleVi/titleEn by VCI metrics endpoint for some bank/off-balance codes.
@@ -54,18 +57,25 @@ _FALLBACK_METRIC_LABELS: dict[str, str] = {
 
 
 def _cache_get(key):
-    entry = _cache.get(key)
-    if entry and (_time.time() - entry[0]) < _CACHE_TTL:
-        return entry[1]
+    with _CACHE_LOCK:
+        entry = _cache.get(key)
+        if entry is not None:
+            if (_time.monotonic() - entry[0]) < _CACHE_TTL:
+                return entry[1]
+            _cache.pop(key, None)
     return None
 
 
 def _cache_set(key, data):
-    _cache[key] = (_time.time(), data)
-    if len(_cache) > 300:
-        cutoff = _time.time() - _CACHE_TTL
-        for k in [k for k, (t, _) in list(_cache.items()) if t < cutoff]:
-            _cache.pop(k, None)
+    now = _time.monotonic()
+    with _CACHE_LOCK:
+        _cache.pop(key, None)
+        if len(_cache) >= _CACHE_MAX_ENTRIES:
+            for expired in [k for k, (stamp, _) in _cache.items() if now - stamp >= _CACHE_TTL]:
+                _cache.pop(expired, None)
+        while len(_cache) >= _CACHE_MAX_ENTRIES:
+            _cache.pop(next(iter(_cache)))
+        _cache[key] = (now, data)
 
 
 def register(stock_bp: Blueprint) -> None:
@@ -85,7 +95,7 @@ def register(stock_bp: Blueprint) -> None:
 
         cache_key = f"companies_{exchange}_{page}_{limit}"
         cached = _cache_get(cache_key)
-        if cached:
+        if cached is not None:
             return jsonify(cached)
 
         try:
@@ -112,7 +122,7 @@ def register(stock_bp: Blueprint) -> None:
 
         cache_key = f"co_search_{q.lower()}_{limit}"
         cached = _cache_get(cache_key)
-        if cached:
+        if cached is not None:
             return jsonify(cached)
 
         try:
@@ -132,7 +142,7 @@ def register(stock_bp: Blueprint) -> None:
         """Return stocks belonging to an industry (ICB level-3 or level-4)."""
         cache_key = f"co_industry_{industry.lower()}"
         cached = _cache_get(cache_key)
-        if cached:
+        if cached is not None:
             return jsonify(cached)
 
         company_path = resolve_vci_company_db_path()
@@ -188,7 +198,7 @@ def register(stock_bp: Blueprint) -> None:
 
         cache_key = f"fin_report_{clean_symbol}_{report_type}_{period}_{limit}"
         cached = _cache_get(cache_key)
-        if cached:
+        if cached is not None:
             return jsonify(cached)
 
         table_map = {
@@ -454,7 +464,7 @@ def register(stock_bp: Blueprint) -> None:
 
         cache_key = f"fin_report_metrics_{report_type}"
         cached = _cache_get(cache_key)
-        if cached:
+        if cached is not None:
             return jsonify(cached)
 
         fs_db_path = resolve_vci_financial_statement_db_path()
@@ -567,7 +577,7 @@ def register(stock_bp: Blueprint) -> None:
 
         cache_key = f"batch_overview_{'_'.join(sorted(symbols))}"
         cached = _cache_get(cache_key)
-        if cached:
+        if cached is not None:
             return jsonify(cached)
 
         provider = get_provider()
@@ -594,7 +604,7 @@ def register(stock_bp: Blueprint) -> None:
         """Return high-level statistics about VCI SQLite sources."""
         cache_key = "db_stats"
         cached = _cache_get(cache_key)
-        if cached:
+        if cached is not None:
             return jsonify(cached)
 
         try:

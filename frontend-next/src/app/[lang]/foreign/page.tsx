@@ -1,7 +1,8 @@
 'use client';
 
 import ChartTooltip from '@/components/charts/ChartTooltip';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import {
     BarList,
     Card,
@@ -23,6 +24,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 const REFRESH_MS = 60_000;
+const refreshDelay = () => REFRESH_MS;
 
 function fmtBillion(val: number) {
     if (Math.abs(val) >= 1e12) return `${(val / 1e12).toFixed(1)}T`;
@@ -302,12 +304,7 @@ export default function ForeignPage() {
         setChartLoading(false);
     }, []);
 
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        loadAll();
-        const timer = setInterval(loadAll, REFRESH_MS);
-        return () => clearInterval(timer);
-    }, [loadAll]);
+    useVisiblePolling(loadAll, refreshDelay);
 
     const cumulative = useMemo(() => toCumulative(points), [points]);
     const volumeData = useMemo(

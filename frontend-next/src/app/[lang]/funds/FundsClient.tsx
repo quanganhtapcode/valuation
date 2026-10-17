@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import FundsComparison from '@/components/Funds/FundsComparison';
+import dynamic from 'next/dynamic';
 import FundsTabs from '@/components/Funds/FundsTabs';
 import IssuerLogo from '@/components/Funds/IssuerLogo';
 import { fundIssuers } from '@/lib/fundIssuers';
 import { fundDetailCopy } from '@/lib/fundDetailCopy';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatFundDisplayName } from '@/lib/fundDisplayName';
 import { fundsCopy } from '@/lib/fundsCopy';
@@ -14,12 +15,17 @@ import { fetchFundPrices, type FundPrice, type FundSnapshot } from '@/lib/fundsA
 
 type SortKey = 'short_name' | 'fund_owner_name' | 'nav' | 'nav_change_12m' | 'nav_change_36m_annualized';
 
+const FundsComparison = dynamic(() => import('@/components/Funds/FundsComparison'), {
+    loading: () => <div aria-busy="true" className="h-[520px] animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />,
+});
+const fundRefreshDelay = () => 300000;
 
 export default function FundsClient({ initial }: { initial: FundSnapshot | null }) {
     const { lang } = useLanguage();
     const t = fundsCopy[lang];
     const headings = fundDetailCopy[lang];
     const locale = { vi: 'vi-VN', en: 'en-US' }[lang];
+    const numberFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }), [locale]);
     const [snapshot, setSnapshot] = useState(initial);
     const [loading, setLoading] = useState(!initial);
     const [error, setError] = useState(false);
@@ -40,11 +46,7 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
         } catch { setError(true); }
         finally { setLoading(false); }
     }, []);
-    useEffect(() => {
-        if (!initial) void load();
-        const timer = setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 300000);
-        return () => clearInterval(timer);
-    }, [initial, load]);
+    useVisiblePolling(load, fundRefreshDelay, !initial);
     const types = useMemo(() => [...new Set((snapshot?.data ?? []).map(row => row.fund_type).filter(Boolean))].sort(), [snapshot]);
     const managers = useMemo(() => [...new Set((snapshot?.data ?? []).map(row => row.fund_owner_name).filter(Boolean))]
         .sort((a, b) => (fundIssuers[a]?.shortName || formatFundDisplayName(a)).localeCompare(fundIssuers[b]?.shortName || formatFundDisplayName(b), locale)), [snapshot, locale]);
@@ -75,7 +77,7 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
     function percent(value: number | null) {
         if (value == null) return <span className="text-slate-400">—</span>;
         return <span className={value > 0 ? 'text-emerald-600 dark:text-emerald-400' : value < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'}>
-            {new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value)}%
+            {numberFormatter.format(value)}%
         </span>;
     }
     const columns: { key: SortKey; label: string }[] = [
@@ -114,13 +116,13 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row: FundPrice) => <tr key={row.short_name} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
                     <td className="px-3 py-3.5 md:px-4"><div className="flex items-center gap-3">
                         <IssuerLogo manager={row.fund_owner_name} />
-                        <div className="min-w-0"><Link href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} aria-label={`${row.short_name} — ${formatFundDisplayName(row.name)}`} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">{row.short_name}</Link>
+                        <div className="min-w-0"><Link prefetch={false} href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} aria-label={`${row.short_name} — ${formatFundDisplayName(row.name)}`} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">{row.short_name}</Link>
                             <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{typeLabel(row.fund_type)}</div>
                         </div>
                     </div></td>
                     <td className="px-3 py-3.5 md:px-4" title={formatFundDisplayName(row.fund_owner_name)}>{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</td>
                     <td className="px-3 py-3.5 md:px-4 text-right font-medium tabular-nums">
-                        <div>{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(row.nav)}</div>
+                        <div>{numberFormatter.format(row.nav)}</div>
                         <div className="mt-0.5 whitespace-nowrap text-xs font-normal text-slate-400">{t.navAsOf} {row.nav_update_at ? row.nav_update_at.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1') : '—'}</div>
                     </td>
                     {[row.nav_change_12m, row.nav_change_36m_annualized].map((value, index) => <td key={index} className="px-3 py-3.5 md:px-4 text-right font-semibold tabular-nums">{percent(value)}</td>)}
@@ -129,7 +131,7 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
             <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
                 <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-slate-500"><span>{rows.length} {t.result}</span><select aria-label={lang === 'vi' ? 'Sắp xếp quỹ' : 'Sort funds'} value={`${sort.key}:${sort.descending}`} onChange={event => { const [key, descending] = event.target.value.split(':'); setSort({ key: key as SortKey, descending: descending === 'true' }); }} className="min-w-0 max-w-[65%] rounded border border-slate-200 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-900">{columns.flatMap(column => [false, true].map(descending => <option key={`${column.key}:${descending}`} value={`${column.key}:${descending}`}>{column.label} {descending ? '↓' : '↑'}</option>))}</select></div>
                 {rows.slice(0, mobileVisible).map(row => <article key={row.short_name} className="px-3 py-3">
-                    <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><IssuerLogo manager={row.fund_owner_name} /><div className="min-w-0"><Link href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} className="text-sm font-semibold text-blue-600 dark:text-blue-400">{row.short_name}</Link><p className="truncate text-[11px] text-slate-500">{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</p></div></div><div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums">{new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(row.nav)}</p><p className="text-[10px] text-slate-400">{row.nav_update_at || '—'}</p></div></div>
+                    <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><IssuerLogo manager={row.fund_owner_name} /><div className="min-w-0"><Link prefetch={false} href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} className="text-sm font-semibold text-blue-600 dark:text-blue-400">{row.short_name}</Link><p className="truncate text-[11px] text-slate-500">{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</p></div></div><div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums">{numberFormatter.format(row.nav)}</p><p className="text-[10px] text-slate-400">{row.nav_update_at || '—'}</p></div></div>
                     <div className="mt-2 flex items-center justify-between gap-2 text-[11px]"><span className="text-slate-500">{typeLabel(row.fund_type)}</span><span className="whitespace-nowrap">{lang === 'vi' ? '1 năm' : '1Y'} <span className="font-semibold">{percent(row.nav_change_12m)}</span></span><span className="whitespace-nowrap">{lang === 'vi' ? '3 năm/năm' : '3Y ann.'} <span className="font-semibold">{percent(row.nav_change_36m_annualized)}</span></span></div>
                 </article>)}
                 {rows.length > mobileVisible && <button type="button" onClick={() => setMobileVisible(count => count + 12)} className="w-full py-3 text-sm font-medium text-blue-600 dark:text-blue-400">{lang === 'vi' ? 'Xem thêm quỹ' : 'Show more funds'} ({Math.min(mobileVisible, rows.length)}/{rows.length})</button>}

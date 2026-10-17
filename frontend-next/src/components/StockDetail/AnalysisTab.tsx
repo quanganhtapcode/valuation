@@ -123,7 +123,7 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
             if (!cancelled) setLoading(true);
         });
 
-        const peersPromise = fetchAPI<any>(`/api/stock/peers-vci/${symbol}`);
+        const peersPromise = fetchAPI<any>(`/api/stocks/${symbol}/peer-valuations`);
 
         peersPromise
             .then((peersRes) => {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCompanyProfile } from '@/lib/companyProfile.server';
+import { apiError } from '@/lib/apiResponse';
 
 export async function GET(
     request: Request,
@@ -10,7 +11,9 @@ export async function GET(
     const language = new URL(request.url).searchParams.get('lang') === 'en' ? 'en' : 'vi';
 
     if (!/^[A-Z0-9]{1,10}$/.test(symbol)) {
-        return NextResponse.json({ error: 'Invalid ticker' }, { status: 400 });
+        return NextResponse.json(apiError(400, 'Invalid ticker'), {
+            status: 400, headers: { 'Cache-Control': 'no-store' },
+        });
     }
 
     const profile = await getCompanyProfile(symbol, language, 10000);
