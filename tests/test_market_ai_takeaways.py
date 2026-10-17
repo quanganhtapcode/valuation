@@ -122,6 +122,26 @@ class MarketAIValidation(unittest.TestCase):
         self.assertEqual(data['news_sources'][0]['url'], 'https://example.org/fpt')
         self.assertIn('input_snapshot', data)
 
+    def test_five_latest_news_keep_order_when_model_reorders(self):
+        articles = [self.news(url=f'https://example.org/article-{i}',
+                              date=(NOW - timedelta(minutes=i)).isoformat())
+                    for i in range(6)]
+        def generate(prompt):
+            payload = json.loads(prompt.split('INPUT_JSON:\n', 1)[1])
+            return json.dumps({'news': [{
+                'source_id': row['source_id'], 'title': 'Profit growth',
+                'title_vi': 'Lợi nhuận tăng',
+                'summary': 'Profit increased 20%.', 'summary_vi': 'Lợi nhuận tăng 20%.',
+            } for row in reversed(payload['recent_news_24h'])]}), 'test-model'
+        with patch.object(ai, 'datetime', FixedDatetime), \
+             patch.object(ai, '_load_movers_with_news', return_value=[]), \
+             patch.object(ai, '_load_recent_market_news', return_value=articles), \
+             patch.object(ai, 'generate', side_effect=generate):
+            data = ai.compute_ai_takeaways()
+        self.assertEqual(len(data['news_summary']), 5)
+        self.assertEqual([row['url'] for row in data['news_sources']],
+                         [row['url'] for row in articles[:5]])
+
     def test_short_bilingual_titles_are_separate_and_grounded(self):
         for title, accepted in [('Profit growth', True), ('Profit rises 99%', False)]:
             with self.subTest(title=title):

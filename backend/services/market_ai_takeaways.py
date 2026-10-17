@@ -23,7 +23,7 @@ _CACHE_KEY = "market_ai_takeaways_v3"
 _SCHEMA_VERSION = 3
 _MOVE_LIMIT = 5
 _RECENT_NEWS_LIMIT = 100
-_LLM_NEWS_LIMIT = 10
+_LLM_NEWS_LIMIT = 5
 _LLM_TITLE_MAX_CHARS = 220
 _LLM_INPUT_JSON_MAX_CHARS = 8_000
 _SCHEMA = """
@@ -189,7 +189,7 @@ def _fallback_takeaways(movers: list[dict[str, Any]], recent_news: list[dict[str
         market_en = ["Price data for this session is not available yet."]
         market_vi = ["Chưa có dữ liệu giá cập nhật cho phiên này."]
     recent_news = _eligible_news(recent_news, now)
-    news = [item['title'] for item in recent_news[:3]]
+    news = [item['title'] for item in recent_news[:5]]
     return {
         "schema_version": _SCHEMA_VERSION, "market_session_date": session,
         "market_data_available": bool(movers),
@@ -200,7 +200,7 @@ def _fallback_takeaways(movers: list[dict[str, Any]], recent_news: list[dict[str
         "watchlist": [], "movers": movers, "recent_news": recent_news,
         "news_sources": [{"title": item['title'], "url": item['url'],
                           "source": item.get('source'), "published_at": item['publish_date']}
-                         for item in recent_news[:3]],
+                         for item in recent_news[:5]],
         "model": "deterministic-fallback", "generated_at": now.isoformat(), "available": False,
     }
 
@@ -219,7 +219,7 @@ def _build_prompt(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]
         "\"title_vi\":\"Short Vietnamese headline, max 80 characters\","
         "\"summary\":\"English factual summary, max 350 characters\","
         "\"summary_vi\":\"Vietnamese equivalent, max 350 characters\"}]}. "
-        "Select at most 3 articles. Every summary must cite exactly one provided source_id. "
+        "Summarize all supplied articles (up to 5), newest first. Every summary must cite exactly one provided source_id. "
         "Headlines must be concise and distinct from the detailed summaries. Do not return market-summary bullets, rankings, watchlists or unsupported numbers.\n"
         "INPUT_JSON:\n" + json.dumps(payload, ensure_ascii=False, separators=(',', ':'))
     )
@@ -277,10 +277,21 @@ def compute_ai_takeaways() -> dict[str, Any]:
                         and _numbers(title) <= supported_numbers):
                     source[target] = title.strip()
             used.append(source)
-            if len(used) >= 3:
+            if len(used) >= 5:
                 break
         if not used:
             raise ValueError('AI response has no valid source-grounded news')
+        # Preserve newest-first ordering even if the model reorders or skips an
+        # article. Invalid/missing summaries retain the sourced article excerpt.
+        accepted = {source['source_id']: (en, vi, source)
+                    for en, vi, source in zip(news_en, news_vi, used)}
+        ordered = [accepted.get(source['source_id'], (
+            source['excerpt'] or source['title'],
+            source['excerpt'] or source['title'], source,
+        )) for source in payload['recent_news_24h']]
+        news_en = [row[0] for row in ordered]
+        news_vi = [row[1] for row in ordered]
+        used = [row[2] for row in ordered]
         data.update(news_summary=news_en, news_summary_vi=news_vi, news_sources=used,
                     summary=(data['market_summary'] + news_en)[:5],
                     summary_vi=(data['market_summary_vi'] + news_vi)[:5],
