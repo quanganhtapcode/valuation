@@ -2,7 +2,7 @@ import { API, fetchAPI } from './apiCore';
 
 export interface MarketTakeawayNews {
     title?: string;
-    url?: string;
+    url: string;
     source?: string;
     publish_date?: string;
     symbol?: string;

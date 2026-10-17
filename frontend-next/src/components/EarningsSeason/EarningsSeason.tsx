@@ -124,11 +124,6 @@ export default function EarningsSeason() {
                                                     </summary>
                                                     <div className="px-3 pb-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                                                         <p>{item}</p>
-                                                        {source && /^https?:\/\//i.test(source.url) && (
-                                                            <a href={source.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">
-                                                                {isEnglish ? 'Read source' : 'Đọc bài gốc'} ↗
-                                                            </a>
-                                                        )}
                                                     </div>
                                                 </details>
                                             );
@@ -139,7 +134,7 @@ export default function EarningsSeason() {
                         </div>
                     </div>
 
-                    <NewsSourceLogos sources={takeaways.news_sources} label={isEnglish ? 'Sources' : 'Nguồn'} />
+                    <NewsSourceLogos sources={takeaways.recent_news?.length ? takeaways.recent_news : takeaways.news_sources} label={isEnglish ? 'Sources' : 'Nguồn'} />
 
                     {takeaways.watchlist && takeaways.watchlist.length > 0 && (
                         <div className="grid gap-2 sm:grid-cols-2">
