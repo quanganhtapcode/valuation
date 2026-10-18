@@ -173,12 +173,50 @@ class MarketAIValidation(unittest.TestCase):
         self.assertFalse(data['available'])
         self.assertNotIn('PNJ giảm', ' '.join(data['news_summary_vi']))
 
+    def test_fallback_keeps_languages_separate_and_uses_excerpt(self):
+        article = self.news()
+        data = ai._fallback_takeaways([], [article], NOW)
+        self.assertNotEqual(data['news_summary'], data['news_summary_vi'])
+        self.assertEqual(data['news_summary_vi'], [article['summary']])
+        self.assertNotEqual(data['news_summary_vi'][0], data['news_sources'][0]['title'])
+        self.assertFalse(ai._has_vietnamese(data['news_summary'][0]))
+
+    def test_missing_or_duplicate_excerpt_does_not_repeat_headline(self):
+        for excerpt in ('', self.news()['title']):
+            article = {**self.news(), 'summary': excerpt}
+            data = ai._fallback_takeaways([], [article], NOW)
+            self.assertNotEqual(data['news_summary_vi'][0], article['title'])
+            self.assertIn('Xem bài gốc', data['news_summary_vi'][0])
+
+    def test_vietnamese_summary_in_english_field_is_rejected(self):
+        data = self.compute(lambda payload: {'news': [{
+            'source_id': payload['recent_news_24h'][0]['source_id'],
+            'summary': 'Lợi nhuận tăng 20%.', 'summary_vi': 'Lợi nhuận tăng 20%.',
+        }]})
+        self.assertFalse(data['available'])
+        self.assertFalse(ai._has_vietnamese(data['news_summary'][0]))
+
     def test_no_current_quote_does_not_claim_market_decline(self):
         stale = {'symbol': 'PNJ', 'price': 26600, 'ref_price': 28600, 'change_pct': -6.99,
                  'direction': 'down', 'session_date': '2026-09-30'}
         data = ai._fallback_takeaways([stale], [], NOW)
         self.assertFalse(data['market_data_available'])
         self.assertNotIn('PNJ', ' '.join(data['summary_vi']))
+
+    def test_read_repairs_legacy_vietnamese_fallback_without_provider(self):
+        article = self.news()
+        data = ai._fallback_takeaways([], [article], NOW)
+        data['news_summary'] = data['news_summary_vi'] = [article['title']]
+        with sqlite3.connect(self.db) as conn:
+            ai._ensure_schema(conn)
+            conn.execute('INSERT INTO market_ai_takeaways VALUES (?,?,?,?,?,?)',
+                         (ai._CACHE_KEY, json.dumps(data), 0, 'fallback', NOW.isoformat(), NOW.isoformat()))
+        with patch.object(ai, 'resolve_valuation_cache_db_path', return_value=self.db), \
+             patch.object(ai, 'datetime', FixedDatetime), patch.object(ai, 'generate') as generate:
+            repaired = ai.read_market_ai_takeaways()
+        generate.assert_not_called()
+        self.assertFalse(ai._has_vietnamese(repaired['news_summary'][0]))
+        self.assertEqual(repaired['news_summary_vi'][0], article['summary'])
 
     def test_persisted_snapshot_rejects_old_schema_session_and_age(self):
         with sqlite3.connect(self.db) as conn:

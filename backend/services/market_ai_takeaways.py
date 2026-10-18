@@ -157,6 +157,24 @@ def _extract_json_object(text: str) -> dict[str, Any]:
     return result
 
 
+def _news_fallback(item: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
+    title = str(item.get('title') or '').strip()
+    excerpt = " ".join(str(item.get('excerpt') or item.get('summary') or '').split())
+    if excerpt.casefold() == title.casefold():
+        excerpt = ''
+    source = {**item, 'title_vi': title}
+    # A source headline is not an English translation or a detailed summary.
+    return (
+        'An English summary is not available yet. Read the original article for details.',
+        excerpt or 'Chưa có nội dung tóm tắt. Xem bài gốc để đọc chi tiết.',
+        source,
+    )
+
+
+def _has_vietnamese(text: str) -> bool:
+    return bool(re.search('[ăâđêôơưĂÂĐÊÔƠƯ\u1ea0-\u1ef9]', text))
+
+
 def _fallback_takeaways(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]],
                         now: datetime | None = None) -> dict[str, Any]:
     now = now or datetime.now(timezone.utc)
@@ -189,18 +207,18 @@ def _fallback_takeaways(movers: list[dict[str, Any]], recent_news: list[dict[str
         market_en = ["Price data for this session is not available yet."]
         market_vi = ["Chưa có dữ liệu giá cập nhật cho phiên này."]
     recent_news = _eligible_news(recent_news, now)
-    news = [item['title'] for item in recent_news[:5]]
+    fallbacks = [_news_fallback(item) for item in recent_news[:5]]
+    news_en = [row[0] for row in fallbacks]
+    news_vi = [row[1] for row in fallbacks]
     return {
         "schema_version": _SCHEMA_VERSION, "market_session_date": session,
         "market_data_available": bool(movers),
         "headline": "Market highlights", "headline_vi": "Điểm nhấn thị trường",
         "market_summary": market_en, "market_summary_vi": market_vi,
-        "news_summary": news, "news_summary_vi": news,
-        "summary": (market_en + news)[:5], "summary_vi": (market_vi + news)[:5],
+        "news_summary": news_en, "news_summary_vi": news_vi,
+        "summary": (market_en + news_en)[:5], "summary_vi": (market_vi + news_vi)[:5],
         "watchlist": [], "movers": movers, "recent_news": recent_news,
-        "news_sources": [{"title": item['title'], "url": item['url'],
-                          "source": item.get('source'), "published_at": item['publish_date']}
-                         for item in recent_news[:5]],
+        "news_sources": [row[2] for row in fallbacks],
         "model": "deterministic-fallback", "generated_at": now.isoformat(), "available": False,
     }
 
@@ -255,7 +273,7 @@ def compute_ai_takeaways() -> dict[str, Any]:
             en, vi = item.get('summary'), item.get('summary_vi')
             if source is None or any(row['source_id'] == source['source_id'] for row in used) or not isinstance(en, str) or not isinstance(vi, str):
                 continue
-            if not en.strip() or not vi.strip() or max(len(en), len(vi)) > 350:
+            if not en.strip() or not vi.strip() or _has_vietnamese(en) or max(len(en), len(vi)) > 350:
                 continue
             evidence = source['title'] + ' ' + source['excerpt']
             mentioned = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', en + ' ' + vi))
@@ -270,7 +288,8 @@ def compute_ai_takeaways() -> dict[str, Any]:
             source = dict(source)
             for field, target in (('title', 'title_en'), ('title_vi', 'title_vi')):
                 title = item.get(field)
-                if not isinstance(title, str) or not title.strip() or len(title) > 80:
+                if (not isinstance(title, str) or not title.strip() or len(title) > 80
+                        or (target == 'title_en' and _has_vietnamese(title))):
                     continue
                 title_symbols = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', title))
                 if (title_symbols <= supported | {'USD', 'VND', 'GDP', 'ROE', 'ROA', 'EPS'}
@@ -282,13 +301,10 @@ def compute_ai_takeaways() -> dict[str, Any]:
         if not used:
             raise ValueError('AI response has no valid source-grounded news')
         # Preserve newest-first ordering even if the model reorders or skips an
-        # article. Invalid/missing summaries retain the sourced article excerpt.
+        # article. Invalid/missing summaries use language-specific fallbacks.
         accepted = {source['source_id']: (en, vi, source)
                     for en, vi, source in zip(news_en, news_vi, used)}
-        ordered = [accepted.get(source['source_id'], (
-            source['excerpt'] or source['title'],
-            source['excerpt'] or source['title'], source,
-        )) for source in payload['recent_news_24h']]
+        ordered = [accepted.get(source['source_id'], _news_fallback(source)) for source in payload['recent_news_24h']]
         news_en = [row[0] for row in ordered]
         news_vi = [row[1] for row in ordered]
         used = [row[2] for row in ordered]
@@ -330,6 +346,17 @@ def read_market_ai_takeaways() -> dict[str, Any] | None:
                 or payload.get('market_session_date') != expected_session_date(now)
                 or generated.tzinfo is None or not timedelta(0) <= now - generated <= timedelta(hours=6)):
             return None
+        # Repair older fallback snapshots without calling a provider on reads.
+        for index, source in enumerate(payload.get('news_sources', [])):
+            fallback_en, fallback_vi, _ = _news_fallback(source)
+            en = payload.get('news_summary', [])
+            vi = payload.get('news_summary_vi', [])
+            if index < len(en) and (en[index] == source.get('title') or _has_vietnamese(en[index])):
+                en[index] = fallback_en
+            if index < len(vi) and vi[index] == source.get('title'):
+                vi[index] = fallback_vi
+            if _has_vietnamese(source.get('title_en', '')):
+                source.pop('title_en', None)
         # Reformat existing valid snapshots without another provider call.
         presentation = _fallback_takeaways(payload.get('movers', []), [], now)
         for key in ('headline', 'headline_vi', 'market_summary', 'market_summary_vi'):

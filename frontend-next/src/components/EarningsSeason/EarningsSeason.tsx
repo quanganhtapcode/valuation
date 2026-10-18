@@ -45,7 +45,7 @@ export default function EarningsSeason() {
     return (
         <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800">
             <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">Market Summary</h2>
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">{isEnglish ? 'Market Summary' : 'Tổng hợp thị trường'}</h2>
                 {takeaways && (
                     <p className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
                         {isEnglish ? 'Updated' : 'Cập nhật'}{' '}
@@ -61,7 +61,11 @@ export default function EarningsSeason() {
                         {news.slice(0, 5).map((item, index) => {
                             const source = takeaways.news_sources?.[index];
                             const title = (isEnglish ? source?.title_en : source?.title_vi)
-                                || source?.title || (isEnglish ? `News update ${index + 1}` : `Tin nổi bật ${index + 1}`);
+                                || (!isEnglish ? source?.title : undefined)
+                                || (isEnglish ? `News update ${index + 1}` : `Tin nổi bật ${index + 1}`);
+                            const detail = item.trim().toLocaleLowerCase() === title.trim().toLocaleLowerCase()
+                                ? (isEnglish ? 'Read the original article for details.' : 'Xem bài gốc để đọc chi tiết.')
+                                : item;
                             return (
                                 <details key={source?.url || `${index}-${item}`} className="group">
                                     <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-800 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500 dark:text-gray-100 dark:hover:bg-gray-800 [&::-webkit-details-marker]:hidden">
@@ -70,7 +74,12 @@ export default function EarningsSeason() {
                                             <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
                                     </summary>
-                                    <p className="px-4 pb-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{item}</p>
+                                    <p className="px-4 pb-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{detail}</p>
+                                    {source?.url && (
+                                        <a href={source.url} target="_blank" rel="noopener noreferrer" className="mx-4 mb-3 inline-flex text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
+                                            {isEnglish ? 'Read original article' : 'Đọc bài gốc'} ↗
+                                        </a>
+                                    )}
                                 </details>
                             );
                         })}
