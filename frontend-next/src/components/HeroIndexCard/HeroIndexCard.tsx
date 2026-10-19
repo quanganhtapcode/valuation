@@ -19,6 +19,7 @@ import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, isTradingHours }
 import { cx } from '@/lib/utils';
 import { RiHistoryLine } from '@remixicon/react';
 import dynamic from 'next/dynamic';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const IndexHistoryModal = dynamic(() => import('@/components/HeroIndexCard/IndexHistoryModal'), {
     ssr: false,
@@ -32,6 +33,7 @@ interface IndexData {
     value: number;
     change: number;
     percentChange: number;
+    isReference?: boolean;
     advances?: number;
     declines?: number;
     noChanges?: number;
@@ -129,6 +131,8 @@ function PctChip({ pct, large = false }: { pct: number; large?: boolean }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
+    const { lang } = useLanguage();
+    const referenceLabel = lang === 'vi' ? 'Giá tham chiếu' : 'Reference price';
     const isDark = useDarkMode();
     const theme  = useMemo(() => buildTheme(isDark), [isDark]);
 
@@ -541,7 +545,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     useEffect(() => {
         if (!isVN || !isTradingHours()) return;
         const vnidx = indices.find(i => i.id === 'vnindex');
-        if (!vnidx?.value || !areaRef.current) return;
+        if (!vnidx?.value || vnidx.isReference || !areaRef.current) return;
         const now = new Date();
         const vnMs = now.getTime() + now.getTimezoneOffset() * 60_000 + 7 * 3_600_000;
         const vn = new Date(vnMs);
@@ -585,8 +589,10 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                                     <span className={cx('text-xs font-medium tabular-nums', active ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500')}>
                                         {idx.value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                                     </span>
-                                    <span className={cx('text-[11px] font-semibold tabular-nums', up ? 'text-emerald-500' : 'text-red-500')}>
-                                        {up ? '+' : ''}{idx.percentChange.toFixed(2)}%
+                                    <span className={cx('text-[11px] font-semibold tabular-nums', idx.isReference
+                                        ? 'text-gray-500 dark:text-gray-400'
+                                        : up ? 'text-emerald-500' : 'text-red-500')}>
+                                        {idx.isReference ? referenceLabel : `${up ? '+' : ''}${idx.percentChange.toFixed(2)}%`}
                                     </span>
                                 </>
                             )}
@@ -613,16 +619,17 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                                 <div className="flex items-baseline gap-3 mt-2 flex-wrap">
                                     <span className={cx(
                                         'text-[44px] font-bold tabular-nums leading-none tracking-[-0.05em]',
-                                        isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+                                        selected.isReference ? 'text-gray-800 dark:text-gray-200'
+                                            : isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
                                     )}>
                                         {selected.value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                                     </span>
-                                    <div className="flex items-center gap-2">
+                                    {selected.isReference ? <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{referenceLabel}</span> : <div className="flex items-center gap-2">
                                         <span className={cx('font-semibold tabular-nums text-sm', isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
                                             {isUp ? '+' : ''}{selected.change.toFixed(2)}
                                         </span>
                                         <PctChip pct={selected.percentChange} large />
-                                    </div>
+                                    </div>}
                                 </div>
 
                                 <div className="flex flex-wrap gap-5 mt-3">

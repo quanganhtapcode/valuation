@@ -89,11 +89,14 @@ HTTP status giữ nguyên ý nghĩa: 400 dữ liệu đầu vào sai, 404 không
 | --- | --- |
 | Giá trực tiếp, orderbook, chỉ số hiện tại, overview có giá mới, lịch sử giá cập nhật, macro rates | `no-store` |
 | Lỗi, health, file export và manifest chứa URL tải | `no-store` |
+| `/market/heatmap` | Snapshot tại CDN 5 giây, `stale-while-revalidate=10`; browser `max-age=0` |
 | Tin tức, sự kiện, quỹ | 30 giây; cho phép phục vụ bản cũ trong lúc cập nhật theo header |
 | Báo cáo và chuỗi tài chính, summary với `realtime=0` | 120 giây |
 | Hồ sơ doanh nghiệp và danh mục ít thay đổi | 600 giây |
 
 Alias cũ và URL chuẩn dùng cùng chính sách. `cache=no-store` hoặc `nocache=1` yêu cầu bỏ cache của proxy. Giới hạn từ upstream như `no-store`, `private`, `no-cache` và thời hạn ngắn hơn được giữ; proxy không nâng chúng thành cache công khai dài hơn. TTL này là lớp proxy, tách với thời gian cập nhật nguồn và cache bên trong backend.
+
+Heatmap dùng cache ngắn để giảm lần đi qua function tới backend khi nhiều người mở trang. Chỉ response thành công được chia sẻ; lỗi và yêu cầu bỏ cache vẫn `no-store`. Các endpoint giá trực tiếp giữ nguyên chính sách, và fetch từ Next.js tới backend không tạo cache lưu lâu dài.
 
 Ưu tiên endpoint nhỏ đúng nhu cầu và `compact=1` khi chỉ hiển thị danh sách tin; không tải overview đầy đủ để chỉ lấy giá. `/market/overview?compact=1` chỉ trả `indexValuationChart`, bỏ bản sao `peChart` và rút gọn tin. Proxy chuyển tiếp body dạng stream, giữ status và header tải file; không giải mã rồi mã hóa lại toàn bộ JSON thành công. Proxy chỉ cache tại CDN, không tạo thêm một lớp cache fetch lâu dài trong Next.js.
 

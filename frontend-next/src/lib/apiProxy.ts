@@ -19,6 +19,7 @@ export async function proxyApiRequest(request: Request, apiPath: string, backend
     }
 
     try {
+        const upstreamStarted = performance.now();
         const response = await fetch(`${backendApi}/${backendApiPath(apiPath)}${query ? `?${query}` : ''}`, {
             method,
             headers: {
@@ -34,6 +35,7 @@ export async function proxyApiRequest(request: Request, apiPath: string, backend
         });
         const headers = proxyResponseHeaders(response.headers,
             method === 'POST' || !response.ok ? 'no-store' : policy.responseCacheControl);
+        headers.append('Server-Timing', `upstream;dur=${(performance.now() - upstreamStarted).toFixed(2)}`);
         headers.set('X-Proxy-Cache-Policy', `${policy.mode}:${policy.revalidateSeconds}`);
 
         if (!response.ok) {

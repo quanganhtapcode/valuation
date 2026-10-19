@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 // Keep the index chart in the initial render for the above-the-fold content.
 import HeroIndexCard from '@/components/HeroIndexCard';
+import { resolveMarketIndexQuote } from '@/lib/marketIndexQuote';
 import {
     fetchAllIndices,
     subscribeIndicesStream,
@@ -19,6 +20,7 @@ export interface OverviewIndexData {
     value: number;
     change: number;
     percentChange: number;
+    isReference: boolean;
     chartData: number[];
     advances: number | undefined;
     declines: number | undefined;
@@ -44,12 +46,10 @@ export default function MarketIndices({ initialIndices }: { initialIndices: Over
             .map(([indexId, info]) => {
                 const data = marketData[indexId] as MarketIndexData | undefined;
                 if (!data) return null;
-                const currentIndex = data.CurrentIndex;
-                const prevIndex = data.PrevIndex;
-                const change = currentIndex - prevIndex;
-                const percent = prevIndex > 0 ? (change / prevIndex) * 100 : 0;
+                const quote = resolveMarketIndexQuote(data.CurrentIndex, data.PrevIndex);
+                if (!quote) return null;
                 return {
-                    id: info.id, name: info.name, value: currentIndex, change, percentChange: percent,
+                    id: info.id, name: info.name, ...quote,
                     chartData: [] as number[], advances: data.Advances, declines: data.Declines,
                     noChanges: data.NoChanges, ceilings: data.Ceilings, floors: data.Floors,
                     totalShares: data.Volume, totalValue: data.Value,
@@ -96,7 +96,7 @@ export default function MarketIndices({ initialIndices }: { initialIndices: Over
         snapshotTimer = setTimeout(startFallback, 1500);
         const unsubscribe = subscribeIndicesStream({
             onData: (marketData) => {
-                if (!Object.values(marketData).some(data => data.CurrentIndex > 0)) return;
+                if (!Object.values(marketData).some(data => resolveMarketIndexQuote(data.CurrentIndex, data.PrevIndex))) return;
                 streamVersion += 1;
                 mapMarketDataToIndices(marketData);
                 stopFallback();
@@ -125,6 +125,7 @@ export default function MarketIndices({ initialIndices }: { initialIndices: Over
                     id: placeholder.id, name: placeholder.name,
                     value: data?.value ?? 0, change: data?.change ?? 0,
                     percentChange: data?.percentChange ?? 0,
+                    isReference: data?.isReference ?? false,
                     advances: data?.advances, declines: data?.declines,
                     noChanges: data?.noChanges, ceilings: data?.ceilings,
                     floors: data?.floors, totalShares: data?.totalShares,

@@ -1,13 +1,14 @@
 import { canonicalApiPath } from './apiRouteRegistry';
 
 export interface ProxyCachePolicy {
-    mode: 'realtime' | 'short' | 'medium' | 'long';
+    mode: 'realtime' | 'snapshot' | 'short' | 'medium' | 'long';
     revalidateSeconds: number;
     responseCacheControl: string;
 }
 
 const policies: Record<ProxyCachePolicy['mode'], ProxyCachePolicy> = {
     realtime: { mode: 'realtime', revalidateSeconds: 0, responseCacheControl: 'no-store' },
+    snapshot: { mode: 'snapshot', revalidateSeconds: 5, responseCacheControl: 'public, max-age=0, s-maxage=5, stale-while-revalidate=10' },
     short: { mode: 'short', revalidateSeconds: 30, responseCacheControl: 'public, s-maxage=30, stale-while-revalidate=60' },
     medium: { mode: 'medium', revalidateSeconds: 120, responseCacheControl: 'public, s-maxage=120, stale-while-revalidate=300' },
     long: { mode: 'long', revalidateSeconds: 600, responseCacheControl: 'public, s-maxage=600, stale-while-revalidate=1200' },
@@ -52,6 +53,8 @@ export function resolveCachePolicy(path: string, params: URLSearchParams): Proxy
     if (params.get('cache') === 'no-store' || params.get('nocache') === '1'
         || params.has('pretty') || params.get('fetch_price') === 'true') return policies.realtime;
 
+    // Share a brief heatmap snapshot at the edge without retaining it in browsers.
+    if (resource === 'market/heatmap') return policies.snapshot;
     if (/^stocks\/financial-metrics(?:\/sectors)?$/.test(resource)) return policies.medium;
 
     // Quotes and snapshots that contain quotes must observe the current RAM cache.
@@ -61,7 +64,7 @@ export function resolveCachePolicy(path: string, params: URLSearchParams): Proxy
         || /^stocks\/[^/]+\/summary$/.test(resource) && params.get('realtime') !== '0'
         || /^(?:health$|cache\/|financial-statements\/(?:exports|workbooks)(?:\/|$))/.test(resource)
         || /^(?:stock\/excel|stocks\/excel|download\/|financial-bulk-export)/.test(legacy)
-        || /^(?:market\/(?:indices|top-movers|heatmap|prices|orderbook|overview|screener|ai-takeaways)|market\/macro\/rates)$/.test(resource)) {
+        || /^(?:market\/(?:indices|top-movers|prices|orderbook|overview|screener|ai-takeaways)|market\/macro\/rates)$/.test(resource)) {
         return policies.realtime;
     }
     if (/^market\/(?:news|funds)(?:\/|$)/.test(resource)

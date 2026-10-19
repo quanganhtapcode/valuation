@@ -2,24 +2,29 @@
 
 import { getChartTheme } from '@/lib/chartTheme';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { API_BASE, isTradingHours, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
+import type { HeatmapData, HeatmapExchange } from '@/lib/heatmapTypes';
+import { heatmapRefreshDelay, heatmapRetryDelay } from '@/lib/heatmapRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 //  Types
-interface Stock { ticker: string; cap: number; change: number; price: number; name: string; sector: string }
-interface Sector { name: string; shortName: string; totalCap: number; avgChange: number; stocks: Stock[] }
-interface HeatmapData { sectors: Sector[] }
 interface TileRect { x: number; y: number; w: number; h: number }
 interface TileItem<T> { item: T; rect: TileRect }
 
 interface HeatmapVN30Props {
+  initialData?: HeatmapData | null;
+  initialFetchedAt?: number;
   externalData?: HeatmapData | null;
   useExternalOnly?: boolean;
 }
 
-type HeatmapExchange = 'HSX' | 'HNX' | 'UPCOM';
+interface HeatmapSnapshot {
+  exchange: HeatmapExchange;
+  data: HeatmapData;
+  fetchedAt: number;
+}
 
 const HEATMAP_EXCHANGES: { value: HeatmapExchange; label: string }[] = [
   { value: 'HSX', label: 'HOSE' },
@@ -121,11 +126,17 @@ const STOCK_GAP = 1.5;
 const LABEL_H = 20;
 
 //  Component
-export default function HeatmapVN30({ externalData = null, useExternalOnly = false }: HeatmapVN30Props) {
+export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, externalData = null, useExternalOnly = false }: HeatmapVN30Props) {
   const { lang } = useLanguage();
   const labels = translations[lang].dashboard;
-  const [data, setData] = useState<HeatmapData | null>(null);
+  const [snapshot, setSnapshot] = useState<HeatmapSnapshot | null>(() => {
+    const data = externalData ?? initialData;
+    return data ? { exchange: 'HSX', data, fetchedAt: initialFetchedAt } : null;
+  });
+  const snapshotRef = useRef(snapshot);
   const [exchange, setExchange] = useState<HeatmapExchange>('HSX');
+  const activeExchangeRef = useRef<HeatmapExchange>('HSX');
+  const polledExchangeRef = useRef<HeatmapExchange>('HSX');
   const [cw, setCw] = useState(800);
   const [ch, setCh] = useState(600);
   const [isDark, setIsDark] = useState(false);
@@ -136,6 +147,8 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
   } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Never show the previous exchange beneath a newly selected exchange tab.
+  const data = snapshot?.exchange === exchange ? snapshot.data : null;
   // Derive loading from data being null — polling updates never trigger a spinner flash
   const loading = data === null;
 
@@ -164,26 +177,20 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
     return () => obs.disconnect();
   }, []);
 
-  // Reset data (shows spinner) when exchange changes
   useEffect(() => {
-    queueMicrotask(() => {
-      setData(null);
-      setHover(null);
-    });
-  }, [exchange]);
-
-  const load = useCallback(async (signal: AbortSignal) => {
-    try {
-      const r = await fetch(`${API_BASE}/market/heatmap?exchange=${exchange}&limit=200`, { signal });
-      if (!r.ok) return;
-      const d: HeatmapData = await r.json();
-      if (!signal.aborted) setData(d);
-    } catch { /* silent */ }
+    activeExchangeRef.current = exchange;
   }, [exchange]);
 
   useEffect(() => {
     if (!externalData) return;
-    queueMicrotask(() => setData(externalData));
+    let disposed = false;
+    queueMicrotask(() => {
+      if (disposed) return;
+      const next = { exchange: activeExchangeRef.current, data: externalData, fetchedAt: Date.now() };
+      snapshotRef.current = next;
+      setSnapshot(next);
+    });
+    return () => { disposed = true; };
   }, [externalData]);
 
   useEffect(() => {
@@ -191,27 +198,60 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     let running = false;
+    let failures = 0;
+    const switched = polledExchangeRef.current !== exchange;
+    polledExchangeRef.current = exchange;
+    const regularDelay = () => isTradingHours() ? PRICE_SYNC_INTERVAL_MS : 300000;
+    const schedule = (delay: number) => {
+      clearTimeout(timer);
+      if (!controller.signal.aborted && document.visibilityState === 'visible') {
+        timer = setTimeout(() => { void refresh(); }, delay);
+      }
+    };
     const refresh = async () => {
       if (running || controller.signal.aborted || document.visibilityState !== 'visible') return;
       running = true;
-      await load(controller.signal);
-      running = false;
-      if (!controller.signal.aborted && document.visibilityState === 'visible') {
-        timer = setTimeout(() => { void refresh(); }, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : 300000);
+      let delay = regularDelay();
+      try {
+        const response = await fetch(`${API_BASE}/market/heatmap?exchange=${exchange}&limit=200`, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]),
+        });
+        if (!response.ok) throw new Error(`Heatmap request failed: ${response.status}`);
+        const nextData: HeatmapData = await response.json();
+        if (!Array.isArray(nextData?.sectors) || nextData.sectors.length === 0) {
+          throw new Error('Heatmap data is unavailable');
+        }
+        if (controller.signal.aborted) return;
+        const next = { exchange, data: nextData, fetchedAt: Date.now() };
+        snapshotRef.current = next;
+        setSnapshot(next);
+        failures = 0;
+      } catch {
+        if (controller.signal.aborted) return;
+        failures += 1;
+        delay = heatmapRetryDelay(failures);
+      } finally {
+        running = false;
+        schedule(delay);
       }
     };
     const onVisibility = () => {
       clearTimeout(timer);
       if (document.visibilityState === 'visible') void refresh();
     };
-    void refresh();
+    const seeded = snapshotRef.current;
+    const delay = !switched && seeded?.exchange === exchange
+      ? heatmapRefreshDelay(seeded.fetchedAt, regularDelay())
+      : 0;
+    if (delay > 0) schedule(delay);
+    else void refresh();
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       controller.abort();
       clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [load, useExternalOnly]);
+  }, [exchange, useExternalOnly]);
 
   const theme = getChartTheme(isDark);
   const svgBg = theme.tooltipBg;
@@ -219,7 +259,19 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
   const labelText = theme.text;
 
   const sectorTiles = useMemo(
-    () => squarifyTile(data?.sectors ?? [], s => s.totalCap, 0, 0, cw, ch),
+    () => squarifyTile(data?.sectors ?? [], s => s.totalCap, 0, 0, cw, ch).map(({ item: sector, rect }) => {
+      const sx = rect.x + SECTOR_PAD;
+      const sy = rect.y + SECTOR_PAD;
+      const sw = Math.max(0, rect.w - SECTOR_PAD * 2);
+      const sh = Math.max(0, rect.h - SECTOR_PAD * 2);
+      const hasLabel = sw >= 50 && sh >= LABEL_H + 4;
+      return {
+        sector, sx, sy, sw, sh, hasLabel,
+        stockTiles: squarifyTile(sector.stocks, stock => stock.cap,
+          sx, sy + (hasLabel ? LABEL_H : 0), sx + sw, sy + sh),
+        topCapTickers: new Set([...sector.stocks].sort((a, b) => b.cap - a.cap).slice(0, 3).map(stock => stock.ticker)),
+      };
+    }),
     [data, cw, ch],
   );
 
@@ -236,7 +288,7 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
               <button
                 key={item.value}
                 type="button"
-                onClick={() => setExchange(item.value)}
+                onClick={() => { setHover(null); setExchange(item.value); }}
                 className={`min-w-14 rounded px-2 py-1 text-xs font-semibold transition-colors ${
                   exchange === item.value
                     ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100'
@@ -257,7 +309,8 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
           </div>
         ) : (
           <svg
-            width={cw} height={ch}
+            data-testid="market-heatmap" role="img" aria-label={labels.heatmap}
+            width="100%" height="100%" viewBox={`0 0 ${cw} ${ch}`} preserveAspectRatio="none"
             style={{
               display: 'block',
               fontFamily: 'var(--font-family-base)',
@@ -267,20 +320,8 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
           >
             <rect x={0} y={0} width={cw} height={ch} fill={svgBg} />
 
-            {sectorTiles.map(({ item: sector, rect: sRaw }) => {
-              const sx = sRaw.x + SECTOR_PAD;
-              const sy = sRaw.y + SECTOR_PAD;
-              const sw = Math.max(0, sRaw.w - SECTOR_PAD * 2);
-              const sh = Math.max(0, sRaw.h - SECTOR_PAD * 2);
+            {sectorTiles.map(({ sector, sx, sy, sw, sh, hasLabel, stockTiles, topCapTickers }) => {
               if (sw < 4 || sh < 4) return null;
-
-              const hasLabel = sw >= 50 && sh >= LABEL_H + 4;
-              const labelH = hasLabel ? LABEL_H : 0;
-
-              const stockTiles = squarifyTile(
-                sector.stocks, s => s.cap,
-                sx, sy + labelH, sx + sw, sy + sh,
-              );
 
               const sign = sector.avgChange >= 0 ? '+' : '';
               const pct = `${sign}${sector.avgChange.toFixed(2)}%`;
@@ -310,10 +351,8 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
                     const cx = ix + iw / 2;
                     const cy = iy + ih / 2;
                     const fs = Math.min(14, Math.max(8, Math.min(iw / 4.2, ih / 3.0)));
-                    const sortedSectorStocks = [...sector.stocks].sort((a, b) => b.cap - a.cap);
-                    const topCapTickers = sortedSectorStocks.slice(0, 3).map(s => s.ticker);
                     const showTicker = iw >= 18 && ih >= 12;
-                    const isImportant = topCapTickers.includes(stock.ticker) || Math.abs(stock.change) >= 5;
+                    const isImportant = topCapTickers.has(stock.ticker) || Math.abs(stock.change) >= 5;
                     const showPct = isImportant && iw >= 32 && ih >= 30;
 
                     return (
@@ -328,7 +367,8 @@ export default function HeatmapVN30({ externalData = null, useExternalOnly = fal
                           setHover({
                             ticker: stock.ticker, change: stock.change, price: stock.price,
                             cap: stock.cap, name: stock.name ?? '', sector: stock.sector ?? '',
-                            mx: e.clientX - br.left, my: e.clientY - br.top,
+                            mx: (e.clientX - br.left) * cw / br.width,
+                            my: (e.clientY - br.top) * ch / br.height,
                           });
                         }}
                       >

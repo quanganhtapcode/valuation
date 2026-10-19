@@ -1,14 +1,9 @@
 import OverviewClient from './OverviewClient';
 import { getOverviewSnapshot } from '@/lib/overviewSnapshot.server';
 import { createLocalizedMetadata, type LocalizedPageProps } from '@/lib/i18nRouting';
-import {
-  NewsItem,
-  TopMoverItem,
-  GoldPriceItem,
-} from '@/lib/api';
 
 // Live updates remain client-side; a bounded snapshot supplies the initial HTML.
-export const revalidate = 300;
+export const revalidate = 15;
 
 export const generateMetadata = ({ params }: LocalizedPageProps) => createLocalizedMetadata(params, '/', {
   vi: { title: 'Thị Trường Chứng Khoán Việt Nam Hôm Nay | VNINDEX, VN30', description: 'Theo dõi VNINDEX, VN30, top tăng giảm, heatmap, dòng tiền ngoại, tin tức và định giá cổ phiếu Việt Nam.' },
@@ -16,21 +11,6 @@ export const generateMetadata = ({ params }: LocalizedPageProps) => createLocali
 });
 
 export default async function OverviewPage() {
-  const initialIndices = await getOverviewSnapshot();
-
-  // Defer non-critical sections to client-side fetching for faster first paint
-  const initialNews: NewsItem[] = [];
-  const initialGainers: TopMoverItem[] = [];
-  const initialLosers: TopMoverItem[] = [];
-  const initialGoldPrices: GoldPriceItem[] = [];
-
-  return (
-    <OverviewClient
-      initialIndices={initialIndices}
-      initialNews={initialNews}
-      initialGainers={initialGainers}
-      initialLosers={initialLosers}
-      initialGoldPrices={initialGoldPrices}
-    />
-  );
+  const snapshot = await getOverviewSnapshot();
+  return <OverviewClient {...snapshot} />;
 }

@@ -25,12 +25,48 @@ test('every canonical route supports old upstreams and shares its cache policy',
 test('canonical and legacy live resources bypass caches', () => {
     for (const path of ['stock/batch-price', 'batch-price', 'stocks/quotes', 'health',
         'stock/VCB/summary', 'stocks/VCB/summary', 'stock/VCB/overview-full',
-        'stocks/VCB/quote', 'market/orderbook', 'market/overview-refresh',
+        'stocks/VCB/quote', 'market/indices', 'market/prices', 'market/orderbook', 'market/overview-refresh',
         'market/overview', 'market/screener', 'stock/excel-manifest',
         'financial-statements/exports', 'financial-statements/workbooks/manifest']) {
         assert.equal(resolveCachePolicy(path, new URLSearchParams()).mode, 'realtime', path);
     }
     assert.equal(resolveCachePolicy('stocks/VCB/summary', new URLSearchParams('realtime=0')).mode, 'medium');
+});
+
+test('only heatmap uses a brief shared snapshot and explicit bypasses still work', () => {
+    assert.deepEqual(resolveCachePolicy('market/heatmap', new URLSearchParams('exchange=HSX&limit=200')), {
+        mode: 'snapshot', revalidateSeconds: 5,
+        responseCacheControl: 'public, max-age=0, s-maxage=5, stale-while-revalidate=10',
+    });
+    for (const query of ['cache=no-store', 'nocache=1', 'pretty=1']) {
+        assert.equal(resolveCachePolicy('market/heatmap', new URLSearchParams(query)).mode, 'realtime', query);
+    }
+    assert.equal(resolveCachePolicy('market/heatmap-history', new URLSearchParams()).mode, 'realtime');
+});
+
+test('heatmap snapshots cache only at the edge and failures remain uncached', async () => {
+    let status = 200;
+    let fetchOptions: RequestInit | undefined;
+    mock.method(globalThis, 'fetch', async (_input: RequestInfo | URL, options?: RequestInit) => {
+        fetchOptions = options;
+        return Response.json(status === 200 ? { sectors: [{ name: 'Banks' }] }
+            : { success: false, error: 'Unavailable' }, { status });
+    });
+    const result = await proxyApiRequest(request('market/heatmap?exchange=HSX&limit=200'), 'market/heatmap', upstream);
+    assert.equal(result.headers.get('Cache-Control'), 'public, max-age=0, s-maxage=5, stale-while-revalidate=10');
+    assert.equal(result.headers.get('X-Proxy-Cache-Policy'), 'snapshot:5');
+    assert.match(result.headers.get('Server-Timing')!, /upstream;dur=\d+(?:\.\d+)?/);
+    assert.equal(fetchOptions?.cache, 'no-store');
+
+    for (const query of ['cache=no-store', 'nocache=1']) {
+        const bypass = await proxyApiRequest(request(`market/heatmap?${query}`), 'market/heatmap', upstream);
+        assert.equal(bypass.headers.get('Cache-Control'), 'no-store');
+    }
+    status = 503;
+    const failure = await proxyApiRequest(request('market/heatmap'), 'market/heatmap', upstream);
+    assert.equal(failure.status, 503);
+    assert.equal(failure.headers.get('Cache-Control'), 'no-store');
+    assert.equal((await failure.json()).error.code, 'SERVICE_UNAVAILABLE');
 });
 
 test('aliases use the same cache and lookalike prefixes do not match', () => {

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import MarketIndices, { type OverviewIndexData } from '@/components/HeroIndexCard/MarketIndices';
+import { HeatmapVN30 } from '@/components/HeatmapVN30';
+import type { HeatmapData } from '@/lib/heatmapTypes';
 import {
     isTradingHours,
     fetchTopMovers,
@@ -32,9 +34,6 @@ function PanelSkeleton({ height = 'h-40' }: { height?: string }) {
 const NewsSection = dynamic(() => import('@/components/NewsSection'), {
     loading: () => <PanelSkeleton height="h-80" />,
 });
-const HeatmapVN30 = dynamic(() => import('@/components/HeatmapVN30').then(mod => mod.HeatmapVN30), {
-    loading: () => <PanelSkeleton height="h-[620px]" />,
-});
 const EarningsSeason = dynamic(() => import('@/components/EarningsSeason').then(mod => mod.EarningsSeason), {
     loading: () => <PanelSkeleton height="h-72" />,
 });
@@ -59,10 +58,17 @@ const PolymarketEvents = dynamic(() => import('@/components/Sidebar/PolymarketEv
 
 interface OverviewClientProps {
     initialIndices: OverviewIndexData[];
+    initialHeatmap: HeatmapData | null;
+    initialHeatmapFetchedAt: number;
     initialNews: NewsItem[];
+    initialNewsFetchedAt: number;
     initialGainers: TopMoverItem[];
     initialLosers: TopMoverItem[];
+    initialMoversFetchedAt: number;
     initialGoldPrices: GoldPriceItem[];
+    initialGoldSource: string;
+    initialGoldStale: boolean;
+    initialGoldFetchedAt: number;
 }
 
 function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
@@ -81,10 +87,17 @@ function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
 
 export default function OverviewClient({
     initialIndices,
+    initialHeatmap,
+    initialHeatmapFetchedAt,
     initialNews,
+    initialNewsFetchedAt,
     initialGainers,
     initialLosers,
+    initialMoversFetchedAt,
     initialGoldPrices,
+    initialGoldSource,
+    initialGoldStale,
+    initialGoldFetchedAt,
 }: OverviewClientProps) {
     const [news, setNews] = useState<NewsItem[]>(initialNews);
     const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
@@ -93,8 +106,8 @@ export default function OverviewClient({
     const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
     const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
     const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
-    const [goldSource, setGoldSource] = useState<string>('Phú Quý');
-    const [goldStale, setGoldStale] = useState(false);
+    const [goldSource, setGoldSource] = useState(initialGoldSource);
+    const [goldStale, setGoldStale] = useState(initialGoldStale);
 
     const newsInFlightRef = useRef(false);
     const moversInFlightRef = useRef(false);
@@ -153,13 +166,13 @@ export default function OverviewClient({
         }
     }, []); // stable — no deps
 
-    useVisiblePolling(loadGold, goldDelay, initialGoldPrices.length === 0);
+    useVisiblePolling(loadGold, goldDelay, initialGoldPrices.length === 0, initialGoldFetchedAt);
 
     // News polling
-    useVisiblePolling(loadNews, newsDelay, initialNews.length === 0);
+    useVisiblePolling(loadNews, newsDelay, initialNews.length === 0, initialNewsFetchedAt);
 
     // Movers: cold start
-    useVisiblePolling(loadMovers, moversDelay, initialGainers.length === 0 || initialLosers.length === 0);
+    useVisiblePolling(loadMovers, moversDelay, initialGainers.length === 0 || initialLosers.length === 0, initialMoversFetchedAt);
 
     return (
         <div className={styles.container}>
@@ -167,7 +180,7 @@ export default function OverviewClient({
                 <div className={styles.leftColumn}>
                     <MarketIndices initialIndices={initialIndices} />
 
-                    <DeferredPanel height={620}><HeatmapVN30 /></DeferredPanel>
+                    <HeatmapVN30 initialData={initialHeatmap} initialFetchedAt={initialHeatmapFetchedAt} />
 
                     <DeferredPanel height={288}><EarningsSeason /></DeferredPanel>
 
