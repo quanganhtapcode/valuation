@@ -31,9 +31,6 @@ const nextConfig = {
   turbopack: {
     root: projectRoot,
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,

@@ -56,7 +56,7 @@ def sector_archetype(*labels: object, is_bank: bool = False) -> str:
         return "securities"
     if any(x in text for x in ("bất động sản", "real estate", "property")):
         return "real_estate"
-    if any(x in text for x in ("công nghệ", "technology", "software", "thiết bị và phần cứng")):
+    if any(x in text for x in ("công nghệ", "technology", "software", "phần mềm", "điện tử", "thiết bị và phần cứng")):
         return "technology"
     if any(x in text for x in ("điện", "nước", "gas", "utility", "utilities")):
         return "utility"

@@ -15,7 +15,6 @@ export default function useScroll(threshold: number) {
             }
         }
         window.addEventListener("scroll", onScroll, { passive: true })
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         onScroll()
         return () => window.removeEventListener("scroll", onScroll)
     }, [threshold])

@@ -25,6 +25,7 @@ from pathlib import Path
 from threading import RLock
 
 from flask import Blueprint, jsonify, request
+from backend.services.valuation_validation import ValuationInputError
 
 from backend.db_path import (
     resolve_vci_company_db_path,
@@ -674,10 +675,12 @@ def register(stock_bp: Blueprint) -> None:
 
         body: dict = {}
         if request.method == "POST":
-            body = request.get_json(silent=True) or {}
+            body = request.get_json(silent=True) if request.is_json else {}
         try:
             result = get_valuation_service().calculate_sensitivity(clean_symbol, body)
             return jsonify(result), (200 if result.get("success") else 404)
+        except ValuationInputError as exc:
+            return jsonify({'success': False, 'error': str(exc), 'field': exc.field}), 400
         except Exception as exc:
             logger.error(f"sensitivity endpoint error {clean_symbol}: {exc}")
             return jsonify({"success": False, "error": str(exc)}), 500

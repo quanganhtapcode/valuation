@@ -417,6 +417,7 @@ export interface WaccSuggestion {
 }
 
 export interface ValuationResult {
+    model_diagnostics?: Partial<Record<'fcfe' | 'fcff' | 'justified_pe' | 'justified_pb' | 'graham', { applicable: boolean; available: boolean; notes: string[] }>>;
     success: boolean;
     symbol?: string;
     wacc_used?: number;

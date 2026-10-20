@@ -747,9 +747,11 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 {visitedTabs.has('valuation') && (
                     <div className={activeTab === 'valuation' ? 'block' : 'hidden'}>
                         <ValuationTab
+                            key={symbol}
                             symbol={symbol}
                             currentPrice={priceData?.price || 0}
                             initialData={null}
+                            stockData={rawOverviewData ?? undefined}
                             isBank={stockInfo?.sector === 'Ngân hàng' || ['VCB', 'BID', 'CTG', 'VPB', 'MBB', 'TCB', 'ACB', 'HDB', 'VIB', 'STB', 'TPB', 'MSB', 'LPB', 'SHB', 'OCB', 'VBB', 'BAB', 'BVB', 'EIB', 'KLB', 'SGB', 'PGB', 'NVB', 'VAB'].includes(symbol)}
                         />
                     </div>

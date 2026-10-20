@@ -17,7 +17,6 @@
     "@remixicon/react": "^4.8.0",
     "@tremor/react": "^3.18.7",
     "clsx": "^2.1.1",
-    "cobe": "^0.6.5",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
@@ -28,8 +27,7 @@
     "react-dom": "^19.0.0",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.4.0",
-    "tailwind-variants": "^3.2.2",
-    "use-debounce": "^10.1.0"
+    "tailwind-variants": "^3.2.2"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",

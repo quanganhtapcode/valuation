@@ -310,7 +310,10 @@ export class ReportGenerator {
         this.showStatus('Building financial model…', 'info');
         const dcf = (valuationResults.fcfe_details ?? valuationResults.fcff_details) as Record<string, unknown> | undefined;
         const policyWeights = (valuationResults.inputs as Record<string, unknown> | undefined)?.model_weights as Record<string, unknown> | undefined;
-        modelWeights = Object.keys(modelWeights).length ? modelWeights : (policyWeights ?? {});
+        const selectedWeights = Object.keys(modelWeights).length ? modelWeights : policyWeights;
+        if (selectedWeights) {
+            modelWeights = { fcfe: 0, fcff: 0, justified_pe: 0, justified_pb: 0, graham: 0, justified_ps: 0, ...selectedWeights };
+        }
         this.projectionYears = Math.max(1, Math.min(20, Math.trunc(toNumber(dcf?.years ?? assumptions.projectionYears, PROJ_YEARS))));
 
         const wb = new ExcelJS.Workbook();
@@ -1218,6 +1221,8 @@ export class ReportGenerator {
     // ═══════════════════════════════════════════════════════════════════════
     private buildDCFSheet(sheet: ExcelJS.Worksheet, type: 'FCFE' | 'FCFF', valuationResults: Record<string, unknown>) {
         const isFCFE    = type === 'FCFE';
+        const diagnostics = valuationResults.model_diagnostics as Record<string, { applicable: boolean }> | undefined;
+        const applicable = diagnostics?.[isFCFE ? 'fcfe' : 'fcff']?.applicable !== false;
         const detailsData = isFCFE
             ? (valuationResults?.['fcfe_details'] as Record<string, unknown>)
             : (valuationResults?.['fcff_details'] as Record<string, unknown>);
@@ -1239,7 +1244,7 @@ export class ReportGenerator {
         sheet.getRow(1).height = 30;
 
         sheet.mergeCells('A2:F2');
-        sheet.getCell('A2').value = 'Formulas reference the Assumptions sheet. To change assumptions, edit yellow cells in Assumptions.';
+        sheet.getCell('A2').value = applicable ? 'Formulas reference the Assumptions sheet. To change assumptions, edit yellow cells in Assumptions.' : 'Not applicable: corporate CFO-based DCF is excluded for banks. Use the equity valuation models.';
         sheet.getCell('A2').font  = { italic: true, color: { argb: '64748B' }, size: 9 };
         sheet.getCell('A2').alignment = { horizontal: 'center' };
 
@@ -1468,8 +1473,8 @@ export class ReportGenerator {
             ? (valuationResults?.['valuations'] as Record<string, unknown>)?.['fcfe'] ?? detailsData?.['shareValue']
             : detailsData?.['enterprise_value_per_share'];
         intrinsicCell.value = {
-            formula: `=IF(AND(B${discRateRow}>0,B${sharesRow}>0),B${sumPVRow}+B${pvTvRefRow},0)`,
-            ...(intrinsicCached != null ? { result: toNumber(intrinsicCached) } : {}),
+            formula: applicable ? `=IF(AND(B${discRateRow}>0,B${sharesRow}>0,B${baseRow}>0),B${sumPVRow}+B${pvTvRefRow},0)` : '0',
+            ...(intrinsicCached != null ? { result: applicable ? toNumber(intrinsicCached) : 0 } : {}),
         };
         intrinsicCell.numFmt = '#,##0';
         intrinsicCell.font   = { bold: true, size: 13, color: { argb: ACCENT } };
@@ -1496,8 +1501,8 @@ export class ReportGenerator {
             const equityCell = sheet.getCell(r, 2);
             const equityCached = toNumber((valuationResults?.['valuations'] as Record<string, unknown>)?.['fcff'], 0);
             equityCell.value = equityCached > 0
-                ? { formula: `=MAX(0,B${intrinsicRow}-B${netDebtRow})`, result: equityCached }
-                : { formula: `=MAX(0,B${intrinsicRow}-B${netDebtRow})` };
+                ? { formula: (applicable ? `=IF(B${baseRow}>0,MAX(0,B${intrinsicRow}-B${netDebtRow}),0)` : '0'), result: equityCached }
+                : { formula: (applicable ? `=IF(B${baseRow}>0,MAX(0,B${intrinsicRow}-B${netDebtRow}),0)` : '0') };
             equityCell.numFmt = '#,##0';
             equityCell.font = { bold: true, size: 13, color: { argb: ACCENT } };
             equityCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };

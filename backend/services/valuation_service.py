@@ -14,6 +14,7 @@ from backend.services.vci_financial_adapter import (
     load_eps_cagr as vci_load_eps_cagr,
 )
 from backend.services.beta_calculator import suggest_wacc as _suggest_wacc
+from backend.services.valuation_validation import validate_valuation_request
 from backend.services.valuation_policy import build_valuation_policy, sector_archetype, suggest_growth
 from backend.services.vci_news_sqlite import default_news_db_path, summarize_symbol_news_signal
 from backend.services.valuation_math import (
@@ -535,6 +536,7 @@ def load_inputs_from_sqlite(symbol: str, current_price_override: float | None = 
 
 
 def calculate_valuation(symbol: str, request_data: dict) -> dict:
+    request_data = validate_valuation_request(request_data)
     include_lists = bool(request_data.get('includeComparableLists') or request_data.get('include_comparable_lists'))
     include_quality = bool(request_data.get('includeQuality', True))
     try:
@@ -676,10 +678,8 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     # Use a peer multiple as the default.  Including the company's current
     # multiple anchors the fair value to today's market price and becomes
     # circular when EPS/BVPS are derived from price ÷ multiple.
-    company_pe = _to_float((inputs.get('sf_pe') or 0.0))
-    company_pb = _to_float((inputs.get('sf_pb') or 0.0))
-    pe_used = float(industry_median_pe) if industry_median_pe is not None else company_pe
-    pb_used = float(industry_median_pb) if industry_median_pb is not None else company_pb
+    pe_used = float(industry_median_pe) if industry_median_pe is not None else 0.0
+    pb_used = float(industry_median_pb) if industry_median_pb is not None else 0.0
     archetype = valuation_policy['archetype']
 
     # Sustainable-growth justified P/E is an ROE-based quality adjustment,
@@ -701,7 +701,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         pe_used = justified_pe_fundamental
         pe_method = 'justified_pe_roe_growth'
     else:
-        pe_method = 'icb_peer_median'
+        pe_method = 'icb_peer_median' if pe_used > 0 else 'unavailable'
 
     # Operating businesses are valued on next-twelve-month earnings when the
     # model has a growth forecast. Property/cyclical earnings remain trailing
@@ -733,7 +733,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         pb_used = justified_pb_fundamental
         pb_method = 'justified_pb_roe'
     else:
-        pb_method = 'icb_peer_median'
+        pb_method = 'icb_peer_median' if pb_used > 0 else 'unavailable'
     justified_pb = float(bvps * pb_used) if bvps > 0 else 0.0
 
     graham = 0.0
@@ -802,13 +802,32 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
     net_debt_per_share = (net_debt / shares_outstanding) if shares_outstanding > 0 else 0.0
     # FCFF discounts cash flows available to both debt and equity holders. The
     # DCF result is therefore EV/share, not the equity value shown to users.
-    fcff_value = max(0.0, fcff_enterprise_value - net_debt_per_share)
+    fcff_value = max(0.0, fcff_enterprise_value - net_debt_per_share) if fcff_base_per_share > 0 else 0.0
     fcff_details.update({
         'enterprise_value_per_share': float(fcff_enterprise_value),
         'net_debt': float(net_debt),
         'net_debt_per_share': float(net_debt_per_share),
         'equity_value_per_share': float(fcff_value),
     })
+
+    # Cash-flow proxies are not valid distributable-cash models for banks.
+    # Missing/non-positive operating cash flows do not imply liquidation value.
+    model_diagnostics = {}
+    for key, base, details in [('fcfe', fcfe_base_per_share, fcfe_details), ('fcff', fcff_base_per_share, fcff_details)]:
+        applicable = archetype != 'bank'
+        available = applicable and shares_outstanding > 0 and base > 0 and details['result'] > 0
+        notes = list(details.get('notes') or [])
+        if not applicable:
+            notes.append('bank_cashflow_proxy_not_applicable')
+        if shares_outstanding <= 0:
+            notes.append('shares_outstanding_missing')
+        model_diagnostics[key] = {'applicable': applicable, 'available': available, 'notes': notes}
+        if not available:
+            if key == 'fcfe':
+                fcfe_value = 0.0
+            else:
+                fcff_value = 0.0
+                fcff_details['equity_value_per_share'] = 0.0
 
     valuations = {
         'fcfe': float(fcfe_value),
@@ -818,12 +837,17 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         'graham': float(graham),
     }
 
+    for key in ['justified_pe', 'justified_pb', 'graham']:
+        model_diagnostics[key] = {'applicable': True, 'available': valuations[key] > 0, 'notes': []}
+
     # Use the sector policy unless the user explicitly chose a custom model
     # mix in the interface. This prevents an incidental default UI blend from
     # overriding a bank, property, or technology valuation policy.
     weights = request_data.get('modelWeights', {}) if request_data.get('useCustomWeights') else {}
-    if not any(_to_float(w) > 0 for w in weights.values()):
+    if not request_data.get('useCustomWeights'):
         weights = valuation_policy['model_weights'].copy()
+    weights = {key: _to_float(value) if model_diagnostics.get(key, {}).get('available', True) else 0.0
+               for key, value in weights.items()}
 
     weighted_avg = _compute_weighted_average(valuations, weights)
     valuations['weighted_average'] = float(weighted_avg)
@@ -846,6 +870,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         required_return=float(required_return),
         wacc=float(wacc),
         current_price=float(current_price),
+        cashflow_models_applicable=archetype != 'bank',
     )
 
     quality = None
@@ -926,7 +951,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
             },
             'peers_detailed': detailed_peers_export if include_lists else [],
             'peers_detailed_truncated': bool(peers_detailed_truncated) if include_lists else False,
-            'defaults_if_missing': {'pe_ttm': 15.0, 'pb': 1.5},
+            'missing_multiple_policy': 'unavailable unless a supported fundamental multiple can be derived',
             'source': comparables_source,
             'null_handling': 'PE/PB samples exclude only NULL/invalid values for each metric independently',
         },
@@ -1042,6 +1067,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
         'target_price': float(target_price) if target_price is not None else None,
         'valuations': valuations,
         'fair_value_range': fair_value_range,
+        'model_diagnostics': model_diagnostics,
         'fcfe_details': fcfe_details,
         'fcff_details': fcff_details,
         'scenarios': scenarios,
@@ -1096,6 +1122,7 @@ def calculate_valuation(symbol: str, request_data: dict) -> dict:
 
 
 def calculate_sensitivity(symbol: str, request_data: dict) -> dict:
+    request_data = validate_valuation_request(request_data)
     current_price_override = _to_float(request_data.get('currentPrice'))
     inputs = load_inputs_from_sqlite(
         symbol=symbol,
@@ -1103,6 +1130,9 @@ def calculate_sensitivity(symbol: str, request_data: dict) -> dict:
     )
     if not inputs.get('success'):
         return inputs
+
+    if inputs.get('is_bank'):
+        return {'success': False, 'symbol': inputs['symbol'], 'error': 'Enterprise cash-flow DCF is not applicable to banks'}
 
     cashflow_components = inputs.get('cashflow_components') or {}
     shares = float(inputs.get('shares_outstanding') or 0.0)

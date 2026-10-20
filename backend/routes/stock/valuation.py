@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from flask import Blueprint, jsonify, request
+from backend.services.valuation_validation import ValuationInputError
 
 from backend.extensions import get_valuation_service
 from backend.utils import validate_stock_symbol
@@ -20,9 +21,11 @@ def register(stock_bp: Blueprint) -> None:
             if not is_valid:
                 return jsonify({"success": False, "error": clean_symbol}), 400
 
-            data = request.get_json(silent=True) or {}
+            data = request.get_json(silent=True) if request.is_json else {}
             result = get_valuation_service().calculate(clean_symbol, data)
             return jsonify(result), (200 if result.get("success") else 404)
+        except ValuationInputError as exc:
+            return jsonify({'success': False, 'error': str(exc), 'field': exc.field}), 400
         except Exception as e:
             logger.error(f"Valuation error for {symbol}: {e}")
             return jsonify({"success": False, "error": str(e)}), 500

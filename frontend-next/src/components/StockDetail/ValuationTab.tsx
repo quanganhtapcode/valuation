@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { calculateValuation } from '@/lib/stockApi';
+import { isModelAvailable, reconcileModelSelection, weightedValuation, type ModelKey } from '@/lib/valuationModels';
 import {
     Card,
     Title,
@@ -45,43 +46,36 @@ interface ValuationTabProps {
     stockData?: StockApiData;
 }
 
-type ModelKey = 'fcfe' | 'fcff' | 'justified_pe' | 'justified_pb' | 'graham';
-
-const MODEL_META: Record<ModelKey, { nameVi: string; nameEn: string; formulaVi: string; formulaEn: string; tremorColor: 'blue' | 'indigo' | 'violet' | 'purple' | 'emerald' }> = {
+const MODEL_META: Record<ModelKey, { nameVi: string; nameEn: string; formulaVi: string; formulaEn: string }> = {
     fcfe: {
         nameVi: 'Dòng tiền vốn chủ',
         nameEn: 'Free Cash Flow to Equity',
         formulaVi: 'CFO − CapEx + Vay ròng',
         formulaEn: 'CFO − CapEx + Net Borrowing',
-        tremorColor: 'blue',
     },
     fcff: {
         nameVi: 'Dòng tiền toàn DN',
         nameEn: 'Free Cash Flow to Firm',
         formulaVi: 'CFO − CapEx + Lãi vay×(1−t), sau đó EV − Nợ ròng',
         formulaEn: 'CFO − CapEx + Interest×(1−t), then EV − Net Debt',
-        tremorColor: 'indigo',
     },
     justified_pe: {
         nameVi: 'So sánh P/E ngành',
         nameEn: 'Industry P/E comparison',
         formulaVi: 'EPS × P/E trung vị ngành',
         formulaEn: 'EPS × Industry median P/E',
-        tremorColor: 'violet',
     },
     justified_pb: {
         nameVi: 'So sánh P/B ngành',
         nameEn: 'Industry P/B comparison',
         formulaVi: 'BVPS × P/B trung vị ngành',
         formulaEn: 'BVPS × Industry median P/B',
-        tremorColor: 'purple',
     },
     graham: {
         nameVi: 'Công thức Graham',
         nameEn: 'Graham formula',
         formulaVi: '√(22.5 × EPS × BVPS)',
         formulaEn: '√(22.5 × EPS × BVPS)',
-        tremorColor: 'emerald',
     },
 };
 
@@ -109,78 +103,18 @@ function UpsideBadge({ value, size = 'sm' }: { value: number; size?: 'sm' | 'lg'
     return <Badge color={pos ? 'emerald' : 'red'} size="xs">{pct(value)}</Badge>;
 }
 
-function SensitivityMatrix({ matrix, currentPrice }: {
-    matrix: { row_headers: number[]; col_headers: number[]; values: number[][] };
-    currentPrice: number;
-}) {
-    const allVals = matrix.values.flat().filter(v => v > 0);
-    const min = Math.min(...allVals);
-    const max = Math.max(...allVals);
-    const midRow = Math.floor(matrix.row_headers.length / 2);
-    const midCol = Math.floor(matrix.col_headers.length / 2);
-
-    const cellColor = (val: number) => {
-        if (!val || val <= 0) return 'bg-tremor-background-subtle text-tremor-content-subtle';
-        const ratio = (val - min) / (max - min + 1);
-        if (ratio > 0.7) return 'bg-emerald-100 text-emerald-800';
-        if (ratio > 0.4) return 'bg-blue-50 text-blue-800';
-        if (ratio > 0.2) return 'bg-amber-50 text-amber-800';
-        return 'bg-red-50 text-red-700';
-    };
-
-    return (
-        <div>
-            <Title className="mb-0.5">Phân tích độ nhạy (FCFF)</Title>
-            <Text className="mb-4">Giá trị thay đổi theo WACC (hàng) và tăng trưởng dài hạn (cột) — đơn vị: nghìn VND</Text>
-            <div className="overflow-x-auto rounded-tremor-default border border-tremor-border">
-                <table className="w-full text-xs">
-                    <thead>
-                        <tr className="bg-tremor-background-subtle">
-                            <th className="px-3 py-2 text-left font-semibold text-tremor-content-subtle">WACC \ g</th>
-                            {matrix.col_headers.map((g, j) => (
-                                <th key={j} className={`px-3 py-2 text-center font-semibold ${j === midCol ? 'text-blue-600' : 'text-tremor-content-subtle'}`}>
-                                    {g.toFixed(1)}%
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {matrix.values.map((row, i) => (
-                            <tr key={i} className="border-t border-tremor-border">
-                                <td className={`px-3 py-2 font-semibold ${i === midRow ? 'text-blue-600' : 'text-tremor-content-subtle'}`}>
-                                    {matrix.row_headers[i].toFixed(1)}%
-                                </td>
-                                {row.map((val, j) => {
-                                    const isBase = i === midRow && j === midCol;
-                                    const up = upside(val, currentPrice);
-                                    return (
-                                        <td key={j} className={`px-2 py-2 text-center font-medium ${cellColor(val)} ${isBase ? 'ring-2 ring-blue-400 ring-inset' : ''}`}>
-                                            <div>{val > 0 ? Math.round(val / 1000).toLocaleString('vi-VN') + 'k' : '—'}</div>
-                                            {val > 0 && currentPrice > 0 && (
-                                                <div className={`text-[10px] font-bold ${up >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                    {up > 0 ? '+' : ''}
-                                                    {up.toFixed(0)}%
-                                                </div>
-                                            )}
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-}
-
-
 const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initialData, isBank, stockData }) => {
     const { lang } = useLanguage();
     const isVietnamese = lang === 'vi';
     const copy = translations[lang].detail.valuationTab;
     const [loading, setLoading] = useState(false);
     const [exportLoading, setExportLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [inputsChanged, setInputsChanged] = useState(false);
+    const activeRequest = useRef<AbortController | null>(null);
+    const editVersion = useRef(0);
+    const customSelection = useRef(false);
+    useEffect(() => () => activeRequest.current?.abort(), []);
     const [result, setResult] = useState<ValuationResult | null>(initialData || null);
     const [manualPrice, setManualPrice] = useState<number>(currentPrice || 0);
     const [userEditedPrice, setUserEditedPrice] = useState<boolean>(false);
@@ -208,37 +142,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
 
     const [models, setModels] = useState(initModels);
 
-    const normalizeEnabledModelWeights = useCallback((prevModels: typeof models, valuations?: ValuationResult['valuations'], policyWeights?: Record<string, unknown>) => {
-        const modelKeys = Object.keys(prevModels) as Array<keyof typeof prevModels>;
-        const nextModels = { ...prevModels };
-
-        modelKeys.forEach((key) => {
-            const current = prevModels[key];
-            const valuationValue = Number(valuations?.[key] ?? 0);
-            const policyExcludesModel = policyWeights !== undefined && Number(policyWeights[key] || 0) <= 0;
-            if (valuationValue <= 0 || policyExcludesModel) {
-                nextModels[key] = { ...current, enabled: false, weight: 0 };
-            } else {
-                nextModels[key] = { ...current };
-            }
-        });
-
-        const enabledKeys = modelKeys.filter((key) => nextModels[key].enabled);
-        const policyTotal = enabledKeys.reduce((sum, key) => sum + Number(policyWeights?.[key] || 0), 0);
-        const equalWeight = enabledKeys.length > 0 ? 100 / enabledKeys.length : 0;
-
-        modelKeys.forEach((key) => {
-            const m = nextModels[key];
-            const policyWeight = Number(policyWeights?.[key] || 0);
-            nextModels[key] = {
-                ...m,
-                weight: m.enabled ? (policyTotal > 0 ? (policyWeight * 100 / policyTotal) : equalWeight) : 0,
-            };
-        });
-
-        return nextModels;
-    }, []);
-
     useEffect(() => {
         if (currentPrice > 0 && !userEditedPrice) {
             setManualPrice(Math.round(currentPrice * 100) / 100);
@@ -246,8 +149,11 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     }, [currentPrice, userEditedPrice]);
 
     useEffect(() => {
-        if (initialData) setResult(initialData);
-    }, [initialData]);
+        if (initialData && (!initialData.symbol || initialData.symbol === symbol)) {
+            setResult(initialData);
+            setModels(prev => reconcileModelSelection(prev, initialData, customSelection.current));
+        }
+    }, [initialData, symbol]);
 
     useEffect(() => {
         setAssumptions(defaultAssumptions);
@@ -255,11 +161,15 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     }, [symbol]); // eslint-disable-line
 
     const handleAssumptionChange = (key: string, value: string) => {
+        editVersion.current++;
+        setInputsChanged(true);
         if (key === 'revenueGrowth') setUserEditedGrowth(true);
         setAssumptions(prev => ({ ...prev, [key]: parseFloat(value) || 0 }));
     };
 
-    const toggleModel = (key: string) => {
+    const toggleModel = (key: ModelKey) => {
+        if (!isModelAvailable(key, result, isBank) || loading) return;
+        customSelection.current = true;
         setUserCustomizedModels(true);
         setModels(prev => {
             const targetModel = prev[key as keyof typeof models];
@@ -298,7 +208,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     const handleFullExport = async () => {
         setExportLoading(true);
         try {
-            if (!result) {
+            if (!result || inputsChanged) {
                 alert('Chưa có dữ liệu định giá để xuất. Vui lòng Analyze trước.');
                 return;
             }
@@ -320,46 +230,49 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         }
     };
 
-    const handleCalculate = async () => {
+    const handleCalculate = async (reset = false) => {
+        activeRequest.current?.abort();
+        const controller = new AbortController();
+        activeRequest.current = controller;
+        const version = editVersion.current;
         setLoading(true);
+        setErrorMessage('');
         try {
             const data = await calculateValuation(symbol, {
-                ...assumptions,
-                revenueGrowth: userEditedGrowth ? assumptions.revenueGrowth : undefined,
-                ...(userCustomizedModels ? { modelWeights: getModelWeights(), useCustomWeights: true } : {}),
-                currentPrice: manualPrice,
+                ...(reset ? defaultAssumptions : assumptions),
+                revenueGrowth: !reset && userEditedGrowth ? assumptions.revenueGrowth : undefined,
+                ...(!reset && userCustomizedModels ? { modelWeights: getModelWeights(), useCustomWeights: true } : {}),
+                currentPrice: reset ? currentPrice : manualPrice,
                 includeComparableLists: true,
                 comparableListLimit: 30,
                 includeQuality: true,
-            });
-            if (data && data.success) {
-                setResult(data);
-                setModels(prev => normalizeEnabledModelWeights(
-                    prev,
-                    data.valuations,
-                    data.inputs?.model_weights as Record<string, unknown> | undefined,
-                ));
+            }, controller.signal);
+            if (controller.signal.aborted || activeRequest.current !== controller) return;
+            if (!data?.success) {
+                setErrorMessage(copy.calculationError);
+                return;
+            }
+            setResult(data);
+            setModels(prev => reconcileModelSelection(prev, data, customSelection.current));
+            if (version === editVersion.current) {
+                setInputsChanged(false);
                 setAssumptions(prev => ({
                     ...prev,
-                    wacc: prev.wacc === 0 && data.inputs?.wacc_used ? data.inputs.wacc_used : prev.wacc,
-                    requiredReturn: prev.requiredReturn === 0 && data.wacc_suggestion?.ke
-                        ? data.wacc_suggestion.ke * 100
-                        : prev.requiredReturn,
-                    revenueGrowth: !userEditedGrowth && data.inputs?.growth_used != null ? data.inputs.growth_used : prev.revenueGrowth,
+                    wacc: data.fcff_details?.discount_rate != null ? Number(data.fcff_details.discount_rate) * 100 : prev.wacc,
+                    requiredReturn: data.fcfe_details?.discount_rate != null ? Number(data.fcfe_details.discount_rate) * 100 : prev.requiredReturn,
+                    revenueGrowth: data.inputs?.growth_used ?? prev.revenueGrowth,
                 }));
             }
         } catch (error) {
-            console.error('Valuation error:', error);
+            if (!controller.signal.aborted) setErrorMessage(error instanceof Error ? error.message : copy.calculationError);
         } finally {
-            setLoading(false);
+            if (activeRequest.current === controller && !controller.signal.aborted) setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (symbol && manualPrice > 0 && !result && !loading) {
-            handleCalculate();
-        }
-    }, [symbol, manualPrice, result]); // eslint-disable-line
+        if (symbol && manualPrice > 0 && !result && !loading && !errorMessage) void handleCalculate();
+    }, [symbol, manualPrice, result]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const formatPrice = (val: number) => {
         if (!val) return '-';
@@ -371,47 +284,15 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         return ((target - manualPrice) / manualPrice) * 100;
     };
 
-    const weightedAvg = useMemo(() => {
-        if (!result?.valuations) return 0;
-
-        let totalVal = 0;
-        let totalWeight = 0;
-
-        Object.keys(models).forEach(key => {
-            const m = models[key as keyof typeof models];
-            if (m.enabled) {
-                const val = Number(result.valuations?.[key as ModelKey] || 0);
-                if (val > 0) {
-                    totalVal += val * m.weight;
-                    totalWeight += m.weight;
-                }
-            }
-        });
-
-        return totalWeight > 0 ? totalVal / totalWeight : 0;
-    }, [models, result]);
+    const weightedAvg = useMemo(() => weightedValuation(result?.valuations, getModelWeights()), [result, getModelWeights]);
 
     const finalUpside = getUpside(weightedAvg);
     const activeModelsCount = Object.values(models).filter(m => m.enabled).length;
 
     const scenarios = result?.scenarios || null;
 
-    const calcScenarioWeightedAvg = (sc: any): number => {
-        if (!sc?.valuations) return 0;
-        let totalVal = 0;
-        let totalWeight = 0;
-        Object.keys(models).forEach(key => {
-            const m = models[key as keyof typeof models];
-            if (m.enabled) {
-                const val = Number(sc.valuations[key] || 0);
-                if (val > 0) {
-                    totalVal += val * m.weight;
-                    totalWeight += m.weight;
-                }
-            }
-        });
-        return totalWeight > 0 ? totalVal / totalWeight : 0;
-    };
+    const calcScenarioWeightedAvg = (scenario: NonNullable<ValuationResult['scenarios']>['base']) =>
+        weightedValuation(scenario?.valuations, getModelWeights());
 
     const scenarioRows = scenarios
         ? [
@@ -427,10 +308,12 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
         setManualPrice(Math.round(currentPrice * 100) / 100 || 0);
         setUserEditedPrice(false);
         setUserCustomizedModels(false);
+        customSelection.current = false;
         setModels(initModels());
+        setInputsChanged(true);
+        void handleCalculate(true);
     };
 
-    const sensitivity = (result as any)?.sensitivity_analysis as { row_headers: number[]; col_headers: number[]; values: number[][] } | undefined;
     const valuationPolicy = result?.inputs?.valuation_policy as {
         archetype?: string;
         market_cap_tier?: string;
@@ -467,7 +350,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     <Text className="mt-1">{copy.subtitle}</Text>
                 </div>
                 <div className="mt-4 sm:mt-0 flex gap-2 w-full sm:w-auto">
-                    <Button variant="secondary" onClick={handleReset} icon={RiRefreshLine} className="flex-1 sm:flex-none">
+                    <Button variant="secondary" onClick={handleReset} disabled={loading} icon={RiRefreshLine} className="flex-1 sm:flex-none">
                         {copy.reset}
                     </Button>
                     <Button
@@ -475,15 +358,22 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                         onClick={handleFullExport}
                         icon={RiFileZipLine}
                         loading={exportLoading}
+                        disabled={loading || inputsChanged || !result}
                         className="flex-1 sm:flex-none"
                     >
                         {copy.excelModel}
                     </Button>
-                    <Button onClick={handleCalculate} loading={loading} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 border-none text-white font-semibold">
+                    <Button onClick={() => void handleCalculate()} loading={loading} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 border-none text-white font-semibold">
                         {copy.analyze}
                     </Button>
                 </div>
             </div>
+
+            {errorMessage && <Callout color="rose" title={copy.calculationFailed}>{errorMessage}</Callout>}
+            {inputsChanged && <Callout color="amber" title={copy.inputsChanged}>{copy.recalculateHint}</Callout>}
+            {result?.model_diagnostics && Object.values(result.model_diagnostics).some(model => model && (!model.applicable || model.notes.length > 0)) && (
+                <Callout color="amber" title={copy.modelLimitations}>{result.inputs?.is_bank ? copy.bankModelHint : copy.cashflowModelHint}</Callout>
+            )}
 
             <Grid numItems={1} numItemsLg={3} className="gap-6">
                 <Col numColSpan={1}>
@@ -501,7 +391,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                                 value={manualPrice.toString()}
                                                 onValueChange={(v) => {
                                                     setManualPrice(parseFloat(v) || 0);
-                                                    setUserEditedPrice(true);
+                                                    setUserEditedPrice(true); editVersion.current++; setInputsChanged(true);
                                                 }}
                                             />
                                         </div>
@@ -594,8 +484,14 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                     <div
                                         key={key}
                                         onClick={() => toggleModel(key)}
+                                        role="button"
+                                        tabIndex={isModelAvailable(key, result, isBank) && !loading ? 0 : -1}
+                                        aria-disabled={!isModelAvailable(key, result, isBank) || loading}
+                                        aria-pressed={m.enabled}
+                                        onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleModel(key); } }}
                                         className={classNames(
-                                            'cursor-pointer rounded-tremor-default border p-4 transition-all hover:shadow-sm',
+                                            'rounded-tremor-default border p-4 transition-all',
+                                            isModelAvailable(key, result, isBank) && !loading ? 'cursor-pointer hover:shadow-sm' : 'cursor-not-allowed opacity-50',
                                             m.enabled
                                                 ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500 dark:bg-blue-900/20'
                                                 : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-gray-950',
@@ -629,8 +525,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                             color={finalUpside >= 0 ? 'emerald' : 'rose'}
                                             className="font-bold w-fit"
                                         >
-                                            {finalUpside > 0 ? '+' : ''}
-                                            {finalUpside.toFixed(1)}% {copy.upside}
+                                            {weightedAvg > 0 ? `${finalUpside > 0 ? '+' : ''}${finalUpside.toFixed(1)}% ${copy.upside}` : copy.noData}
                                         </Badge>
                                     </div>
                                     <div className="mt-8 border-t border-slate-700/50 pt-8">
@@ -643,7 +538,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                                         finalUpside >= 15 ? 'text-emerald-400' : finalUpside <= -10 ? 'text-rose-400' : 'text-amber-400',
                                                     )}
                                                 >
-                                                    {finalUpside >= 15 ? copy.strongBuy : finalUpside >= 5 ? copy.accumulate : finalUpside <= -10 ? copy.sell : copy.hold}
+                                                    {weightedAvg <= 0 ? copy.noData : finalUpside >= 15 ? copy.strongBuy : finalUpside >= 5 ? copy.accumulate : finalUpside <= -10 ? copy.sell : copy.hold}
                                                 </Title>
                                             </div>
                                             <div className="text-right">
@@ -709,7 +604,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
             {result?.valuations && (
                 <Card>
                     <Title className="mb-0.5">{copy.modelResults}</Title>
-                    <Text className="mb-4">{copy.modelResultsHint}</Text>
+                    <Text className="mb-4">{userCustomizedModels ? copy.modelResultsHint : copy.policyWeightsHint}</Text>
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHead>
@@ -768,8 +663,8 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                     <TableCell className="text-right">
                                         <Text className="font-sans font-black text-blue-600">{fmt(weightedAvg)}</Text>
                                     </TableCell>
-                                    <TableCell className="text-right"><UpsideBadge value={finalUpside} /></TableCell>
-                                    <TableCell className="text-right"><Text className="font-semibold">100%</Text></TableCell>
+                                    <TableCell className="text-right">{weightedAvg > 0 ? <UpsideBadge value={finalUpside} /> : '—'}</TableCell>
+                                    <TableCell className="text-right"><Text className="font-semibold">{weightedAvg > 0 ? '100%' : '—'}</Text></TableCell>
                                     <TableCell />
                                 </TableRow>
                             </TableBody>
@@ -789,7 +684,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         {scenarioRows.map((row) => {
-                            const sc = row.data || {};
+                            const sc = row.data;
                             const scVal = calcScenarioWeightedAvg(sc);
                             const scUp = manualPrice > 0 ? ((scVal - manualPrice) / manualPrice) * 100 : 0;
                             return (
@@ -810,9 +705,9 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                     </div>
                                     <Metric className="mt-2">{formatPrice(scVal)}</Metric>
                                     <div className="mt-3 space-y-1 text-[11px] text-gray-600 dark:text-gray-300">
-                                        <div>Growth: {(Number((sc as any)?.assumptions?.growth || 0) * 100).toFixed(2)}%</div>
-                                        <div>WACC: {(Number((sc as any)?.assumptions?.wacc || 0) * 100).toFixed(2)}%</div>
-                                        <div>Req. Return: {(Number((sc as any)?.assumptions?.required_return || 0) * 100).toFixed(2)}%</div>
+                                        <div>Growth: {(Number(sc?.assumptions?.growth || 0) * 100).toFixed(2)}%</div>
+                                        <div>WACC: {(Number(sc?.assumptions?.wacc || 0) * 100).toFixed(2)}%</div>
+                                        <div>Req. Return: {(Number(sc?.assumptions?.required_return || 0) * 100).toFixed(2)}%</div>
                                     </div>
                                 </div>
                             );
@@ -821,21 +716,10 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                 </Card>
             )}
 
-            {sensitivity?.values && (
-                <Card>
-                    <SensitivityMatrix matrix={sensitivity} currentPrice={manualPrice} />
-                </Card>
-            )}
+
 
         </div>
     );
 };
 
-export default React.memo(ValuationTab, (prev, next) => {
-    if (prev.symbol !== next.symbol) return false;
-    if (prev.isBank !== next.isBank) return false;
-    const priceChanged = prev.currentPrice > 0
-        ? Math.abs((next.currentPrice - prev.currentPrice) / prev.currentPrice) > 0.005
-        : next.currentPrice !== prev.currentPrice;
-    return !priceChanged;
-});
+export default React.memo(ValuationTab);

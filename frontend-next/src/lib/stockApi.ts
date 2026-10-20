@@ -481,52 +481,14 @@ export async function fetchValuationData(symbol: string): Promise<{
 /**
  * Calculate valuation with custom assumptions - POST
  */
-export async function calculateValuation(symbol: string, assumptions: Record<string, unknown>): Promise<ValuationResult | null> {
-    try {
-        const response = await fetch(API.VALUATION(symbol), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(assumptions),
-        });
-        if (!response.ok) return null;
-        return await response.json();
-    } catch (error) {
-        console.error(`Error calculating valuation for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
-        return null;
-    }
-}
-
-/**
- * Get DCF sensitivity matrix (WACC vs Growth rate grid)
- */
-export async function fetchValuationSensitivity(symbol: string, params: {
-    baseWacc?: number;
-    baseGrowth?: number;
-    terminalGrowth?: number;
-    projectionYears?: number;
-} = {}): Promise<{
-    success: boolean;
-    wacc_axis: number[];
-    growth_axis: number[];
-    matrix: number[][];
-    eps_used: number;
-    base_wacc: number;
-    base_growth: number;
-} | null> {
-    try {
-        const response = await fetch(`${API.VALUATION(symbol)}/sensitivity`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params),
-        });
-        if (!response.ok) return null;
-        return await response.json();
-    } catch (error) {
-        console.error(`Error fetching valuation sensitivity for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
-        return null;
-    }
+export async function calculateValuation(symbol: string, assumptions: Record<string, unknown>, signal?: AbortSignal): Promise<ValuationResult | null> {
+    const response = await fetch(API.VALUATION(symbol), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assumptions), signal,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data?.error === 'string' ? data.error : `Valuation request failed (${response.status})`);
+    return data;
 }
 
 // ==================== EXPORT EXCEL ====================

@@ -64,8 +64,11 @@ def _dcf_per_share(
         'notes': [],
     }
 
-    if base_cashflow_per_share == 0:
-        details['notes'].append('base_cashflow_per_share==0 (cannot run DCF)')
+    if not all(math.isfinite(float(value)) for value in (base_cashflow_per_share, annual_growth, discount_rate, terminal_growth_rate, years)) or not 1 <= years <= 20 or int(years) != years or annual_growth <= -1:
+        details['notes'].append('invalid_dcf_assumptions')
+        return 0.0, details
+    if base_cashflow_per_share <= 0:
+        details['notes'].append('non_positive_base_cashflow (requires normalized cash-flow forecasts)')
         return 0.0, details
     if discount_rate <= 0:
         details['notes'].append('discount_rate<=0 (invalid)')
@@ -98,6 +101,7 @@ def _dcf_per_share(
     details['cashflows'] = cashflows
     details['terminal_growth_used'] = float(tg)
     details['result'] = float(result)
+    details['terminal_value_share'] = tv_disc / result if result > 0 else 0.0
     return result, details
 
 
@@ -183,6 +187,7 @@ def _calc_scenario(
     wacc: float,
     multiple_factor: float,
     current_price: float,
+    cashflow_models_applicable: bool = True,
 ) -> dict:
     fcfe_value, _ = _dcf_per_share(
         base_cashflow_per_share=float(fcfe_base_per_share),
@@ -198,7 +203,10 @@ def _calc_scenario(
         terminal_growth_rate=float(terminal_growth),
         years=int(projection_years),
     )
-    fcff_value = max(0.0, fcff_enterprise_value - net_debt_per_share)
+    fcff_value = max(0.0, fcff_enterprise_value - net_debt_per_share) if fcff_base_per_share > 0 else 0.0
+
+    if not cashflow_models_applicable:
+        fcfe_value = fcff_value = 0.0
 
     vals = {
         'fcfe': float(fcfe_value),
@@ -244,6 +252,7 @@ def _build_default_scenarios(
     required_return: float,
     wacc: float,
     current_price: float,
+    cashflow_models_applicable: bool = True,
 ) -> dict:
     base = _calc_scenario(
         name='base',
@@ -263,6 +272,7 @@ def _build_default_scenarios(
         wacc=wacc,
         multiple_factor=1.0,
         current_price=current_price,
+        cashflow_models_applicable=cashflow_models_applicable,
     )
 
     bull = _calc_scenario(
@@ -283,6 +293,7 @@ def _build_default_scenarios(
         wacc=max(0.05, wacc - 0.01),
         multiple_factor=1.1,
         current_price=current_price,
+        cashflow_models_applicable=cashflow_models_applicable,
     )
 
     bear = _calc_scenario(
@@ -303,6 +314,7 @@ def _build_default_scenarios(
         wacc=min(0.35, wacc + 0.01),
         multiple_factor=0.9,
         current_price=current_price,
+        cashflow_models_applicable=cashflow_models_applicable,
     )
 
     return {'bear': bear, 'base': base, 'bull': bull}

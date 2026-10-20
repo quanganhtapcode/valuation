@@ -152,3 +152,20 @@ for (const symbol of ['FPT', 'VCB']) {
         }
     });
 }
+
+test('bank cash-flow models stay excluded after editing workbook weights', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify({ data: [] }));
+    try {
+        const data = structuredClone(liveFixtures.VCB);
+        data.model_diagnostics = { fcfe: { applicable: false, available: false }, fcff: { applicable: false, available: false } };
+        data.valuations.fcfe = data.valuations.fcff = 0;
+        const workbook = await new ReportGenerator({ show() {} }).createWorkbook({}, data, {}, { fcfe: 50, fcff: 50 }, 'VCB');
+        const evaluator = workbookEvaluator(workbook);
+        closeTo(evaluator.read('Summary', 'B16'), 0, 'bank FCFE');
+        closeTo(evaluator.read('Summary', 'B17'), 0, 'bank FCFF');
+        closeTo(evaluator.read('Summary', 'B23'), 0, 'bank CFO models cannot enter blend');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

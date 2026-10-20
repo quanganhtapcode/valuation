@@ -133,6 +133,82 @@ class ValuationTests(unittest.TestCase):
         result = service.calculate_valuation('AAA', {'revenueGrowth': 0})
         self.assertEqual(result['inputs']['growth_used'], 0)
 
+    def test_bank_cashflow_models_are_excluded_even_with_custom_weights(self):
+        self.inputs['is_bank'] = True
+        result = service.calculate_valuation('AAA', {'useCustomWeights': True, 'modelWeights': {'fcfe': 50, 'fcff': 50}})
+        self.assertEqual(result['valuations']['fcfe'], 0)
+        self.assertEqual(result['valuations']['fcff'], 0)
+        self.assertEqual(result['valuations']['weighted_average'], 0)
+        self.assertFalse(result['model_diagnostics']['fcff']['applicable'])
+        self.assertEqual(result['valuations'], result['scenarios']['base']['valuations'])
+
+    def test_missing_cashflow_is_not_valued_as_net_cash(self):
+        self.inputs['cashflow_components'] = {}
+        self.inputs['balance_sheet_components']['net_debt'] = -50000
+        result = service.calculate_valuation('AAA', {})
+        self.assertEqual(result['valuations']['fcff'], 0)
+        self.assertFalse(result['model_diagnostics']['fcff']['available'])
+        self.assertEqual(result['scenarios']['base']['valuations']['fcff'], 0)
+
+    def test_missing_peers_do_not_anchor_valuation_to_company_market_multiples(self):
+        self.inputs.update(industry='Steel', industry_screening_name='Steel', sf_pe=30, sf_pb=5)
+        with patch.object(service._screening_industry_cache, 'get_rows', return_value=[]):
+            result = service.calculate_valuation('AAA', {})
+        self.assertEqual(result['valuations']['justified_pe'], 0)
+        self.assertEqual(result['valuations']['justified_pb'], 0)
+        self.assertEqual(result['inputs']['pe_method'], 'unavailable')
+
+    def test_all_zero_custom_weights_do_not_reenable_policy(self):
+        result = service.calculate_valuation('AAA', {'useCustomWeights': True, 'modelWeights': {}})
+        self.assertEqual(result['valuations']['weighted_average'], 0)
+        self.assertEqual(sum(result['inputs']['model_weights'].values()), 0)
+
+    def test_invalid_request_is_rejected_before_database_work(self):
+        from backend.services.valuation_validation import ValuationInputError
+        for data in [[], {'taxRate': 101}, {'wacc': float('nan')}, {'projectionYears': 2.5},
+                     {'revenueGrowth': -100}, {'useCustomWeights': True, 'modelWeights': {'unknown': 10}}]:
+            with self.subTest(data=data), patch.object(service, 'load_inputs_from_sqlite') as loader:
+                with self.assertRaises(ValuationInputError):
+                    service.calculate_valuation('AAA', data)
+                loader.assert_not_called()
+
+
+class DCFGuardTests(unittest.TestCase):
+    def test_non_positive_cashflow_requires_a_normalized_forecast(self):
+        from backend.services.valuation_math import _dcf_per_share
+        for value in [0, -100]:
+            result, details = _dcf_per_share(value, .1, .12, .03, 5)
+            self.assertEqual(result, 0)
+            self.assertTrue(details['notes'])
+
+    def test_terminal_share_is_auditable(self):
+        from backend.services.valuation_math import _dcf_per_share
+        result, details = _dcf_per_share(100, .1, .12, .03, 5)
+        self.assertGreater(result, 0)
+        self.assertGreater(details['terminal_value_share'], 0)
+        self.assertLess(details['terminal_value_share'], 1)
+        self.assertAlmostEqual(details['terminal_value_share'], details['terminal_value_discounted'] / result)
+
+    def test_sector_classifier_handles_vietnamese_technology_labels(self):
+        from backend.services.valuation_policy import sector_archetype
+        self.assertEqual(sector_archetype('Phần mềm'), 'technology')
+        self.assertEqual(sector_archetype('Điện tử'), 'technology')
+        self.assertEqual(sector_archetype('Sản xuất điện'), 'utility')
+
+    def test_route_returns_validation_errors_as_bad_requests(self):
+        from flask import Blueprint, Flask
+        from backend.routes.stock import valuation
+        app = Flask(__name__)
+        bp = Blueprint('test_valuation', __name__)
+        valuation.register(bp)
+        app.register_blueprint(bp)
+        with patch.object(valuation, 'get_valuation_service', return_value=service.ValuationService()):
+            for payload in [[], {'taxRate': -10}, {'useCustomWeights': True, 'modelWeights': None}]:
+                with self.subTest(payload=payload):
+                    response = app.test_client().post('/valuation/AAA', json=payload)
+                    self.assertEqual(response.status_code, 400)
+                    self.assertIn('field', response.get_json())
+
 
 class BetaTests(unittest.TestCase):
     def test_returns_match_both_interval_endpoints(self):
