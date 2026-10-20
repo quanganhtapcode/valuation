@@ -4,10 +4,10 @@ import JSZip from 'jszip';
 import { API_BASE } from './apiCore';
 
 // ─── Color constants ─────────────────────────────────────────────────────────
-const DARK         = '1E293B';
-const ACCENT       = '2563EB';
+const DARK         = '00308C';
+const ACCENT       = '00308C';
 const LIGHT_BG     = 'EFF6FF';
-const HEADER_BG    = 'DBEAFE';
+const HEADER_BG    = '00308C';
 const TOTAL_BG     = 'F1F5F9';
 const GRAND_TOTAL_BG = 'E2E8F0';
 const INPUT_YLW    = 'FEF9C3';
@@ -44,10 +44,11 @@ function labelValue(sheet: ExcelJS.Worksheet, row: number, label: string, col = 
 function setNote(sheet: ExcelJS.Worksheet, row: number, note: string, col = 3) {
     const c = sheet.getCell(row, col);
     c.value = note;
-    c.font = { italic: true, color: { argb: '94A3B8' }, size: 9 };
+    c.font = { italic: true, color: { argb: '64748B' }, size: 9 };
 }
 
 function toNumber(value: unknown, fallback = 0): number {
+    if (value == null || value === '') return fallback;
     const n = Number(value);
     return Number.isFinite(n) ? n : fallback;
 }
@@ -161,7 +162,7 @@ const I = {
     fcfe_capex: 36, fcfe_netBorrowing: 37,
     fcff_netIncome: 43, fcff_interestAfterTax: 44, fcff_depreciation: 45,
     fcff_workingCapital: 46, fcff_capex: 47,
-    grahamValue: 52,
+    grahamValue: 52, peEPS: 25,
     wFCFE: 57, wFCFF: 58, wPE: 59, wPB: 60, wGraham: 61, wPS: 62,
 };
 
@@ -170,6 +171,7 @@ const PROJ_YEARS = 5;
 
 // ─── Main class ───────────────────────────────────────────────────────────────
 export class ReportGenerator {
+    private projectionYears = PROJ_YEARS;
     private toast: { show?: (msg: string, type: string) => void; hide?: () => void };
 
     constructor(toastManager?: { show?: (msg: string, type: string) => void; hide?: () => void }) {
@@ -259,65 +261,7 @@ export class ReportGenerator {
             return;
         }
         try {
-            this.showStatus('Fetching historical financial statements…', 'info');
-            const [historical, cashflowRow] = await Promise.all([
-                this.fetchHistoricalStatements(symbol),
-                this.fetchLatestFinancialReportRow(symbol, 'cashflow'),
-            ]);
-
-            this.showStatus('Building financial model…', 'info');
-
-            const wb = new ExcelJS.Workbook();
-            wb.creator = 'quanganh.org';
-            wb.created = new Date();
-            wb.calcProperties.fullCalcOnLoad = false;
-
-            const noGrid = { views: [{ showGridLines: false }] };
-
-            // Sheet order: Summary first (visible), then statements, then models
-            const wsSummary = wb.addWorksheet('Summary',          noGrid);
-            const wsIS      = wb.addWorksheet('Income Statement', noGrid);
-            const wsBS      = wb.addWorksheet('Balance Sheet',    noGrid);
-            const wsCF      = wb.addWorksheet('Cash Flow',        noGrid);
-            const wsRatios  = wb.addWorksheet('Key Ratios',       noGrid);
-            const wsFCFE    = wb.addWorksheet('FCFE Model',       noGrid);
-            const wsFCFF    = wb.addWorksheet('FCFF Model',       noGrid);
-            const wsComp    = wb.addWorksheet('Comparables',      noGrid);
-            const wsAssump  = wb.addWorksheet('Assumptions',      noGrid);
-            const wsPeers   = wb.addWorksheet('Sector Peers',     noGrid);
-            const wsDrivers = wb.addWorksheet('Forecast Drivers', noGrid);
-            const wsAudit   = wb.addWorksheet('Model Audit',      noGrid);
-
-            // Build financial statement sheets and collect coord registry
-            const coordReg: CoordRegistry = {};
-            this.createStatementsSheet(wsIS,  IS_ROWS,  historical.income,   historical.years, 'Income Statement',  symbol, coordReg);
-            this.createStatementsSheet(wsBS,  BS_ROWS,  historical.balance,  historical.years, 'Balance Sheet',     symbol, coordReg);
-            this.createCFSheet(wsCF, historical.cashflow, historical.years, symbol, coordReg);
-            this.createKeyRatiosSheet(wsRatios, historical.years, coordReg, symbol);
-
-            // Inputs / Assumptions sheet (yellow cells)
-            this.createAssumptionsSheet(
-                wsAssump, stockData, valuationResults, assumptions, modelWeights,
-                symbol, cashflowRow, historical
-            );
-
-            // DCF sheets
-            this.buildDCFSheet(wsFCFE, 'FCFE', valuationResults);
-            this.buildDCFSheet(wsFCFF, 'FCFF', valuationResults);
-
-            // Comparables (combined P/E + P/B)
-            this.createComparablesSheet(wsComp, valuationResults);
-
-            // Summary first sheet
-            this.createSummarySheet(wsSummary, stockData, valuationResults, modelWeights, symbol);
-
-            // Sector peers
-            this.createSectorPeersSheet(wsPeers, valuationResults);
-            this.createForecastDriversSheet(wsDrivers, historical, valuationResults, symbol);
-            this.createModelAuditSheet(wsAudit, valuationResults, symbol);
-
-            // Sheet order is already set by worksheet creation order above
-
+            const wb = await this.createWorkbook(stockData, valuationResults, assumptions, modelWeights, symbol);
             const buf = await wb.xlsx.writeBuffer();
             const dateStr = new Date().toISOString().split('T')[0];
 
@@ -350,6 +294,173 @@ export class ReportGenerator {
             console.error('ReportGenerator error:', err);
             this.showStatus('Error generating report: ' + msg, 'error');
         }
+    }
+
+    /** Build the same workbook used by browser downloads, without downloading it. */
+    async createWorkbook(
+        stockData: Record<string, unknown>, valuationResults: Record<string, unknown>,
+        assumptions: Record<string, unknown>, modelWeights: Record<string, unknown>, symbol: string
+    ): Promise<ExcelJS.Workbook> {
+        this.showStatus('Fetching historical financial statements…', 'info');
+        const [historical, cashflowRow] = await Promise.all([
+            this.fetchHistoricalStatements(symbol),
+            this.fetchLatestFinancialReportRow(symbol, 'cashflow'),
+        ]);
+
+        this.showStatus('Building financial model…', 'info');
+        const dcf = (valuationResults.fcfe_details ?? valuationResults.fcff_details) as Record<string, unknown> | undefined;
+        const policyWeights = (valuationResults.inputs as Record<string, unknown> | undefined)?.model_weights as Record<string, unknown> | undefined;
+        modelWeights = Object.keys(modelWeights).length ? modelWeights : (policyWeights ?? {});
+        this.projectionYears = Math.max(1, Math.min(20, Math.trunc(toNumber(dcf?.years ?? assumptions.projectionYears, PROJ_YEARS))));
+
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'quanganh.org';
+        wb.created = new Date();
+        wb.calcProperties.fullCalcOnLoad = true;
+
+        const noGrid = { views: [{ showGridLines: false }] };
+
+        // Sheet order: Summary first (visible), then statements, then models
+        const wsSummary = wb.addWorksheet('Summary',          noGrid);
+        const wsIS      = wb.addWorksheet('Income Statement', noGrid);
+        const wsBS      = wb.addWorksheet('Balance Sheet',    noGrid);
+        const wsCF      = wb.addWorksheet('Cash Flow',        noGrid);
+        const wsRatios  = wb.addWorksheet('Key Ratios',       noGrid);
+        const wsFCFE    = wb.addWorksheet('FCFE Model',       noGrid);
+        const wsFCFF    = wb.addWorksheet('FCFF Model',       noGrid);
+        const wsComp    = wb.addWorksheet('Comparables',      noGrid);
+        const wsAssump  = wb.addWorksheet('Assumptions',      noGrid);
+        const wsPeers   = wb.addWorksheet('Sector Peers',     noGrid);
+        const wsDrivers = wb.addWorksheet('Forecast Drivers', noGrid);
+        const wsAudit   = wb.addWorksheet('Model Audit',      noGrid);
+
+        // Build financial statement sheets and collect coord registry
+        const coordReg: CoordRegistry = {};
+        this.createStatementsSheet(wsIS,  IS_ROWS,  historical.income,   historical.years, 'Income Statement',  symbol, coordReg);
+        this.createStatementsSheet(wsBS,  BS_ROWS,  historical.balance,  historical.years, 'Balance Sheet',     symbol, coordReg);
+        this.createCFSheet(wsCF, historical.cashflow, historical.years, symbol, coordReg);
+        this.createKeyRatiosSheet(wsRatios, historical.years, coordReg, symbol);
+
+        // Inputs / Assumptions sheet (yellow cells)
+        this.createAssumptionsSheet(
+            wsAssump, stockData, valuationResults, assumptions, modelWeights,
+            symbol, cashflowRow, historical
+        );
+
+        // DCF sheets
+        this.buildDCFSheet(wsFCFE, 'FCFE', valuationResults);
+        this.buildDCFSheet(wsFCFF, 'FCFF', valuationResults);
+
+        // Comparables (combined P/E + P/B)
+        this.createComparablesSheet(wsComp, valuationResults);
+
+        // Summary first sheet
+        this.createSummarySheet(wsSummary, stockData, valuationResults, modelWeights, symbol);
+
+        // Sector peers
+        this.createSectorPeersSheet(wsPeers, valuationResults);
+        this.createForecastDriversSheet(wsDrivers, historical, valuationResults, symbol);
+        this.createModelAuditSheet(wsAudit, valuationResults, symbol);
+
+        // Sheet order is already set by worksheet creation order above
+
+        this.styleWorkbook(wb);
+        return wb;
+    }
+
+    /** Consistent financial-model typography, navigation and print layout. */
+    private styleWorkbook(workbook: ExcelJS.Workbook) {
+        const moneyFormat = '#,##0;[Red](#,##0);"—"';
+        const decimalFormat = '#,##0.00;[Red](#,##0.00);"—"';
+        workbook.views = [{ x: 0, y: 0, width: 16000, height: 10000, visibility: 'visible', activeTab: 0, firstSheet: 0 }];
+        workbook.eachSheet(sheet => {
+            const peers = sheet.name === 'Sector Peers';
+            if (!peers) sheet.getColumn(1).width = Math.max(sheet.getColumn(1).width ?? 0, 50.83);
+            // Notes occupy the remaining panel instead of spilling into adjacent columns.
+            if (sheet.name === 'Assumptions') {
+                for (const row of [5, 6, 17, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29, 33, 34, 35, 36, 37, 43, 44, 45, 46, 47, 52]) {
+                    if (row === 5 || row === 6) sheet.mergeCells(row, 2, row, 5);
+                    else if (!sheet.getCell(row, 3).isMerged) sheet.mergeCells(row, 3, row, 5);
+                }
+                sheet.getColumn(3).width = 28;
+                sheet.getColumn(4).width = 12;
+                sheet.getColumn(5).width = 12;
+            }
+            if (sheet.name === 'FCFE Model' || sheet.name === 'FCFF Model') {
+                sheet.eachRow(row => {
+                    const note = row.getCell(3);
+                    if (typeof note.value === 'string' && !note.isMerged && [4, 5, 6].every(col => row.getCell(col).value == null)) {
+                        sheet.mergeCells(row.number, 3, row.number, 6);
+                    }
+                });
+            }
+            sheet.properties.defaultRowHeight = 21;
+            sheet.properties.tabColor = { argb: sheet.name.includes('Model') || sheet.name === 'Assumptions' ? '007F6D' : ACCENT };
+            sheet.views = [{ state: 'frozen', xSplit: peers ? 2 : 1, ySplit: peers ? 10 : 4, showGridLines: false, zoomScale: 90 }];
+            sheet.pageSetup = {
+                orientation: 'landscape', paperSize: 9, fitToPage: true,
+                fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+                margins: { left: 0.3, right: 0.3, top: 0.45, bottom: 0.45, header: 0.2, footer: 0.2 },
+                printArea: `A1:${colLetter(sheet.columnCount)}${sheet.rowCount}`,
+                printTitlesRow: peers ? '1:10' : '1:4',
+            };
+            sheet.headerFooter = { oddFooter: '&Lquanganh.org  |  Valuation model&C&A&RPage &P of &N' };
+            const mergedWidths = new Map<string, number>();
+            for (const range of sheet.model.merges) {
+                const [start, end] = range.split(':');
+                const first = sheet.getCell(start);
+                const last = sheet.getCell(end ?? start);
+                let width = 0;
+                for (let col = Number(first.col); col <= Number(last.col); col++) width += sheet.getColumn(col).width ?? 12;
+                mergedWidths.set(first.address, width);
+            }
+            sheet.eachRow(row => {
+                let height = row.height ?? 21;
+                row.eachCell(cell => {
+                    if (cell.isMerged && cell.master.address !== cell.address) return;
+                    const fill = cell.fill;
+                    const header = fill?.type === 'pattern' && fill.fgColor?.argb === HEADER_BG;
+                    const formula = cell.type === ExcelJS.ValueType.Formula;
+                    const input = fill?.type === 'pattern' && fill.fgColor?.argb === INPUT_YLW && !formula;
+                    const linked = formula && cell.formula.includes('!');
+                    cell.font = {
+                        ...cell.font, name: 'Calibri', size: row.number === 1 ? 18 : (header ? 11 : (cell.font?.size ?? 11)),
+                        ...(header ? { color: { argb: 'FFFFFF' }, bold: true } : input ? { color: { argb: '00308C' } } : linked ? { color: { argb: '007F6D' } } : {}),
+                    };
+                    cell.alignment = { ...cell.alignment, vertical: 'middle', wrapText: true };
+                    if (!header && cell.alignment.horizontal !== 'center' && (typeof cell.value === 'number' || formula)) cell.alignment = { ...cell.alignment, horizontal: 'right' };
+                    if (cell.numFmt === '#,##0') cell.numFmt = moneyFormat;
+                    if (cell.numFmt === '#,##0.00') cell.numFmt = decimalFormat;
+                    if (cell.numFmt === '+0.00%;-0.00%') cell.numFmt = '+0.00%;[Red](0.00%);"—"';
+                    if (cell.numFmt === '0.00%') cell.numFmt = '0.00%;[Red](0.00%);"—"';
+                    if (formula && cell.formula.startsWith('=')) cell.value = { formula: cell.formula.slice(1), result: cell.result };
+                    if (input) {
+                        cell.protection = { locked: false };
+                        cell.note = 'Editable model input. Linked valuation sheets recalculate when this value changes.';
+                    }
+                    if (typeof cell.value === 'string' || cell.type === ExcelJS.ValueType.Hyperlink) {
+                        const width = mergedWidths.get(cell.address) ?? sheet.getColumn(Number(cell.col)).width ?? 12;
+                        const lines = Math.max(1, Math.ceil(cell.text.length / Math.max(1, width - 3)));
+                        height = Math.max(height, Math.min(72, lines * (cell.font.size ?? 11) * 1.4 + 6));
+                    }
+                });
+                row.height = row.number === 1 ? 38 : height;
+            });
+        });
+        const assumptions = workbook.getWorksheet('Assumptions');
+        assumptions?.addConditionalFormatting({
+            ref: `B${I.wPS + 1}`,
+            rules: [{ type: 'expression', formulae: [`B${I.wPS + 1}<>100`], priority: 1,
+                style: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } }, font: { color: { argb: 'B91C1C' }, bold: true } } }],
+        });
+        const summary = workbook.getWorksheet('Summary');
+        summary?.addConditionalFormatting({
+            ref: 'E16:E23',
+            rules: [
+                { type: 'cellIs', operator: 'greaterThan', formulae: [0], priority: 1, style: { font: { color: { argb: '047857' } } } },
+                { type: 'cellIs', operator: 'lessThan', formulae: [0], priority: 2, style: { font: { color: { argb: 'B91C1C' } } } },
+            ],
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -630,7 +741,7 @@ export class ReportGenerator {
                     if (reg['cfa18'] && reg['cfa19']) {
                         const opC  = `${colLetter(col)}${reg['cfa18'].row}`;
                         const cxC  = `${colLetter(col)}${reg['cfa19'].row}`;
-                        c.value  = { formula: `=${opC}+${cxC}` };
+                        c.value  = { formula: `=${opC}-ABS(${cxC})` };
                         c.numFmt = '#,##0.0';
                         c.font   = { bold: true };
                         c.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_BG } };
@@ -886,7 +997,7 @@ export class ReportGenerator {
         const set = (row: number, label: string, value: unknown, fmt?: string, note?: string) => {
             labelValue(sheet, row, label);
             const vc  = sheet.getCell(row, 2);
-            vc.value  = (value ?? 0) as ExcelJS.CellValue;
+            vc.value  = (value ?? null) as ExcelJS.CellValue;
             if (fmt) vc.numFmt = fmt;
             applyBorders(vc, 'thin');
             if (note) setNote(sheet, row, note);
@@ -930,21 +1041,19 @@ export class ReportGenerator {
             (valuationResults?.['inputs'] as Record<string, unknown>)?.['bvps']
             ?? stockData.bvps ?? stockData.book_value, 0
         );
-        const peRatio = toNumber(stockData.pe_ratio ?? stockData.pe ?? stockData.PE, 0);
-        const pbRatio = toNumber(stockData.pb_ratio ?? stockData.pb ?? stockData.PB, 0);
-        const roePct  = normalizePercentValue(stockData.roe ?? stockData.ROE ?? 0);
-        const roaPct  = normalizePercentValue(stockData.roa ?? stockData.ROA ?? 0);
-        const marketCapBn = toNumber(stockData.market_cap, 0) > 0
-            ? toNumber(stockData.market_cap, 0) / 1e9
-            : toNumber(stockData.marketCap, 0) / 1e9;
+        const peRatio = toNumber(stockData.pe_ratio ?? stockData.pe ?? stockData.PE, eps > 0 ? cp / eps : 0);
+        const pbRatio = toNumber(stockData.pb_ratio ?? stockData.pb ?? stockData.PB, bvps > 0 ? cp / bvps : 0);
+        const roePct = stockData.roe == null && stockData.ROE == null ? null : normalizePercentValue(stockData.roe ?? stockData.ROE);
+        const roaPct = stockData.roa == null && stockData.ROA == null ? null : normalizePercentValue(stockData.roa ?? stockData.ROA);
+        const capitalStructure = (valuationResults.inputs as Record<string, unknown> | undefined)?.capital_structure as Record<string, unknown> | undefined;
+        const marketCapBn = toNumber(stockData.market_cap ?? stockData.marketCap ?? capitalStructure?.market_cap) / 1e9;
         const rawShares = toNumber(
             (valuationResults?.['inputs'] as Record<string, unknown>)?.['shares_outstanding']
             ?? stockData.shares_outstanding ?? stockData.shareOutstanding, 0
         );
-        const sharesOutstanding = rawShares > 0 && rawShares < 1_000_000
-            ? rawShares * 1_000_000 : rawShares;
+        const sharesOutstanding = rawShares;
 
-        set(I.currentPrice,      'Current Market Price (VND)',   cp,               '#,##0',   'Live price');
+        set(I.currentPrice,      'Current Market Price (VND)',   cp,               '#,##0',   'Market price at export');
         set(I.eps,               'EPS TTM (VND)',                eps,              '#,##0',   'Trailing 12-month EPS');
         set(I.bvps,              'BVPS (VND)',                   bvps,             '#,##0',   'Latest quarterly BVPS');
         set(I.pe,                'P/E Ratio (trailing)',         peRatio,          '0.00');
@@ -961,24 +1070,26 @@ export class ReportGenerator {
         sheet.getCell('A17').font  = { italic: true, color: { argb: '92400E' }, size: 9 };
 
         const a = assumptions ?? {};
-        const growthHigh = toNumber(a.revenueGrowth,  0) > 0
+        const auditedDCF = (valuationResults.fcfe_details ?? {}) as Record<string, unknown>;
+        const auditedFCFF = (valuationResults.fcff_details ?? {}) as Record<string, unknown>;
+        const growthHigh = auditedDCF.annual_growth != null ? toNumber(auditedDCF.annual_growth) : a.revenueGrowth != null
             ? toNumber(a.revenueGrowth, 0) / 100
             : toNumber(a.growthRate ?? a.growth_rate ?? 0.08);
-        const growthTerm = toNumber(a.terminalGrowth, 0) > 0
+        const growthTerm = auditedDCF.terminal_growth != null ? toNumber(auditedDCF.terminal_growth) : a.terminalGrowth != null
             ? toNumber(a.terminalGrowth, 0) / 100
             : toNumber(a.terminalGrowthRate ?? a.terminal_growth_rate ?? 0.03);
-        const ke   = toNumber(a.requiredReturn, 0) > 0
+        const ke = auditedDCF.discount_rate != null ? toNumber(auditedDCF.discount_rate) : a.requiredReturn != null
             ? toNumber(a.requiredReturn, 0) / 100
             : toNumber(a.ke ?? a.costOfEquity ?? a.discount_rate ?? 0.12);
-        const wacc = toNumber(a.wacc, 0) > 0
+        const wacc = auditedFCFF.discount_rate != null ? toNumber(auditedFCFF.discount_rate) : a.wacc != null
             ? toNumber(a.wacc, 0) / 100
             : (toNumber(a.WACC, 0) > 0 ? toNumber(a.WACC, 0) / 100 : ke);
 
-        setAssumption(I.growthHigh,    'High-Growth Rate (g₁)',        growthHigh,    '0.00%', `Applied to Years 1–${PROJ_YEARS}`);
+        setAssumption(I.growthHigh,    'High-Growth Rate (g₁)',        growthHigh,    '0.00%', `Applied to Years 1–${this.projectionYears}`);
         setAssumption(I.growthTerminal,'Terminal Growth Rate (gₙ)',     growthTerm,    '0.00%', 'Gordon Growth, perpetuity');
         setAssumption(I.ke,            'Cost of Equity — Ke',          ke,            '0.00%', 'Discount rate for FCFE');
         setAssumption(I.wacc,          'WACC',                         wacc,          '0.00%', 'Discount rate for FCFF');
-        setAssumption(I.dcfYears,      'Projection Years',             PROJ_YEARS,    '0',     'Matches the platform DCF horizon');
+        setAssumption(I.dcfYears,      'Projection Years',             this.projectionYears,    '0',     'Matches the platform DCF horizon');
 
         // ── Comparable Multiples ──────────────────────────────────────────
         sectionHeader(sheet, 24, '  COMPARABLE VALUATION MULTIPLES', 5);
@@ -1004,6 +1115,8 @@ export class ReportGenerator {
         const pbMultiple  = pbUsed > 0 ? pbUsed : ((pbVal > 0 && bvps > 0)      ? pbVal / bvps      : toNumber(a.pbRatio, 2));
         const psMultiple  = psUsed > 0 ? psUsed : ((psVal > 0 && revPerShare > 0) ? psVal / revPerShare : toNumber(a.psRatio, 3));
 
+        const peCalculation = (((valuationResults.export as Record<string, unknown>)?.calculation as Record<string, unknown>)?.justified_pe ?? {}) as Record<string, unknown>;
+        set(I.peEPS, 'EPS Used for P/E (VND)', toNumber(peCalculation.eps_metric_used, eps), '#,##0', String(peCalculation.eps_metric_label ?? 'EPS TTM'));
         set(I.revPerShare, 'Revenue / Share (VND)', revPerShare, '#,##0', 'Used by P/S valuation');
         setAssumption(I.peMultiple, 'P/E Multiple Used', peMultiple, '0.00', 'Justified or sector median');
         setAssumption(I.pbMultiple, 'P/B Multiple Used', pbMultiple, '0.00', 'Justified or sector median');
@@ -1012,7 +1125,7 @@ export class ReportGenerator {
         // ── FCFE Inputs (seeded from latest historical CF) ────────────────
         sectionHeader(sheet, 30, '  FCFE RAW INPUTS (from latest financial statements)', 5);
         sheet.mergeCells('A31:E31');
-        sheet.getCell('A31').value = 'Base FCFE = Operating Cash Flow − CapEx + Net Borrowing';
+        sheet.getCell('A31').value = 'Base FCFE = Operating Cash Flow − CapEx + Net Borrowing (TTM when available)';
         sheet.getCell('A31').font  = { italic: true, color: { argb: '475569' }, size: 9 };
 
         // The backend valuation uses TTM cash-flow components.  Use the exact
@@ -1032,7 +1145,7 @@ export class ReportGenerator {
         const fcfeDepr      = 0;
         const fcfeCapex     = toNumber(fcffCalc['capex_net'], Math.abs(toNumber(latestCF['cfa19'], 0)));
         const fcfeNB        = toNumber(fcfeCalc['net_borrowing'], toNumber(latestCF['cfa29'], 0) + toNumber(latestCF['cfa30'], 0));
-        const cfaPeriodLabel = latestCF['year'] ? `Year ${latestCF['year']}` : '';
+        const cfaPeriodLabel = fcfeCalc['operating_cf'] != null ? 'Audited valuation cash-flow inputs (TTM)' : latestCF['year'] ? `Year ${latestCF['year']}` : 'Latest available report';
 
         set(I.fcfe_netIncome,     'Operating Cash Flow / CFO (Bn VND)',     fcfeNetIncome / 1e9, '#,##0.00', cfaPeriodLabel);
         set(I.fcfe_depreciation,  'Additional D&A adjustment (Bn VND)',     fcfeDepr / 1e9,      '#,##0.00', 'Already included in CFO');
@@ -1059,7 +1172,11 @@ export class ReportGenerator {
         sheet.getCell('A50').value = 'Graham Intrinsic Value = √( 22.5 × EPS × BVPS )';
         sheet.getCell('A50').font  = { italic: true, color: { argb: '475569' }, size: 9 };
         const grahamVal = toNumber((valuationResults?.['valuations'] as Record<string, unknown>)?.['graham'], 0);
-        set(I.grahamValue, 'Graham Value (VND)', grahamVal, '#,##0', 'Computed by backend');
+        set(I.grahamValue, 'Graham Value (VND)', grahamVal, '#,##0', 'Recalculates from EPS TTM and BVPS');
+        sheet.getCell(I.grahamValue, 2).value = {
+            formula: `IF(AND(B${I.eps}>0,B${I.bvps}>0),SQRT(22.5*B${I.eps}*B${I.bvps}),0)`,
+            result: grahamVal,
+        };
 
         // ── Model Weights ─────────────────────────────────────────────────
         sectionHeader(sheet, 53, '  MODEL WEIGHTS (%)', 5);
@@ -1073,8 +1190,13 @@ export class ReportGenerator {
         setAssumption(I.wPE,    'P/E Weight (%)',    toNumber(wt.justified_pe ?? wt.pe ?? wt.PE ?? 20), '0.00');
         setAssumption(I.wPB,    'P/B Weight (%)',    toNumber(wt.justified_pb ?? wt.pb ?? wt.PB ?? 20), '0.00');
         setAssumption(I.wGraham,'Graham Weight (%)', toNumber(wt.graham ?? wt.Graham ?? 10), '0.00');
-        setAssumption(I.wPS,    'P/S Weight (%)',    toNumber(wt.justified_ps ?? wt.ps ?? wt.PS ?? 10), '0.00');
+        setAssumption(I.wPS,    'P/S Weight (%)',    toNumber(wt.justified_ps ?? wt.ps ?? wt.PS ?? 0), '0.00');
 
+        for (const row of [I.wFCFE, I.wFCFF, I.wPE, I.wPB, I.wGraham, I.wPS]) {
+            sheet.getCell(row, 2).dataValidation = { type: 'decimal', operator: 'between', formulae: [0, 100], showErrorMessage: true, error: 'Enter a weight from 0 to 100.' };
+        }
+        sheet.getCell(I.dcfYears, 2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTAL_BG } };
+        setNote(sheet, I.dcfYears, 'Set projection years on the platform, then export again.');
         const sumRow = I.wPS + 1;
         sheet.getCell(sumRow, 1).value = 'Sum of Weights (must = 100)';
         sheet.getCell(sumRow, 1).font  = { bold: true };
@@ -1125,13 +1247,13 @@ export class ReportGenerator {
         sectionHeader(sheet, 4, `  STEP 1: BASE YEAR ${type} CALCULATION`, 6);
 
         const compRows: [string, string, string][] = isFCFE ? [
-            ['Net Income (Bn VND)',                 `=Assumptions!B${niRow}`,  '(+) from income statement'],
+            ['Operating Cash Flow / CFO (Bn VND)',                 `=Assumptions!B${niRow}`,  '(+) CFO already includes D&A and working capital'],
             ['Depreciation & Amortisation (Bn VND)',`=Assumptions!B${depRow}`, '(+) non-cash charge added back'],
             ['ΔWorking Capital Investment (Bn VND)', `=Assumptions!B${wcRow}`,  '(−) increase in working capital'],
             ['Capital Expenditure (Bn VND)',          `=Assumptions!B${cxRow}`,  '(−) investment in fixed assets'],
             ['Net Borrowing (Bn VND)',               `=Assumptions!B${I.fcfe_netBorrowing}`, '(+) new debt minus repayments'],
         ] : [
-            ['Net Income (Bn VND)',                  `=Assumptions!B${niRow}`,  '(+) from income statement'],
+            ['Operating Cash Flow / CFO (Bn VND)',                  `=Assumptions!B${niRow}`,  '(+) CFO already includes D&A and working capital'],
             ['Interest × (1 − Tax) (Bn VND)',        `=Assumptions!B${I.fcff_interestAfterTax}`, '(+) after-tax interest cost'],
             ['Depreciation & Amortisation (Bn VND)', `=Assumptions!B${depRow}`, '(+) non-cash charge added back'],
             ['ΔWorking Capital Investment (Bn VND)', `=Assumptions!B${wcRow}`,  '(−) increase in working capital'],
@@ -1156,7 +1278,7 @@ export class ReportGenerator {
             vc.numFmt = '#,##0.00';
             applyBorders(vc);
             sheet.getCell(r, 3).value = note;
-            sheet.getCell(r, 3).font  = { italic: true, color: { argb: '94A3B8' }, size: 9 };
+            sheet.getCell(r, 3).font  = { italic: true, color: { argb: '64748B' }, size: 9 };
             r++;
         });
 
@@ -1176,14 +1298,14 @@ export class ReportGenerator {
         const baseRow = r;
         let baseFml: string;
         if (isFCFE) {
-            baseFml = `=(B${compStartRow}+B${compStartRow+1}-B${compStartRow+2}-B${compStartRow+3}+B${compStartRow+4})*1000000000/IF(B${sharesRow}>0,B${sharesRow},1)`;
+            baseFml = `=IF(B${sharesRow}>0,(B${compStartRow}+B${compStartRow+1}-B${compStartRow+2}-B${compStartRow+3}+B${compStartRow+4})*1000000000/B${sharesRow},0)`;
         } else {
-            baseFml = `=(B${compStartRow}+B${compStartRow+1}+B${compStartRow+2}-B${compStartRow+3}-B${compStartRow+4})*1000000000/IF(B${sharesRow}>0,B${sharesRow},1)`;
+            baseFml = `=IF(B${sharesRow}>0,(B${compStartRow}+B${compStartRow+1}+B${compStartRow+2}-B${compStartRow+3}-B${compStartRow+4})*1000000000/B${sharesRow},0)`;
         }
         sheet.getCell(r, 1).value = `Base ${type} Per Share (Year 0, VND)`;
         sheet.getCell(r, 1).font  = { bold: true };
         const baseCell = sheet.getCell(r, 2);
-        const baseCached = detailsData?.['baseFCFE'] ?? detailsData?.['baseFCFF'];
+        const baseCached = detailsData?.['base_cashflow_per_share'] ?? detailsData?.['baseFCFE'] ?? detailsData?.['baseFCFF'];
         baseCell.value  = baseCached != null
             ? { formula: baseFml, result: toNumber(baseCached) }
             : { formula: baseFml };
@@ -1206,11 +1328,11 @@ export class ReportGenerator {
         drCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
         applyBorders(drCell);
         sheet.getCell(r, 3).value = '← edit in Assumptions sheet';
-        sheet.getCell(r, 3).font  = { italic: true, color: { argb: '94A3B8' }, size: 9 };
+        sheet.getCell(r, 3).font  = { italic: true, color: { argb: '64748B' }, size: 9 };
         r++;
 
         const growthHighRow = r;
-        sheet.getCell(r, 1).value = `High-Growth Rate (g₁) — Years 1–${PROJ_YEARS}`;
+        sheet.getCell(r, 1).value = `High-Growth Rate (g₁) — Years 1–${this.projectionYears}`;
         const ghCell = sheet.getCell(r, 2);
         ghCell.value  = { formula: `=Assumptions!B${I.growthHigh}` };
         ghCell.numFmt = '0.00%';
@@ -1221,14 +1343,14 @@ export class ReportGenerator {
         const growthTermRow = r;
         sheet.getCell(r, 1).value = 'Terminal Growth Rate (gₙ) — Perpetuity';
         const gtCell = sheet.getCell(r, 2);
-        gtCell.value  = { formula: `=Assumptions!B${I.growthTerminal}` };
+        gtCell.value  = { formula: `=MAX(0,IF(Assumptions!B${I.growthTerminal}>=B${discRateRow},B${discRateRow}-0.01,Assumptions!B${I.growthTerminal}))` };
         gtCell.numFmt = '0.00%';
         gtCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
         applyBorders(gtCell);
         r += 2;
 
         // STEP 3: Projection Table
-        sectionHeader(sheet, r, `  STEP 3: ${PROJ_YEARS}-YEAR CASH FLOW PROJECTIONS`, 6);
+        sectionHeader(sheet, r, `  STEP 3: ${this.projectionYears}-YEAR CASH FLOW PROJECTIONS`, 6);
         r++;
 
         ['Year', `Projected ${type} (VND)`, 'Formula Note', 'Discount Factor', 'PV of Cash Flow (VND)', 'Cumulative PV'].forEach((h, ci) => {
@@ -1242,7 +1364,7 @@ export class ReportGenerator {
         r++;
 
         const projDataStart = r;
-        for (let yr = 1; yr <= PROJ_YEARS; yr++) {
+        for (let yr = 1; yr <= this.projectionYears; yr++) {
             sheet.getCell(r, 1).value = yr;
             sheet.getCell(r, 1).alignment = { horizontal: 'center' };
             applyBorders(sheet.getCell(r, 1));
@@ -1256,7 +1378,7 @@ export class ReportGenerator {
             sheet.getCell(r, 3).font  = { color: { argb: '64748B' }, size: 9, italic: true };
 
             const dfCell = sheet.getCell(r, 4);
-            dfCell.value  = { formula: `=1/(1+B${discRateRow})^A${r}` };
+            dfCell.value  = { formula: `=IF(B${discRateRow}>0,1/(1+B${discRateRow})^A${r},0)` };
             dfCell.numFmt = '0.0000';
             applyBorders(dfCell);
 
@@ -1282,8 +1404,8 @@ export class ReportGenerator {
         r++;
 
         const tvRow = r;
-        sheet.getCell(r, 1).value = `Terminal-Year ${type} (Year ${PROJ_YEARS + 1})`;
-        sheet.getCell(r, 3).value = `= Year ${PROJ_YEARS} FCF × (1 + gₙ)`;
+        sheet.getCell(r, 1).value = `Terminal-Year ${type} (Year ${this.projectionYears + 1})`;
+        sheet.getCell(r, 3).value = `= Year ${this.projectionYears} FCF × (1 + gₙ)`;
         sheet.getCell(r, 3).font  = { italic: true, color: { argb: '64748B' }, size: 9 };
         const tvYearCell = sheet.getCell(r, 2);
         tvYearCell.value  = { formula: `=B${projDataEnd}*(1+B${growthTermRow})` };
@@ -1296,17 +1418,17 @@ export class ReportGenerator {
         sheet.getCell(r, 3).value = `= TV Year FCF ÷ (${rateLabel} − gₙ)`;
         sheet.getCell(r, 3).font  = { italic: true, color: { argb: '64748B' }, size: 9 };
         const tvGGCell = sheet.getCell(r, 2);
-        tvGGCell.value  = { formula: `=B${tvRow}/(B${discRateRow}-B${growthTermRow})` };
+        tvGGCell.value  = { formula: `=IF(B${discRateRow}>0,B${tvRow}/(B${discRateRow}-B${growthTermRow}),0)` };
         tvGGCell.numFmt = '#,##0';
         applyBorders(tvGGCell);
         r++;
 
         const pvTvRow = r;
         sheet.getCell(r, 1).value = 'PV of Terminal Value';
-        sheet.getCell(r, 3).value = `= TV ÷ (1 + ${rateLabel})^${PROJ_YEARS}`;
+        sheet.getCell(r, 3).value = `= TV ÷ (1 + ${rateLabel})^${this.projectionYears}`;
         sheet.getCell(r, 3).font  = { italic: true, color: { argb: '64748B' }, size: 9 };
         const pvTvCell = sheet.getCell(r, 2);
-        pvTvCell.value  = { formula: `=B${tvGGRow}/(1+B${discRateRow})^${PROJ_YEARS}` };
+        pvTvCell.value  = { formula: `=IF(B${discRateRow}>0,B${tvGGRow}/(1+B${discRateRow})^${this.projectionYears},0)` };
         pvTvCell.numFmt = '#,##0';
         pvTvCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
         applyBorders(pvTvCell, 'medium');
@@ -1317,7 +1439,7 @@ export class ReportGenerator {
         r++;
 
         const sumPVRow = r;
-        sheet.getCell(r, 1).value = `Sum of PV (Cash Flows, Years 1–${PROJ_YEARS})`;
+        sheet.getCell(r, 1).value = `Sum of PV (Cash Flows, Years 1–${this.projectionYears})`;
         const sumPVCell = sheet.getCell(r, 2);
         sumPVCell.value  = { formula: `=SUM(E${projDataStart}:E${projDataEnd})` };
         sumPVCell.numFmt = '#,##0';
@@ -1338,21 +1460,23 @@ export class ReportGenerator {
 
         const intrinsicRow = r;
         sheet.getCell(r, 1).value = isFCFE
-            ? '★  INTRINSIC EQUITY VALUE — FCFE (VND per share)'
+            ? 'INTRINSIC EQUITY VALUE — FCFE (VND per share)'
             : 'Enterprise Value — FCFF (VND per share)';
         sheet.getCell(r, 1).font  = { bold: true, size: 12, color: { argb: ACCENT } };
         const intrinsicCell = sheet.getCell(r, 2);
         const intrinsicCached = isFCFE
             ? (valuationResults?.['valuations'] as Record<string, unknown>)?.['fcfe'] ?? detailsData?.['shareValue']
             : detailsData?.['enterprise_value_per_share'];
-        intrinsicCell.value = intrinsicCached != null
-            ? toNumber(intrinsicCached)
-            : { formula: `=B${sumPVRow}+B${pvTvRefRow}` };
+        intrinsicCell.value = {
+            formula: `=IF(AND(B${discRateRow}>0,B${sharesRow}>0),B${sumPVRow}+B${pvTvRefRow},0)`,
+            ...(intrinsicCached != null ? { result: toNumber(intrinsicCached) } : {}),
+        };
         intrinsicCell.numFmt = '#,##0';
         intrinsicCell.font   = { bold: true, size: 13, color: { argb: ACCENT } };
         intrinsicCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
         applyBorders(intrinsicCell, 'medium');
         r++;
+        let equityValueRow = intrinsicRow;
 
         // FCFF is an enterprise-value model.  Reconcile it to equity value
         // before showing an investable per-share result.
@@ -1366,7 +1490,8 @@ export class ReportGenerator {
             applyBorders(netDebtCell);
             r++;
 
-            sheet.getCell(r, 1).value = '★  INTRINSIC EQUITY VALUE — FCFF (VND per share)';
+            equityValueRow = r;
+            sheet.getCell(r, 1).value = 'INTRINSIC EQUITY VALUE — FCFF (VND per share)';
             sheet.getCell(r, 1).font = { bold: true, size: 12, color: { argb: ACCENT } };
             const equityCell = sheet.getCell(r, 2);
             const equityCached = toNumber((valuationResults?.['valuations'] as Record<string, unknown>)?.['fcff'], 0);
@@ -1390,7 +1515,7 @@ export class ReportGenerator {
         sheet.getCell(r, 1).value = 'Upside / Downside';
         sheet.getCell(r, 1).font  = { bold: true };
         const upCell = sheet.getCell(r, 2);
-        upCell.value  = { formula: `=(B${intrinsicRow}-B${r-1})/B${r-1}` };
+        upCell.value  = { formula: `=IF(B${r-1}>0,(B${equityValueRow}-B${r-1})/B${r-1},0)` };
         upCell.numFmt = '+0.00%;-0.00%';
         upCell.font   = { bold: true };
         applyBorders(upCell, 'medium');
@@ -1438,8 +1563,8 @@ export class ReportGenerator {
     ) {
         const isPE         = type === 'PE';
         const label        = isPE ? 'P/E' : 'P/B';
-        const metricLabel  = isPE ? 'EPS TTM (VND)' : 'BVPS (VND)';
-        const baseMetricRow = isPE ? I.eps   : I.bvps;
+        const metricLabel  = isPE ? 'EPS Used for P/E (VND)' : 'BVPS (VND)';
+        const baseMetricRow = isPE ? I.peEPS : I.bvps;
         const multipleRow  = isPE ? I.peMultiple : I.pbMultiple;
 
         let r = startRow;
@@ -1462,15 +1587,15 @@ export class ReportGenerator {
         const multCell = sheet.getCell(r, 2);
         multCell.value  = { formula: `=Assumptions!B${multipleRow}` };
         multCell.numFmt = '0.00';
-        multCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: INPUT_YLW } };
+        multCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
         applyBorders(multCell, 'medium');
         sheet.getCell(r, 3).value = '← edit in Assumptions sheet';
-        sheet.getCell(r, 3).font  = { italic: true, color: { argb: '94A3B8' }, size: 9 };
+        sheet.getCell(r, 3).font  = { italic: true, color: { argb: '64748B' }, size: 9 };
         const multipleInputRow = r;
         r++;
 
         // Fair Value
-        sheet.getCell(r, 1).value = `★  FAIR VALUE — ${label} (VND/share)`;
+        sheet.getCell(r, 1).value = `FAIR VALUE — ${label} (VND/share)`;
         sheet.getCell(r, 1).font  = { bold: true, size: 11, color: { argb: ACCENT } };
         const fairCell = sheet.getCell(r, 2);
         const fairCached = isPE
@@ -1496,7 +1621,7 @@ export class ReportGenerator {
         sheet.getCell(r, 1).value = 'Upside / Downside';
         sheet.getCell(r, 1).font  = { bold: true };
         const upCell = sheet.getCell(r, 2);
-        upCell.value  = { formula: `=(B${fairRow}-B${r-1})/B${r-1}` };
+        upCell.value  = { formula: `=IF(B${r-1}>0,(B${fairRow}-B${r-1})/B${r-1},0)` };
         upCell.numFmt = '+0.00%;-0.00%';
         upCell.font   = { bold: true };
         applyBorders(upCell, 'medium');
@@ -1551,15 +1676,16 @@ export class ReportGenerator {
         valuationResults: Record<string, unknown>,
         symbol: string,
     ) {
-        sheet.mergeCells('A1:G1');
+        const lastColumn = this.projectionYears + 2;
+        sheet.mergeCells(1, 1, 1, lastColumn);
         const title = sheet.getCell('A1');
         title.value = `FORECAST DRIVERS — ${symbol}`;
         title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
         title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
         title.alignment = { horizontal: 'center' };
 
-        sheet.mergeCells('A2:G2');
-        sheet.getCell('A2').value = 'Editable forecast drivers. This schedule is the audit bridge between historical statements and the DCF assumptions.';
+        sheet.mergeCells(2, 1, 2, lastColumn);
+        sheet.getCell('A2').value = 'Illustrative operating forecast. DCF models use the cash-flow inputs and growth rate on Assumptions.';
         sheet.getCell('A2').font = { italic: true, color: { argb: '64748B' }, size: 9 };
 
         const latestIncome = historical.income[historical.income.length - 1] ?? {};
@@ -1571,8 +1697,8 @@ export class ReportGenerator {
         const baseMargin = latestRevenue > 0 ? latestEbit / latestRevenue : 0;
         const baseCapexRatio = latestRevenue > 0 ? latestCapex / latestRevenue : 0;
 
-        sectionHeader(sheet, 4, '  OPERATING DRIVERS', 7);
-        ['Driver', 'Historical', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5'].forEach((h, i) => {
+        sectionHeader(sheet, 4, '  OPERATING DRIVERS', lastColumn);
+        ['Driver', 'Historical', ...Array.from({ length: this.projectionYears }, (_, i) => `Year ${i + 1}`)].forEach((h, i) => {
             const c = sheet.getCell(5, i + 1); c.value = h; c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } }; applyBorders(c);
         });
         const drivers: Array<[string, number, string]> = [
@@ -1586,22 +1712,22 @@ export class ReportGenerator {
             sheet.getCell(r, 1).value = label;
             sheet.getCell(r, 2).value = historicalValue;
             sheet.getCell(r, 2).numFmt = format;
-            for (let c = 3; c <= 7; c++) {
+            for (let c = 3; c <= lastColumn; c++) {
                 const cell = sheet.getCell(r, c);
                 if (index === 0) cell.value = { formula: c === 3 ? `=B6*(1+C7)` : `=${colLetter(c - 1)}6*(1+${colLetter(c)}7)` };
-                if (index === 1) cell.value = inputGrowth;
+                if (index === 1) cell.value = { formula: `Assumptions!B${I.growthHigh}`, result: inputGrowth };
                 if (index === 2) cell.value = baseMargin;
                 if (index === 3) cell.value = baseCapexRatio;
                 cell.numFmt = format;
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INPUT_YLW } };
+                if (index >= 2) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INPUT_YLW } };
                 applyBorders(cell);
             }
         });
-        sheet.mergeCells('A12:G12');
-        sheet.getCell('A12').value = 'Next phase: sector templates replace these generic drivers with segment revenue, volume, pricing, capacity, working-capital, debt and share-count schedules.';
+        sheet.mergeCells(12, 1, 12, lastColumn);
+        sheet.getCell('A12').value = 'Revenue follows Assumptions growth. Yellow margin and CapEx ratio cells affect this illustrative schedule only.';
         sheet.getCell('A12').font = { italic: true, color: { argb: '64748B' }, size: 9 };
         sheet.getColumn(1).width = 30;
-        for (let c = 2; c <= 7; c++) sheet.getColumn(c).width = 16;
+        for (let c = 2; c <= lastColumn; c++) sheet.getColumn(c).width = 16;
     }
 
     private createModelAuditSheet(sheet: ExcelJS.Worksheet, valuationResults: Record<string, unknown>, symbol: string) {
@@ -1669,6 +1795,20 @@ export class ReportGenerator {
         sheet.getCell('A2').alignment = { horizontal: 'center' };
 
         sectionHeader(sheet, 4, '  KEY MARKET DATA', 6);
+        const links = [
+            ['Assumptions', '01  Edit assumptions'], ['FCFE Model', '02  FCFE valuation'],
+            ['FCFF Model', '03  FCFF valuation'], ['Comparables', '04  Comparable multiples'],
+            ['Income Statement', '05  Financial statements'], ['Key Ratios', '06  Financial ratios'],
+            ['Sector Peers', '07  Sector peers'], ['Model Audit', '08  Sources & policy'],
+        ];
+        links.forEach(([target, text], index) => {
+            const row = 5 + index;
+            sheet.mergeCells(row, 4, row, 6);
+            const cell = sheet.getCell(row, 4);
+            cell.value = { text, hyperlink: `#'${target}'!A1`, tooltip: `Open ${target}` };
+            cell.font = { color: { argb: ACCENT }, underline: true, size: 10 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
+        });
 
         let r = 5;
         const mktRows: [string, string, string][] = [
@@ -1723,7 +1863,7 @@ export class ReportGenerator {
             { name: 'P/E Comparable',                 value: toNumber(vals.justified_pe, 0),  weight: toNumber(wt.justified_pe ?? wt.pe ?? wt.PE ?? 20, 0), formulaRef: `=Comparables!B${this.comparablesFairRow('PE')}` },
             { name: 'P/B Comparable',                 value: toNumber(vals.justified_pb, 0),  weight: toNumber(wt.justified_pb ?? wt.pb ?? wt.PB ?? 20, 0), formulaRef: `=Comparables!B${this.comparablesFairRow('PB')}` },
             { name: 'Graham Formula',                 value: toNumber(vals.graham, 0),         weight: toNumber(wt.graham ?? wt.Graham ?? 10, 0),        formulaRef: `=Assumptions!B${I.grahamValue}` },
-            { name: 'P/S Comparable',                 value: toNumber(vals.justified_ps, 0),  weight: toNumber(wt.justified_ps ?? wt.ps ?? wt.PS ?? 10, 0), formulaRef: `=Assumptions!B${I.currentPrice}` },
+            { name: 'P/S Comparable',                 value: toNumber(vals.justified_ps, 0),  weight: toNumber(wt.justified_ps ?? wt.ps ?? wt.PS ?? 0, 0), formulaRef: `=Assumptions!B${I.revPerShare}*Assumptions!B${I.psMultiple}` },
         ];
 
         let totalWeight = 0;
@@ -1737,27 +1877,34 @@ export class ReportGenerator {
         const weightedAvg = totalWeight > 0 ? weightedSum / totalWeight : 0;
         const snapshotUpside = snapshotCp > 0 ? (weightedAvg - snapshotCp) / snapshotCp : 0;
 
+        const modelsStart = r;
+        const modelsEnd = r + snapshotModels.length - 1;
+        const activeWeights = `SUMIF(B${modelsStart}:B${modelsEnd},">0",C${modelsStart}:C${modelsEnd})`;
+        const weightRows = [I.wFCFE, I.wFCFF, I.wPE, I.wPB, I.wGraham, I.wPS];
         snapshotModels.forEach((m, idx) => {
             sheet.getCell(r, 1).value = m.name;
 
             const vc  = sheet.getCell(r, 2);
-            vc.value  = m.value > 0 ? m.value : { formula: m.formulaRef };
+            vc.value  = { formula: m.formulaRef, result: m.value };
+            if (m.value <= 0 && !['FCFE (Free Cash Flow to Equity)', 'FCFF (Free Cash Flow to Firm)', 'Graham Formula'].includes(m.name)) {
+                vc.value = { formula: `IF(${m.formulaRef.slice(1)}>0,${m.formulaRef.slice(1)},0)`, result: 0 };
+            }
             vc.numFmt = '#,##0';
             applyBorders(vc);
 
             const wc  = sheet.getCell(r, 3);
-            wc.value  = m.weight;
+            wc.value  = { formula: `Assumptions!B${weightRows[idx]}`, result: m.weight };
             wc.numFmt = '0.00';
             wc.alignment = { horizontal: 'center' };
             applyBorders(wc);
 
             const cc  = sheet.getCell(r, 4);
-            cc.value  = m.value > 0 && m.weight > 0 ? (m.value * m.weight) / totalWeight : 0;
+            cc.value = { formula: `IF(AND(B${r}>0,C${r}>0),IFERROR(B${r}*C${r}/${activeWeights},0),0)` };
             cc.numFmt = '#,##0';
             applyBorders(cc);
 
             const uc  = sheet.getCell(r, 5);
-            uc.value  = snapshotCp > 0 && m.value > 0 ? (m.value - snapshotCp) / snapshotCp : 0;
+            uc.value = { formula: `IF(AND(Assumptions!B${I.currentPrice}>0,B${r}>0),B${r}/Assumptions!B${I.currentPrice}-1,0)` };
             uc.numFmt = '+0.00%;-0.00%';
             applyBorders(uc);
 
@@ -1770,24 +1917,25 @@ export class ReportGenerator {
         });
 
         r++;
-        sheet.getCell(r, 1).value = '★  WEIGHTED AVERAGE INTRINSIC VALUE';
+        sheet.getCell(r, 1).value = 'WEIGHTED AVERAGE INTRINSIC VALUE';
         sheet.getCell(r, 1).font  = { bold: true, size: 12, color: { argb: ACCENT } };
 
         const wavgCell = sheet.getCell(r, 2);
-        wavgCell.value  = weightedAvg;
+        wavgCell.value = { formula: `SUM(D${modelsStart}:D${modelsEnd})`, result: weightedAvg };
+        const weightedAverageRow = r;
         wavgCell.numFmt = '#,##0';
         wavgCell.font   = { bold: true, size: 13, color: { argb: ACCENT } };
         wavgCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
         applyBorders(wavgCell, 'medium');
 
         const twCell = sheet.getCell(r, 3);
-        twCell.value  = totalWeight;
+        twCell.value = { formula: activeWeights, result: totalWeight };
         twCell.numFmt = '0.00';
         twCell.font   = { bold: true };
         applyBorders(twCell, 'medium');
 
         const tuCell = sheet.getCell(r, 5);
-        tuCell.value  = snapshotUpside;
+        tuCell.value = { formula: `IF(Assumptions!B${I.currentPrice}>0,B${r}/Assumptions!B${I.currentPrice}-1,0)`, result: snapshotUpside };
         tuCell.numFmt = '+0.00%;-0.00%';
         tuCell.font   = { bold: true, size: 12 };
         applyBorders(tuCell, 'medium');
@@ -1799,14 +1947,14 @@ export class ReportGenerator {
 
         sheet.getCell(r, 1).value = 'Current Price (VND)';
         const cpV = sheet.getCell(r, 2);
-        cpV.value  = snapshotCp;
+        cpV.value = { formula: `Assumptions!B${I.currentPrice}`, result: snapshotCp };
         cpV.numFmt = '#,##0';
         applyBorders(cpV);
         r++;
 
-        sheet.getCell(r, 1).value = 'Analyst Consensus Fair Value (VND)';
+        sheet.getCell(r, 1).value = 'Weighted Model Fair Value (VND)';
         const fvV = sheet.getCell(r, 2);
-        fvV.value  = weightedAvg;
+        fvV.value = { formula: `B${weightedAverageRow}`, result: weightedAvg };
         fvV.numFmt = '#,##0';
         fvV.font   = { bold: true };
         applyBorders(fvV, 'medium');
@@ -1814,7 +1962,7 @@ export class ReportGenerator {
 
         sheet.getCell(r, 1).value = 'Margin of Safety (Discount to Fair Value)';
         const mosV = sheet.getCell(r, 2);
-        mosV.value  = weightedAvg > 0 ? (weightedAvg - snapshotCp) / weightedAvg : 0;
+        mosV.value = { formula: `IF(B${weightedAverageRow}>0,1-Assumptions!B${I.currentPrice}/B${weightedAverageRow},0)` };
         mosV.numFmt = '+0.00%;-0.00%';
         mosV.font   = { bold: true };
         applyBorders(mosV, 'medium');
@@ -1822,11 +1970,16 @@ export class ReportGenerator {
 
         sheet.getCell(r, 1).value = 'Signal (Undervalued if Upside > 15%)';
         const sigV = sheet.getCell(r, 2);
-        sigV.value  = snapshotUpside > 0.15
-            ? 'BUY — Undervalued'
-            : snapshotUpside < -0.15 ? 'SELL / Overvalued' : 'HOLD — Fair Value';
+        sigV.value = { formula: `IF(OR(Assumptions!B${I.currentPrice}<=0,B${weightedAverageRow}<=0),"N/A",IF(E${weightedAverageRow}>0.15,"BUY — Undervalued",IF(E${weightedAverageRow}<-0.15,"SELL / Overvalued","HOLD — Fair Value")))` };
+        sheet.mergeCells(r, 2, r, 3);
         sigV.font   = { bold: true };
         applyBorders(sigV, 'medium');
+
+        sheet.mergeCells('A32:F33');
+        sheet.getCell('A32').value = 'MODEL GUIDE  |  Yellow / blue text: editable inputs. Green text: linked formulas. Weights are normalized across models with positive values. All prices are VND/share; cash-flow inputs are billion VND.';
+        sheet.getCell('A32').font = { size: 10, color: { argb: '475569' } };
+        sheet.getCell('A32').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTAL_BG } };
+        sheet.getRow(32).height = 28;
 
         sheet.getColumn(1).width = 44;
         sheet.getColumn(2).width = 24;
@@ -1861,7 +2014,7 @@ export class ReportGenerator {
         r += 2;           // growthTermRow + blank → step3 sectionHeader
         r += 1;           // after sectionHeader
         r += 1;           // projection header row
-        r += PROJ_YEARS;
+        r += this.projectionYears;
         r += 1;           // blank before step4
         r += 1;           // after step4 sectionHeader
         r += 1;           // tvRow
@@ -1952,7 +2105,7 @@ export class ReportGenerator {
         if (peers.length === 0) {
             sheet.mergeCells(r, 1, r, 9);
             sheet.getCell(r, 1).value = 'No peer data available.';
-            sheet.getCell(r, 1).font  = { italic: true, color: { argb: '94A3B8' } };
+            sheet.getCell(r, 1).font  = { italic: true, color: { argb: '64748B' } };
             sheet.getCell(r, 1).alignment = { horizontal: 'center' };
         } else {
             const dataStart = r;
@@ -1966,22 +2119,22 @@ export class ReportGenerator {
                 applyBorders(sheet.getCell(r, 2));
 
                 const mc = sheet.getCell(r, 3);
-                mc.value  = toNumber(p.market_cap ?? p.marketCap, 0);
+                mc.value  = toNumber(p.market_cap ?? p.marketCap, 0) / 1e9;
                 mc.numFmt = '#,##0.0';
                 applyBorders(mc);
 
                 const pe = sheet.getCell(r, 4);
-                pe.value  = toNumber(p.pe_ratio ?? p.pe, 0);
+                pe.value  = toNumber(p.pe_ratio ?? p.pe, 0) > 0 ? toNumber(p.pe_ratio ?? p.pe) : null;
                 pe.numFmt = '0.00';
                 applyBorders(pe);
 
                 const pb = sheet.getCell(r, 5);
-                pb.value  = toNumber(p.pb_ratio ?? p.pb, 0);
+                pb.value  = toNumber(p.pb_ratio ?? p.pb, 0) > 0 ? toNumber(p.pb_ratio ?? p.pb) : null;
                 pb.numFmt = '0.00';
                 applyBorders(pb);
 
                 const ps = sheet.getCell(r, 6);
-                ps.value  = toNumber(p.ps_ratio ?? p.ps, 0);
+                ps.value  = toNumber(p.ps_ratio ?? p.ps, 0) > 0 ? toNumber(p.ps_ratio ?? p.ps) : null;
                 ps.numFmt = '0.00';
                 applyBorders(ps);
 
@@ -2017,7 +2170,7 @@ export class ReportGenerator {
             ([4, 5, 6] as const).forEach(ci => {
                 const colLet = colLetter(ci);
                 const mc = sheet.getCell(r, ci);
-                mc.value  = { formula: `=MEDIAN(${colLet}${dataStart}:${colLet}${dataEnd})` };
+                mc.value  = { formula: `=IFERROR(MEDIAN(${colLet}${dataStart}:${colLet}${dataEnd}),0)` };
                 mc.numFmt = '0.00';
                 mc.font   = { bold: true };
                 mc.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
@@ -2027,7 +2180,7 @@ export class ReportGenerator {
             ([7, 8] as const).forEach(ci => {
                 const colLet = colLetter(ci);
                 const mc = sheet.getCell(r, ci);
-                mc.value  = { formula: `=MEDIAN(${colLet}${dataStart}:${colLet}${dataEnd})` };
+                mc.value  = { formula: `=IFERROR(MEDIAN(${colLet}${dataStart}:${colLet}${dataEnd}),0)` };
                 mc.numFmt = '0.00%';
                 mc.font   = { bold: true };
                 mc.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BG } };
