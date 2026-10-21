@@ -715,7 +715,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     <div className={activeTab === 'holders' ? 'block' : 'hidden'}>
                         <div className="mb-4 flex w-full items-center justify-between gap-4">
                             <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
-                                Holders
+                                {lang === 'vi' ? 'Cổ đông' : 'Holders'}
                             </h3>
                         </div>
                         <HoldersTab symbol={symbol} />

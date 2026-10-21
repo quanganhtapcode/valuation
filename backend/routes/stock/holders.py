@@ -162,7 +162,7 @@ def register(stock_bp: Blueprint) -> None:
             if not is_valid:
                 return jsonify({"success": False, "error": clean_symbol}), 400
 
-            cache_key = f"holders_vci_{clean_symbol}"
+            cache_key = f"holders_vci_v2_{clean_symbol}"
             cached = _cache_get(cache_key)
             if cached:
                 return jsonify(cached)
@@ -212,6 +212,9 @@ def register(stock_bp: Blueprint) -> None:
                 item = {
                     "manager": display_name,
                     "name_vi": name_vi or None,
+                    "name_en": name_en or None,
+                    "position_vi": position_vi,
+                    "position_en": position_en,
                     "position": position_en or position_vi,
                     "shares": float(quantity),
                     "ownership_percent": float(pct) if pct is not None else None,

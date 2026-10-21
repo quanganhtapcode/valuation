@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { API_BASE } from '@/lib/api';
 import { DownloadIcon, StockTabDropdown, StockTabIconButton } from './StockTabControls';
 
@@ -10,6 +11,9 @@ interface InstitutionalHolder {
     manager: string;
     name_vi?: string | null;
     position?: string | null;
+    name_en?: string | null;
+    position_vi?: string | null;
+    position_en?: string | null;
     shares: number;
     ownership_percent?: number;
     value: number;
@@ -72,7 +76,19 @@ function formatOwnershipPct(value?: number | null): string {
 }
 
 export default function HoldersTab({ symbol }: HoldersTabProps) {
-    const [activeView, setActiveView] = useState<HolderView>('institutional');
+    const { lang } = useLanguage();
+    const vi = lang === 'vi';
+    const labels = {
+        institutional: vi ? 'Cổ đông tổ chức' : 'Institutional',
+        individuals: vi ? 'Cổ đông cá nhân' : 'Regular Shareholders',
+        loading: vi ? 'Đang tải cổ đông...' : 'Loading holders...',
+        error: vi ? 'Không thể tải dữ liệu cổ đông' : 'Unable to load holders data',
+    };
+    const holderName = (row: InstitutionalHolder) =>
+        (vi ? row.name_vi : row.name_en) || row.manager || row.name_vi || '-';
+    const holderPosition = (row: InstitutionalHolder) =>
+        (vi ? row.position_vi : row.position_en) || row.position;
+    const [chosenView, setActiveView] = useState<HolderView | null>(null);
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -85,6 +101,9 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         queueMicrotask(() => {
             if (controller.signal.aborted) return;
             setLoading(true);
+            setData(null);
+            setActiveView(null);
+            setQuery('');
             setError(null);
         });
 
@@ -98,7 +117,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
             })
             .then((payload: HoldersPayload) => {
                 if (!payload?.success) throw new Error(payload ? 'holders data unavailable' : 'empty response');
-                setData(payload);
+                if (!controller.signal.aborted) setData(payload);
             })
             .catch((err) => {
                 if (controller.signal.aborted) return;
@@ -115,15 +134,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
     const institutional = useMemo(() => data?.institutional || [], [data]);
     const individuals = useMemo(() => data?.individuals || [], [data]);
 
-    useEffect(() => {
-        queueMicrotask(() => {
-            if (institutional.length >= individuals.length && institutional.length > 0) {
-                setActiveView('institutional');
-            } else if (individuals.length > 0) {
-                setActiveView('individuals');
-            }
-        });
-    }, [institutional.length, individuals.length]);
+    const activeView = chosenView ?? (institutional.length >= individuals.length ? 'institutional' : 'individuals');
 
     const rows = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -132,16 +143,16 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         if (!q) return base;
 
         return base.filter((item) => {
-            const name = String(item?.manager || '').toLowerCase();
+            const name = [item.manager, item.name_vi, item.name_en].filter(Boolean).join(' ').toLowerCase();
             return name.includes(q);
         });
     }, [activeView, institutional, individuals, query]);
 
-    const allRowsForDownload = useMemo(() => {
+    const allRowsForDownload = (() => {
         const institutionalRows = institutional.map((r) => ({
-            group: 'Institutional',
-            name: r.manager || '',
-            position: '',
+            group: labels.institutional,
+            name: holderName(r),
+            position: holderPosition(r) || '',
             shares: Number(r.shares || 0),
             value: Number(r.value || 0),
             ownership_percent: r.ownership_percent,
@@ -149,9 +160,9 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         }));
 
         const regularRows = individuals.map((r) => ({
-            group: 'Regular Shareholders',
-            name: r.manager || '',
-            position: '',
+            group: labels.individuals,
+            name: holderName(r),
+            position: holderPosition(r) || '',
             shares: Number(r.shares || 0),
             value: Number(r.value || 0),
             ownership_percent: r.ownership_percent,
@@ -159,12 +170,14 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         }));
 
         return [...institutionalRows, ...regularRows];
-    }, [institutional, individuals]);
+    })();
 
     const downloadCsv = () => {
         if (!allRowsForDownload.length) return;
 
-        const headers = ['Group', 'Name', 'Position', 'SharesOwned', 'CurrentValueVND', 'OwnershipPercent', 'UpdateDate'];
+        const headers = vi
+            ? ['Nhóm', 'Tên', 'Chức danh', 'Số cổ phiếu', 'Giá trị (VND)', 'Sở hữu (%)', 'Ngày cập nhật']
+            : ['Group', 'Name', 'Position', 'SharesOwned', 'CurrentValueVND', 'OwnershipPercent', 'UpdateDate'];
         const body = allRowsForDownload.map((r) => [
             JSON.stringify(r.group || ''),
             JSON.stringify(r.name || ''),
@@ -192,17 +205,17 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
             <div className="rounded-tremor-default border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
                 <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                        <StockTabDropdown
-                            label={activeView === 'institutional' ? `Institutional (${institutional.length})` : `Regular Shareholders (${individuals.length})`}
+                        {loading ? <span className="text-sm text-gray-500">{labels.loading}</span> : <StockTabDropdown
+                            label={`${labels[activeView]} (${activeView === 'institutional' ? institutional.length : individuals.length})`}
                             value={activeView}
                             onChange={(view) => setActiveView(view as HolderView)}
                             options={[
-                                { id: 'institutional', label: `Institutional (${institutional.length})` },
-                                { id: 'individuals', label: `Regular Shareholders (${individuals.length})` },
+                                { id: 'institutional', label: `${labels.institutional} (${institutional.length})` },
+                                { id: 'individuals', label: `${labels.individuals} (${individuals.length})` },
                             ]}
-                            ariaLabel="Shareholder type"
-                        />
-                        <StockTabIconButton onClick={downloadCsv} title="Download all shareholders" disabled={allRowsForDownload.length === 0}>
+                            ariaLabel={vi ? 'Loại cổ đông' : 'Shareholder type'}
+                        />}
+                        <StockTabIconButton onClick={downloadCsv} title={vi ? 'Tải danh sách cổ đông' : 'Download all shareholders'} disabled={allRowsForDownload.length === 0}>
                             <DownloadIcon />
                         </StockTabIconButton>
                     </div>
@@ -211,7 +224,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
                         <input
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            placeholder={activeView === 'individuals' ? 'Find regular shareholders' : 'Find institutional holders'}
+                            placeholder={vi ? 'Tìm cổ đông' : 'Find shareholders'}
                             className="w-full rounded-tremor-default border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-950"
                         />
                     </div>
@@ -221,32 +234,31 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
                     <table className="min-w-full text-sm">
                         <thead>
                             <tr className="border-b border-gray-100 text-left text-gray-600 dark:border-gray-800 dark:text-gray-300">
-                                <th className="px-4 py-3 font-medium">Manager</th>
-                                <th className="px-4 py-3 text-right font-medium">Shares Owned</th>
-                                <th className="px-4 py-3 text-right font-medium">Current Value</th>
-                                <th className="px-4 py-3 text-right font-medium">Ownership (%)</th>
-                                <th className="px-4 py-3 text-right font-medium">Updated At</th>
+                                <th className="px-4 py-3 font-medium">{vi ? 'Cổ đông' : 'Manager'}</th>
+                                <th className="px-4 py-3 text-right font-medium">{vi ? 'Số cổ phiếu' : 'Shares Owned'}</th>
+                                <th className="px-4 py-3 text-right font-medium">{vi ? 'Giá trị hiện tại' : 'Current Value'}</th>
+                                <th className="px-4 py-3 text-right font-medium">{vi ? 'Sở hữu (%)' : 'Ownership (%)'}</th>
+                                <th className="px-4 py-3 text-right font-medium">{vi ? 'Ngày cập nhật' : 'Updated At'}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">Loading holders...</td>
+                                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">{labels.loading}</td>
                                 </tr>
                             ) : error ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-red-500">{error}</td>
+                                    <td colSpan={5} className="px-4 py-8 text-center text-red-500">{labels.error}</td>
                                 </tr>
                             ) : rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No data for this section.</td>
+                                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">{vi ? 'Chưa có dữ liệu.' : 'No data for this section.'}</td>
                                 </tr>
-                            ) : rows.map((row: any, idx) => (
-                                <tr key={`${row.manager || row.name || 'row'}-${idx}`} className="border-b border-gray-100 last:border-b-0 dark:border-gray-800">
+                            ) : rows.map((row, idx) => (
+                                <tr key={`${row.manager || 'row'}-${idx}`} className="border-b border-gray-100 last:border-b-0 dark:border-gray-800">
                                     <td className="px-4 py-3">
-                                        <div className="font-medium text-gray-900 dark:text-gray-100">{row.manager || row.name || '-'}</div>
-                                        {row.name_vi && row.name_vi !== row.manager ? <div className="text-xs text-gray-400 dark:text-gray-500">{row.name_vi}</div> : null}
-                                        {row.position ? <div className="text-xs text-gray-500">{row.position}</div> : null}
+                                        <div className="font-medium text-gray-900 dark:text-gray-100">{holderName(row)}</div>
+                                        {holderPosition(row) ? <div className="text-xs text-gray-500">{holderPosition(row)}</div> : null}
                                     </td>
                                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{formatCompactShares(Number(row.shares || 0))}</td>
                                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{formatCompactCurrencyVnd(Number(row.value || 0))}</td>
