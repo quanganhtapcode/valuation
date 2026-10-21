@@ -150,7 +150,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const [idxLoad,  setIdxLoad]  = useState(false);
     const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
     const vnCache   = useRef<Map<string, PEChartData[]>>(new Map());
-    const liveVnRef = useRef<{ time: BusinessDay; value: number } | null>(null);
+    const livePointsRef = useRef<Map<string, { time: BusinessDay; value: number }>>(new Map());
     const userChartInteractionRef = useRef(false);
     const fittedViewForRef = useRef<string | null>(null);
     const selectedIdRef = useRef(selectedId);
@@ -233,14 +233,15 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         if (!info) return;
 
         const cached = idxCache.current.get(selectedId);
-        if (cached) { setIdxBars(cached); return; }
+        if (cached) { setIdxBars(cached); setIdxLoad(false); return; }
 
+        const controller = new AbortController();
         setIdxLoad(true);
         setIdxBars([]);
-        fetch(`${API_BASE}/market/indices/history?index=${info.vciSymbol}&days=-1&compact=1`)
+        fetch(`${API_BASE}/market/indices/history?index=${info.vciSymbol}&days=-1&compact=1`, { signal: controller.signal })
             .then(r => r.json())
             .then((rows: any[]) => {
-                if (!Array.isArray(rows)) return;
+                if (controller.signal.aborted || !Array.isArray(rows)) return;
                 const bars = rows
                     .filter(r => r.tradingDate && r.closeIndex)
                     .map(r => ({
@@ -252,8 +253,13 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 idxCache.current.set(selectedId, bars);
                 setIdxBars(bars);
             })
-            .catch(console.error)
-            .finally(() => setIdxLoad(false));
+            .catch(error => {
+                if (error.name !== 'AbortError') console.error(error);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setIdxLoad(false);
+            });
+        return () => controller.abort();
     }, [selectedId, isVN]);
 
     // ── Derive full-history chart series ─────────────────────────────────────
@@ -484,8 +490,9 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
         })));
         // Re-apply live today-point if already received
-        if (liveVnRef.current && isVN) {
-            try { areaRef.current.update(liveVnRef.current); } catch {}
+        const livePoint = livePointsRef.current.get(selectedId);
+        if (livePoint) {
+            try { areaRef.current.update(livePoint); } catch {}
         }
         // Fit only a newly selected index. Do not snap the chart back to the
         // latest year when older history arrives during a user pan.
@@ -496,8 +503,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             return;
         }
         if (fittedViewForRef.current === selectedId) return;
-        const latest = isVN && liveVnRef.current
-            ? liveVnRef.current.time
+        const latest = livePoint
+            ? livePoint.time
             : priceTV[priceTV.length - 1].time;
         const from = new Date(Date.UTC(latest.year - 1, latest.month - 1, latest.day));
         const firstDate = dayKey(priceTV[0].time);
@@ -541,20 +548,23 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         queueMicrotask(() => setTooltip(null));
     }, [isVN, selectedId]);
 
-    // ── Live VNINDEX today-point via indices prop (shared WebSocket from OverviewClient) ──
+    // ── Live selected-index point via the shared quote stream ──
     useEffect(() => {
-        if (!isVN || !isTradingHours()) return;
-        const vnidx = indices.find(i => i.id === 'vnindex');
+        if (!isTradingHours()) return;
+        const vnidx = indices.find(i => i.id === selectedId);
         if (!vnidx?.value || vnidx.isReference || !areaRef.current) return;
         const now = new Date();
         const vnMs = now.getTime() + now.getTimezoneOffset() * 60_000 + 7 * 3_600_000;
         const vn = new Date(vnMs);
-        liveVnRef.current = {
+        const point = {
             time:  { year: vn.getFullYear(), month: vn.getMonth() + 1, day: vn.getDate() } as BusinessDay,
             value: vnidx.value,
         };
-        try { areaRef.current.update(liveVnRef.current); } catch {}
-    }, [indices, isVN]);
+        livePointsRef.current.set(selectedId, point);
+        if (priceTV.length) {
+            try { areaRef.current.update(point); } catch {}
+        }
+    }, [indices, selectedId, priceTV]);
 
     // ── Render ────────────────────────────────────────────────────────────────
     const isUp      = (selected?.change ?? 0) >= 0;
