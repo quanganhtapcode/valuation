@@ -94,10 +94,10 @@ export default function EarningsSeason() {
                                 : item;
                             return (
                                 <details key={source?.url || `${index}-${item}`} className="group">
-                                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-800 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500 dark:text-gray-100 dark:hover:bg-gray-800 [&::-webkit-details-marker]:hidden">
+                                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-800 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500 dark:text-gray-100 dark:hover:bg-gray-800 [&::-webkit-details-marker]:hidden">
                                         {symbol && /^[A-Z0-9]{3,10}$/.test(symbol) && <CompanyLogo key={symbol} symbol={symbol} />}
                                         <span className="min-w-0 flex-1">{title}</span>
-                                        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180">
+                                        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180">
                                             <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
                                     </summary>
