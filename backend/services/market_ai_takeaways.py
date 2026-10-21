@@ -238,7 +238,15 @@ def _build_prompt(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]
         "\"summary\":\"English factual summary, max 350 characters\","
         "\"summary_vi\":\"Vietnamese equivalent, max 350 characters\"}]}. "
         "Summarize all supplied articles (up to 5), newest first. Every summary must cite exactly one provided source_id. "
-        "Headlines must be concise and distinct from the detailed summaries. Do not return market-summary bullets, rankings, watchlists or unsupported numbers.\n"
+        "Headlines must be concise and distinct from the detailed summaries. "
+        "Keep each summary under 350 characters in each language. Preserve numerical values; "
+        "do not add calculated equivalents or convert units. Write quarters in English words "
+        "(for example, third quarter), and put a space between VND and any number. "
+        "The title and summary fields MUST be entirely English: translate Vietnamese terms "
+        "such as quy, dong, ty, co phieu; transliterate company and publisher names to ASCII "
+        "(for example, Ninh Binh). Never copy Vietnamese phrases or accented names into "
+        "English fields. The title_vi and summary_vi fields must remain Vietnamese. "
+        "Do not return market-summary bullets, rankings, watchlists or unsupported numbers.\n"
         "INPUT_JSON:\n" + json.dumps(payload, ensure_ascii=False, separators=(',', ':'))
     )
 
@@ -266,37 +274,69 @@ def compute_ai_takeaways() -> dict[str, Any]:
         raw_news = parsed.get('news')
         if not isinstance(raw_news, list):
             raise ValueError('AI response lacks source-bound news summaries')
-        for item in raw_news:
-            if not isinstance(item, dict):
-                continue
-            source = sources.get(item.get('source_id'))
-            en, vi = item.get('summary'), item.get('summary_vi')
-            if source is None or any(row['source_id'] == source['source_id'] for row in used) or not isinstance(en, str) or not isinstance(vi, str):
-                continue
-            if not en.strip() or not vi.strip() or _has_vietnamese(en) or max(len(en), len(vi)) > 350:
-                continue
-            evidence = source['title'] + ' ' + source['excerpt']
-            mentioned = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', en + ' ' + vi))
-            supported = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', evidence))
-            if not mentioned <= supported | {'USD', 'VND', 'GDP', 'ROE', 'ROA', 'EPS'}:
-                continue
-            supported_numbers = _numbers(evidence)
-            if not (_numbers(en) | _numbers(vi)) <= supported_numbers:
-                continue
-            news_en.append(en.strip())
-            news_vi.append(vi.strip())
-            source = dict(source)
-            for field, target in (('title', 'title_en'), ('title_vi', 'title_vi')):
-                title = item.get(field)
-                if (not isinstance(title, str) or not title.strip() or len(title) > 80
-                        or (target == 'title_en' and _has_vietnamese(title))):
+        # Retry only missing/rejected articles once. A partial bilingual response
+        # should not leave English readers with placeholders until the next cron.
+        for attempt in range(2):
+            for item in raw_news:
+                if not isinstance(item, dict):
                     continue
-                title_symbols = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', title))
-                if (title_symbols <= supported | {'USD', 'VND', 'GDP', 'ROE', 'ROA', 'EPS'}
-                        and _numbers(title) <= supported_numbers):
-                    source[target] = title.strip()
-            used.append(source)
-            if len(used) >= 5:
+                source = sources.get(item.get('source_id'))
+                en, vi = item.get('summary'), item.get('summary_vi')
+                if source is None or any(row['source_id'] == source['source_id'] for row in used) or not isinstance(en, str) or not isinstance(vi, str):
+                    continue
+                if not en.strip() or not vi.strip() or _has_vietnamese(en) or max(len(en), len(vi)) > 350:
+                    logger.warning('Rejected news %s: lengths=%s/%s, Vietnamese in English=%s',
+                                   source['source_id'], len(en), len(vi), _has_vietnamese(en))
+                    continue
+                evidence = source['title'] + ' ' + source['excerpt']
+                mentioned = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', en + ' ' + vi))
+                supported = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', evidence))
+                if not mentioned <= supported | {'USD', 'VND', 'GDP', 'ROE', 'ROA', 'EPS'}:
+                    logger.warning('Rejected news %s: unsupported abbreviations', source['source_id'])
+                    continue
+                supported_numbers = _numbers(evidence)
+                if not (_numbers(en) | _numbers(vi)) <= supported_numbers:
+                    logger.warning('Rejected news %s: unsupported figures', source['source_id'])
+                    continue
+                news_en.append(en.strip())
+                news_vi.append(vi.strip())
+                source = dict(source)
+                for field, target in (('title', 'title_en'), ('title_vi', 'title_vi')):
+                    title = item.get(field)
+                    if (not isinstance(title, str) or not title.strip() or len(title) > 80
+                            or (target == 'title_en' and _has_vietnamese(title))):
+                        continue
+                    title_symbols = set(re.findall(r'\b[A-Z][A-Z0-9]{2,4}\b', title))
+                    if (title_symbols <= supported | {'USD', 'VND', 'GDP', 'ROE', 'ROA', 'EPS'}
+                            and _numbers(title) <= supported_numbers):
+                        source[target] = title.strip()
+                if not source.get('title_en'):
+                    # A validated English summary is preferable to a generic
+                    # "News update" when only the generated headline is invalid.
+                    source['title_en'] = (en.strip() if len(en.strip()) <= 80 else
+                                          en.strip()[:77].rsplit(' ', 1)[0] + '…')
+                used.append(source)
+                if len(used) >= 5:
+                    break
+            missing = [source for source in payload['recent_news_24h']
+                       if not any(row['source_id'] == source['source_id'] for row in used)]
+            if not missing or attempt == 1:
+                break
+            retry_payload = {**payload, 'recent_news_24h': missing}
+            try:
+                retry_prompt = (
+                    "A previous translation failed validation. For this retry, use short "
+                    "qualitative summaries without numerical figures or quarter labels. "
+                    "Use only the supplied stock symbol as an uppercase abbreviation. "
+                    "English names must use ASCII letters without Vietnamese accents.\n"
+                    + _build_prompt([], [], now, payload=retry_payload)
+                )
+                retry_text, _ = generate(retry_prompt)
+                raw_news = _extract_json_object(retry_text).get('news')
+                if not isinstance(raw_news, list):
+                    break
+            except Exception as exc:
+                logger.warning('AI news translation retry failed: %s', exc)
                 break
         if not used:
             raise ValueError('AI response has no valid source-grounded news')

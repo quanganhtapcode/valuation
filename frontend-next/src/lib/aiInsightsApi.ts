@@ -32,6 +32,7 @@ export interface MarketTakeawaysData {
     market_data_available?: boolean;
     news_sources?: Array<{
         title: string;
+        symbol?: string;
         title_en?: string;
         title_vi?: string;
         url: string;

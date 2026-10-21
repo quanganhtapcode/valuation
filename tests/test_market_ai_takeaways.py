@@ -109,6 +109,37 @@ class MarketAIValidation(unittest.TestCase):
              patch.object(ai, 'generate', side_effect=generate):
             return ai.compute_ai_takeaways()
 
+    def test_retries_rejected_english_summary_once(self):
+        calls = []
+
+        def response(payload):
+            calls.append(payload)
+            return {'news': [{
+                'source_id': payload['recent_news_24h'][0]['source_id'],
+                'title': 'Profit growth', 'title_vi': 'Lợi nhuận tăng',
+                'summary': 'Lợi nhuận tăng 20%.' if len(calls) == 1 else 'Profit increased 20%.',
+                'summary_vi': 'Lợi nhuận tăng 20%.',
+            }]}
+
+        data = self.compute(response)
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(data['available'])
+        self.assertEqual(data['news_summary'], ['Profit increased 20%.'])
+        self.assertEqual(data['news_sources'][0]['title_en'], 'Profit growth')
+
+    def test_does_not_retry_complete_valid_translation(self):
+        calls = []
+
+        def response(payload):
+            calls.append(payload)
+            return {'news': [{
+                'source_id': payload['recent_news_24h'][0]['source_id'],
+                'summary': 'Profit increased 20%.', 'summary_vi': 'Lợi nhuận tăng 20%.',
+            }]}
+
+        self.assertTrue(self.compute(response)['available'])
+        self.assertEqual(len(calls), 1)
+
     def test_llm_cannot_override_calculated_price_bullets(self):
         data = self.compute(lambda payload: {
             'market_summary_vi': ['PNJ -6.99%'], 'headline_vi': 'PNJ giảm sàn',
@@ -152,7 +183,8 @@ class MarketAIValidation(unittest.TestCase):
                     'summary_vi': 'Lợi nhuận tăng 20%.',
                 }]})
                 self.assertTrue(data['available'])
-                self.assertEqual('title_en' in data['news_sources'][0], accepted)
+                self.assertEqual(data['news_sources'][0]['title_en'],
+                                 title if accepted else 'Profit increased 20%.')
                 self.assertEqual(data['news_sources'][0]['title_vi'], 'Lợi nhuận tăng')
 
     def test_unknown_source_or_invented_number_uses_safe_fallback(self):

@@ -1,10 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { siteConfig } from '@/config/siteConfig';
 import { fetchMarketTakeaways, MarketTakeawaysData } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import NewsSourceLogos from './NewsSourceLogos';
+
+function CompanyLogo({ symbol }: { symbol: string }) {
+    const [failed, setFailed] = useState(false);
+
+    return (
+        <span title={symbol} className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700">
+            {failed ? (
+                <span className="text-[10px] font-semibold text-gray-600">{symbol}</span>
+            ) : (
+                <Image
+                    src={siteConfig.stockLogoUrl(symbol)}
+                    alt={symbol}
+                    width={36}
+                    height={36}
+                    unoptimized
+                    className="h-full w-full object-contain p-1"
+                    onError={() => setFailed(true)}
+                />
+            )}
+        </span>
+    );
+}
 
 function Skeleton() {
     return (
@@ -60,6 +84,8 @@ export default function EarningsSeason() {
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
                         {news.slice(0, 5).map((item, index) => {
                             const source = takeaways.news_sources?.[index];
+                            const rawSymbol = source?.symbol || takeaways.recent_news?.find(article => article.url === source?.url)?.symbol;
+                            const symbol = rawSymbol?.trim().toUpperCase();
                             const title = (isEnglish ? source?.title_en : source?.title_vi)
                                 || (!isEnglish ? source?.title : undefined)
                                 || (isEnglish ? `News update ${index + 1}` : `Tin nổi bật ${index + 1}`);
@@ -69,7 +95,8 @@ export default function EarningsSeason() {
                             return (
                                 <details key={source?.url || `${index}-${item}`} className="group">
                                     <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-800 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500 dark:text-gray-100 dark:hover:bg-gray-800 [&::-webkit-details-marker]:hidden">
-                                        <span>{title}</span>
+                                        {symbol && /^[A-Z0-9]{3,10}$/.test(symbol) && <CompanyLogo key={symbol} symbol={symbol} />}
+                                        <span className="min-w-0 flex-1">{title}</span>
                                         <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180">
                                             <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
