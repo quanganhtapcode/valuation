@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { sharedRange, sharedSymbols } from '@/lib/screenerState';
+import SavedScreens from '@/components/Screener/SavedScreens';
+import StockComparison from '@/components/Screener/StockComparison';
 import Pagination from '@/components/ui/Pagination';
 import {
   fetchScreener,
@@ -52,7 +55,7 @@ function fmtPct(v: number | null | undefined) {
   return `${Number(v).toFixed(1)}%`;
 }
 function fmtMCap(v: number | null | undefined) {
-  if (!v || !Number.isFinite(v)) return '-';
+  if (v == null || !Number.isFinite(v)) return '-';
   if (v >= 1e12) return `${(v / 1e12).toFixed(1)}T`;
   if (v >= 1e9)  return `${(v / 1e9).toFixed(0)}B`;
   if (v >= 1e6)  return `${(v / 1e6).toFixed(0)}M`;
@@ -189,6 +192,35 @@ export default function ScreenerPage() {
     net_profit_growth_max: npGrowthRange.max < NET_PROFIT_GROWTH_RANGE.max ? npGrowthRange.max     : undefined,
   }), [peRange, pbRange, priceRange, mcapRange, upsideRange, roeRange, netMarginRange, grossMarginRange, revGrowthRange, npGrowthRange, exchanges, selectedSector]);
 
+  const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
+  const [receivedAt, setReceivedAt] = useState('');
+  const applyQuery = (query: string) => {
+    const params = new URLSearchParams(query);
+    const controls = [
+      ['pe', PE_RANGE, setPeRange, 1], ['pb', PB_RANGE, setPbRange, 1],
+      ['price', PRICE_RANGE, setPriceRange, 1], ['market_cap', MARKET_CAP_BN_RANGE, setMcapRange, 1e9],
+      ['upside_pct', UPSIDE_PCT_RANGE, setUpsideRange, 1], ['roe', ROE_RANGE, setRoeRange, 1],
+      ['net_margin', NET_MARGIN_RANGE, setNetMarginRange, 1], ['gross_margin', GROSS_MARGIN_RANGE, setGrossMarginRange, 1],
+      ['revenue_growth', REVENUE_GROWTH_RANGE, setRevGrowthRange, 1], ['net_profit_growth', NET_PROFIT_GROWTH_RANGE, setNpGrowthRange, 1],
+    ] as const;
+    for (const [prefix, bounds, setter, scale] of controls) {
+      setter(sharedRange(params, prefix, bounds, scale));
+    }
+    const exchanges = (params.get('exchange') ?? 'HSX,HNX,UPCOM').split(',').filter(value => ['HSX', 'HNX', 'UPCOM'].includes(value));
+    setExchanges(new Set(exchanges.length ? exchanges : ['HSX', 'HNX', 'UPCOM']));
+    setSelectedSector((params.get('sector') ?? '').slice(0, 200));
+    setSortBy(SORT_OPTIONS.find(option => option.value === params.get('sort'))?.value ?? 'market_cap');
+    setSortOrder(params.get('order') === 'asc' ? 'asc' : 'desc');
+    setSelectedSymbols(sharedSymbols(params.get('compare')));
+    setPage(1);
+  };
+  const shareParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(liveFilters)) if (value !== undefined) shareParams.set(key, String(value));
+  shareParams.set('sort', sortBy);
+  shareParams.set('order', sortOrder);
+  if (selectedSymbols.length) shareParams.set('compare', selectedSymbols.join(','));
+  const toggleComparison = (symbol: string) => setSelectedSymbols(previous => previous.includes(symbol) ? previous.filter(value => value !== symbol) : previous.length < 5 ? [...previous, symbol] : previous);
+
   // Per-tab active counts for badges
   const tabCounts = useMemo(() => ({
     valuation: [
@@ -229,9 +261,11 @@ export default function ScreenerPage() {
         const resp = await fetchScreener({ page, pageSize: PAGE_SIZE, sortBy, sortOrder, filters: debouncedFilters });
         // Ignore a slower response from a previous page, filter, or sort order.
         if (!active) return;
+        if (!resp.success) throw new Error(t.loadFailed);
         setItems(resp.items || []);
         setTotal(resp.total || 0);
         setHasValuationData(!!resp.hasValuationData);
+        setReceivedAt(new Date().toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-GB'));
       } catch (error) {
         if (active) setError(error instanceof Error ? error.message : t.loadFailed);
       } finally {
@@ -240,7 +274,7 @@ export default function ScreenerPage() {
     };
     void loadData();
     return () => { active = false; };
-  }, [debouncedFilters, page, sortBy, sortOrder, t.loadFailed]);
+  }, [debouncedFilters, page, sortBy, sortOrder, t.loadFailed, lang]);
 
   const toggleExchange = (ex: string) => {
     setExchanges((prev) => {
@@ -286,16 +320,16 @@ export default function ScreenerPage() {
       <div className="mx-auto max-w-[1600px] p-4 md:p-6 space-y-4">
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-5">
+        <div className="flex flex-col items-start justify-between gap-3 mb-5 sm:flex-row">
           <div>
-            <h1 className="text-3xl font-bold leading-tight tracking-tight md:text-4xl">{t.title}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight md:text-4xl">{t.title}</h1>
             <div className="mt-2 h-1 w-24 rounded bg-blue-500" />
             <p className="mt-3 hidden text-sm text-slate-600 dark:text-slate-300 md:block">
               {t.subtitle}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
             {/* Exchange pills — always visible */}
             <div className="flex gap-1">
               {([['HSX', 'HOSE'], ['HNX', 'HNX'], ['UPCOM', 'UPCOM']] as const).map(([value, label]) => {
@@ -332,6 +366,8 @@ export default function ScreenerPage() {
           </div>
         </div>
 
+        <SavedScreens query={shareParams.toString()} apply={applyQuery} lang={lang} />
+        <StockComparison symbols={selectedSymbols} lang={lang} onRemove={toggleComparison} />
         {/* Filter panel */}
         <div className={`overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${filtersOpen ? 'block' : 'hidden md:block'}`}>
           {/* Industry filter — the dataset exposes ICB levels 1 and 2; filtering uses level 2. */}
@@ -469,20 +505,46 @@ export default function ScreenerPage() {
               <div className="mt-0.5 text-sm font-semibold text-slate-600 tabular-nums dark:text-slate-300">{summary}</div>
             </div>
             <div className="flex gap-2">
-              <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as ScreenerSortKey)}>
-                {SORT_OPTIONS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+              <select aria-label={lang === 'vi' ? 'Sắp xếp theo' : 'Sort by'} className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as ScreenerSortKey)}>
+                {SORT_OPTIONS.map((x) => <option key={x.value} value={x.value}>{lang === 'vi' ? ({ market_cap: 'Vốn hóa', upside_pct: 'Tiềm năng tăng', price: 'Giá', daily_change: 'Thay đổi giá', revenue_growth: 'Tăng trưởng DT', net_profit_growth: 'Tăng trưởng LN' } as Partial<Record<ScreenerSortKey, string>>)[x.value] ?? x.label : x.label}</option>)}
               </select>
-              <select className="input" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}>
+              <select aria-label={lang === 'vi' ? 'Thứ tự sắp xếp' : 'Sort order'} className="input" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}>
                 <option value="desc">↓</option>
                 <option value="asc">↑</option>
               </select>
             </div>
           </div>
 
-          <div className="overflow-x-auto -mx-3 md:mx-0">
+          <p className="mb-3 text-sm text-slate-500 sm:hidden">{lang === 'vi' ? 'Chọn 2–5 mã để đối chiếu riêng.' : 'Select 2–5 stocks for a focused comparison.'}</p>
+          <div className="divide-y divide-slate-200 dark:divide-slate-800 sm:hidden">
+            {items.map(row => {
+              const selected = selectedSymbols.includes(row.ticker);
+              return <article key={row.ticker} className="py-4 first:pt-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link prefetch={false} href={localizedPath(`/stock/${row.ticker}`, lang)} className="text-lg font-bold text-blue-700 dark:text-blue-400">{row.ticker}</Link>
+                    <p className="mt-0.5 truncate text-sm text-slate-600 dark:text-slate-300">{row.name || row.ticker}</p>
+                    <p className="mt-1 truncate text-xs text-slate-500">{row.exchange || '—'} · {row.sector || '—'}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-lg font-semibold tabular-nums">{fmtNum(row.marketPrice, 0)}<span className="ml-1 text-xs font-normal text-slate-500">₫</span></p>
+                    <label className={`mt-1 flex min-h-11 cursor-pointer items-center justify-end gap-2 rounded-lg px-2 text-sm ${selected ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                      <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={selected} disabled={!selected && selectedSymbols.length >= 5} onChange={() => toggleComparison(row.ticker)} aria-label={`${lang === 'vi' ? 'So sánh' : 'Compare'} ${row.ticker}`} />{selected ? (lang === 'vi' ? 'Đã chọn' : 'Selected') : (lang === 'vi' ? 'So sánh' : 'Compare')}
+                    </label>
+                  </div>
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+                  {[['P/E', fmtNum(row.ttmPe, 1)], ['P/B', fmtNum(row.ttmPb, 1)], ['ROE', fmtPct(row.ttmRoe)], [lang === 'vi' ? 'Vốn hóa' : 'Market cap', fmtMCap(row.marketCap)], [lang === 'vi' ? 'DT YoY' : 'Revenue YoY', fmtPct(row.revenueGrowthYoy)], [lang === 'vi' ? 'LN YoY' : 'Profit YoY', fmtPct(row.npatmiGrowthYoyQm1)]].map(([label, value]) => <div key={label}><dt className="text-xs text-slate-500 dark:text-slate-400">{label}</dt><dd className="mt-1 text-sm font-semibold tabular-nums">{value}</dd></div>)}
+                </dl>
+                {hasValuationData && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t.intrinsic}: {fmtNum(row.intrinsicValue, 0)} ₫ · {t.upside}: {fmtPct(row.upsidePct)}</p>}
+              </article>;
+            })}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm min-w-[480px]">
               <thead>
                 <tr className="text-left border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                  <th className="p-2"><span className="sr-only">{lang === 'vi' ? 'So sánh' : 'Compare'}</span></th>
                   <th className="py-2 pl-3 md:pl-0 pr-2 font-medium">{t.ticker}</th>
                   <th className="py-2 px-2 font-medium text-right">{t.price}</th>
                   {hasValuationData && (
@@ -511,6 +573,7 @@ export default function ScreenerPage() {
                                         'text-red-500 dark:text-red-400';
                   return (
                     <tr key={row.ticker} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <td className="p-2"><input type="checkbox" checked={selectedSymbols.includes(row.ticker)} disabled={!selectedSymbols.includes(row.ticker) && selectedSymbols.length >= 5} onChange={() => toggleComparison(row.ticker)} aria-label={`${lang === 'vi' ? 'So sánh' : 'Compare'} ${row.ticker}`} /></td>
                       <td className="py-2 pl-3 md:pl-0 pr-2">
                         <Link prefetch={false} href={localizedPath(`/stock/${row.ticker}`, lang)} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                           {row.ticker}
@@ -542,15 +605,21 @@ export default function ScreenerPage() {
                 })}
               </tbody>
             </table>
-            {!loading && items.length === 0 && (
-              <div className="py-10 text-center text-sm text-slate-400">{t.noResults}</div>
-            )}
           </div>
 
+          {!loading && items.length === 0 && <div className="py-10 text-center text-sm text-slate-500">{t.noResults}</div>}
           <div className="mt-4">
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} disabled={loading} />
           </div>
         </div>
+        <details className="rounded-xl border border-slate-200 p-3 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+          <summary className="cursor-pointer font-semibold">{lang === 'vi' ? 'Nguồn dữ liệu, thời gian & cách đọc chỉ tiêu' : 'Data sources, timestamps & metric guide'}</summary>
+          <p className="mt-2">{lang === 'vi' ? 'Nguồn: dữ liệu Vietcap/VCI lưu tại hệ thống; tỷ số và biên lợi nhuận có thể được bổ sung từ bộ dữ liệu tỷ số và tài chính. Giá trị nội tại lấy từ bộ nhớ định giá của hệ thống.' : 'Source: locally stored Vietcap/VCI data; ratios and margins may be supplemented from ratio and financial datasets. Intrinsic values come from the valuation cache.'}</p>
+          <p className="mt-2">{lang === 'vi' ? 'Giá: VND/cổ phiếu. Tăng trưởng và biên lợi nhuận: %. P/E, P/B: lần. T = nghìn tỷ, B = tỷ, M = triệu VND. YoY = so với cùng kỳ năm trước. Dấu — hoặc - là thiếu dữ liệu, khác với 0.' : 'Price: VND/share. Growth and margins: %. P/E and P/B: multiples. T = trillion, B = billion, M = million VND. YoY = year over year. — or - indicates missing data, distinct from zero.'}</p>
+          <p className="mt-2">{lang === 'vi' ? 'API chưa cung cấp kỳ báo cáo và thời điểm cập nhật gốc cho từng chỉ tiêu. Thời gian nhận kết quả không phải thời gian giao dịch; kết quả có thể được lưu đệm 120 giây.' : 'The API does not expose reporting periods or original update timestamps per metric. Receipt time is not trade time; results may be cached for 120 seconds.'}</p>
+          <p className="mt-2">{lang === 'vi' ? 'Cách đọc: P/E = giá / lợi nhuận mỗi cổ phiếu; P/B = giá / giá trị sổ sách mỗi cổ phiếu; ROE = lợi nhuận / vốn chủ sở hữu; biên lợi nhuận = lợi nhuận / doanh thu; tăng trưởng YoY = (kỳ này / cùng kỳ − 1) × 100%. Cách chọn kỳ và mẫu số cụ thể theo nguồn dữ liệu.' : 'Guide: P/E = price / earnings per share; P/B = price / book value per share; ROE = profit / equity; margin = profit / revenue; YoY growth = (current / prior-year period − 1) × 100%. Exact periods and denominator conventions follow the data source.'}</p>
+          {receivedAt && <p className="mt-2">{lang === 'vi' ? 'Nhận kết quả bộ lọc lúc' : 'Screen response received at'}: {receivedAt}{loading ? (lang === 'vi' ? ' · Đang cập nhật' : ' · Refreshing') : error ? (lang === 'vi' ? ' · Cập nhật thất bại; dữ liệu trước đó có thể còn hiển thị' : ' · Refresh failed; previous data may remain visible') : ''}</p>}
+        </details>
       </div>
 
       <style jsx>{`
@@ -559,7 +628,8 @@ export default function ScreenerPage() {
           background: white;
           color: rgb(15 23 42);
           border-radius: 0.5rem;
-          padding: 0.35rem 0.5rem;
+          padding: 0.5rem;
+          min-height: 44px;
           font-size: 0.8rem;
           min-width: 0;
         }

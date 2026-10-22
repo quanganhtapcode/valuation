@@ -9,6 +9,7 @@
     "lint": "eslint",
     "i18n:audit": "node scripts/check-i18n.mjs",
     "i18n:check": "node scripts/check-i18n.mjs --strict",
+    "test:screener-state": "node scripts/test-screener-state.mjs",
     "test:valuation-export": "node scripts/test-valuation-export.mjs"
   },
   "dependencies": {
