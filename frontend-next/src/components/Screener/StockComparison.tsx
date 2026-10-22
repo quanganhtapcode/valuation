@@ -18,7 +18,7 @@ const metrics: { key: keyof ScreenerItem; vi: string; en: string; unit: string; 
 ];
 
 export default function StockComparison({ symbols, lang, onRemove }: { symbols: string[]; lang: 'vi' | 'en'; onRemove: (symbol: string) => void }) {
-  const [result, setResult] = useState<{ items: ScreenerItem[]; error?: string; received: string; key: string } | null>(null);
+  const [result, setResult] = useState<{ items: ScreenerItem[]; error?: string; key: string } | null>(null);
   const [retry, setRetry] = useState(0);
   const [open, setOpen] = useState(false);
   const [pair, setPair] = useState<[string, string]>(['', '']);
@@ -29,9 +29,9 @@ export default function StockComparison({ symbols, lang, onRemove }: { symbols: 
     let active = true;
     void fetchScreener({ filters: { tickers }, pageSize: 10 }).then(response => {
       if (!response.success) throw new Error('Comparison unavailable');
-      if (active) setResult({ items: response.items, key, received: new Date().toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-GB') });
+      if (active) setResult({ items: response.items, key });
     }).catch(() => {
-      if (active) setResult({ items: [], key, error: lang === 'vi' ? 'Không tải được dữ liệu so sánh.' : 'Unable to load comparison.', received: '' });
+      if (active) setResult({ items: [], key, error: lang === 'vi' ? 'Không tải được dữ liệu so sánh.' : 'Unable to load comparison.' });
     });
     return () => { active = false; };
   }, [key, tickers, lang, open]);
@@ -79,7 +79,6 @@ export default function StockComparison({ symbols, lang, onRemove }: { symbols: 
         <div className="hidden md:block">{renderTable(symbols, false)}</div>
       </>}
       {current && !current.error && rows.some(row => !row) && <p className="p-3 text-sm text-amber-700 dark:text-amber-300">{lang === 'vi' ? 'Không có dữ liệu: ' : 'Unavailable: '}{symbols.filter((_, index) => !rows[index]).join(', ')}</p>}
-      {current?.received && <p className="p-3 text-xs leading-5 text-slate-500">{lang === 'vi' ? 'Nhận kết quả lúc' : 'Response received at'}: {current.received}. {lang === 'vi' ? '—: thiếu dữ liệu. Các mã có thể khác kỳ báo cáo.' : '—: unavailable. Reporting periods may differ.'}</p>}
     </div>}
   </section>;
 }
