@@ -54,7 +54,9 @@ export function resolveCachePolicy(path: string, params: URLSearchParams): Proxy
         || params.has('pretty') || params.get('fetch_price') === 'true') return policies.realtime;
 
     // Share a brief heatmap snapshot at the edge without retaining it in browsers.
-    if (resource === 'market/heatmap') return policies.snapshot;
+    if (/^market\/(?:heatmap|gold|top-movers|foreign-flow|foreign-net-value|foreign-volume-chart)$/.test(resource)) return policies.snapshot;
+    if (resource === 'market/ai-takeaways' || resource === 'market/macro/rates') return policies.short;
+    if (/^market\/(?:world-indices|macro\/(?:economic|gdp|indicators|history(?:\/batch)?))$/.test(resource)) return policies.medium;
     if (/^stocks\/financial-metrics(?:\/sectors)?$/.test(resource)) return policies.medium;
 
     // Quotes and snapshots that contain quotes must observe the current RAM cache.
@@ -64,7 +66,7 @@ export function resolveCachePolicy(path: string, params: URLSearchParams): Proxy
         || /^stocks\/[^/]+\/summary$/.test(resource) && params.get('realtime') !== '0'
         || /^(?:health$|cache\/|financial-statements\/(?:exports|workbooks)(?:\/|$))/.test(resource)
         || /^(?:stock\/excel|stocks\/excel|download\/|financial-bulk-export)/.test(legacy)
-        || /^(?:market\/(?:indices|top-movers|prices|orderbook|overview|screener|ai-takeaways)|market\/macro\/rates)$/.test(resource)) {
+        || /^(?:market\/(?:indices|prices|orderbook|overview|screener)|market\/macro\/rates)$/.test(resource)) {
         return policies.realtime;
     }
     if (/^market\/(?:news|funds)(?:\/|$)/.test(resource)

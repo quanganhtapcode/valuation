@@ -78,9 +78,8 @@ export async function fetchAiAnalysis(symbol: string): Promise<AiAnalysisData> {
 
 export async function fetchMarketTakeaways(): Promise<MarketTakeawaysData | null> {
     try {
-        // The server snapshot is already persisted; bypass browser/proxy caches
-        // so a successful AI refresh immediately replaces an earlier fallback.
-        return await fetchAPI<MarketTakeawaysData>(`${API.AI_TAKEAWAYS}?cache=no-store`);
+        // A brief edge snapshot avoids a cross-region round trip on every visit.
+        return await fetchAPI<MarketTakeawaysData>(`${API.AI_TAKEAWAYS}?compact=1`);
     } catch {
         return null;
     }

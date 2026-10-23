@@ -36,7 +36,7 @@ export async function fetchPEChart(
     metric: ValuationMetric = 'both',
     options?: RequestInit,
 ): Promise<PEChartResult> {
-    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}`, options);
+    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}&compact=1`, options);
     const series = parsePEChartPayload(response);
     const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
     return { series, stats };
@@ -47,7 +47,7 @@ export async function fetchPEChartByRange(
     metric: ValuationMetric = 'both',
     options?: RequestInit,
 ): Promise<PEChartResult> {
-    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}&timeFrame=${timeFrame}`, options);
+    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}&timeFrame=${timeFrame}&compact=1`, options);
     const series = parsePEChartPayload(response);
     const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
     return { series, stats };
@@ -57,7 +57,11 @@ export function parsePEChartPayload(response: any): PEChartData[] {
     // New unified format: { data: [{date, vnindex, ema50, pe, pb, volume}] }
     if (Array.isArray(response?.data) && response.data.length > 0) {
         return response.data
-            .map((item: any) => {
+            .map((raw: any) => {
+                // Older backends return objects even when compact=1 is sent.
+                const item = Array.isArray(raw) && Array.isArray(response.columns)
+                    ? Object.fromEntries(response.columns.map((column: string, index: number) => [column, raw[index]]))
+                    : raw;
                 const date = parseDateInput(item?.date);
                 if (!date) return null;
                 return {

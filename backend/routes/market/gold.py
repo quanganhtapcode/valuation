@@ -13,5 +13,8 @@ def register(market_bp: Blueprint) -> None:
         if not data.get("success"):
             response.status_code = 503
             response.headers["Retry-After"] = "5"
-        response.headers["Cache-Control"] = "no-store"
+        response.headers["Cache-Control"] = (
+            "public, max-age=0, s-maxage=5, stale-while-revalidate=10"
+            if data.get("success") and not data.get("stale") else "no-store"
+        )
         return response

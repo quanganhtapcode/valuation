@@ -33,7 +33,7 @@ test('canonical and legacy live resources bypass caches', () => {
     assert.equal(resolveCachePolicy('stocks/VCB/summary', new URLSearchParams('realtime=0')).mode, 'medium');
 });
 
-test('only heatmap uses a brief shared snapshot and explicit bypasses still work', () => {
+test('aggregate snapshots use a brief shared cache and explicit bypasses still work', () => {
     assert.deepEqual(resolveCachePolicy('market/heatmap', new URLSearchParams('exchange=HSX&limit=200')), {
         mode: 'snapshot', revalidateSeconds: 5,
         responseCacheControl: 'public, max-age=0, s-maxage=5, stale-while-revalidate=10',
@@ -42,6 +42,23 @@ test('only heatmap uses a brief shared snapshot and explicit bypasses still work
         assert.equal(resolveCachePolicy('market/heatmap', new URLSearchParams(query)).mode, 'realtime', query);
     }
     assert.equal(resolveCachePolicy('market/heatmap-history', new URLSearchParams()).mode, 'realtime');
+});
+
+test('aggregate data is cached briefly while live quotes stay uncached', () => {
+    for (const path of ['market/gold', 'market/top-movers', 'market/foreign-flow',
+        'market/foreign-net-value', 'market/foreign-volume-chart']) {
+        assert.equal(resolveCachePolicy(path, new URLSearchParams()).mode, 'snapshot', path);
+    }
+    for (const path of ['market/ai-takeaways', 'market/macro/rates']) {
+        assert.equal(resolveCachePolicy(path, new URLSearchParams()).mode, 'short', path);
+        assert.equal(resolveCachePolicy(path, new URLSearchParams('cache=no-store')).mode, 'realtime');
+    }
+    for (const path of ['market/world-indices', 'market/macro/economic', 'market/macro/history/batch']) {
+        assert.equal(resolveCachePolicy(path, new URLSearchParams()).mode, 'medium', path);
+    }
+    for (const path of ['market/indices', 'market/prices', 'market/screener', 'stocks/FPT/quote']) {
+        assert.equal(resolveCachePolicy(path, new URLSearchParams()).mode, 'realtime', path);
+    }
 });
 
 test('heatmap snapshots cache only at the edge and failures remain uncached', async () => {

@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,9 @@ from backend.db_path import (
     resolve_valuation_cache_db_path,
 )
 
+from backend.services.market_sessions import expected_session_date
+
+from .chart_payload import compact_chart_payload
 from .deps import cache_func, cache_ttl
 from .http_headers import VCI_HEADERS
 
@@ -428,7 +431,11 @@ def fetch_vci_index_valuation_payload(
             existing_dates = {row["date"] for row in sqlite_data["data"]}
             # Fetch recent Vietcap OHLC to fill today / yesterday if not in SQLite
             try:
-                recent_ohlc = _fetch_vnindex_ohlc_series(count_back=5)
+                # Completed-session bars already exist in SQLite. Avoid a
+                # provider round trip on cold cache hits and every weekend.
+                session = expected_session_date(datetime.now(timezone.utc))
+                recent_ohlc = ([] if session in existing_dates else
+                               _fetch_vnindex_ohlc_series(count_back=5))
                 for bar in _attach_ema50(recent_ohlc):
                     d = bar["date"]
                     if d not in existing_dates:
@@ -527,6 +534,8 @@ def register(market_bp: Blueprint) -> None:
 
         try:
             data, is_cached = cache_func()(cache_key, cache_ttl().get("pe_chart", 3600), fetch_index_valuation)
+            if request.args.get("compact") == "1":
+                data = compact_chart_payload(data)
             resp = jsonify(data)
             resp.headers["X-Cache"] = "HIT" if is_cached else "MISS"
             return resp
