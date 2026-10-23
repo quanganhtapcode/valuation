@@ -1,5 +1,9 @@
 'use client';
 
+import { StockTabDropdown } from './StockTabControls';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { translations } from '@/lib/translations';
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -123,15 +127,14 @@ function normalizePeer(raw: any): BankPeer {
 
 interface Props {
     symbol: string;
-    industry: string;
     initialPeers?: any;
-    initialPeriod?: string | null;
 }
 
-const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Props) => {
+const BankingPeerTable = ({ symbol, initialPeers }: Props) => {
     const [mode, setMode] = useState<Mode>('quarter');
     const [peers, setPeers] = useState<BankPeer[]>([]);
-    const [period, setPeriod] = useState<string | null>(initialPeriod ?? null);
+    const { lang } = useLanguage();
+    const copy = translations[lang].detail.analysis;
     const [medianPe, setMedianPe] = useState<number | null>(null);
     const [loading, setLoading] = useState(!initialPeers);
     const fetchKeyRef = useRef('');
@@ -141,7 +144,6 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
             queueMicrotask(() => {
                 setPeers((initialPeers.data || []).map(normalizePeer));
                 setMedianPe(initialPeers.medianPe ?? null);
-                setPeriod(initialPeers.period ?? null);
                 setLoading(false);
             });
         }
@@ -164,7 +166,6 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
                 if (res?.success) {
                     setPeers((res.data || []).map(normalizePeer));
                     setMedianPe(res.medianPe ?? null);
-                    setPeriod(res.period ?? null);
                 }
             })
             .catch(err => console.error('BankingPeerTable fetch error:', err))
@@ -176,40 +177,22 @@ const BankingPeerTable = ({ symbol, industry, initialPeers, initialPeriod }: Pro
 
     return (
         <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {period ? `${industry} · ${period}` : industry}
-                </p>
-                <div className="flex items-center gap-3">
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">Peers</h3>
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                     {medianPe !== null && (
-                        <span className="hidden rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 sm:inline-flex dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
-                            Median P/E: {medianPe.toFixed(1)}
+                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+                            {copy.medianPe}: {medianPe.toFixed(2)}
                         </span>
                     )}
-                    <div className="inline-flex overflow-hidden rounded-full border border-slate-200 dark:border-slate-700">
-                            <button
-                                onClick={() => setMode('quarter')}
-                                className={cx(
-                                    'px-3 py-1.5 text-xs font-medium transition-colors',
-                                    mode === 'quarter'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
-                                )}
-                            >
-                                Quý
-                            </button>
-                            <button
-                                onClick={() => setMode('year')}
-                                className={cx(
-                                    'border-l border-slate-200 px-3 py-1.5 text-xs font-medium transition-colors dark:border-slate-700',
-                                    mode === 'year'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
-                                )}
-                            >
-                                Năm
-                            </button>
-                    </div>
+                    <StockTabDropdown
+                        align="right"
+                        label={mode === 'quarter' ? (lang === 'vi' ? 'Quý' : 'Quarter') : (lang === 'vi' ? 'Năm' : 'Year')}
+                        value={mode}
+                        onChange={(value) => setMode(value as Mode)}
+                        options={[{ id: 'quarter', label: lang === 'vi' ? 'Quý' : 'Quarter' }, { id: 'year', label: lang === 'vi' ? 'Năm' : 'Year' }]}
+                        ariaLabel={lang === 'vi' ? 'Kỳ so sánh' : 'Comparison period'}
+                    />
                 </div>
             </div>
 

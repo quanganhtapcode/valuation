@@ -102,7 +102,7 @@ function metricToneClass(tone: MetricTone): string {
 
 // ── component ─────────────────────────────────────────────────────────────────
 
-const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) => {
+const AnalysisTab = ({ symbol, isLoading = false }: AnalysisTabProps) => {
     const { lang } = useLanguage();
     const copy = translations[lang].detail.analysis;
     const [peers, setPeers] = useState<Peer[]>([]);
@@ -156,7 +156,6 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
         }, {} as Record<MetricKey, { best: number | null; worst: number | null }>);
     }, [peers]);
 
-    const displayIndustry = industryName || sector || copy.unknown;
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
@@ -168,28 +167,21 @@ const AnalysisTab = ({ symbol, sector, isLoading = false }: AnalysisTabProps) =>
 
     return (
         <div className="space-y-4">
-            <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                        {copy.title}
-                    </h3>
-                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        {copy.companiesInIndustry(peers.length, displayIndustry)}
-                    </p>
+            {industryName !== 'Ngân hàng' && (
+                <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">Peers</h3>
+                    {medianPe !== null && (
+                        <span className="ml-auto inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+                            {copy.medianPe}: {medianPe.toFixed(2)}
+                        </span>
+                    )}
                 </div>
-                {medianPe !== null && (
-                    <span className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
-                        {copy.medianPe}: {medianPe.toFixed(2)}
-                    </span>
-                )}
-            </div>
+            )}
 
             {industryName === 'Ngân hàng' ? (
                 <BankingPeerTable
                     symbol={symbol}
-                    industry={industryName}
                     initialPeers={rawPeersRes}
-                    initialPeriod={rawPeersRes?.period ?? null}
                 />
             ) : (
                 <Card className="p-0 overflow-hidden">

@@ -14,10 +14,11 @@ interface StockTabDropdownProps {
     value: string;
     onChange: (value: string) => void;
     ariaLabel?: string;
+    align?: 'left' | 'right';
 }
 
 /** Shared selector used by the toolbars throughout the stock detail tabs. */
-export function StockTabDropdown({ label, options, value, onChange, ariaLabel }: StockTabDropdownProps) {
+export function StockTabDropdown({ label, options, value, onChange, ariaLabel, align = 'left' }: StockTabDropdownProps) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -44,7 +45,7 @@ export function StockTabDropdown({ label, options, value, onChange, ariaLabel }:
                 </svg>
             </button>
             {open && (
-                <div className="absolute left-0 top-full z-50 mt-1.5 min-w-[160px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                <div className={cx("absolute top-full z-50 mt-1.5 min-w-[160px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800", align === 'right' ? 'right-0' : 'left-0')}>
                     {options.map(option => (
                         <button
                             key={option.id}

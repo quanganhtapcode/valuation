@@ -86,15 +86,12 @@ function PriceHistoryTab({ symbol, data: allPriceData, isLoading, hasError, onLo
     return (
         <div className="space-y-5 pb-8">
 
-            <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
                 <div>
                     <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
-                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        {copy.subtitle}
-                    </p>
                 </div>
                 {/* Toolbar */}
-                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
                         <StockTabDropdown label={period} value={period} onChange={(value) => handlePeriodChange(value as PeriodType)} options={periodButtons} ariaLabel="Price history period" />
                         <StockTabIconButton onClick={handleDownload} title={copy.exportCsv}>
                             <DownloadIcon />

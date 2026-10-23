@@ -204,14 +204,14 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         <div className="space-y-3">
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
                 <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{vi ? 'Cổ đông' : 'Holders'}</h3>
-                <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                <div className="ml-auto flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto [&>div]:shrink-0 [&>button]:shrink-0">
                     <input
                         type="search"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={vi ? 'Tìm cổ đông' : 'Find shareholders'}
                         aria-label={vi ? 'Tìm cổ đông' : 'Find shareholders'}
-                        className="h-8 w-full rounded-full border border-gray-200 bg-white px-3 text-[13px] text-gray-700 shadow-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:w-48"
+                        className="h-8 min-w-0 w-0 flex-1 rounded-full border border-gray-200 bg-white px-3 text-[13px] text-gray-700 shadow-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:w-48 sm:flex-none"
                     />
                     {loading ? <span className="text-sm text-gray-500">{labels.loading}</span> : <StockTabDropdown
                         label={`${labels[activeView]} (${activeView === 'institutional' ? institutional.length : individuals.length})`}

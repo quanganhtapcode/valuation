@@ -755,11 +755,6 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 {/* Analysis Tab - Lazy & Persistent */}
                 {visitedTabs.has('analysis') && (
                     <div className={activeTab === 'analysis' ? 'w-full space-y-4' : 'hidden'}>
-                        <div className="flex w-full items-center justify-between gap-4">
-                            <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
-                                Peers
-                            </h3>
-                        </div>
                         <AnalysisTab
                             symbol={symbol}
                             sector={stockInfo?.sector || 'Unknown'}

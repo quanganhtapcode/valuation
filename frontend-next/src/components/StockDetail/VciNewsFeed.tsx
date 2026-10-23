@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { fetchAPI } from '@/lib/api';
+import { StockTabDropdown } from './StockTabControls';
 
 type FeedTab = 'news' | 'dividend' | 'insider' | 'agm' | 'other';
 
@@ -270,25 +271,23 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
   const tabLabel = TAB_LABELS[lang][activeTab];
 
   return (
-    <div>
-      <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
-
-      {/* Match the category selectors on the Macro page. */}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {(Object.keys(TAB_LABELS[lang]) as FeedTab[]).map(tab => (
-          <button key={tab} type="button" aria-pressed={activeTab === tab} onClick={() => handleTab(tab)}
-            className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
-              activeTab === tab
-                ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'
-                : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
-            }`}>
-            {TAB_LABELS[lang][tab]}
-          </button>
-        ))}
+    <div className="space-y-3">
+      <div className="flex w-full items-center justify-between gap-3">
+        <h3 className="min-w-0 text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
+        <div className="shrink-0">
+          <StockTabDropdown
+            align="right"
+            label={tabLabel}
+            value={activeTab}
+            onChange={(tab) => handleTab(tab as FeedTab)}
+            options={(Object.keys(TAB_LABELS[lang]) as FeedTab[]).map(tab => ({ id: tab, label: TAB_LABELS[lang][tab] }))}
+            ariaLabel={copy.title}
+          />
+        </div>
       </div>
 
-      {/* Content — no inner scroll, let the page scroll */}
-      <div className="pt-4">
+      {/* A single outer box, with dividers between articles and events. */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white px-4 py-1 dark:border-slate-800 dark:bg-[#111827]">
         {isLoad && <Skeleton isNews={activeTab === 'news'} />}
         {!isLoad && err     && <ErrorState message={err} lang={lang} />}
         {!isLoad && !err && items !== undefined && items.length === 0 && <EmptyState label={tabLabel} lang={lang} />}
