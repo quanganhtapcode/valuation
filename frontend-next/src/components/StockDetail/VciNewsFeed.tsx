@@ -268,37 +268,21 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
   const isLoad  = loading[activeTab];
   const err     = errors[activeTab];
   const tabLabel = TAB_LABELS[lang][activeTab];
-  const count   = items?.length;
 
   return (
     <div>
-      {/* Shared stock-detail header */}
-      <div className="w-full">
-        <div>
-          <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            {isLoad ? copy.loading : count !== undefined ? `${count} ${tabLabel.toLowerCase()}` : copy.description}
-          </p>
-        </div>
-      </div>
+      <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
 
-      {/* Tab bar */}
-      <div className="mt-5 flex overflow-x-auto border-b border-slate-200 dark:border-slate-800">
+      {/* Match the category selectors on the Macro page. */}
+      <div className="mt-5 flex flex-wrap gap-2">
         {(Object.keys(TAB_LABELS[lang]) as FeedTab[]).map(tab => (
           <button key={tab} type="button" aria-pressed={activeTab === tab} onClick={() => handleTab(tab)}
-            className={`shrink-0 border-b-2 px-5 py-3 text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-600 ${
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
               activeTab === tab
-                ? 'border-blue-600 text-blue-700 dark:text-blue-400'
-                : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
+                ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'
+                : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-700'
             }`}>
             {TAB_LABELS[lang][tab]}
-            {data[tab] !== undefined && (
-              <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] ${
-                activeTab === tab ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-              }`}>
-                {data[tab]!.length}
-              </span>
-            )}
           </button>
         ))}
       </div>

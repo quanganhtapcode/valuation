@@ -802,10 +802,11 @@ function SectionedTable({
                                 const isMultiple = (rowDef as any).isMultiple ?? false;
                                 const isIndented = rowDef.indent ?? false;
 
+                                // Sticky labels must fully cover period values scrolling underneath.
                                 const bgClass = isGrandTotal || isTotal
-                                    ? 'bg-slate-50 dark:bg-slate-800/50'
+                                    ? 'bg-slate-50 dark:bg-[#182132]'
                                     : isIndented
-                                        ? 'bg-gray-50/70 dark:bg-slate-800/25'
+                                        ? 'bg-gray-50 dark:bg-[#151d2d]'
                                         : 'bg-white dark:bg-[#111827]';
 
                                 const label = getRowLabel ? getRowLabel(rowDef.key, rowDef.label) : rowDef.label;
