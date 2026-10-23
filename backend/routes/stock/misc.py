@@ -79,7 +79,7 @@ def register(stock_bp: Blueprint) -> None:
                 with read_connection(stats_db) as conn:
                     stats_rows = conn.execute(
                         f"""
-                        SELECT h.ticker, h.pe, h.pb, h.roe, h.roa, h.market_cap,
+                        SELECT h.ticker, h.pe, h.pb, h.roe, h.roa, h.market_cap, h.ev_to_ebitda,
                                h.net_interest_margin, h.cir, h.casa_ratio, h.npl,
                                h.ldr, h.loans_growth, h.deposit_growth,
                                h.year_report, h.quarter_report
@@ -101,7 +101,7 @@ def register(stock_bp: Blueprint) -> None:
                 with read_connection(stats_db) as conn:
                     stats_rows = conn.execute(
                         f"""
-                        SELECT ticker, pe, pb, roe, roa, market_cap,
+                        SELECT ticker, pe, pb, roe, roa, market_cap, ev_to_ebitda,
                                net_interest_margin, cir, casa_ratio, npl,
                                ldr, loans_growth, deposit_growth,
                                NULL AS year_report, NULL AS quarter_report
@@ -135,7 +135,7 @@ def register(stock_bp: Blueprint) -> None:
                     "pb": r["pb"],
                     "roe": r["roe"],
                     "roa": r["roa"],
-                    "evEbitda": None,
+                    "evEbitda": r["ev_to_ebitda"],
                     "marketCap": r["market_cap"],
                     "nim": r["net_interest_margin"],
                     "cir": r["cir"],

@@ -186,7 +186,7 @@ const AnalysisTab = ({ symbol, isLoading = false }: AnalysisTabProps) => {
             ) : (
                 <Card className="p-0 overflow-hidden">
                     <div className="px-4 pb-4">
-                        <Table className="h-[450px] [&>table]:border-separate [&>table]:border-spacing-0">
+                        <Table className="max-h-[720px] [&>table]:border-separate [&>table]:border-spacing-0">
                             <TableHead>
                                 <TableRow>
                                     <TableHeaderCell className="sticky left-0 top-0 z-20 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{copy.ticker}</TableHeaderCell>
@@ -238,7 +238,7 @@ const AnalysisTab = ({ symbol, isLoading = false }: AnalysisTabProps) => {
                                                             {item.symbol}
                                                         </Link>
                                                     )}
-                                                    <span className="text-xs text-tremor-content-subtle truncate max-w-[150px]">{item.name}</span>
+                                                    <span className="mt-1 block w-[220px] whitespace-normal break-words text-sm leading-relaxed text-tremor-content dark:text-dark-tremor-content md:w-[320px]">{item.name}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className={cx('text-right font-bold border-b border-tremor-border dark:border-dark-tremor-border', metricToneClass(marketCapTone))}>
@@ -257,7 +257,7 @@ const AnalysisTab = ({ symbol, isLoading = false }: AnalysisTabProps) => {
                                                 <span className={cx('font-medium', metricToneClass(roaTone))}>{formatPercentByKey('roa', roa)}</span>
                                             </TableCell>
                                             <TableCell className="text-right border-b border-tremor-border dark:border-dark-tremor-border">
-                                                <span className={cx('font-medium', metricToneClass(evEbitdaTone))}>{evEbitda !== null && evEbitda > 0 ? `${evEbitda.toFixed(1)}×` : '-'}</span>
+                                                <span className={cx('font-medium', metricToneClass(evEbitdaTone))}>{evEbitda !== null ? `${evEbitda.toFixed(1)}×` : '-'}</span>
                                             </TableCell>
                                         </TableRow>
                                     );

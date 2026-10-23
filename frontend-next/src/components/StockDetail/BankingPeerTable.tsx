@@ -204,7 +204,7 @@ const BankingPeerTable = ({ symbol, initialPeers }: Props) => {
                 </div>
             ) : (
                 <div className="px-4 pb-4">
-                    <Table className="h-[450px] [&>table]:border-separate [&>table]:border-spacing-0">
+                    <Table className="max-h-[720px] [&>table]:border-separate [&>table]:border-spacing-0">
                         <TableHead>
                             <TableRow>
                                 {[
@@ -261,7 +261,7 @@ const BankingPeerTable = ({ symbol, initialPeers }: Props) => {
                                                         {peer.symbol}
                                                     </Link>
                                                 )}
-                                                <span className="text-xs text-tremor-content-subtle truncate max-w-[150px]">{peer.name}</span>
+                                                <span className="mt-1 block w-[220px] whitespace-normal break-words text-sm leading-relaxed text-tremor-content dark:text-dark-tremor-content md:w-[320px]">{peer.name}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className={cx('text-right font-bold border-b border-tremor-border dark:border-dark-tremor-border', toneClass(getTone(extremes, 'marketCap', capVal)))}>
