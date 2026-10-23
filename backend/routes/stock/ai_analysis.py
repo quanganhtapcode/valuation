@@ -15,8 +15,9 @@ def register(stock_bp: Blueprint) -> None:
     def api_stock_ai_analysis(symbol: str):
         ticker = symbol.upper()
         db_path = resolve_valuation_cache_db_path()
+        conn = None
         try:
-            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=1)
             row = conn.execute(
                 """
                 SELECT year_report, quarter_report, analysis_vi, analysis_json, news_json, model, generated_at
@@ -27,7 +28,6 @@ def register(stock_bp: Blueprint) -> None:
                 """,
                 (ticker,),
             ).fetchone()
-            conn.close()
 
             if not row:
                 return jsonify({"available": False}), 200
@@ -47,4 +47,7 @@ def register(stock_bp: Blueprint) -> None:
             })
         except Exception as e:
             logger.error(f"AI analysis fetch error for {ticker}: {e}")
-            return jsonify({"available": False, "error": str(e)}), 500
+            return jsonify({"available": False, "error": "AI analysis temporarily unavailable"}), 503
+        finally:
+            if conn is not None:
+                conn.close()

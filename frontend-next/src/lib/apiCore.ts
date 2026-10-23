@@ -91,6 +91,7 @@ export async function fetchAPI<T>(url: string, options?: RequestInit): Promise<T
         const response = await fetch(resolvedUrl, {
             ...options,
             headers,
+            signal: options?.signal ?? AbortSignal.timeout(20_000),
         });
 
         if (!response.ok) {

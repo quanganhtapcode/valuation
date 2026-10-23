@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch, Mock
+from threading import Event
 from datetime import datetime, timezone, timedelta
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,6 +52,31 @@ class MarketSnapshots(unittest.TestCase):
             self.assertTrue(stale['stale'])
             self.assertEqual(stale['data'], first['data'])
             self.assertEqual(stale['fetched_at'], first['fetched_at'])
+
+    def test_stale_gold_returns_while_single_refresh_is_blocked(self):
+        started, release, finished = Event(), Event(), Event()
+        cached = {"success": True, "data": [{"Id": 1}, {"Id": 2}],
+                  "fetched_at": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()}
+
+        def slow_fetch():
+            started.set()
+            release.wait(2)
+            finished.set()
+
+        with patch.object(gold, 'read_cache', return_value=cached), \
+             patch.object(gold.GoldService, '_retry_after', 0), \
+             patch.object(gold.GoldService, 'fetch_once', side_effect=slow_fetch) as fetch:
+            try:
+                first = gold.GoldService.snapshot()
+                self.assertTrue(started.wait(1))
+                second = gold.GoldService.snapshot()
+                self.assertTrue(first['stale'])
+                self.assertEqual(first['data'], cached['data'])
+                self.assertEqual(second, first)
+                self.assertEqual(fetch.call_count, 1)
+            finally:
+                release.set()
+                self.assertTrue(finished.wait(1))
 
     def test_funds_atomic_validation_and_stale(self):
         with tempfile.TemporaryDirectory() as directory:

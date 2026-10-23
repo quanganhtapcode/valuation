@@ -190,7 +190,21 @@ export default function OverviewTab({
 
     const [aiData, setAiData] = useState<Awaited<ReturnType<typeof fetchAiAnalysis>> | null>(null);
     useEffect(() => {
-        fetchAiAnalysis(_symbol).then(d => setAiData(d.available ? d : null));
+        let cancelled = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const load = async () => {
+            if (cancelled) return;
+            if (document.visibilityState !== 'visible') {
+                timer = setTimeout(() => { void load(); }, 15_000);
+                return;
+            }
+            const data = await fetchAiAnalysis(_symbol);
+            if (cancelled) return;
+            if (data.available) setAiData(data);
+            timer = setTimeout(() => { void load(); }, data.available ? 300_000 : 15_000);
+        };
+        void load();
+        return () => { cancelled = true; clearTimeout(timer); };
     }, [_symbol]);
 
     return (
@@ -307,9 +321,9 @@ export default function OverviewTab({
                 <div className={styles.sectionAiInsight}>
                     <AiInsightCard
                         symbol={_symbol}
-                        analysisJson={aiData?.analysis_json}
-                        newsJson={aiData?.news_json}
-                        quarter={aiData?.quarter}
+                        analysisJson={aiData?.ticker === _symbol.toUpperCase() ? aiData.analysis_json : undefined}
+                        newsJson={aiData?.ticker === _symbol.toUpperCase() ? aiData.news_json : undefined}
+                        quarter={aiData?.ticker === _symbol.toUpperCase() ? aiData.quarter : undefined}
                     />
                 </div>
 

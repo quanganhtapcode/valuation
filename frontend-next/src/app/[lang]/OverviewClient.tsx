@@ -21,7 +21,6 @@ import TradingViewForexTable from '@/components/Macro/TradingViewForexTable';
 
 const moversDelay = () => isTradingHours() ? 30000 : 300000;
 const newsDelay = () => 120000;
-const goldDelay = () => 60000;
 
 function PanelSkeleton({ height = 'h-40' }: { height?: string }) {
     return (
@@ -109,6 +108,8 @@ export default function OverviewClient({
     const [goldSource, setGoldSource] = useState(initialGoldSource);
     const [goldStale, setGoldStale] = useState(initialGoldStale);
 
+    const goldNeedsRefresh = useRef(initialGoldPrices.length === 0 || initialGoldStale);
+    const goldDelay = useCallback(() => goldNeedsRefresh.current ? 5_000 : 60_000, []);
     const newsInFlightRef = useRef(false);
     const moversInFlightRef = useRef(false);
     // Use refs so loadMovers callback is stable (never recreated)
@@ -122,8 +123,10 @@ export default function OverviewClient({
             const result = await fetchGoldPrices();
             setGoldPrices(result.data);
             setGoldStale(Boolean(result.stale));
+            goldNeedsRefresh.current = Boolean(result.stale);
             if (result.source) setGoldSource(result.source);
         } catch (error) {
+            goldNeedsRefresh.current = true;
             console.error('Error loading gold prices:', error);
             setGoldStale(true);
         }

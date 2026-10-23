@@ -6,6 +6,7 @@ import logging
 import math
 import re
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -366,7 +367,7 @@ def read_market_ai_takeaways() -> dict[str, Any] | None:
     """Read the latest persisted snapshot. This path never calls an AI provider."""
     db_path = resolve_valuation_cache_db_path()
     try:
-        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+        with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=1)) as conn:
             table = conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'market_ai_takeaways'"
             ).fetchone()
@@ -383,9 +384,10 @@ def read_market_ai_takeaways() -> dict[str, Any] | None:
         generated = datetime.fromisoformat(payload.get('generated_at', '').replace('Z', '+00:00'))
         now = datetime.now(timezone.utc)
         if (payload.get('schema_version') != _SCHEMA_VERSION
-                or payload.get('market_session_date') != expected_session_date(now)
-                or generated.tzinfo is None or not timedelta(0) <= now - generated <= timedelta(hours=6)):
+                or generated.tzinfo is None or not timedelta(0) <= now - generated <= timedelta(days=7)):
             return None
+        payload['stale'] = (now - generated > timedelta(hours=6)
+                            or payload.get('market_session_date') != expected_session_date(now))
         # Repair older fallback snapshots without calling a provider on reads.
         for index, source in enumerate(payload.get('news_sources', [])):
             fallback_en, fallback_vi, _ = _news_fallback(source)
@@ -398,13 +400,14 @@ def read_market_ai_takeaways() -> dict[str, Any] | None:
             if _has_vietnamese(source.get('title_en', '')):
                 source.pop('title_en', None)
         # Reformat existing valid snapshots without another provider call.
-        presentation = _fallback_takeaways(payload.get('movers', []), [], now)
-        for key in ('headline', 'headline_vi', 'market_summary', 'market_summary_vi'):
-            payload[key] = presentation[key]
+        if not payload['stale']:
+            presentation = _fallback_takeaways(payload.get('movers', []), [], now)
+            for key in ('headline', 'headline_vi', 'market_summary', 'market_summary_vi'):
+                payload[key] = presentation[key]
         payload['summary'] = (payload['market_summary'] + payload.get('news_summary', []))[:5]
         payload['summary_vi'] = (payload['market_summary_vi'] + payload.get('news_summary_vi', []))[:5]
         return payload
-    except (OSError, sqlite3.Error, ValueError, TypeError) as exc:
+    except (OSError, sqlite3.Error, ValueError, TypeError, KeyError) as exc:
         logger.warning("Unable to read market AI takeaways cache: %s", exc)
         return None
 
@@ -412,6 +415,23 @@ def read_market_ai_takeaways() -> dict[str, Any] | None:
 def refresh_market_ai_takeaways() -> dict[str, Any]:
     """Generate one shared snapshot and persist it for every API consumer."""
     data = compute_ai_takeaways()
+    previous = read_market_ai_takeaways()
+    # Provider failures must not erase the last usable bilingual news snapshot.
+    news_generated = (previous or {}).get('news_generated_at') or (previous or {}).get('generated_at')
+    try:
+        news_age = datetime.now(timezone.utc) - datetime.fromisoformat(news_generated or '')
+        recent_news = timedelta(0) <= news_age <= timedelta(days=7)
+    except (ValueError, TypeError):
+        recent_news = False
+    if not data.get('available') and previous and previous.get('available') and recent_news:
+        for key in ('news_summary', 'news_summary_vi', 'news_sources', 'recent_news'):
+            data[key] = previous.get(key, [])
+        data['news_generated_at'] = previous.get('news_generated_at') or previous['generated_at']
+        data['news_stale'] = True
+        data['available'] = True
+        data['model'] = previous.get('model', 'unknown')
+        data['summary'] = (data.get('market_summary', []) + data['news_summary'])[:5]
+        data['summary_vi'] = (data.get('market_summary_vi', []) + data['news_summary_vi'])[:5]
     now = datetime.now(timezone.utc).isoformat()
     db_path = resolve_valuation_cache_db_path()
     conn = sqlite3.connect(db_path, timeout=30)

@@ -6,6 +6,8 @@ import logging
 import os
 import re
 import tempfile
+import threading
+import time
 import unicodedata
 from datetime import datetime, timezone, timedelta
 from html import unescape
@@ -113,6 +115,38 @@ def age(value):
 
 
 class GoldService:
+    _refresh_lock = threading.Lock()
+    _refreshing = False
+    _retry_after = 0.0
+
+    @classmethod
+    def snapshot(cls):
+        """Serve persisted quotes immediately and refresh outside the request."""
+        cached = read_cache()
+        if cached and age(cached) < 60:
+            return {**cached, "stale": False}
+        with cls._refresh_lock:
+            if not cls._refreshing and time.monotonic() >= cls._retry_after:
+                cls._refreshing = True
+                try:
+                    threading.Thread(target=cls._refresh_snapshot, daemon=True).start()
+                except RuntimeError:
+                    cls._refreshing = False
+                    logger.exception("Unable to start gold refresh")
+        return {**cached, "stale": True} if cached else {
+            "success": False, "data": [], "error": "Quotes are refreshing"}
+
+    @classmethod
+    def _refresh_snapshot(cls):
+        try:
+            cls.fetch_once()
+        except Exception:
+            logger.exception("Gold snapshot refresh failed")
+        finally:
+            with cls._refresh_lock:
+                cls._retry_after = time.monotonic() + 30
+                cls._refreshing = False
+
     @classmethod
     def fetch_once(cls):
         cached = read_cache()

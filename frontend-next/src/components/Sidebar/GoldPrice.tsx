@@ -16,8 +16,8 @@ export default function GoldPrice({ prices, isLoading, source, stale }: GoldPric
     const { lang } = useLanguage();
     const t = translations[lang].dashboard;
     const labels = {
-        vi: { stale: 'Chưa làm mới được giá; đang hiển thị bản lưu gần nhất.', updated: 'Nguồn cập nhật: ', locale: 'vi-VN' },
-        en: { stale: 'Refresh unavailable; showing the last saved quotes.', updated: 'Source updated: ', locale: 'en-US' },
+        vi: { stale: 'Chưa làm mới được giá; đang hiển thị bản lưu gần nhất.', updated: 'Nguồn cập nhật: ', empty: 'Đang tải giá vàng, hệ thống sẽ tự thử lại.', locale: 'vi-VN' },
+        en: { stale: 'Refresh unavailable; showing the last saved quotes.', updated: 'Source updated: ', empty: 'Loading gold quotes. Retrying automatically.', locale: 'en-US' },
     }[lang];
     // Show 3 gold classes + silver bar if available
     const displayPrices = prices?.filter(p =>
@@ -34,6 +34,7 @@ export default function GoldPrice({ prices, isLoading, source, stale }: GoldPric
         <SidebarCard title={t.goldSilver} icon="🏆">
             <div className="px-5 pb-2">
                 {stale && <p role="status" className="py-2 text-xs text-amber-600">{labels.stale}</p>}
+                {!isLoading && !displayPrices.length && <p role="status" className="py-4 text-sm text-gray-500">{labels.empty}</p>}
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-10">
                         <div className="animate-spin rounded-full h-6 w-6 border-2 border-amber-500 border-t-transparent" />
@@ -43,7 +44,11 @@ export default function GoldPrice({ prices, isLoading, source, stale }: GoldPric
                         {displayPrices.map((item) => {
                             const isSilver = item.TypeName.toLowerCase().includes('bạc');
                             const badgeText = isSilver ? 'Ag' : 'Au';
-                            const displayName = item.TypeName === 'Vàng PQ 9999 (Miếng)'
+                            const englishNames: Record<number, string> = {
+                                1: 'SJC gold bar', 2: '9999 gold ring',
+                                3: 'Phu Quy 9999 gold bar', 4: 'Phu Quy 999 silver bar',
+                            };
+                            const displayName = lang === 'en' ? (englishNames[item.Id] || item.TypeName) : item.TypeName === 'Vàng PQ 9999 (Miếng)'
                                 ? 'Vàng PQ 9999'
                                 : item.TypeName;
 

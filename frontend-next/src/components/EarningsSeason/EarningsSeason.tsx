@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Image from 'next/image';
 import { Card } from '@tremor/react';
 import { siteConfig } from '@/config/siteConfig';
 import { fetchMarketTakeaways, MarketTakeawaysData } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
+import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import NewsSourceLogos from './NewsSourceLogos';
+
+const refreshDelay = () => 60_000;
 
 function CompanyLogo({ symbol }: { symbol: string }) {
     const [failed, setFailed] = useState(false);
@@ -47,21 +50,15 @@ export default function EarningsSeason() {
     const [takeaways, setTakeaways] = useState<MarketTakeawaysData | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        let cancelled = false;
-        const timer = window.setTimeout(() => {
-            fetchMarketTakeaways().then(data => {
-                if (!cancelled) {
-                    setTakeaways(data);
-                    setLoading(false);
-                }
-            });
-        }, 500);
-        return () => {
-            cancelled = true;
-            window.clearTimeout(timer);
-        };
+    const refresh = useCallback(async () => {
+        try {
+            const data = await fetchMarketTakeaways();
+            if (data) setTakeaways(data);
+        } finally {
+            setLoading(false);
+        }
     }, []);
+    useVisiblePolling(refresh, refreshDelay);
 
     const isEnglish = lang === 'en';
     const copy = translations[lang].dashboard.aiTakeaways;
@@ -73,8 +70,8 @@ export default function EarningsSeason() {
                 <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">{isEnglish ? 'Market Summary' : 'Tổng hợp thị trường'}</h2>
                 {takeaways && (
                     <p className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
-                        {isEnglish ? 'Updated' : 'Cập nhật'}{' '}
-                        {new Date(takeaways.generated_at).toLocaleTimeString(translations[lang].overview.locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' })}
+                        {takeaways.stale || takeaways.news_stale ? (isEnglish ? 'Last available' : 'Dữ liệu gần nhất') : (isEnglish ? 'Updated' : 'Cập nhật')}{' '}
+                        {new Date(takeaways.news_generated_at || takeaways.generated_at).toLocaleString(translations[lang].overview.locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' })}
                     </p>
                 )}
             </div>

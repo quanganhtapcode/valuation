@@ -250,18 +250,42 @@ class MarketAIValidation(unittest.TestCase):
         self.assertFalse(ai._has_vietnamese(repaired['news_summary'][0]))
         self.assertEqual(repaired['news_summary_vi'][0], article['summary'])
 
-    def test_persisted_snapshot_rejects_old_schema_session_and_age(self):
+    def test_provider_failure_preserves_bilingual_news_with_original_timestamp(self):
+        previous = ai._fallback_takeaways([], [], NOW)
+        previous.update(available=True, news_summary=['English summary'],
+                        news_summary_vi=['Tóm tắt'], news_sources=[{'url': 'https://example.org'}])
+        fallback = ai._fallback_takeaways([], [], NOW)
+        with patch.object(ai, 'resolve_valuation_cache_db_path', return_value=self.db), \
+             patch.object(ai, 'datetime', FixedDatetime), \
+             patch.object(ai, 'read_market_ai_takeaways', return_value=previous), \
+             patch.object(ai, 'compute_ai_takeaways', return_value=fallback):
+            result = ai.refresh_market_ai_takeaways()
+        self.assertEqual(result['news_summary'], ['English summary'])
+        self.assertEqual(result['news_generated_at'], NOW.isoformat())
+        self.assertTrue(result['news_stale'])
+        with sqlite3.connect(self.db) as conn:
+            persisted = json.loads(conn.execute('SELECT payload_json FROM market_ai_takeaways').fetchone()[0])
+        self.assertEqual(persisted['news_summary'], ['English summary'])
+
+    def test_persisted_snapshot_keeps_bounded_stale_data(self):
         with sqlite3.connect(self.db) as conn:
             ai._ensure_schema(conn)
         good = ai._fallback_takeaways([], [], NOW)
-        for updates in ({'schema_version': 2}, {'market_session_date': '2026-09-30'},
-                        {'generated_at': (NOW - timedelta(hours=7)).isoformat()}, {}):
+        for updates, accepted, stale in [({'schema_version': 2}, False, False),
+                ({'market_session_date': '2026-09-30'}, True, True),
+                ({'generated_at': (NOW - timedelta(hours=7)).isoformat()}, True, True),
+                ({'generated_at': (NOW - timedelta(days=8)).isoformat()}, False, False),
+                ({}, True, False)]:
             with sqlite3.connect(self.db) as conn:
                 conn.execute('INSERT OR REPLACE INTO market_ai_takeaways VALUES (?,?,?,?,?,?)',
                              (ai._CACHE_KEY, json.dumps({**good, **updates}), 0, 'test', NOW.isoformat(), NOW.isoformat()))
             with patch.object(ai, 'resolve_valuation_cache_db_path', return_value=self.db), \
                  patch.object(ai, 'datetime', FixedDatetime):
-                self.assertEqual(ai.read_market_ai_takeaways() is not None, not bool(updates))
+                result = ai.read_market_ai_takeaways()
+                self.assertEqual(result is not None, accepted)
+                if accepted:
+                    self.assertEqual(result['stale'], stale)
+                    self.assertEqual(result['generated_at'], updates.get('generated_at', good['generated_at']))
 
 
 if __name__ == '__main__':
