@@ -521,9 +521,9 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         <div className={styles.container}>
             {/* ── Stock quote header ───────────────────────────────── */}
             <section aria-busy={isLoading} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#111827]">
-                <div className="flex items-start justify-between gap-4 px-5 py-3 sm:px-6 md:py-2.5">
+                <div className="flex items-start justify-between gap-3 px-3 py-2 sm:gap-4 sm:px-6 sm:py-3 md:py-2.5">
                     <div className="flex min-w-0 items-start gap-3">
-                    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 md:h-9 md:w-9">
+                    <div className="relative flex h-8 w-8 shrink-0 sm:h-10 sm:w-10 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 md:h-9 md:w-9">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={siteConfig.stockLogoUrl(symbol)}
@@ -552,15 +552,15 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                                     </span>
                                 )}
                                 {stockInfo?.exchange && stockInfo?.sector && (
-                                    <span className="text-slate-300 dark:text-slate-600">·</span>
+                                    <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">·</span>
                                 )}
                                 {stockInfo?.sector && (
-                                    <span className="max-w-[180px] truncate">{stockInfo.sector}</span>
+                                    <span className="hidden max-w-[180px] truncate sm:inline">{stockInfo.sector}</span>
                                 )}
                             </div>
                         )}
                         </div>
-                        <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400 md:text-[13px]">{stockInfo?.companyName || '—'}</p>
+                        <p className="mt-0.5 truncate text-xs text-slate-500 sm:mt-1 sm:text-sm dark:text-slate-400 md:text-[13px]">{stockInfo?.companyName || '—'}</p>
                     </div>
                     </div>
 
@@ -576,7 +576,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     </button>
                 </div>
 
-                <div className="min-h-[100px] sm:min-h-[108px] md:min-h-[96px]">
+                <div className="min-h-[64px] sm:min-h-[108px] md:min-h-[96px]">
                 {priceData ? (() => {
                     const isCeiling = priceData.ceiling > 0 && priceData.price >= priceData.ceiling;
                     const isFloor = priceData.floor > 0 && priceData.price <= priceData.floor;
@@ -598,10 +598,10 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
 
                     return (
                         <>
-                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-t border-slate-100 px-5 py-4 dark:border-slate-800 sm:gap-5 sm:px-6 sm:py-4 md:py-3">
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border-t border-slate-100 px-3 py-2 dark:border-slate-800 sm:gap-5 sm:px-6 sm:py-4 md:py-3">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                                    <span className="text-[2.35rem] font-bold leading-none tracking-tight tabular-nums sm:text-[2.75rem] md:text-[2.5rem]" style={{ color: priceColor }}>
+                                    <span className="text-[1.75rem] font-bold leading-none tracking-tight tabular-nums sm:text-[2.75rem] md:text-[2.5rem]" style={{ color: priceColor }}>
                                         {formatNumber(priceData.price)}
                                     </span>
                                     <div className="flex items-baseline gap-1.5 font-bold tabular-nums" style={{ color: changeColor }}>
@@ -657,7 +657,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                                 type="button"
                                 onClick={() => handleTabChange(tab.id as StockTabId)}
                                 className={classNames(
-                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-blue-600 md:py-2.5',
+                                    'inline-flex items-center whitespace-nowrap border-b-2 px-3 py-2.5 text-sm sm:px-3.5 sm:py-3.5 font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-blue-600 md:py-2.5',
                                     activeTab === tab.id
                                         ? 'border-blue-600 text-blue-700 dark:text-blue-400'
                                         : 'border-transparent text-slate-500 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-blue-950/40 dark:hover:text-blue-300'

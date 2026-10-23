@@ -84,8 +84,15 @@ function ratingBadgeClass(rating?: TechnicalRating): string {
     return 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-400 dark:ring-amber-400/20';
 }
 
-function ratingLabel(rating?: TechnicalRating): string {
-    return rating ? rating.toString().replaceAll('_', ' ') : 'N/A';
+function ratingLabel(rating: TechnicalRating, lang: 'vi' | 'en'): string {
+    if (!rating) return '—';
+    const n = rating.toUpperCase();
+    const strong = n.includes('STRONG') || n.includes('VERY');
+    const tone = ratingTone(rating);
+    if (tone === 'bull') return lang === 'vi' ? (strong ? 'Mua mạnh' : 'Mua') : (strong ? 'Strong buy' : 'Buy');
+    if (tone === 'bear') return lang === 'vi' ? (strong ? 'Bán mạnh' : 'Bán') : (strong ? 'Strong sell' : 'Sell');
+    if (n.includes('NEUTRAL')) return lang === 'vi' ? 'Trung lập' : 'Neutral';
+    return rating.replaceAll('_', ' ');
 }
 
 function formatDateTime(value: string | null | undefined, lang: 'vi' | 'en'): string {
@@ -102,23 +109,11 @@ function ratingTone(rating?: TechnicalRating): 'bull' | 'bear' | 'neutral' {
     return 'neutral';
 }
 
-function toneRingClass(tone: 'bull' | 'bear' | 'neutral'): string {
-    if (tone === 'bull') return 'ring-emerald-500/20';
-    if (tone === 'bear') return 'ring-rose-500/20';
-    return 'ring-slate-500/20';
-}
-
 function bucketType(label: string): 'buy' | 'sell' | 'neutral' {
     const n = label.toUpperCase();
     if (n.includes('BUY') || n.includes('GOOD') || n.includes('BULL')) return 'buy';
     if (n.includes('SELL') || n.includes('BAD') || n.includes('BEAR')) return 'sell';
     return 'neutral';
-}
-
-function scoreFromBuckets(buy: number, sell: number): number {
-    const total = buy + sell;
-    if (!total) return 50;
-    return Math.round((buy / total) * 100);
 }
 
 function DistributionBar({ buy, neutral, sell }: { buy: number; neutral: number; sell: number }) {
@@ -141,40 +136,33 @@ function DistributionBar({ buy, neutral, sell }: { buy: number; neutral: number;
 function GaugeCard({ title, data, lang }: { title: string; data?: { rating?: TechnicalRating; values?: Record<string, number> }; lang: 'vi' | 'en' }) {
     const copy = translations[lang].detail.technical;
     const entries = Object.entries(data?.values || {});
-    const ratingText = data?.rating ? data.rating.replaceAll('_', ' ') : '—';
+    const ratingText = ratingLabel(data?.rating, lang);
     const buy = entries.reduce((acc, [key, value]) => acc + (bucketType(key) === 'buy' ? Number(value || 0) : 0), 0);
     const sell = entries.reduce((acc, [key, value]) => acc + (bucketType(key) === 'sell' ? Number(value || 0) : 0), 0);
     const neutral = entries.reduce((acc, [key, value]) => acc + (bucketType(key) === 'neutral' ? Number(value || 0) : 0), 0);
     const totalSignals = buy + sell + neutral;
-    const tone = ratingTone(data?.rating);
-    const score = scoreFromBuckets(buy, sell);
     const hasOnlyBucketEntries = entries.length > 0 && entries.every(([key]) => {
         const n = key.toUpperCase();
         return n.includes('BUY') || n.includes('SELL') || n.includes('NEUTRAL') || n.includes('GOOD') || n.includes('BAD') || n.includes('BULL') || n.includes('BEAR');
     });
 
     return (
-        <div className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ${toneRingClass(tone)} dark:border-slate-800 dark:bg-slate-900`}>
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.currentAssessment}</p>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{title}</p>
                 </div>
-                <span className={`rounded-tremor-small px-2.5 py-1 text-[11px] font-semibold ${ratingBadgeClass(data?.rating)}`}>
+                <span className={`rounded-md px-3 py-1 text-sm font-semibold ${ratingBadgeClass(data?.rating)}`}>
                     {ratingText}
                 </span>
             </div>
 
             <div className="mt-3 space-y-2.5">
-                <div className="flex items-end justify-between">
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{copy.signalStrength}</span>
-                    <span className="text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-100">{score}</span>
-                </div>
                 <DistributionBar buy={buy} neutral={neutral} sell={sell} />
-                <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{copy.buy}: {buy}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{copy.neutral}: {neutral}</span>
-                    <span className="rounded-full bg-rose-50 px-2 py-0.5 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{copy.sell}: {sell}</span>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <span className="rounded-md bg-emerald-50 px-2 py-1 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{copy.buy}: {buy}</span>
+                    <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{copy.neutral}: {neutral}</span>
+                    <span className="rounded-md bg-rose-50 px-2 py-1 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{copy.sell}: {sell}</span>
                     {totalSignals > 0 && (
                         <span className="ml-auto text-slate-500 dark:text-slate-400">{totalSignals} {copy.signals}</span>
                     )}
@@ -196,10 +184,6 @@ function GaugeCard({ title, data, lang }: { title: string; data?: { rating?: Tec
 
 function SignalTable({ title, rows, lang }: { title: string; rows: TechnicalSignal[]; lang: 'vi' | 'en' }) {
     const copy = translations[lang].detail.technical;
-    const buyCount = rows.filter((row) => bucketType(row.rating || '') === 'buy').length;
-    const sellCount = rows.filter((row) => bucketType(row.rating || '') === 'sell').length;
-    const neutralCount = Math.max(rows.length - buyCount - sellCount, 0);
-
     return (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
@@ -207,15 +191,8 @@ function SignalTable({ title, rows, lang }: { title: string; rows: TechnicalSign
                     <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h4>
                     <span className="text-xs text-slate-500 dark:text-slate-400">{rows.length} {copy.signals}</span>
                 </div>
-                <div className="mt-3">
-                    <DistributionBar buy={buyCount} neutral={neutralCount} sell={sellCount} />
-                    <div className="mt-2 flex items-center gap-2 text-[11px]">
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{buyCount} Buy</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{neutralCount} Neutral</span>
-                        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{sellCount} Sell</span>
-                    </div>
-                </div>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 dark:bg-gray-800/70 dark:text-gray-400">
                     <tr>
@@ -227,11 +204,11 @@ function SignalTable({ title, rows, lang }: { title: string; rows: TechnicalSign
                 <tbody>
                     {rows.length > 0 ? rows.map((row, index) => (
                         <tr key={`${row.name || 'signal'}-${index}`} className="border-t border-gray-100 dark:border-gray-800">
-                            <td className="px-4 py-2.5 font-medium text-gray-700 dark:text-gray-200">{row.name || '-'}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums text-gray-900 dark:text-gray-100">{valueText(row.value)}</td>
-                            <td className="px-4 py-2.5 text-right">
-                                <span className={`inline-flex rounded-tremor-small px-2 py-0.5 text-[11px] font-semibold ${ratingBadgeClass(row.rating)}`}>
-                                    {ratingLabel(row.rating)}
+                            <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-200">{row.name || '-'}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-gray-900 dark:text-gray-100">{valueText(row.value)}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right">
+                                <span className={`inline-flex whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold ${ratingBadgeClass(row.rating)}`}>
+                                    {ratingLabel(row.rating, lang)}
                                 </span>
                             </td>
                         </tr>
@@ -242,6 +219,7 @@ function SignalTable({ title, rows, lang }: { title: string; rows: TechnicalSign
                     )}
                 </tbody>
             </table>
+            </div>
         </div>
     );
 }
@@ -274,30 +252,22 @@ function PivotGrid({ pivot, lang }: { pivot?: TechnicalPivot; lang: 'vi' | 'en' 
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{copy.pivotSubtitle}</p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Classic</p>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-2 lg:grid-cols-4">
-                        {classicRows.map((row) => (
-                            <div key={row.label} className={`rounded-lg px-3 py-2 ${row.cls}`}>
-                                <div className="text-[10px] font-medium uppercase tracking-wide opacity-80">{row.label}</div>
-                                <div className="mt-0.5 font-semibold tabular-nums">{valueText(row.value)}</div>
-                            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="border-y border-slate-100 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                        <tr><th className="px-3 py-3 text-left font-medium">{lang === 'vi' ? 'Mức giá' : 'Level'}</th><th className="px-3 py-3 text-right font-medium">Classic</th><th className="px-3 py-3 text-right font-medium">Fibonacci</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {classicRows.map(row => (
+                            <tr key={row.label} className={row.label === 'Pivot' ? 'bg-slate-50 dark:bg-slate-800' : ''}>
+                                <th scope="row" className={`px-3 py-3 text-left font-semibold ${row.label.startsWith('R') ? 'text-rose-700 dark:text-rose-400' : row.label.startsWith('S') ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>{row.label}</th>
+                                <td className="px-3 py-3 text-right tabular-nums text-slate-900 dark:text-slate-100">{valueText(row.value)}</td>
+                                <td className="px-3 py-3 text-right tabular-nums text-slate-900 dark:text-slate-100">{valueText(fibonacciRows.find(fib => fib.label === `Fib ${row.label}`)?.value)}</td>
+                            </tr>
                         ))}
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Fibonacci</p>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {fibonacciRows.map((row) => (
-                            <div key={row.label} className={`rounded-lg px-3 py-2 ${row.cls}`}>
-                                <div className="text-[10px] font-medium uppercase tracking-wide opacity-80">{row.label}</div>
-                                <div className="mt-0.5 font-semibold tabular-nums">{valueText(row.value)}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                    </tbody>
+                </table>
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'R: Kháng cự · S: Hỗ trợ · Pivot: Điểm xoay' : 'R: Resistance · S: Support · Pivot: Pivot point'}</p>
             </div>
         </div>
     );
@@ -373,22 +343,16 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
     const data = current?.data;
     const movingAverages = data?.movingAverages || [];
     const oscillators = data?.oscillators || [];
-    const summaryTone = ratingTone(data?.gaugeSummary?.rating);
-    const summaryToneClass = summaryTone === 'bull'
-        ? 'text-emerald-600 dark:text-emerald-400'
-        : summaryTone === 'bear'
-            ? 'text-rose-600 dark:text-rose-400'
-            : 'text-slate-700 dark:text-slate-300';
-
     return (
         <div className="space-y-5">
             {/* Header */}
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full items-center justify-between gap-3">
                 <div>
                     <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
                 </div>
-                <div className="flex flex-wrap gap-2 sm:justify-end">
+                <div className="flex shrink-0 gap-2">
                     <StockTabDropdown
+                        align="right"
                         label={TIMEFRAME_LABELS[activeFrame]}
                         value={activeFrame}
                         onChange={(frame) => setActiveFrame(frame as TechnicalTimeframe)}
@@ -399,7 +363,7 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
                                 label: (
                                     <span className="flex items-center justify-between gap-3">
                                         {TIMEFRAME_LABELS[frame]}
-                                        {rating ? <span className="text-[10px] capitalize opacity-70">{rating.replaceAll('_', ' ')}</span> : null}
+                                        {rating ? <span className="text-[10px] capitalize opacity-70">{ratingLabel(rating, lang)}</span> : null}
                                     </span>
                                 ),
                             };
@@ -428,21 +392,9 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
             {/* Data */}
             {!loading && data && (
                 <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{copy.overallAssessment}</p>
-                            <p className={`mt-1 text-lg font-semibold ${summaryToneClass}`}>{ratingLabel(data.gaugeSummary?.rating)}</p>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{copy.currentPrice}</p>
-                            <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-100">{valueText(data.price && data.price > 0 ? data.price : livePrice)}</p>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{copy.updated}</p>
-                            <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
-                                {formatDateTime(data.matchTime || current?.fetched_at_utc || current?.serverDateTime, lang)}
-                            </p>
-                        </div>
+                    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900">
+                        <p className="text-slate-500 dark:text-slate-400">{copy.currentPrice}<strong className="ml-2 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-100">{valueText(data.price && data.price > 0 ? data.price : livePrice)}</strong></p>
+                        <p className="text-slate-500 dark:text-slate-400">{copy.updated}: {formatDateTime(data.matchTime || current?.fetched_at_utc || current?.serverDateTime, lang)}</p>
                     </div>
 
                     <div className="grid gap-4 lg:grid-cols-3">

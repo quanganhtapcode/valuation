@@ -783,9 +783,12 @@ function SectionedTable({
                     {sections.map((section, sectionIdx) => (
                         <React.Fragment key={sectionIdx}>
                             <tr>
-                                <td colSpan={displayRows.length + 1} className="border-y border-slate-100 bg-slate-50 px-4 py-2 dark:border-slate-800 dark:bg-slate-800/40">
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{getSectionTitle ? getSectionTitle(section.title) : section.title}</span>
+                                <td className="sticky left-0 z-10 w-[208px] min-w-[208px] max-w-[208px] border-y border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-[#172031] md:min-w-[230px] md:max-w-none md:px-4">
+                                    <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{getSectionTitle ? getSectionTitle(section.title) : section.title}</span>
                                 </td>
+                                {displayRows.length > 0 && (
+                                    <td colSpan={displayRows.length} className="border-y border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-[#172031]" />
+                                )}
                             </tr>
                             {section.rows.map((rowDef, rowIdx) => {
                                 const isMultipleRow = (rowDef as any).isMultiple ?? false;
@@ -1203,10 +1206,10 @@ export default function FinancialsTab({
 
     return (
         <div className="space-y-3">
-            <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{tFin.title}</h3>
-                <div className="flex flex-wrap items-center gap-2">
-                    <StockTabDropdown label={activeTabLabel} value={activeTab} onChange={(tab) => setActiveTab(tab as ReportType)} options={TABS} ariaLabel={tFin.title} />
+            <div className="flex w-full items-center justify-between gap-2">
+                <h3 className="min-w-0 text-sm font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong sm:text-tremor-title">{tFin.title}</h3>
+                <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2 [&>div:first-child]:max-w-[96px] [&>div:nth-child(2)]:max-w-[66px] sm:[&>div:first-child]:max-w-none sm:[&>div:nth-child(2)]:max-w-none">
+                    <StockTabDropdown label={<><span className="sm:hidden">{activeTab === 'income' ? 'I.S' : activeTabLabel}</span><span className="hidden sm:inline">{activeTabLabel}</span></>} value={activeTab} onChange={(tab) => setActiveTab(tab as ReportType)} options={TABS} ariaLabel={activeTabLabel} />
                     <StockTabDropdown label={periodLabel} value={displayMode} onChange={(mode) => setDisplayMode(mode as DisplayMode)} options={[{ id: 'annual', label: tFin.year }, { id: 'quarterly', label: tFin.quarter }]} ariaLabel={tFin.year} />
                     <SettingsPopover displayUnit={displayUnit} setDisplayUnit={setDisplayUnit} units={DISPLAY_UNITS} title={tFin.displayUnit} />
                     {onDownloadExcel && <StockTabIconButton onClick={onDownloadExcel} title={tFin.downloadExcel}><DownloadIcon /></StockTabIconButton>}

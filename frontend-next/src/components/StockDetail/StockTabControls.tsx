@@ -37,9 +37,9 @@ export function StockTabDropdown({ label, options, value, onChange, ariaLabel, a
                 aria-label={ariaLabel}
                 aria-expanded={open}
                 onClick={() => setOpen(current => !current)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
-                {label}
+                <span className="truncate">{label}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0 text-gray-400" aria-hidden="true">
                     <polyline points="6 9 12 15 18 9" />
                 </svg>
