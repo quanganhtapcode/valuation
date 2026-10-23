@@ -216,7 +216,7 @@ function VietnamTvRow({ sym, points, onOpen }: { sym: string; points: PricePoint
     }} className="group cursor-pointer border-b border-slate-100 transition-colors hover:bg-emerald-50/60 dark:border-slate-800 dark:hover:bg-emerald-950/20">
         <td className="px-3 py-3.5 md:px-4">
             <button type="button" aria-haspopup="dialog" aria-label={`${label}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`}
-                className="rounded text-left font-semibold transition-colors group-hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:group-hover:text-emerald-400">
+                className="rounded text-left font-semibold outline-none transition-colors group-hover:text-emerald-700 focus-visible:underline focus-visible:underline-offset-4 dark:group-hover:text-emerald-400">
                 {label}<span aria-hidden="true" className="ml-2 inline-block text-emerald-600 dark:text-emerald-400">↗</span>
             </button>
             <p className="mt-0.5 text-xs text-slate-500">{macroUnit(cfg.unitLabel, lang)}</p>
