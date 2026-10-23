@@ -383,12 +383,9 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
     return (
         <div className="space-y-5">
             {/* Header */}
-            <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
-                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        {copy.subtitle}
-                    </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
                     <StockTabDropdown

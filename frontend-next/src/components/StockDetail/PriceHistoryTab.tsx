@@ -86,7 +86,7 @@ function PriceHistoryTab({ symbol, data: allPriceData, isLoading, hasError, onLo
     return (
         <div className="space-y-5 pb-8">
 
-            <div className="flex w-full items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
+            <div className="flex w-full items-center justify-between gap-3">
                 <div>
                     <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
                 </div>
