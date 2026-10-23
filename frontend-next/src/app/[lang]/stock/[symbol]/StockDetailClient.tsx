@@ -713,11 +713,6 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 {/* Holders Tab - Lazy & Persistent */}
                 {visitedTabs.has('holders') && (
                     <div className={activeTab === 'holders' ? 'block' : 'hidden'}>
-                        <div className="mb-4 flex w-full items-center justify-between gap-4">
-                            <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong whitespace-nowrap">
-                                {lang === 'vi' ? 'Cổ đông' : 'Holders'}
-                            </h3>
-                        </div>
                         <HoldersTab symbol={symbol} />
                     </div>
                 )}

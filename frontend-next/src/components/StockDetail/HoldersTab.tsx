@@ -201,35 +201,35 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
     };
 
     return (
-        <div className="space-y-4">
-            <div className="rounded-tremor-default border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-                <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        {loading ? <span className="text-sm text-gray-500">{labels.loading}</span> : <StockTabDropdown
-                            label={`${labels[activeView]} (${activeView === 'institutional' ? institutional.length : individuals.length})`}
-                            value={activeView}
-                            onChange={(view) => setActiveView(view as HolderView)}
-                            options={[
-                                { id: 'institutional', label: `${labels.institutional} (${institutional.length})` },
-                                { id: 'individuals', label: `${labels.individuals} (${individuals.length})` },
-                            ]}
-                            ariaLabel={vi ? 'Loại cổ đông' : 'Shareholder type'}
-                        />}
-                        <StockTabIconButton onClick={downloadCsv} title={vi ? 'Tải danh sách cổ đông' : 'Download all shareholders'} disabled={allRowsForDownload.length === 0}>
-                            <DownloadIcon />
-                        </StockTabIconButton>
-                    </div>
-
-                    <div className="mt-3">
-                        <input
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder={vi ? 'Tìm cổ đông' : 'Find shareholders'}
-                            className="w-full rounded-tremor-default border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-950"
-                        />
-                    </div>
+        <div className="space-y-3">
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{vi ? 'Cổ đông' : 'Holders'}</h3>
+                <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                    <input
+                        type="search"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder={vi ? 'Tìm cổ đông' : 'Find shareholders'}
+                        aria-label={vi ? 'Tìm cổ đông' : 'Find shareholders'}
+                        className="h-8 w-full rounded-full border border-gray-200 bg-white px-3 text-[13px] text-gray-700 shadow-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:w-48"
+                    />
+                    {loading ? <span className="text-sm text-gray-500">{labels.loading}</span> : <StockTabDropdown
+                        label={`${labels[activeView]} (${activeView === 'institutional' ? institutional.length : individuals.length})`}
+                        value={activeView}
+                        onChange={(view) => setActiveView(view as HolderView)}
+                        options={[
+                            { id: 'institutional', label: `${labels.institutional} (${institutional.length})` },
+                            { id: 'individuals', label: `${labels.individuals} (${individuals.length})` },
+                        ]}
+                        ariaLabel={vi ? 'Loại cổ đông' : 'Shareholder type'}
+                    />}
+                    <StockTabIconButton onClick={downloadCsv} title={vi ? 'Tải danh sách cổ đông' : 'Download all shareholders'} disabled={allRowsForDownload.length === 0}>
+                        <DownloadIcon />
+                    </StockTabIconButton>
                 </div>
+            </div>
 
+            <div className="rounded-tremor-default border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                         <thead>
