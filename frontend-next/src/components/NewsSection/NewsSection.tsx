@@ -26,14 +26,14 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
     const t = translations[lang].dashboard;
     if (isLoading) {
         return (
-            <Card className="p-4 md:p-6">
+            <Card className="p-4 md:p-6 border-tremor-border dark:border-dark-tremor-border shadow-sm">
                 <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                     <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
                     <h3 className="text-base md:text-lg font-bold">{t.news}</h3>
                 </div>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-4">
                     {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 animate-pulse">
+                        <div key={i} className="border-t border-tremor-border dark:border-dark-tremor-border first:border-t-0 md:[&:nth-child(2)]:border-t-0 py-4 animate-pulse">
                             <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-4/5" />
                             <div className="mt-2 h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/5" />
                             <div className="mt-4 h-3 bg-slate-100 dark:bg-slate-900 rounded w-1/2" />
@@ -46,12 +46,12 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
 
     if (error) {
         return (
-            <Card className="p-4 md:p-6">
+            <Card className="p-4 md:p-6 border-tremor-border dark:border-dark-tremor-border shadow-sm">
                 <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                     <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
                     <h3 className="text-base md:text-lg font-bold">{t.news}</h3>
                 </div>
-                <div className="mt-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/80 dark:bg-rose-950/30 p-4">
+                <div className="mt-4 rounded-lg bg-rose-50/80 dark:bg-rose-950/30 p-4">
                     <p className="text-rose-600 dark:text-rose-400 font-medium text-sm">⚠️ {error}</p>
                 </div>
             </Card>
@@ -59,7 +59,7 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
     }
 
     return (
-        <Card className="p-4 md:p-6 mt-2 md:mt-4">
+        <Card className="p-4 md:p-6 mt-2 md:mt-4 border-tremor-border dark:border-dark-tremor-border shadow-sm">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
@@ -80,11 +80,11 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
             </div>
 
             {news.length === 0 ? (
-                <div className="mt-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                <div className="mt-4 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
                     Chưa có tin tức mới.
                 </div>
             ) : (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-4">
                     {news.slice(0, 10).map((item, index) => {
                         const url = item.url || item.Link || item.NewsUrl || '#';
                         const finalUrl = url.startsWith('http') ? url : `https://cafef.vn${url}`;
@@ -103,17 +103,17 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                                 href={finalUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="group rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-3 md:p-4 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all"
+                                className="group border-t border-tremor-border dark:border-dark-tremor-border first:border-t-0 md:[&:nth-child(2)]:border-t-0 py-4 hover:bg-tremor-background-muted dark:hover:bg-dark-tremor-background-muted transition-colors"
                             >
                                 <div className="flex items-start gap-3">
                                     {image ? (
-                                        <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                        <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src={image} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300" loading="lazy"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
                                         </div>
                                     ) : (
-                                        <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                                        <div className="w-16 h-16 md:w-20 md:h-16 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                                             <Icon icon={RiNewspaperLine} size="sm" className="text-slate-400" />
                                         </div>
                                     )}
@@ -126,7 +126,7 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                                                 <span className="font-medium text-slate-700 dark:text-slate-300">{source}</span>
                                             </div>
                                             {timeFormat && (
-                                                <span className="inline-flex items-center rounded-md bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 border border-slate-200 dark:border-slate-700">
+                                                <span className="inline-flex items-center rounded-md bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5">
                                                     {timeFormat}
                                                 </span>
                                             )}
