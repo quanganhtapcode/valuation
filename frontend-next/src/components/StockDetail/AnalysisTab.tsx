@@ -189,13 +189,13 @@ const AnalysisTab = ({ symbol, isLoading = false }: AnalysisTabProps) => {
                         <Table className="max-h-[720px] [&>table]:border-separate [&>table]:border-spacing-0">
                             <TableHead>
                                 <TableRow>
-                                    <TableHeaderCell className="sticky left-0 top-0 z-20 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{copy.ticker}</TableHeaderCell>
-                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{translations[lang].detail.marketCap}</TableHeaderCell>
-                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/E</TableHeaderCell>
-                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/B</TableHeaderCell>
-                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROE (%)</TableHeaderCell>
-                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROA (%)</TableHeaderCell>
-                                    <TableHeaderCell className="sticky top-0 z-10 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">EV/EBITDA</TableHeaderCell>
+                                    <TableHeaderCell className="sticky left-0 top-0 z-30 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{copy.ticker}</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-20 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">{translations[lang].detail.marketCap}</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-20 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/E</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-20 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">P/B</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-20 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROE (%)</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-20 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">ROA (%)</TableHeaderCell>
+                                    <TableHeaderCell className="sticky top-0 z-20 border-b border-tremor-border bg-white text-right text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong">EV/EBITDA</TableHeaderCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -223,9 +223,9 @@ const AnalysisTab = ({ symbol, isLoading = false }: AnalysisTabProps) => {
 
                                     return (
                                         <TableRow key={item.symbol} className={cx(
-                                            item.isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/20'
+                                            item.isCurrent ? 'bg-blue-50 dark:bg-[#17233b]' : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/20'
                                         )}>
-                                            <TableCell className={cx('sticky left-0 z-10 border-b border-tremor-border dark:border-dark-tremor-border', item.isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'bg-white dark:bg-gray-900')}>
+                                            <TableCell className={cx('sticky left-0 z-10 border-b border-tremor-border dark:border-dark-tremor-border', item.isCurrent ? 'bg-blue-50 dark:bg-[#17233b]' : 'bg-white dark:bg-gray-900')}>
                                                 <div className="flex flex-col">
                                                     {item.isCurrent ? (
                                                         <span className="font-bold text-tremor-default text-blue-600 dark:text-blue-400">

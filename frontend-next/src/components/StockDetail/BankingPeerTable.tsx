@@ -214,8 +214,8 @@ const BankingPeerTable = ({ symbol, initialPeers }: Props) => {
                                     <TableHeaderCell
                                         key={label}
                                         className={cx(
-                                            'sticky top-0 z-10 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong',
-                                            i > 0 ? 'text-right' : 'left-0 z-20'
+                                            'sticky top-0 z-20 border-b border-tremor-border bg-white text-tremor-content-strong dark:border-dark-tremor-border dark:bg-gray-900 dark:text-dark-tremor-content-strong',
+                                            i > 0 ? 'text-right' : 'left-0 z-30'
                                         )}
                                     >
                                         {label}
@@ -242,11 +242,11 @@ const BankingPeerTable = ({ symbol, initialPeers }: Props) => {
                                         key={peer.symbol}
                                         className={cx(
                                             peer.isCurrent
-                                                ? 'bg-blue-50/50 dark:bg-blue-900/10'
+                                                ? 'bg-blue-50 dark:bg-[#17233b]'
                                                 : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/20'
                                         )}
                                     >
-                                        <TableCell className={cx('sticky left-0 z-10 border-b border-tremor-border dark:border-dark-tremor-border', peer.isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'bg-white dark:bg-gray-900')}>
+                                        <TableCell className={cx('sticky left-0 z-10 border-b border-tremor-border dark:border-dark-tremor-border', peer.isCurrent ? 'bg-blue-50 dark:bg-[#17233b]' : 'bg-white dark:bg-gray-900')}>
                                             <div className="flex flex-col">
                                                 {peer.isCurrent ? (
                                                     <span className="font-bold text-tremor-default text-blue-600 dark:text-blue-400">
