@@ -1152,40 +1152,42 @@
     border: 1px solid var(--color-border);
 }
 
-/* News Grid (2x3 layout for Overview) */
+/* Overview news occupies half the page beside the AI analysis. */
 .newsGrid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-16);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
 .newsCard {
     display: flex;
-    flex-direction: row-reverse;
-    gap: var(--space-12);
-    padding: var(--space-12);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-base);
-    text-decoration: none;
-    transition: all 0.2s;
-    overflow: hidden;
     align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+    padding: 16px 0;
+    border-top: 1px solid var(--color-border);
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+
+.newsCard:first-child {
+    border-top: 0;
 }
 
 .newsCard:hover {
     background: var(--color-border-light);
-    border-color: var(--color-primary);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.newsCard:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
 }
 
 .newsImageWrapper {
-    flex-shrink: 0;
-    width: 120px;
-    height: 100px;
+    flex: 0 0 80px;
+    height: 64px;
     overflow: hidden;
-    border-radius: calc(var(--radius-base) - 2px);
+    border-radius: 8px;
     background: var(--color-border-light);
 }
 
@@ -1193,26 +1195,32 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.2s;
+}
+
+.newsCard:hover .newsImage {
+    transform: scale(1.05);
 }
 
 .newsContent {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: 8px;
     flex: 1;
     min-width: 0;
 }
 
 .newsCardTitle {
-    font-size: var(--font-size-sm);
+    font-size: 15px;
     font-weight: 600;
     color: var(--color-text);
-    line-height: 1.4;
+    line-height: 1.5;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    overflow-wrap: anywhere;
     margin: 0;
 }
 
@@ -1222,32 +1230,52 @@
 
 .newsCardMeta {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-8);
-    font-size: var(--font-size-xs);
+    gap: 6px 10px;
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 .newsSource {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    max-width: 100%;
     color: var(--color-text-secondary);
     font-weight: 500;
 }
 
 .newsSourceLogo {
+    flex-shrink: 0;
     height: 14px;
-    width: auto;
+    width: 14px;
     object-fit: contain;
     opacity: 0.85;
 }
 
 .newsSourceText {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--color-text-secondary);
 }
 
 .newsDate {
     color: var(--color-text-subtle);
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .newsImageWrapper {
+        flex-basis: 64px;
+    }
+
+    .newsCardTitle {
+        font-size: 14px;
+    }
 }
 
 .newsSentiment {
@@ -1430,7 +1458,8 @@
 .sectionNews {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    align-self: start;
+    min-width: 0;
 }
 
 .sectionCompanyInfo {
@@ -1487,10 +1516,6 @@
 
     .sectionNews {
         order: 4;
-    }
-
-    .newsGrid {
-        grid-template-columns: 1fr;
     }
 
     .sectionBankLoan {

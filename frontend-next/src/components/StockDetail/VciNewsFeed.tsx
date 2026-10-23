@@ -273,31 +273,28 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
   return (
     <div>
       {/* Shared stock-detail header */}
-      <div className="flex w-full flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+      <div className="w-full">
         <div>
           <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.title}</h3>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             {isLoad ? copy.loading : count !== undefined ? `${count} ${tabLabel.toLowerCase()}` : copy.description}
           </p>
         </div>
-        <span className="rounded-full bg-blue-50 dark:bg-blue-900/30 px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">
-          {symbol.toUpperCase()}
-        </span>
       </div>
 
       {/* Tab bar */}
-      <div className="mt-4 flex gap-1 overflow-x-auto border-b border-slate-100 pb-3 dark:border-slate-800">
+      <div className="mt-5 flex overflow-x-auto border-b border-slate-200 dark:border-slate-800">
         {(Object.keys(TAB_LABELS[lang]) as FeedTab[]).map(tab => (
-          <button key={tab} onClick={() => handleTab(tab)}
-            className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors border ${
+          <button key={tab} type="button" aria-pressed={activeTab === tab} onClick={() => handleTab(tab)}
+            className={`shrink-0 border-b-2 px-5 py-3 text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-600 ${
               activeTab === tab
-                ? 'border-blue-500 bg-blue-600 text-white'
-                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400'
+                ? 'border-blue-600 text-blue-700 dark:text-blue-400'
+                : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
             }`}>
             {TAB_LABELS[lang][tab]}
             {data[tab] !== undefined && (
               <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] ${
-                activeTab === tab ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                activeTab === tab ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
               }`}>
                 {data[tab]!.length}
               </span>

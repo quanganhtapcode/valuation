@@ -264,7 +264,8 @@ export default function OverviewTab({
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
                                                     src={imageUrl}
-                                                    alt={title}
+                                                    alt=""
+                                                    loading="lazy"
                                                     className={styles.newsImage}
                                                     onError={(e) => {
                                                         const target = e.target as HTMLImageElement;
