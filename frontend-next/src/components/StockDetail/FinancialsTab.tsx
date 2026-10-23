@@ -6,7 +6,6 @@ import { cx } from '@/lib/utils';
 import { useLanguage } from "@/contexts/LanguageContext"
 import { translations } from "@/lib/translations"
 import { getFieldCodes } from "@/lib/fieldCodesCache"
-import ValuationHistoryChart from './ValuationHistoryChart'
 import { DownloadIcon, StockTabDropdown, StockTabIconButton } from './StockTabControls'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -851,121 +850,6 @@ function SectionedTable({
     );
 }
 
-// ── Ratio visual dashboard ───────────────────────────────────────────────────
-
-type RatioMetric = {
-    label: string;
-    keys: string[];
-    kind: 'percent' | 'multiple';
-    description: string;
-};
-
-const RATIO_HIGHLIGHTS: RatioMetric[] = [
-    { label: 'ROE', keys: ['roe'], kind: 'percent', description: 'Hiệu quả sử dụng vốn chủ sở hữu' },
-    { label: 'Biên lợi nhuận ròng', keys: ['net_profit_margin', 'net_margin'], kind: 'percent', description: 'Lợi nhuận giữ lại trên doanh thu' },
-    { label: 'P/E', keys: ['pe', 'price_to_earnings'], kind: 'multiple', description: 'Giá thị trường so với lợi nhuận' },
-    { label: 'P/B', keys: ['pb', 'price_to_book'], kind: 'multiple', description: 'Giá thị trường so với giá trị sổ sách' },
-    { label: 'Nợ / vốn chủ', keys: ['debt_to_equity', 'debt_equity'], kind: 'multiple', description: 'Mức độ sử dụng đòn bẩy tài chính' },
-    { label: 'Thanh toán hiện hành', keys: ['current_ratio'], kind: 'multiple', description: 'Khả năng đáp ứng nợ ngắn hạn' },
-];
-
-function getRatioValue(row: Record<string, any>, keys: string[]): number | null {
-    for (const key of keys) {
-        const value = Number(row[key]);
-        if (!Number.isNaN(value) && Math.abs(value) > 0.0001) return value;
-    }
-    return null;
-}
-
-function formatRatioHighlight(value: number, kind: RatioMetric['kind']): string {
-    return kind === 'percent' ? fmtPct(value) : value.toFixed(value >= 10 ? 1 : 2);
-}
-
-function RatioPeriodHistory({ history, kind, recentLabel }: { history: Array<{ value: number; label: string }>; kind: RatioMetric['kind']; recentLabel: string }) {
-    const periods = history.slice(-4);
-    if (periods.length < 2) return null;
-    return (
-        <div className="mt-4 border-t border-gray-100 pt-3 dark:border-slate-800">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{recentLabel}</p>
-            <div className="grid grid-cols-4 gap-1.5">
-                {periods.map((period, index) => (
-                    <div key={`${period.label}-${index}`} className="min-w-0 rounded-md bg-slate-50 px-1.5 py-1.5 text-center dark:bg-slate-800/70">
-                        <div className="truncate text-[10px] text-slate-400">{period.label}</div>
-                        <div className="mt-0.5 truncate text-[11px] font-semibold tabular-nums text-slate-700 dark:text-slate-200">{formatRatioHighlight(period.value, kind)}</div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function RatioDashboard({
-    rows, getRowLabel, getSectionTitle, divisor, lang,
-}: {
-    rows: any[];
-    getRowLabel: (key: string, fallback: string) => string;
-    getSectionTitle: (rawTitle: string) => string;
-    divisor?: number;
-    lang: 'vi' | 'en';
-}) {
-    const financialCopy = translations[lang].financials;
-    const copy = financialCopy.ratioDashboard;
-    const localizedRatios = financialCopy.ratioText;
-    const ratioText: Record<string, { label: string; description: string }> = {
-        ROE: localizedRatios.roe,
-        'Biên lợi nhuận ròng': localizedRatios.netMargin,
-        'P/E': localizedRatios.pe,
-        'P/B': localizedRatios.pb,
-        'Nợ / vốn chủ': localizedRatios.debtEquity,
-        'Thanh toán hiện hành': localizedRatios.currentRatio,
-    };
-    const sortedRows = [...rows].sort((a, b) => periodSortKey(a) - periodSortKey(b));
-    const cards = RATIO_HIGHLIGHTS.map(metric => {
-        const history = sortedRows.flatMap(row => {
-            const value = getRatioValue(row, metric.keys);
-            return value === null ? [] : [{ value, label: renderPeriod(row).label }];
-        });
-        const current = history[history.length - 1]?.value;
-        const previous = history[history.length - 2]?.value;
-        return { ...metric, ...(ratioText[metric.label] ?? {}), history, current, change: current !== undefined && previous !== undefined ? current - previous : null };
-    }).filter(card => card.current !== undefined);
-
-    if (cards.length === 0) return <SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} lang={lang} />;
-
-    return (
-        <div className="py-4">
-            <div className="mb-4 flex items-start justify-between gap-4">
-                <div>
-                    <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">{copy.title}</h3>
-                    <p className="mt-1 text-[12px] text-gray-500 dark:text-slate-400">{copy.subtitle}</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">{copy.badge}</span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {cards.map(card => {
-                    const isPositive = card.change === null || card.change >= 0;
-                    return (
-                        <article key={card.label} className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-900/30">
-                            <div className="flex items-start justify-between gap-3">
-                                <div><h4 className="text-[13px] font-semibold text-gray-800 dark:text-slate-100">{card.label}</h4><p className="mt-0.5 text-[11px] leading-4 text-gray-500 dark:text-slate-400">{card.description}</p></div>
-                                {card.change !== null && <span className={cx('rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums', isPositive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300')}>{isPositive ? '+' : ''}{formatRatioHighlight(card.change, card.kind)}</span>}
-                            </div>
-                            <div className="mt-3 flex items-end justify-between gap-4"><strong className="text-[22px] font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white">{formatRatioHighlight(card.current!, card.kind)}</strong><span className="pb-1 text-[10px] text-gray-400">{copy.latest}</span></div>
-                            <RatioPeriodHistory history={card.history} kind={card.kind} recentLabel={copy.recent} />
-                        </article>
-                    );
-                })}
-            </div>
-            <details className="group mt-5 border-t border-gray-100 pt-4 dark:border-slate-800">
-                <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-                    <span className="group-open:hidden">{copy.show}</span><span className="hidden group-open:inline">{copy.hide}</span><span className="text-gray-400 transition-transform group-open:rotate-180">⌄</span>
-                </summary>
-                <div className="mt-3 -mx-4"><SectionedTable sections={RATIOS_SECTIONS} rows={rows} getRowLabel={getRowLabel} getSectionTitle={getSectionTitle} divisor={divisor} lang={lang} /></div>
-            </details>
-        </div>
-    );
-}
-
 // ── Build Key Stats Data ──────────────────────────────────────────────────────
 // Merges overviewData (ratios/price) with derived values from the latest
 // income / balance / cashflow rows. Keys prefixed with _ are computed here.
@@ -1390,16 +1274,14 @@ export default function FinancialsTab({
 
                         {/* Ratios */}
                         {activeTab === 'ratios' && (
-                            <div className="space-y-5 py-4">
-                                <ValuationHistoryChart symbol={symbol} lang={lang} />
-                                <RatioDashboard
-                                    rows={reportData.ratios}
-                                    getRowLabel={rowLabel}
-                                    getSectionTitle={sectionTitle}
-                                    divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
-                                    lang={lang}
-                                />
-                            </div>
+                            <SectionedTable
+                                sections={RATIOS_SECTIONS}
+                                rows={reportData.ratios}
+                                getRowLabel={rowLabel}
+                                getSectionTitle={sectionTitle}
+                                divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
+                                lang={lang}
+                            />
                         )}
 
                         {/* Notes (Thuyết minh) */}
