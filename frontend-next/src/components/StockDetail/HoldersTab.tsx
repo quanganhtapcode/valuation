@@ -88,8 +88,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
         (vi ? row.name_vi : row.name_en) || row.manager || row.name_vi || '-';
     const holderPosition = (row: InstitutionalHolder) =>
         (vi ? row.position_vi : row.position_en) || row.position;
-    const [chosenView, setActiveView] = useState<HolderView | null>(null);
-    const [query, setQuery] = useState('');
+    const [activeView, setActiveView] = useState<HolderView>('individuals');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<HoldersPayload | null>(null);
@@ -102,8 +101,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
             if (controller.signal.aborted) return;
             setLoading(true);
             setData(null);
-            setActiveView(null);
-            setQuery('');
+            setActiveView('individuals');
             setError(null);
         });
 
@@ -134,19 +132,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
     const institutional = useMemo(() => data?.institutional || [], [data]);
     const individuals = useMemo(() => data?.individuals || [], [data]);
 
-    const activeView = chosenView ?? (institutional.length >= individuals.length ? 'institutional' : 'individuals');
-
-    const rows = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        const base: InstitutionalHolder[] = activeView === 'individuals' ? individuals : institutional;
-
-        if (!q) return base;
-
-        return base.filter((item) => {
-            const name = [item.manager, item.name_vi, item.name_en].filter(Boolean).join(' ').toLowerCase();
-            return name.includes(q);
-        });
-    }, [activeView, institutional, individuals, query]);
+    const rows = activeView === 'individuals' ? individuals : institutional;
 
     const allRowsForDownload = (() => {
         const institutionalRows = institutional.map((r) => ({
@@ -202,27 +188,20 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
 
     return (
         <div className="space-y-3">
-            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+            <div className="flex w-full items-center justify-between gap-2">
                 <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{vi ? 'Cổ đông' : 'Holders'}</h3>
-                <div className="ml-auto flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto [&>div]:shrink-0 [&>button]:shrink-0">
-                    <input
-                        type="search"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder={vi ? 'Tìm cổ đông' : 'Find shareholders'}
-                        aria-label={vi ? 'Tìm cổ đông' : 'Find shareholders'}
-                        className="h-8 min-w-0 w-0 flex-1 rounded-full border border-gray-200 bg-white px-3 text-[13px] text-gray-700 shadow-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 sm:w-48 sm:flex-none"
-                    />
-                    {loading ? <span className="text-sm text-gray-500">{labels.loading}</span> : <StockTabDropdown
-                        label={`${labels[activeView]} (${activeView === 'institutional' ? institutional.length : individuals.length})`}
+                <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
+                    <StockTabDropdown
+                        align="right"
+                        label={labels[activeView]}
                         value={activeView}
                         onChange={(view) => setActiveView(view as HolderView)}
                         options={[
-                            { id: 'institutional', label: `${labels.institutional} (${institutional.length})` },
-                            { id: 'individuals', label: `${labels.individuals} (${individuals.length})` },
+                            { id: 'institutional', label: labels.institutional },
+                            { id: 'individuals', label: labels.individuals },
                         ]}
                         ariaLabel={vi ? 'Loại cổ đông' : 'Shareholder type'}
-                    />}
+                    />
                     <StockTabIconButton onClick={downloadCsv} title={vi ? 'Tải danh sách cổ đông' : 'Download all shareholders'} disabled={allRowsForDownload.length === 0}>
                         <DownloadIcon />
                     </StockTabIconButton>
@@ -231,7 +210,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
 
             <div className="rounded-tremor-default border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
+                    <table className="min-w-full text-tremor-default">
                         <thead>
                             <tr className="border-b border-gray-100 text-left text-gray-600 dark:border-gray-800 dark:text-gray-300">
                                 <th className="px-4 py-3 font-medium">{vi ? 'Cổ đông' : 'Manager'}</th>
@@ -258,7 +237,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
                                 <tr key={`${row.manager || 'row'}-${idx}`} className="border-b border-gray-100 last:border-b-0 dark:border-gray-800">
                                     <td className="px-4 py-3">
                                         <div className="font-medium text-gray-900 dark:text-gray-100">{holderName(row)}</div>
-                                        {holderPosition(row) ? <div className="text-xs text-gray-500">{holderPosition(row)}</div> : null}
+                                        {holderPosition(row) ? <div className="text-sm text-gray-500">{holderPosition(row)}</div> : null}
                                     </td>
                                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{formatCompactShares(Number(row.shares || 0))}</td>
                                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{formatCompactCurrencyVnd(Number(row.value || 0))}</td>
