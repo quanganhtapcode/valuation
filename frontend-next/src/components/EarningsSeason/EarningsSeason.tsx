@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { Card } from '@tremor/react';
 import { siteConfig } from '@/config/siteConfig';
 import { fetchMarketTakeaways, MarketTakeawaysData } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -12,7 +13,7 @@ function CompanyLogo({ symbol }: { symbol: string }) {
     const [failed, setFailed] = useState(false);
 
     return (
-        <span title={symbol} className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700">
+        <span title={symbol} className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white dark:bg-gray-800">
             {failed ? (
                 <span className="text-[10px] font-semibold text-gray-600">{symbol}</span>
             ) : (
@@ -67,8 +68,8 @@ export default function EarningsSeason() {
     const news = (isEnglish ? takeaways?.news_summary : takeaways?.news_summary_vi) || [];
 
     return (
-        <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800">
-            <div className="mb-3 flex items-center justify-between gap-3">
+        <Card className="p-0 overflow-hidden border-tremor-border dark:border-dark-tremor-border shadow-sm">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
                 <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">{isEnglish ? 'Market Summary' : 'Tổng hợp thị trường'}</h2>
                 {takeaways && (
                     <p className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
@@ -77,11 +78,11 @@ export default function EarningsSeason() {
                     </p>
                 )}
             </div>
-            {loading ? <Skeleton /> : !takeaways || !news.length ? (
-                <p className="text-sm text-gray-400 dark:text-gray-500">{copy.waiting}</p>
+            {loading ? <div className="px-4 pb-4"><Skeleton /></div> : !takeaways || !news.length ? (
+                <p className="px-4 pb-4 text-sm text-gray-400 dark:text-gray-500">{copy.waiting}</p>
             ) : (
-                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
-                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                <div className="overflow-hidden">
+                    <div className="divide-y divide-tremor-border dark:divide-dark-tremor-border">
                         {news.slice(0, 5).map((item, index) => {
                             const source = takeaways.news_sources?.[index];
                             const rawSymbol = source?.symbol || takeaways.recent_news?.find(article => article.url === source?.url)?.symbol;
@@ -111,11 +112,11 @@ export default function EarningsSeason() {
                             );
                         })}
                     </div>
-                    <div className="px-4 pt-3">
+                    <div className="px-4 py-3">
                         <NewsSourceLogos sources={takeaways.recent_news?.length ? takeaways.recent_news : takeaways.news_sources} label={isEnglish ? 'Sources' : 'Nguồn'} />
                     </div>
                 </div>
             )}
-        </section>
+        </Card>
     );
 }
