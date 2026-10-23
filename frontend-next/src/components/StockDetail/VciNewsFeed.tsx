@@ -106,13 +106,13 @@ function NewsCard({ item, lang }: { item: any; lang: 'vi' | 'en' }) {
 
   return (
     <a href={url || '#'} target="_blank" rel="noreferrer"
-      className="group flex gap-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-blue-200 dark:hover:border-blue-800/60 transition-colors">
+      className="group flex items-start gap-3 border-t border-tremor-border dark:border-dark-tremor-border first:border-t-0 md:[&:nth-child(2)]:border-t-0 py-4 hover:bg-tremor-background-muted dark:hover:bg-dark-tremor-background-muted transition-colors">
 
       {/* Thumbnail */}
-      <div className="flex-shrink-0 w-[88px] h-[64px] rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
+      <div className="shrink-0 w-16 h-16 md:w-20 md:h-16 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
         {img && !imgErr ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={img} alt="" className="w-full h-full object-cover" onError={() => setImgErr(true)} />
+          <img src={img} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300" loading="lazy" onError={() => setImgErr(true)} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <IcoNewspaper />
@@ -122,12 +122,12 @@ function NewsCard({ item, lang }: { item: any; lang: 'vi' | 'en' }) {
 
       {/* Content */}
       <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
-        <p className="line-clamp-2 text-sm font-medium leading-snug text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+        <p className="line-clamp-2 text-[14px] md:text-[15px] font-semibold leading-snug text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {title}
         </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5">{source}</span>
-          {date && <span className="text-[11px] text-slate-400 dark:text-slate-500">{fmtRelative(date, lang)}</span>}
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] md:text-xs text-slate-500 dark:text-slate-400">
+          <span className="inline-flex rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-medium text-slate-700 dark:text-slate-300">{source}</span>
+          {date && <span className="inline-flex rounded-md bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5">{fmtRelative(date, lang)}</span>}
           <SentimentBadge score={score} label={sentiment} lang={lang} />
           {url && <span className="ml-auto text-slate-300 dark:text-slate-600 group-hover:text-blue-400 transition-colors"><IcoExternal /></span>}
         </div>
@@ -150,7 +150,7 @@ function EventCard({ item, lang }: { item: any; lang: 'vi' | 'en' }) {
   const isSell = action === 'Sell' || action === 'Bán';
 
   return (
-    <div className="flex gap-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+    <div className="flex gap-3.5 border-t border-tremor-border dark:border-dark-tremor-border first:border-t-0 py-4">
       {/* Dot accent */}
       <div className="flex-shrink-0 mt-1">
         <div className={`w-2.5 h-2.5 rounded-full ring-4 ring-white dark:ring-slate-900 ${meta.dot}`} />
@@ -188,12 +188,12 @@ function EventCard({ item, lang }: { item: any; lang: 'vi' | 'en' }) {
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
-function Skeleton() {
+function Skeleton({ isNews }: { isNews: boolean }) {
   return (
-    <div className="space-y-3">
+    <div className={isNews ? "grid grid-cols-1 md:grid-cols-2 gap-x-4" : "divide-y divide-tremor-border dark:divide-dark-tremor-border"}>
       {[...Array(5)].map((_, i) => (
-        <div key={i} className="animate-pulse flex gap-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-          <div className="flex-shrink-0 w-[88px] h-[64px] rounded-lg bg-slate-100 dark:bg-slate-800" />
+        <div key={i} className={`animate-pulse flex gap-3 py-4 ${isNews ? "border-t border-tremor-border dark:border-dark-tremor-border first:border-t-0 md:[&:nth-child(2)]:border-t-0" : ""}`}>
+          <div className="shrink-0 w-16 h-16 md:w-20 md:h-16 rounded-lg bg-slate-100 dark:bg-slate-800" />
           <div className="flex-1 space-y-2 py-1">
             <div className="h-3.5 rounded-md bg-slate-100 dark:bg-slate-800 w-full" />
             <div className="h-3.5 rounded-md bg-slate-100 dark:bg-slate-800 w-4/5" />
@@ -307,14 +307,14 @@ export default function VciNewsFeed({ symbol }: { symbol: string }) {
       </div>
 
       {/* Content — no inner scroll, let the page scroll */}
-      <div className="pt-4 space-y-3">
-        {isLoad && <Skeleton />}
+      <div className="pt-4">
+        {isLoad && <Skeleton isNews={activeTab === 'news'} />}
         {!isLoad && err     && <ErrorState message={err} lang={lang} />}
         {!isLoad && !err && items !== undefined && items.length === 0 && <EmptyState label={tabLabel} lang={lang} />}
         {!isLoad && !err && items?.length ? (
           activeTab === 'news'
-            ? items.map((item, i) => <NewsCard key={item.id ?? i} item={item} lang={lang} />)
-            : items.map((item, i) => <EventCard key={item.id ?? i} item={item} lang={lang} />)
+            ? <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">{items.map((item, i) => <NewsCard key={item.id ?? i} item={item} lang={lang} />)}</div>
+            : <div>{items.map((item, i) => <EventCard key={item.id ?? i} item={item} lang={lang} />)}</div>
         ) : null}
       </div>
     </div>
