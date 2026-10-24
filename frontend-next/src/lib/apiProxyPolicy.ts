@@ -57,6 +57,7 @@ export function resolveCachePolicy(path: string, params: URLSearchParams): Proxy
     if (/^market\/(?:heatmap|gold|top-movers|foreign-flow|foreign-net-value|foreign-volume-chart)$/.test(resource)) return policies.snapshot;
     if (resource === 'market/ai-takeaways' || resource === 'market/macro/rates') return policies.short;
     if (/^market\/(?:world-indices|macro\/(?:economic|gdp|indicators|history(?:\/batch)?))$/.test(resource)) return policies.medium;
+    if (/^stocks\/[^/]+\/price-history$/.test(resource) && params.get('snapshot') === '1') return policies.snapshot;
     if (/^stocks\/financial-metrics(?:\/sectors)?$/.test(resource)) return policies.medium;
 
     // Quotes and snapshots that contain quotes must observe the current RAM cache.

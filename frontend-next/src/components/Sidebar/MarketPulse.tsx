@@ -4,7 +4,7 @@ import { memo, useState, useCallback, useEffect } from 'react';
 import {
     Card,
 } from '@tremor/react';
-import Link from 'next/link';
+import StockLink from '@/components/StockLink';
 import { TopMoverItem } from '@/lib/api';
 import { siteConfig } from '@/config/siteConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -153,7 +153,7 @@ function MarketList({
                                 : null;
 
                             return (
-                                <Link
+                                <StockLink symbol={item.Symbol}
                                     key={item.Symbol}
                                     href={localizedPath(`/stock/${item.Symbol}`, lang)}
                                     className="flex min-w-0 items-center justify-between px-4 py-3 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group"
@@ -223,7 +223,7 @@ function MarketList({
                                             </>
                                         )}
                                     </div>
-                                </Link>
+                                </StockLink>
                             );
                         })}
                     </div>

@@ -44,6 +44,12 @@ test('aggregate snapshots use a brief shared cache and explicit bypasses still w
     assert.equal(resolveCachePolicy('market/heatmap-history', new URLSearchParams()).mode, 'realtime');
 });
 
+test('only opt-in chart snapshots use the edge cache and explicit bypasses win', () => {
+    assert.equal(resolveCachePolicy('stocks/FPT/price-history', new URLSearchParams()).mode, 'realtime');
+    assert.equal(resolveCachePolicy('stocks/FPT/price-history', new URLSearchParams('snapshot=1')).mode, 'snapshot');
+    assert.equal(resolveCachePolicy('stocks/FPT/price-history', new URLSearchParams('snapshot=1&nocache=1')).mode, 'realtime');
+});
+
 test('aggregate data is cached briefly while live quotes stay uncached', () => {
     for (const path of ['market/gold', 'market/top-movers', 'market/foreign-flow',
         'market/foreign-net-value', 'market/foreign-volume-chart']) {

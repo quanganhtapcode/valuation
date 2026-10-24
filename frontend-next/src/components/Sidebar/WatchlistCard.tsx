@@ -1,7 +1,6 @@
 ﻿'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import Link from 'next/link';
 import { Card } from '@tremor/react';
 import { RiEqualizerLine, RiCloseLine, RiArrowRightSLine, RiSearchLine } from '@remixicon/react';
 import { useWatchlist } from '@/contexts/WatchlistContext';
@@ -10,7 +9,7 @@ import { getTickerData } from '@/lib/tickerCache';
 import { siteConfig } from '@/config/siteConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
-import { requestStockQuote } from '@/lib/stockQuoteRequest';
+import StockLink from '@/components/StockLink';
 import { localizedPath } from '@/lib/localePath';
 
 interface ExternalWatchlistPrice {
@@ -189,12 +188,9 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                             {items.map(item => (
                                 <div key={item.symbol} className="flex items-center gap-2 px-4 py-2.5">
                                     <StockLogo symbol={item.symbol} />
-                                    <Link
+                                    <StockLink symbol={item.symbol}
                                         href={localizedPath(`/stock/${item.symbol}`, lang)}
                                         prefetch={true}
-                                        onMouseEnter={() => { void requestStockQuote(item.symbol); }}
-                                        onFocus={() => { void requestStockQuote(item.symbol); }}
-                                        onTouchStart={() => { void requestStockQuote(item.symbol); }}
                                         className="flex-1 min-w-0 hover:opacity-75 transition-opacity"
                                     >
                                         <div className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong truncate leading-tight">{item.name}</div>
@@ -202,7 +198,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                             <span className="font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">{item.symbol}</span>
                                             {item.exchange && <><span>·</span><span>{item.exchange}</span></>}
                                         </div>
-                                    </Link>
+                                    </StockLink>
                                     <div className="flex-shrink-0 text-right">
                                         {item.loading ? (
                                             <div className="space-y-1">

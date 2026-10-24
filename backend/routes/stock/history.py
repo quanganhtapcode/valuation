@@ -173,7 +173,7 @@ def register(stock_bp: Blueprint) -> None:
             logger.error(f"Error fetching price history from DB for {symbol}: {e}")
             return []
     
-    def get_price_history_from_vietcap(symbol: str, count_back: int, time_frame: str = "ONE_DAY", *, force: bool = False) -> List[Dict]:
+    def get_price_history_from_vietcap(symbol: str, count_back: int, time_frame: str = "ONE_DAY", *, force: bool = False, snapshot_only: bool = False) -> List[Dict]:
         """
         Fetch gap-adjusted OHLC price history from Vietcap API.
         This handles stock splits correctly — prices are adjusted for continuity.
@@ -196,6 +196,10 @@ def register(stock_bp: Blueprint) -> None:
         saved = _read_chart_cache(disk_key)
         saved_rows = _valid_candles(saved.get('rows', []))
         if not force and saved_rows and time.time() - saved.get('saved_at', 0) < _vietcap_cache_ttl():
+            return saved_rows
+        if snapshot_only and not force:
+            # The navigation snapshot must never wait for the chart provider.
+            refresh_chart_in_background(symbol, count_back)
             return saved_rows
         if not force and cache_get_ns('vietcapHistoryFailure', cache_key) is not None:
             return saved_rows
@@ -350,7 +354,8 @@ def register(stock_bp: Blueprint) -> None:
                 start_date = end_date - timedelta(days=days_back)
 
                 # Primary: Vietcap gap-adjusted API (handles stock splits)
-                history_data = get_price_history_from_vietcap(symbol, count_back)
+                snapshot = request.args.get("snapshot") == "1"
+                history_data = get_price_history_from_vietcap(symbol, count_back, snapshot_only=snapshot)
                 data_source = "vietcap"
 
                 # A saved adjusted series must not hide a newer committed DB session.
@@ -359,14 +364,17 @@ def register(stock_bp: Blueprint) -> None:
                     history_data = db_history
                     data_source = 'sqlite'
 
+                # A fast snapshot may use the existing SQLite fallback once a
+                # provider failure is known; it never initiates blocking I/O.
+                failed = cache_get_ns('vietcapHistoryFailure', f'{symbol}:{count_back}:ONE_DAY') is not None
                 # Fallback 1: SQLite DB
-                if not history_data:
+                if not history_data and (not snapshot or failed):
                     logger.info(f"Vietcap unavailable for {symbol}, falling back to DB")
                     history_data = db_history
                     data_source = "sqlite"
 
                 # Fallback 2: VCI API
-                if not history_data:
+                if not history_data and not snapshot:
                     logger.info(f"No DB data for {symbol}, falling back to VCI API")
                     history_data = get_price_history_from_vci(symbol, start_date, end_date)
                     data_source = "vci_api"
@@ -375,12 +383,18 @@ def register(stock_bp: Blueprint) -> None:
                     refresh_chart_in_background(symbol, count_back)
 
                 if not history_data:
-                    return jsonify({"success": False, "message": "No historical data available"}), 404
+                    response = jsonify({"success": False, "message": "History is refreshing" if snapshot else "No historical data available"})
+                    response.status_code = 503 if snapshot else 404
+                    response.headers['Retry-After'] = '2'
+                    response.headers['Cache-Control'] = 'no-store'
+                    return response
 
                 response = jsonify({"symbol": symbol, "data": history_data, "count": len(history_data),
                                     "success": True, "source": data_source,
                                     "latest_date": history_data[-1]['date']})
-                response.headers['Cache-Control'] = 'no-store'
+                response.headers['Cache-Control'] = (
+                    'public, max-age=0, s-maxage=5, stale-while-revalidate=10' if snapshot else 'no-store'
+                )
                 return response
             except Exception as e:
                 logger.error(f"Error fetching history for {symbol}: {e}")

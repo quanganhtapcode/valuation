@@ -32,6 +32,47 @@ class ChartHistoryTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.addCleanup(lambda: [p.stop() for p in reversed(self.patches)])
 
+    def test_fast_snapshot_serves_expired_adjusted_rows_without_waiting_for_provider(self):
+        rows = [{'date': '2026-10-06', 'open': 21600, 'high': 22350,
+                 'low': 20150, 'close': 20150, 'volume': 10}]
+        (Path(self.tmp.name) / 'FPT_260_ONE_DAY.json').write_text(
+            json.dumps({'saved_at': 0, 'rows': rows}))
+        with patch.object(history, '_fetch_gap_chart', side_effect=AssertionError('Blocking provider call')), \
+             patch.object(history, '_REFRESHING', set()), \
+             patch.object(history, '_REFRESH_SLOTS', MagicMock()), \
+             patch.object(history.threading, 'Thread') as thread:
+            response = self.app.test_client().get('/api/stock/history/FPT?period=1Y&snapshot=1')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['data'], rows)
+        self.assertIn('s-maxage=5', response.headers['Cache-Control'])
+        thread.return_value.start.assert_called_once()
+
+    def test_empty_fast_snapshot_is_retryable_without_calling_any_provider(self):
+        with patch.object(history, '_fetch_gap_chart', side_effect=AssertionError('Blocking provider call')), \
+             patch.object(history.VCIClient, 'fetch_price_history_batch', side_effect=AssertionError('Blocking VCI call')), \
+             patch.object(history, '_REFRESHING', set()), \
+             patch.object(history, '_REFRESH_SLOTS', MagicMock()), \
+             patch.object(history.threading, 'Thread'):
+            response = self.app.test_client().get('/api/stock/history/VCB?period=1Y&snapshot=1')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.headers['Retry-After'], '2')
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
+    def test_fast_snapshot_retains_sqlite_fallback_after_known_provider_failure(self):
+        db = Path(self.tmp.name) / 'prices.sqlite'
+        with sqlite3.connect(db) as conn:
+            conn.execute('INSERT INTO stock_price_history VALUES (?,?,?,?,?,?,?)',
+                         ('VCB', '2026-10-06', 100, 110, 90, 105, 1000))
+        self.cache[('vietcapHistoryFailure', 'VCB:260:ONE_DAY')] = True
+        with patch.object(history, '_fetch_gap_chart', side_effect=AssertionError('Blocking provider call')), \
+             patch.object(history, '_REFRESHING', set()), \
+             patch.object(history, '_REFRESH_SLOTS', MagicMock()), \
+             patch.object(history.threading, 'Thread'):
+            response = self.app.test_client().get('/api/stock/history/VCB?period=1Y&snapshot=1')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['source'], 'sqlite')
+        self.assertEqual(response.json['data'][-1]['close'], 105)
+
     def response(self):
         r = MagicMock()
         r.json.return_value = [{'t': [1791244800], 'o': [21600], 'h': [22350], 'l': [20150], 'c': [20150], 'v': [16274800]}]

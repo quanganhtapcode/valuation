@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { API, formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
+import { formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
 import { useWatchlist } from '@/contexts/WatchlistContext';
 import { RiStarFill, RiStarLine } from '@remixicon/react';
@@ -13,6 +13,7 @@ import { translations } from "@/lib/translations";
 import { profileToText } from '@/lib/profileText';
 import { quoteSessionDate } from '@/lib/liveCandle';
 import { requestStockQuote } from '@/lib/stockQuoteRequest';
+import { peekStockHistory, requestStockHistory, requestStockSummary } from '@/lib/stockNavigationData';
 import OverviewTab from '@/components/StockDetail/OverviewTab';
 
 type StockTabId = 'overview' | 'financials' | 'holders' | 'valuation' | 'priceHistory' | 'analysis' | 'news' | 'technical';
@@ -121,7 +122,10 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         ? storedPriceData : null;
     const [targetPrice, setTargetPrice] = useState<number | null>(null);
     const [financials, setFinancials] = useState<FinancialData | null>({});
-    const [history, setHistory] = useState<{ symbol: string; rows: HistoricalData[] }>({ symbol: '', rows: [] });
+    const [history, setHistory] = useState<{ symbol: string; rows: HistoricalData[] }>(() => {
+        const cached = peekStockHistory(symbol);
+        return { symbol, rows: (cached?.data || []).map(row => ({ ...row, time: row.time || row.date || '' })) };
+    });
     const historicalData = history.symbol === symbol ? history.rows : EMPTY_HISTORY;
     const [historyRequest, setHistoryRequest] = useState<{ symbol: string; period: HistoryPeriod }>({ symbol: '', period: '1Y' });
     const historyPeriod: HistoryPeriod = historyRequest.symbol === symbol ? historyRequest.period : '1Y';
@@ -250,9 +254,8 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
 
 
                 // Identity and company profile are already present in server-rendered HTML.
-                const stockRes = await fetch(`${API.STOCK_SUMMARY(symbol)}?realtime=0`, { signal: controller.signal })
-                    .then(r => r.ok ? r.json() : null)
-                    .catch(() => null);
+                const stockRes = await requestStockSummary(symbol);
+                if (controller.signal.aborted) return;
 
                 // --- Process Stock Data from DB (fast) ---
                 let currentPriceValue = 0;
@@ -452,17 +455,16 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         setIsChartLoading(true);
         setHistoryError(false);
         let fetching = false;
+        let retryTimer: ReturnType<typeof setTimeout> | undefined;
+        let retryDelay = 2_000;
         async function loadHistory() {
             if (fetching || controller.signal.aborted) return;
             fetching = true;
             try {
-                const res = await fetch(`/api/stocks/${symbol}/price-history?period=${historyPeriod}&nocache=1`, {
-                    signal: controller.signal, cache: 'no-store',
-                });
-                if (!res.ok) throw new Error(`History request failed: ${res.status}`);
-                if (res.ok) {
-                    const json = await res.json();
-                    const rawData = json.data || json.Data || json || [];
+                const json = await requestStockHistory(symbol, historyPeriod);
+                if (!json) throw new Error('History snapshot unavailable');
+                if (!controller.signal.aborted) {
+                    const rawData = json.data || [];
                     if (Array.isArray(rawData) && !controller.signal.aborted) {
                         const mapped = rawData.map((d: any) => ({
                             time: d.time || d.date,
@@ -475,12 +477,17 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         // Sort by date ascending to ensure proper charting
                         mapped.sort((a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime());
                         setHistory({ symbol, rows: mapped });
+                        retryDelay = 2_000;
+                        clearTimeout(retryTimer);
                     }
                 }
             } catch (e) {
                 if (!controller.signal.aborted) {
                     console.error("Fetch history failed", e);
                     setHistoryError(true);
+                    clearTimeout(retryTimer);
+                    retryTimer = setTimeout(() => { void loadHistory(); }, retryDelay);
+                    retryDelay = Math.min(retryDelay * 2, 15_000);
                 }
             } finally {
                 fetching = false;
@@ -497,6 +504,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         window.addEventListener('focus', refreshVisibleHistory);
         return () => {
             window.clearInterval(refreshTimer);
+            clearTimeout(retryTimer);
             document.removeEventListener('visibilitychange', refreshVisibleHistory);
             window.removeEventListener('focus', refreshVisibleHistory);
             controller.abort();
@@ -686,6 +694,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         historicalData={historicalData}
                         onLoadOlderHistory={loadOlderHistory}
                         isLoading={isChartLoading}
+                        primaryReady={priceRequestSettled && !isChartLoading}
                         news={news}
                         isBank={
                             (stockInfo as any)?.isbank === true ||

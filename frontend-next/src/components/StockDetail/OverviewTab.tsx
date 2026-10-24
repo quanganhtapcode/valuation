@@ -167,6 +167,7 @@ interface OverviewTabProps {
     isDescExpanded: boolean;
     setIsDescExpanded: (v: boolean) => void;
     isLoading: boolean;
+    primaryReady?: boolean;
     news?: NewsItem[];
     isBank?: boolean;
 }
@@ -182,6 +183,7 @@ export default function OverviewTab({
     isDescExpanded,
     setIsDescExpanded,
     isLoading,
+    primaryReady = true,
     news = [],
     isBank = false,
 }: OverviewTabProps) {
@@ -190,6 +192,7 @@ export default function OverviewTab({
 
     const [aiData, setAiData] = useState<Awaited<ReturnType<typeof fetchAiAnalysis>> | null>(null);
     useEffect(() => {
+        if (!primaryReady) return;
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout> | undefined;
         const load = async () => {
@@ -205,7 +208,7 @@ export default function OverviewTab({
         };
         void load();
         return () => { cancelled = true; clearTimeout(timer); };
-    }, [_symbol]);
+    }, [_symbol, primaryReady]);
 
     return (
         <div className={styles.mainContent}>
@@ -319,12 +322,12 @@ export default function OverviewTab({
             {/* Right Column */}
             <aside className={styles.rightColumn}>
                 <div className={styles.sectionAiInsight}>
-                    <AiInsightCard
+                    {primaryReady ? <AiInsightCard
                         symbol={_symbol}
                         analysisJson={aiData?.ticker === _symbol.toUpperCase() ? aiData.analysis_json : undefined}
                         newsJson={aiData?.ticker === _symbol.toUpperCase() ? aiData.news_json : undefined}
                         quarter={aiData?.ticker === _symbol.toUpperCase() ? aiData.quarter : undefined}
-                    />
+                    /> : <div aria-busy="true" className="min-h-[260px] animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none dark:bg-slate-900" />}
                 </div>
 
                 {financials && (

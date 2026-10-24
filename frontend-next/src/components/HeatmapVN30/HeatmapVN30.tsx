@@ -8,6 +8,8 @@ import type { HeatmapData, HeatmapExchange } from '@/lib/heatmapTypes';
 import { heatmapRefreshDelay, heatmapRetryDelay } from '@/lib/heatmapRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
+import { localizedPath } from '@/lib/localePath';
+import { prefetchStockData } from '@/lib/stockNavigationData';
 
 //  Types
 interface TileRect { x: number; y: number; w: number; h: number }
@@ -359,7 +361,8 @@ export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, 
                       <g
                         key={stock.ticker}
                         style={{ cursor: 'pointer' }}
-                        onClick={() => window.open(`/stock/${stock.ticker}`, '_blank')}
+                        onMouseEnter={() => prefetchStockData(stock.ticker)}
+                        onClick={() => window.open(localizedPath(`/stock/${stock.ticker}`, lang), '_blank')}
                         onMouseMove={e => {
                           const svg = (e.currentTarget as SVGGElement).closest('svg');
                           const br = svg?.getBoundingClientRect();

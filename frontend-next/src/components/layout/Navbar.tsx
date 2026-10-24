@@ -23,7 +23,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, useDeferredVa
 import { DatabaseLogo } from "@/components/DatabaseLogo"
 import { Button } from "@/components/ui/Button"
 import { getTickerData } from "@/lib/tickerCache"
-import { requestStockQuote } from '@/lib/stockQuoteRequest'
+import { prefetchStockData } from '@/lib/stockNavigationData'
 import ThemeSwitch from "@/components/ThemeSwitch"
 import LanguageSwitch from "@/components/LanguageSwitch"
 import { localizedPath } from "@/lib/localePath"
@@ -188,13 +188,14 @@ export function Navbar() {
     useEffect(() => {
         const first = searchResults[0];
         if (searchOpen && first?.symbol === searchQuery.trim().toUpperCase()) {
-            void requestStockQuote(first.symbol);
+            router.prefetch(localizedPath(`/stock/${first.symbol}`, lang));
+            prefetchStockData(first.symbol);
         }
-    }, [searchOpen, searchResults, searchQuery]);
+    }, [searchOpen, searchResults, searchQuery, router, lang]);
 
     const prepareStockNavigation = useCallback((symbol: string) => {
         router.prefetch(localizedPath(`/stock/${symbol}`, lang));
-        void requestStockQuote(symbol);
+        prefetchStockData(symbol);
     }, [router, lang]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import StockLink from '@/components/StockLink';
 import { sharedRange, sharedSymbols } from '@/lib/screenerState';
 import SavedScreens from '@/components/Screener/SavedScreens';
 import StockComparison from '@/components/Screener/StockComparison';
@@ -522,7 +522,7 @@ export default function ScreenerPage() {
               return <article key={row.ticker} className="py-4 first:pt-1">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link prefetch={false} href={localizedPath(`/stock/${row.ticker}`, lang)} className="text-lg font-bold text-blue-700 dark:text-blue-400">{row.ticker}</Link>
+                    <StockLink symbol={row.ticker} href={localizedPath(`/stock/${row.ticker}`, lang)} className="text-lg font-bold text-blue-700 dark:text-blue-400">{row.ticker}</StockLink>
                     <p className="mt-0.5 truncate text-sm text-slate-600 dark:text-slate-300">{row.name || row.ticker}</p>
                     <p className="mt-1 truncate text-xs text-slate-500">{row.exchange || '—'} · {row.sector || '—'}</p>
                   </div>
@@ -575,9 +575,9 @@ export default function ScreenerPage() {
                     <tr key={row.ticker} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td className="p-2"><input type="checkbox" checked={selectedSymbols.includes(row.ticker)} disabled={!selectedSymbols.includes(row.ticker) && selectedSymbols.length >= 5} onChange={() => toggleComparison(row.ticker)} aria-label={`${lang === 'vi' ? 'So sánh' : 'Compare'} ${row.ticker}`} /></td>
                       <td className="py-2 pl-3 md:pl-0 pr-2">
-                        <Link prefetch={false} href={localizedPath(`/stock/${row.ticker}`, lang)} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                        <StockLink symbol={row.ticker} href={localizedPath(`/stock/${row.ticker}`, lang)} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                           {row.ticker}
-                        </Link>
+                        </StockLink>
                         <div className="text-xs text-slate-400 truncate max-w-[90px] sm:max-w-none">
                           {row.exchange || '-'} · {row.sector || '-'}
                         </div>
