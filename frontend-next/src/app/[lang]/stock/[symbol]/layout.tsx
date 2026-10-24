@@ -7,12 +7,10 @@ import type { Lang } from '@/lib/translations';
 
 type Props = { params: Promise<{ lang: string; symbol: string }> };
 
-// Build common entry points ahead of traffic; long-tail tickers use the same
-// cached transition shell and are generated on demand.
+// Stock shells use only the maintained local catalogue. Generate every ticker
+// in both languages so the first visitor never waits for a cold server render.
 export function generateStaticParams() {
-  const symbols = new Set(['FPT', 'VCB', 'HPG', 'SSI', 'TCB', 'VNM', 'MBB', 'CTG',
-    'BID', 'ACB', 'VPB', 'HDB', 'STB', 'VIC', 'VHM', 'VRE', 'MSN', 'MWG', 'PNJ', 'GAS']);
-  return tickerData.tickers.filter(ticker => symbols.has(ticker.symbol)).map(ticker => ({ symbol: ticker.symbol }));
+  return tickerData.tickers.map(ticker => ({ symbol: ticker.symbol }));
 }
 export const revalidate = 300;
 

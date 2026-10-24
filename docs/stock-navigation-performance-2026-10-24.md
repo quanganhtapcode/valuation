@@ -22,7 +22,7 @@ Opening a stock launched summary, quote, uncached history, AI, technical and des
 - Opt-in history snapshots use a five-second edge cache, while explicit bypasses and standard history requests remain uncached. The current live candle still updates from the live quote stream.
 - The chart initializes from prefetched history; failed cold requests retry with bounded backoff. Aborted destinations cannot apply late results to a different symbol.
 - AI and technical enrichment wait until primary quote/history requests have settled.
-- Twenty common tickers are generated at build time in both languages (40 stock pages). Other tickers use ISR and a stock-specific loading shell that displays the selected symbol during navigation.
+- Every ticker in the local catalogue is generated at build time in both languages (1,562 tickers / 3,124 stock pages at this revision). This removes first-visitor server generation for less-traded tickers as well. A stock-specific loading shell displays the selected symbol during navigation. Revalidation stays at five minutes.
 
 No environment variables or database schema changes. Reload backend workers and deploy the frontend; either deployment order remains compatible because older backends ignore the optional snapshot query.
 
@@ -32,3 +32,9 @@ No environment variables or database schema changes. Reload backend workers and 
 - TypeScript tests cover shared requests, ticker/period isolation, snapshot expiry, retry after failed intent and edge-cache bypasses.
 - Local Chromium with controlled 150 ms API latency: HPG shell appeared in 180 ms after click; prefetch plus navigation issued exactly one quote, one summary and one history request. No runtime errors; mobile viewport 390×844 did not overflow. This local timing is not a production latency claim.
 - ESLint, TypeScript through production Webpack build, and frontend unit suites.
+
+Production follow-up after the first deployment showed a long-tail ticker still spending about two seconds on initial navigation, so shell generation was expanded from 20 popular tickers to the complete catalogue. No market/API calls run during shell generation; only local identity/metadata are rendered. This trades longer builds and larger static output for faster first visits.
+
+Additional production audit: 30 URLs across FPT/VCB/HPG (60 requests) covering summary, quote, history, financial dashboard/statements, peers, events, shareholders, technical and AI all returned HTTP 200. Excluding live quotes, repeat snapshot requests took 56–150 ms, median 77 ms. Stock quotes intentionally remain uncached.
+
+A DOM MutationObserver timed from the browser's actual click event, excluding Playwright actionability overhead: SSI's heading appeared in 479 ms with immediate click; SAB's heading appeared in 84 ms and quote in 218 ms after an 800 ms intent dwell. These were captured before expanding static generation to all tickers and are individual observations, not universal latency guarantees.
