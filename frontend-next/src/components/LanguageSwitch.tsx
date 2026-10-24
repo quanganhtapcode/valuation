@@ -3,6 +3,7 @@ import { useLanguage } from "@/contexts/LanguageContext"
 import { RadioGroup, RadioGroupItem } from "@/components/ThemeSwitch"
 import { usePathname, useRouter } from "next/navigation"
 import { localizedPath } from "@/lib/localePath"
+import { startStockNavigation } from "@/lib/stockNavigationTransition"
 
 function ViIcon() { return <span className="text-[11px] font-bold leading-none">VI</span> }
 function EnIcon() { return <span className="text-[11px] font-bold leading-none">EN</span> }
@@ -15,7 +16,9 @@ export default function LanguageSwitch() {
     const changeLanguage = (value: string) => {
         const next = value as "vi" | "en"
         setLanguage(next)
-        router.replace(localizedPath(pathname, next))
+        const href = localizedPath(pathname, next)
+        startStockNavigation(href)
+        router.replace(href)
     }
 
     return (

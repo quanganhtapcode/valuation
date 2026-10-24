@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
+import StockLink from '@/components/StockLink';
 import { API } from '@/lib/api';
 import { siteConfig } from '@/config/siteConfig';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -235,13 +235,13 @@ export default function EventsPage() {
                                             className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                             {/* Ticker */}
                                             <td className="px-4 py-3">
-                                                <Link href={localizedPath(`/stock/${event.ticker}`, lang)}
+                                                <StockLink symbol={event.ticker} href={localizedPath(`/stock/${event.ticker}`, lang)}
                                                     className="flex items-center gap-2 group w-fit">
                                                     <StockLogo ticker={event.ticker} />
                                                     <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                                         {event.ticker}
                                                     </span>
-                                                </Link>
+                                                </StockLink>
                                             </td>
                                             {/* Event description */}
                                             <td className="px-4 py-3">

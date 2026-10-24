@@ -22,6 +22,7 @@ import {
 import { siteConfig } from '@/config/siteConfig';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
+import { localizedPath } from '@/lib/localePath';
 
 const REFRESH_MS = 60_000;
 const refreshDelay = () => REFRESH_MS;
@@ -196,7 +197,7 @@ function TopBarChart({
     const data = items.slice(0, 10).map((item) => ({
         name: item.Symbol,
         value: Math.round(item.Value / 1e9 * 10) / 10,
-        href: `/stock/${item.Symbol}`,
+        href: localizedPath(`/stock/${item.Symbol}`, lang),
         icon: () => (
             <div className="w-5 h-5 rounded bg-white border border-slate-200 dark:border-slate-600 flex items-center justify-center overflow-hidden shrink-0 mr-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

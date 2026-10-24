@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import StockLink from '@/components/StockLink';
 import { fetchScreener, type ScreenerItem } from '@/lib/screenerApi';
 import { localizedPath } from '@/lib/localePath';
 
@@ -44,7 +44,7 @@ export default function StockComparison({ symbols, lang, onRemove }: { symbols: 
   const renderTable = (visibleSymbols: string[], mobile: boolean) => <table className="w-full table-fixed text-sm">
     <thead><tr className="border-b border-slate-200 dark:border-slate-700">
       <th className={`${mobile ? 'w-[42%]' : 'w-56'} px-3 py-3 text-left font-medium text-slate-500`}>{lang === 'vi' ? 'Chỉ tiêu' : 'Metric'}</th>
-      {visibleSymbols.map(symbol => <th key={symbol} className="px-2 py-3 text-right"><Link className="text-blue-600 dark:text-blue-400" href={localizedPath(`/stock/${symbol}`, lang)}>{symbol}</Link></th>)}
+      {visibleSymbols.map(symbol => <th key={symbol} className="px-2 py-3 text-right"><StockLink symbol={symbol} className="text-blue-600 dark:text-blue-400" href={localizedPath(`/stock/${symbol}`, lang)}>{symbol}</StockLink></th>)}
     </tr></thead>
     <tbody>{metrics.map(metric => {
       const values = rows.map(row => row?.[metric.key]).filter((value): value is number => typeof value === 'number' && Number.isFinite(value));

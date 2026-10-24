@@ -7,8 +7,12 @@ import Pagination from '@/components/ui/Pagination';
 import { siteConfig } from '@/config/siteConfig';
 import { useI18n } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
+import { useRouter } from 'next/navigation';
+import { localizedPath } from '@/lib/localePath';
+import { startStockNavigation } from '@/lib/stockNavigationTransition';
 
 export default function NewsPage() {
+    const router = useRouter();
     const { lang, locale } = useI18n();
     const copy = translations[lang].pages.news;
     const [news, setNews] = useState<NewsItem[]>([]);
@@ -117,7 +121,9 @@ export default function NewsPage() {
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    window.location.href = `/stock/${symbol}`;
+                                                    const href = localizedPath(`/stock/${symbol}`, lang);
+                                                    startStockNavigation(href);
+                                                    router.push(href);
                                                 }}
                                             >
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}

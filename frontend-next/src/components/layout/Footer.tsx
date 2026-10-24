@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { translations } from "@/lib/translations"
 import { localizedPath } from "@/lib/localePath"
+import { startStockNavigation } from "@/lib/stockNavigationTransition"
 
 export default function Footer() {
     const { lang } = useLanguage()
@@ -47,6 +48,7 @@ export default function Footer() {
                                             <Link
                                                 className="flex rounded-md text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                                 href={item.href}
+                                                onNavigate={() => startStockNavigation(item.href)}
                                                 prefetch={false}
                                                 target={item.external ? "_blank" : undefined}
                                                 rel={item.external ? "noopener noreferrer" : undefined}
@@ -79,6 +81,7 @@ export default function Footer() {
                                             <Link
                                                 className="flex rounded-md text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                                 href={item.href}
+                                                onNavigate={() => startStockNavigation(item.href)}
                                                 prefetch={false}
                                                 target={item.external ? "_blank" : undefined}
                                                 rel={item.external ? "noopener noreferrer" : undefined}
@@ -111,6 +114,7 @@ export default function Footer() {
                                             <Link
                                                 className="flex rounded-md text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                                 href={item.href}
+                                                onNavigate={() => startStockNavigation(item.href)}
                                                 prefetch={false}
                                                 target={item.external ? "_blank" : undefined}
                                                 rel={item.external ? "noopener noreferrer" : undefined}
@@ -143,6 +147,7 @@ export default function Footer() {
                                             <Link
                                                 className="flex rounded-md text-sm text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                                 href={item.href}
+                                                onNavigate={() => startStockNavigation(item.href)}
                                                 prefetch={false}
                                                 target={item.external ? "_blank" : undefined}
                                                 rel={item.external ? "noopener noreferrer" : undefined}

@@ -5,7 +5,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
+import StockLink from '@/components/StockLink';
+import { localizedPath } from '@/lib/localePath';
 import {
     Card,
     Table,
@@ -254,12 +255,12 @@ const BankingPeerTable = ({ symbol, initialPeers }: Props) => {
                                                         <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full dark:bg-blue-800 dark:text-blue-200 uppercase">Hiện tại</span>
                                                     </span>
                                                 ) : (
-                                                    <Link
-                                                        href={`/stock/${peer.symbol}`}
+                                                    <StockLink symbol={peer.symbol}
+                                                        href={localizedPath(`/stock/${peer.symbol}`, lang)}
                                                         className="font-bold text-tremor-default text-tremor-content-strong dark:text-dark-tremor-content-strong hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
                                                     >
                                                         {peer.symbol}
-                                                    </Link>
+                                                    </StockLink>
                                                 )}
                                                 <span className="mt-1 hidden whitespace-normal break-words text-sm leading-relaxed text-tremor-content dark:text-dark-tremor-content md:block md:w-[320px]">{peer.name}</span>
                                             </div>

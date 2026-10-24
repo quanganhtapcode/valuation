@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useTransition, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
+import { completeStockNavigation } from '@/lib/stockNavigationTransition';
 import { formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
 import { useWatchlist } from '@/contexts/WatchlistContext';
@@ -111,6 +113,12 @@ interface FinancialData {
 
 export default function StockDetailClient({ initialStockInfo }: { initialStockInfo: StockInfo }) {
     const symbol = initialStockInfo.symbol;
+    const pathname = usePathname();
+    useEffect(() => {
+        // Only the newly mounted ticker may release the shared transition shell.
+        const active = /^\/(vi|en)\/stock\/([a-z0-9]+)\/?$/i.exec(pathname);
+        if (active?.[2].toUpperCase() === symbol) completeStockNavigation(pathname);
+    }, [pathname, symbol]);
     const { lang } = useLanguage()
     const t = translations[lang]
 

@@ -38,3 +38,13 @@ Production follow-up after the first deployment showed a long-tail ticker still 
 Additional production audit: 30 URLs across FPT/VCB/HPG (60 requests) covering summary, quote, history, financial dashboard/statements, peers, events, shareholders, technical and AI all returned HTTP 200. Excluding live quotes, repeat snapshot requests took 56–150 ms, median 77 ms. Stock quotes intentionally remain uncached.
 
 A DOM MutationObserver timed from the browser's actual click event, excluding Playwright actionability overhead: SSI's heading appeared in 479 ms with immediate click; SAB's heading appeared in 84 ms and quote in 218 ms after an 800 ms intent dwell. These were captured before expanding static generation to all tickers and are individual observations, not universal latency guarantees.
+
+## Immediate click feedback follow-up
+
+Stock navigation now publishes the selected ticker to the shared main wrapper synchronously from Next Link `onNavigate` or search Enter, before waiting for the route response. The wrapper displays the selected stock shell and keeps the previous page mounted but hidden until the matching stock component mounts. Late responses for an earlier selection cannot dismiss the latest selection. Back cancels pending feedback; a 15-second recovery prevents a failed route from permanently hiding content. Modified/new-tab clicks retain Next Link behavior.
+
+Search, stock links, news tags, peer/comparison/event/earnings links and language switching use this transition. News stock tags also use client navigation instead of a full document reload, and foreign-flow/peer links preserve the selected language.
+
+Controlled Chromium production-build check: the HPG route response was delayed by 2,500 ms; selected-shell feedback painted 22 ms after the actual click. The previous FPT content remained hidden while waiting. Rapid HPG → VCB navigation, Enter selection, Back, modified click and 390×844 mobile layout passed with no runtime errors. API responses in this local test were mocked with 100 ms latency; the measurement is feedback latency, not a claim that prices or charts load in 22 ms. Unit coverage includes late-route isolation, non-stock/source paths, cancellation and failed-route recovery. Lint and full production build were also checked.
+
+This follow-up changes only frontend navigation and requires a frontend deployment; no backend restart or new configuration is needed.

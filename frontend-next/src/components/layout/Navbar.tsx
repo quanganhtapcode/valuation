@@ -24,6 +24,7 @@ import { DatabaseLogo } from "@/components/DatabaseLogo"
 import { Button } from "@/components/ui/Button"
 import { getTickerData } from "@/lib/tickerCache"
 import { prefetchStockData } from '@/lib/stockNavigationData'
+import { startStockNavigation } from '@/lib/stockNavigationTransition'
 import ThemeSwitch from "@/components/ThemeSwitch"
 import LanguageSwitch from "@/components/LanguageSwitch"
 import { localizedPath } from "@/lib/localePath"
@@ -308,6 +309,7 @@ export function Navbar() {
                                                         <Link
                                                             key={item.href}
                                                             href={item.href}
+                                                    onNavigate={() => startStockNavigation(item.href)}
                                                             className={cx(
                                                                 "flex items-center gap-3 px-4 py-3 transition-colors",
                                                                 isActive
@@ -358,7 +360,9 @@ export function Navbar() {
                                     onChange={handleSearch}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && searchResults.length > 0) {
-                                            router.push(localizedPath(`/stock/${searchResults[0].symbol}`, lang));
+                                            const href = localizedPath(`/stock/${searchResults[0].symbol}`, lang);
+                                            startStockNavigation(href);
+                                            router.push(href);
                                             setSearchOpen(false);
                                             setSearchQuery('');
                                         }
@@ -385,6 +389,7 @@ export function Navbar() {
                                                 <Link
                                                     key={result.symbol}
                                                     href={localizedPath(`/stock/${result.symbol}`, lang)}
+                                            onNavigate={() => startStockNavigation(localizedPath(`/stock/${result.symbol}`, lang))}
                                                     prefetch={result.symbol === searchResults[0]?.symbol ? true : undefined}
                                                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 group"
                                                     onMouseEnter={() => prepareStockNavigation(result.symbol)}
@@ -512,6 +517,7 @@ export function Navbar() {
                                             <li key={item.href} onClick={() => setOpen(false)}>
                                                 <Link
                                                     href={item.href}
+                                                    onNavigate={() => startStockNavigation(item.href)}
                                                     className={cx(
                                                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                                                         isActive
@@ -572,6 +578,7 @@ export function Navbar() {
                                         <Link
                                             key={result.symbol}
                                             href={localizedPath(`/stock/${result.symbol}`, lang)}
+                                            onNavigate={() => startStockNavigation(localizedPath(`/stock/${result.symbol}`, lang))}
                                             prefetch={result.symbol === searchResults[0]?.symbol ? true : undefined}
                                             className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-900"
                                             onMouseEnter={() => prepareStockNavigation(result.symbol)}
