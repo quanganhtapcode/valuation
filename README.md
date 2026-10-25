@@ -107,8 +107,12 @@ Quy ước đặt tên và vị trí module được mô tả trong [cấu trúc
 ```bash
 cd frontend-next
 npm run lint
+npm test
 npm run build
 ```
+
+`npm test` chạy các test `src/lib/*.test.ts` và bộ test xuất Excel/định giá.
+`npm run test:unit` chỉ chạy các test tiện ích, API proxy và trạng thái frontend.
 
 Với thay đổi ở backend hoặc pipeline, hãy chạy trực tiếp tác vụ liên quan, ví dụ:
 

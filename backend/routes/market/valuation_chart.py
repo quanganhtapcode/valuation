@@ -3,8 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
-import sqlite3
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -20,6 +20,7 @@ from backend.db_path import (
     resolve_vci_valuation_db_path,
     resolve_valuation_cache_db_path,
 )
+from backend.sqlite_utils import read_connection
 
 from backend.services.market_sessions import expected_session_date
 
@@ -106,7 +107,10 @@ def _parse_float_or_none(value: str | None):
     s = str(value).strip()
     if not s:
         return None
-    return float(s)
+    result = float(s)
+    if not math.isfinite(result):
+        raise ValueError('Numeric filters must be finite')
+    return result
 
 
 def _time_frame_to_cutoff(time_frame: str) -> date | None:
@@ -276,12 +280,12 @@ def _read_valuation_from_sqlite(cutoff_date: date | None = None) -> dict[str, An
     if not db.exists():
         return None
     try:
-        with sqlite3.connect(str(db)) as conn:
-            conn.row_factory = sqlite3.Row
-            where = f"WHERE date >= '{cutoff_date.isoformat()}'" if cutoff_date else ""
+        with read_connection(db) as conn:
+            where = "WHERE date >= ?" if cutoff_date else ""
             rows = conn.execute(
                 f"SELECT date, pe, pb, vnindex, open, high, low, close, ema50, volume "
-                f"FROM valuation_history {where} ORDER BY date"
+                f"FROM valuation_history {where} ORDER BY date",
+                (cutoff_date.isoformat(),) if cutoff_date else (),
             ).fetchall()
             if not rows:
                 return None
@@ -332,8 +336,7 @@ def _read_ema_breadth_from_sqlite(limit: int = 260) -> list[dict[str, Any]]:
         return []
 
     try:
-        with sqlite3.connect(str(db)) as conn:
-            conn.row_factory = sqlite3.Row
+        with read_connection(db) as conn:
             table_exists = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='ema_breadth_history'"
             ).fetchone()
@@ -586,8 +589,7 @@ def register(market_bp: Blueprint) -> None:
         if not company_db_path or not os.path.exists(company_db_path):
             return jsonify({"success": False, "error": "Company DB not found"}), 500
         try:
-            with sqlite3.connect(company_db_path) as conn:
-                conn.row_factory = sqlite3.Row
+            with read_connection(company_db_path) as conn:
                 rows = conn.execute(
                     """
                     SELECT DISTINCT
@@ -688,15 +690,15 @@ def register(market_bp: Blueprint) -> None:
 
         where_sql = " AND ".join(where_clauses)
 
-        attach_statements: list[str] = []
+        attachments: list[tuple[str, str]] = []
         if has_valuation_cache:
-            attach_statements.append(f"ATTACH DATABASE '{val_cache_path}' AS vc")
+            attachments.append((val_cache_path, 'vc'))
         if has_ratio_db:
-            attach_statements.append(f"ATTACH DATABASE '{ratio_db_path}' AS rd")
+            attachments.append((ratio_db_path, 'rd'))
         if has_stats_db:
-            attach_statements.append(f"ATTACH DATABASE '{stats_db_path}' AS sf")
+            attachments.append((stats_db_path, 'sf'))
         if has_company_db:
-            attach_statements.append(f"ATTACH DATABASE '{company_db_path}' AS co")
+            attachments.append((company_db_path, 'co'))
 
         # Direct JOINs (both tables have unique ticker as PK — no ROW_NUMBER needed)
         valuation_join = (
@@ -728,13 +730,13 @@ def register(market_bp: Blueprint) -> None:
         ).hexdigest()[:12]
 
         def _run_query():
-            with sqlite3.connect(db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                for attach_stmt in attach_statements:
+            with read_connection(db_path) as conn:
+                for attachment_path, alias in attachments:
                     try:
-                        conn.execute(attach_stmt)
+                        uri = Path(attachment_path).resolve().as_uri() + '?mode=ro'
+                        conn.execute(f"ATTACH DATABASE ? AS {alias}", (uri,))
                     except Exception as exc:
-                        logger.warning("Could not attach sqlite database (%s): %s", attach_stmt, exc)
+                        logger.warning("Could not attach sqlite database (%s): %s", alias, exc)
 
                 # CTE materialises computed columns once; ORDER BY uses aliases — fixes sort by PE/PB/etc.
                 cte_sql = f"""

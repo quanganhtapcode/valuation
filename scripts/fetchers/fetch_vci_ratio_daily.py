@@ -209,6 +209,7 @@ def upsert_ratio_history(
     entries: list[dict[str, Any]],
     fetched_at: str,
 ) -> int:
+    """Store changed observations; fetched_at records their last actual change."""
     rows = [
         (
             symbol.upper(),
@@ -224,8 +225,12 @@ def upsert_ratio_history(
         return 0
 
     conn.executemany("""
-        INSERT OR REPLACE INTO ratio_daily_history (ticker, trading_date, pe, pb, fetched_at)
+        INSERT INTO ratio_daily_history (ticker, trading_date, pe, pb, fetched_at)
         VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(ticker, trading_date) DO UPDATE SET
+            pe=excluded.pe, pb=excluded.pb, fetched_at=excluded.fetched_at
+        WHERE ratio_daily_history.pe IS NOT excluded.pe
+           OR ratio_daily_history.pb IS NOT excluded.pb
     """, rows)
     return len(rows)
 

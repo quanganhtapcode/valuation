@@ -130,7 +130,7 @@ class TTLCache:
     def _evict_one(self) -> None:
         # Remove one expired entry first, otherwise evict oldest inserted entry.
         now = time.time()
-        for existing_key, (_, expires_at) in list(self._cache.items()):
+        for existing_key, (_, expires_at) in self._cache.items():
             if now >= expires_at:
                 del self._cache[existing_key]
                 self._expired_removals += 1
@@ -204,7 +204,7 @@ class TTLCache:
         """Set cached value with TTL in seconds"""
         with self._lock:
             expires_at = time.time() + ttl
-            while len(self._cache) >= self._max_entries:
+            while key not in self._cache and len(self._cache) >= self._max_entries:
                 self._evict_one()
             self._cache[key] = (value, expires_at)
             self._sets += 1

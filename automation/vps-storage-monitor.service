@@ -1,0 +1,10 @@
+[Unit]
+Description=Check VPS disk and send Telegram threshold alerts
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/valuation
+ExecStart=/usr/bin/flock -n /run/valuation-storage-monitor.lock /var/www/valuation/.venv/bin/python /var/www/valuation/automation/vps_storage.py monitor
+TimeoutStartSec=60

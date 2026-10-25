@@ -70,13 +70,10 @@ def _db_path() -> str:
     return str(candidates[0])
 
 
-def _init_db(conn: sqlite3.Connection) -> None:
-    conn.execute("PRAGMA busy_timeout=5000")
-    mode = conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]
-    if mode.lower() != "wal":
-        raise RuntimeError("News/events database requires WAL mode")
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS items (
+def _create_items_table(conn: sqlite3.Connection, table: str) -> None:
+    # Table names are internal constants, never supplied by a request.
+    conn.execute(f"""
+        CREATE TABLE {table} (
             id          TEXT NOT NULL,
             symbol      TEXT NOT NULL,
             tab         TEXT NOT NULL,
@@ -84,20 +81,76 @@ def _init_db(conn: sqlite3.Connection) -> None:
             title       TEXT,
             raw_json    TEXT NOT NULL,
             fetched_at  TEXT NOT NULL,
-            PRIMARY KEY (id, tab)
-        );
-        CREATE INDEX IF NOT EXISTS idx_items_symbol_tab
-            ON items(symbol, tab, public_date DESC);
+            PRIMARY KEY (id, symbol, tab)
+        )
+    """)
 
-        CREATE TABLE IF NOT EXISTS fetch_meta (
+
+def _ensure_items_schema(conn: sqlite3.Connection) -> None:
+    columns = conn.execute("PRAGMA table_info(items)").fetchall()
+    if not columns:
+        _create_items_table(conn, "items")
+        return
+    expected = (
+        ("id", "TEXT", 1, None), ("symbol", "TEXT", 1, None),
+        ("tab", "TEXT", 1, None), ("public_date", "TEXT", 0, None),
+        ("title", "TEXT", 0, None), ("raw_json", "TEXT", 1, None),
+        ("fetched_at", "TEXT", 1, None),
+    )
+    primary = tuple(row[1] for row in sorted(columns, key=lambda row: row[5]) if row[5])
+    if (tuple((row[1], row[2].upper(), row[3], row[4]) for row in columns) != expected
+            or primary not in {("id", "tab"), ("id", "symbol", "tab")}):
+        raise RuntimeError("Unsupported news/events items schema; migration was not applied")
+    if primary == ("id", "symbol", "tab"):
+        return
+
+    # Rebuild only the known legacy schema. Unknown dependencies need an explicit
+    # migration so they cannot be silently dropped or changed by a table rebuild.
+    extra_objects = conn.execute("""SELECT name FROM sqlite_master
+        WHERE tbl_name='items' AND (type='trigger' OR
+            (type='index' AND name NOT IN ('sqlite_autoindex_items_1', 'idx_items_symbol_tab')))
+        UNION ALL SELECT name FROM sqlite_master WHERE type='view'""").fetchall()
+    if extra_objects or conn.execute("PRAGMA foreign_key_list(items)").fetchall():
+        raise RuntimeError("Unsupported news/events items dependencies; migration was not applied")
+    for (table,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+        quoted = table.replace('"', '""')
+        if any(row[2] == "items" for row in conn.execute(f'PRAGMA foreign_key_list("{quoted}")')):
+            raise RuntimeError("Foreign key references news/events items; migration was not applied")
+    index = conn.execute("PRAGMA index_info(idx_items_symbol_tab)").fetchall()
+    if index and [row[2] for row in index] != ["symbol", "tab", "public_date"]:
+        raise RuntimeError("Unsupported news/events items index; migration was not applied")
+
+    before = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    _create_items_table(conn, "items_symbol_key_migration")
+    conn.execute("""INSERT INTO items_symbol_key_migration
+        (id, symbol, tab, public_date, title, raw_json, fetched_at)
+        SELECT id, symbol, tab, public_date, title, raw_json, fetched_at FROM items""")
+    if conn.execute("SELECT COUNT(*) FROM items_symbol_key_migration").fetchone()[0] != before:
+        raise RuntimeError("News/events items migration changed the row count")
+    conn.execute("DROP TABLE items")
+    conn.execute("ALTER TABLE items_symbol_key_migration RENAME TO items")
+
+
+def _init_db(conn: sqlite3.Connection) -> None:
+    if conn.in_transaction:
+        raise RuntimeError("News/events schema initialization requires no active transaction")
+    conn.execute("PRAGMA busy_timeout=5000")
+    mode = conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+    if mode.lower() != "wal":
+        raise RuntimeError("News/events database requires WAL mode")
+    with conn:
+        conn.execute("BEGIN IMMEDIATE")
+        _ensure_items_schema(conn)
+        conn.execute("""CREATE INDEX IF NOT EXISTS idx_items_symbol_tab
+            ON items(symbol, tab, public_date DESC)""")
+
+        conn.execute("""CREATE TABLE IF NOT EXISTS fetch_meta (
             symbol       TEXT NOT NULL,
             tab          TEXT NOT NULL,
             last_fetched TEXT,
             item_count   INTEGER DEFAULT 0,
             PRIMARY KEY (symbol, tab)
-        );
-    """)
-    conn.commit()
+        )""")
 
 
 # ── Fetch ─────────────────────────────────────────────────────────────────────
@@ -152,7 +205,8 @@ def _row_from_item(item: dict, symbol: str, tab: str, now: str) -> tuple:
         or item.get("eventNameEn")
         or ""
     )
-    return (str(item_id), symbol, tab, pub, title, json.dumps(item, ensure_ascii=False), now)
+    return (str(item_id), symbol, tab, pub, title,
+            json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")), now)
 
 
 # ── Worker ────────────────────────────────────────────────────────────────────
@@ -179,9 +233,18 @@ def _store_result(conn: sqlite3.Connection, symbol: str, tab: str, items: list[d
     rows = [row for item in items if (row := _row_from_item(item, symbol, tab, now))]
     if len(rows) != len(items):
         raise ValueError("News/events items lack IDs; preserving previous freshness")
+    rows = list({row[0]: row for row in rows}.values())
     with conn:
         if rows:
-            conn.executemany("INSERT OR REPLACE INTO items VALUES (?,?,?,?,?,?,?)", rows)
+            conn.executemany("""INSERT INTO items
+                (id, symbol, tab, public_date, title, raw_json, fetched_at)
+                VALUES (?,?,?,?,?,?,?)
+                ON CONFLICT(id, symbol, tab) DO UPDATE SET
+                    public_date=excluded.public_date, title=excluded.title,
+                    raw_json=excluded.raw_json, fetched_at=excluded.fetched_at
+                WHERE items.public_date IS NOT excluded.public_date
+                   OR items.title IS NOT excluded.title
+                   OR items.raw_json IS NOT excluded.raw_json""", rows)
         conn.execute(
             "INSERT OR REPLACE INTO fetch_meta VALUES (?,?,?,?)",
             (symbol, tab, now, len(rows)),

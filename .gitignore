@@ -65,3 +65,7 @@ company_table_export.json
 # Generated financial-statement metadata (recreated by the canonical fetcher)
 vci_financial_statement_data/financial_statement_metrics.json
 vci_financial_statement_data/symbols_search_bar.json
+
+# Machine-specific migration exports (not application source)
+/migration-ops/
+/migration-manifest.json

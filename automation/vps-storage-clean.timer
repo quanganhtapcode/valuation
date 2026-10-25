@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly VPS cache cleanup
+
+[Timer]
+OnCalendar=Sun *-*-* 04:15:00 Asia/Ho_Chi_Minh
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "npm run test:unit && npm run test:valuation-export",
+    "test:unit": "node scripts/test-unit.mjs",
     "i18n:audit": "node scripts/check-i18n.mjs",
     "i18n:check": "node scripts/check-i18n.mjs --strict",
     "test:screener-state": "node scripts/test-screener-state.mjs",

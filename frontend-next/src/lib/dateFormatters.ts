@@ -16,8 +16,9 @@ export function parseDateInput(input: string | number | Date | undefined | null)
 
     // CafeF style: \/Date(1700000000000)\/
     if (value.includes('/Date(')) {
-        const ms = parseInt(value.match(/\d+/)?.[0] || '0', 10);
-        const d = new Date(ms);
+        const timestamp = /^\/Date\((-?\d+)(?:[+-]\d{4})?\)\/$/.exec(value);
+        if (!timestamp) return null;
+        const d = new Date(Number(timestamp[1]));
         return isNaN(d.getTime()) ? null : d;
     }
 
@@ -26,11 +27,8 @@ export function parseDateInput(input: string | number | Date | undefined | null)
         value = value.split('|')[0]?.trim() || value;
     }
 
-    // Try native parsing first (ISO, RFC2822, etc.)
-    let d = new Date(value);
-    if (!isNaN(d.getTime())) return d;
-
-    // Try dd/mm/yyyy[ hh:mm[:ss]] (common Vietnamese format)
+    // Parse Vietnamese dates before native parsing, which treats ambiguous
+    // slash-separated dates as mm/dd/yyyy in several browsers.
     const m = value.match(
         /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\sT](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
     );
@@ -41,29 +39,27 @@ export function parseDateInput(input: string | number | Date | undefined | null)
         const hour = m[4] ? parseInt(m[4], 10) : 0;
         const minute = m[5] ? parseInt(m[5], 10) : 0;
         const second = m[6] ? parseInt(m[6], 10) : 0;
-        d = new Date(year, month, day, hour, minute, second);
-        return isNaN(d.getTime()) ? null : d;
+        const d = new Date(year, month, day, hour, minute, second);
+        if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day
+            || d.getHours() !== hour || d.getMinutes() !== minute || d.getSeconds() !== second) {
+            return null;
+        }
+        return d;
     }
 
-    return null;
+    // Native parsing handles ISO, RFC2822 and named-month dates.
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
 }
 
 /**
  * Format date from various formats (including CafeF /Date()/ format)
  */
 export function formatDate(dateStr: string | number | undefined): string {
-    if (!dateStr) return '';
+    const date = parseDateInput(dateStr);
+    if (!date) return '';
 
     try {
-        let date: Date;
-
-        if (typeof dateStr === 'string' && dateStr.includes('/Date(')) {
-            const ms = parseInt(dateStr.match(/\d+/)?.[0] || '0');
-            date = new Date(ms);
-        } else {
-            date = new Date(dateStr);
-        }
-
         return date.toLocaleString('en-US', {
             hour: '2-digit',
             minute: '2-digit',

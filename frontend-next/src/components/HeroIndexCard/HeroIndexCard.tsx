@@ -514,7 +514,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             to: latest,
         });
         fittedViewForRef.current = selectedId;
-    }, [priceTV, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [priceTV, selectedId]);
 
     // ── Push PE/PB data ───────────────────────────────────────────────────────
     useEffect(() => {

@@ -17,6 +17,8 @@ sudo cp "$SCRIPT_DIR/market-ai-takeaways.service" /etc/systemd/system/
 sudo cp "$SCRIPT_DIR/market-ai-takeaways.timer" /etc/systemd/system/
 sudo cp "$SCRIPT_DIR/earnings-telegram.service" /etc/systemd/system/
 sudo cp "$SCRIPT_DIR/earnings-telegram.timer" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/vps-storage-clean.service" "$SCRIPT_DIR/vps-storage-clean.timer" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/vps-storage-monitor.service" "$SCRIPT_DIR/vps-storage-monitor.timer" /etc/systemd/system/
 
 # 2. Reload systemd
 echo "2. Reloading systemd daemon..."
@@ -33,6 +35,7 @@ echo "4. Starting timer..."
 sudo systemctl start stock-fetch.timer
 sudo systemctl start market-ai-takeaways.timer
 sudo systemctl start earnings-telegram.timer
+sudo systemctl enable --now vps-storage-clean.timer vps-storage-monitor.timer
 
 # 5. Check status
 echo ""

@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { loadWatchlist, normalizeWatchlist, saveWatchlist } from '@/lib/watchlistStorage';
 
 interface WatchlistContextType {
     watchlist: string[];
@@ -16,40 +17,44 @@ const WatchlistContext = createContext<WatchlistContextType>({
     removeSymbol: () => {},
 });
 
+const EMPTY_WATCHLIST: string[] = [];
+
 export function WatchlistProvider({ children }: { children: ReactNode }) {
-    const [watchlist, setWatchlist] = useState<string[]>([]);
+    const [savedWatchlist, setWatchlist] = useState<string[] | null>(null);
+    const watchlist = savedWatchlist ?? EMPTY_WATCHLIST;
 
     // Load from localStorage on client mount
     useEffect(() => {
-        try {
-            const saved = JSON.parse(localStorage.getItem('watchlist') || '[]');
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            if (Array.isArray(saved)) setWatchlist(saved);
-        } catch { /* ignore corrupt data */ }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setWatchlist(loadWatchlist());
     }, []);
 
+    useEffect(() => {
+        if (savedWatchlist !== null) saveWatchlist(savedWatchlist);
+    }, [savedWatchlist]);
+
     const toggle = useCallback((symbol: string) => {
+        const ticker = normalizeWatchlist([symbol])[0];
+        if (!ticker) return;
         setWatchlist(prev => {
-            const next = prev.includes(symbol)
-                ? prev.filter(s => s !== symbol)
-                : [...prev, symbol];
-            localStorage.setItem('watchlist', JSON.stringify(next));
-            return next;
+            const current = prev ?? EMPTY_WATCHLIST;
+            return current.includes(ticker)
+                ? current.filter(s => s !== ticker)
+                : [...current, ticker];
         });
     }, []);
 
     const removeSymbol = useCallback((symbol: string) => {
-        setWatchlist(prev => {
-            const next = prev.filter(s => s !== symbol);
-            localStorage.setItem('watchlist', JSON.stringify(next));
-            return next;
-        });
+        const ticker = normalizeWatchlist([symbol])[0];
+        if (!ticker) return;
+        setWatchlist(prev => prev?.filter(s => s !== ticker) ?? EMPTY_WATCHLIST);
     }, []);
 
-    const isWatched = useCallback((symbol: string) => watchlist.includes(symbol), [watchlist]);
+    const isWatched = useCallback((symbol: string) => watchlist.includes(symbol.trim().toUpperCase()), [watchlist]);
+    const value = useMemo(() => ({ watchlist, toggle, isWatched, removeSymbol }), [watchlist, toggle, isWatched, removeSymbol]);
 
     return (
-        <WatchlistContext.Provider value={{ watchlist, toggle, isWatched, removeSymbol }}>
+        <WatchlistContext.Provider value={value}>
             {children}
         </WatchlistContext.Provider>
     );

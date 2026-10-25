@@ -1,5 +1,19 @@
 # SQLite maintenance
 
+Read-only integrity and duplicate-key audit:
+
+```sh
+python3 automation/audit_storage.py
+python3 automation/audit_storage.py --database data/funds.sqlite --timeout 30
+```
+
+The JSON reports per-table row counts, declared/natural-key duplicate and NULL
+counts, unchecked tables, integrity checks and reusable/WAL bytes. No maintenance
+is applied. Archives and empty files are labelled separately. An unchecked table
+is not evidence that its business keys are unique. News/events observations use
+the composite key `(id, symbol, tab)` so one symbol cannot overwrite another
+symbol's item. The migration validates and preserves the known legacy schema.
+
 Run from the repository root:
 
 ```sh

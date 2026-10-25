@@ -1,0 +1,10 @@
+[Unit]
+Description=Clean old VPS caches and inactive browser profiles
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/valuation
+ExecStart=/usr/bin/flock -n /run/valuation-storage-clean.lock /var/www/valuation/.venv/bin/python /var/www/valuation/automation/vps_storage.py clean
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=10min
