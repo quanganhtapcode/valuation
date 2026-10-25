@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily complete Valuation data backup
+
+[Timer]
+OnCalendar=*-*-* 00:40:00 Asia/Bangkok
+Persistent=true
+RandomizedDelaySec=120
+Unit=valuation-data-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up complete Valuation data to OneDrive and verify restoration
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/valuation
+ExecStart=/var/www/valuation/.venv/bin/python -m automation.backup_valuation_data
+UMask=0077
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=2h

@@ -148,3 +148,8 @@ https://sites.google.com/view/anhqle
 
 
 https://quanganh.org
+
+## Sao lưu dữ liệu production
+
+Source code được quản lý bằng Git; dữ liệu production dùng snapshot OneDrive riêng.
+Xem [quy trình backup/restore dữ liệu](docs/valuation-data-backup.md).
