@@ -205,7 +205,7 @@ def main():
     parser.add_argument('--remote', default=os.getenv('VALUATION_DATA_BACKUP_REMOTE',
                                                      'onedrive:valuation-backups/valuation-data'))
     parser.add_argument('--keep-local', type=int, default=2)
-    parser.add_argument('--keep-remote', type=int, default=30)
+    parser.add_argument('--keep-remote', type=int, default=5)
     parser.add_argument('--verify-archive', type=Path)
     parser.add_argument('--restore-to', type=Path)
     args = parser.parse_args()

@@ -38,7 +38,7 @@ is not one atomic transaction across all databases. The archive is uploaded,
 downloaded, SHA-256 compared, then restored into scratch space. Every restored
 file is hashed, and every restored SQLite is opened read-only and quick-checked.
 Only after success is a `.sha256` marker uploaded and retention applied:
-two verified local archives, thirty verified remote archives. Failed/unverified
+two verified local archives, five verified remote archives. Failed/unverified
 uploads never cause old verified backups to be pruned. The script uses `copyto`,
 not `sync`, so deleting live data does not immediately delete historical backups.
 

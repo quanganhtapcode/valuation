@@ -6,7 +6,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/var/www/valuation
-ExecStart=/var/www/valuation/.venv/bin/python -m automation.backup_valuation_data
+ExecStart=/var/www/valuation/.venv/bin/python -m automation.backup_valuation_data --keep-remote 5
 UMask=0077
 Nice=15
 IOSchedulingClass=idle
