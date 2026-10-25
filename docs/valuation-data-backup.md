@@ -71,3 +71,20 @@ in `manifest.json`, install dependencies, then start services and check endpoint
 
 The timer/systemd journal records failures; no new external notifications are
 configured by this backup. Review backup age and service status periodically.
+
+## Hourly backup health monitoring
+
+`valuation-backup-health.timer` checks the latest success record every hour.
+`automation/check_valuation_backup.py` fails if verification is older than
+36 hours, timestamp/metadata is invalid, the local archive is missing or changed
+in size, or its checksum sidecar disagrees with the verified status. It does not
+rehash or download the full archive hourly; full remote roundtrip verification
+remains part of each daily backup. Failures are visible in systemd and its journal;
+this monitor does not send email or Telegram notifications.
+
+```sh
+systemctl status valuation-backup-health.service
+systemctl list-timers valuation-backup-health.timer
+journalctl -u valuation-backup-health.service -n 20
+python3 automation/check_valuation_backup.py
+```

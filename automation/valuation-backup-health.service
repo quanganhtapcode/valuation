@@ -1,0 +1,14 @@
+[Unit]
+Description=Check Valuation verified backup age and local verification marker
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/valuation
+ExecStart=/usr/bin/python3 /var/www/valuation/automation/check_valuation_backup.py --max-age-hours 36
+Environment=PYTHONDONTWRITEBYTECODE=1
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=64M
+TimeoutStartSec=30

@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly Valuation backup health check
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1h
+Unit=valuation-backup-health.service
+
+[Install]
+WantedBy=timers.target
