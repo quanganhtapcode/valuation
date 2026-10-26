@@ -12,12 +12,12 @@ interface GoldPriceProps {
     stale?: boolean;
 }
 
-export default function GoldPrice({ prices, isLoading, source, stale }: GoldPriceProps) {
+export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps) {
     const { lang } = useLanguage();
     const t = translations[lang].dashboard;
     const labels = {
-        vi: { stale: 'Chưa làm mới được giá; đang hiển thị bản lưu gần nhất.', updated: 'Nguồn cập nhật: ', empty: 'Đang tải giá vàng, hệ thống sẽ tự thử lại.', locale: 'vi-VN' },
-        en: { stale: 'Refresh unavailable; showing the last saved quotes.', updated: 'Source updated: ', empty: 'Loading gold quotes. Retrying automatically.', locale: 'en-US' },
+        vi: { updated: 'Nguồn cập nhật: ', empty: 'Đang tải giá vàng, hệ thống sẽ tự thử lại.', locale: 'vi-VN' },
+        en: { updated: 'Source updated: ', empty: 'Loading gold quotes. Retrying automatically.', locale: 'en-US' },
     }[lang];
     // Show 3 gold classes + silver bar if available
     const displayPrices = prices?.filter(p =>
@@ -31,9 +31,8 @@ export default function GoldPrice({ prices, isLoading, source, stale }: GoldPric
     const sourceLabel = source === 'BTMC' ? 'BTMC' : 'Phú Quý';
 
     return (
-        <SidebarCard title={t.goldSilver} icon="🏆">
+        <SidebarCard title={t.goldSilver}>
             <div className="px-5 pb-2">
-                {stale && <p role="status" className="py-2 text-xs text-amber-600">{labels.stale}</p>}
                 {!isLoading && !displayPrices.length && <p role="status" className="py-4 text-sm text-gray-500">{labels.empty}</p>}
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-10">

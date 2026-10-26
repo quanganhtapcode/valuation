@@ -38,7 +38,7 @@ export default function PolymarketEvents() {
     useVisiblePolling(loadEvents, getRefreshDelay);
 
     return (
-        <SidebarCard title={lang === 'vi' ? 'Sự kiện Polymarket' : 'Polymarket Events'} icon="📊">
+        <SidebarCard title={lang === 'vi' ? 'Sự kiện Polymarket' : 'Polymarket Events'}>
             <div className="px-5 pb-4">
                 {failed && (
                     <p role="status" className="mb-3 text-xs text-gray-500 dark:text-gray-400">

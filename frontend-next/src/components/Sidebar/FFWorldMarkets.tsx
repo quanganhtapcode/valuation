@@ -37,7 +37,7 @@ export default function FFWorldMarkets() {
     const loaded = ITEMS.filter(it => prices.has(it.channel));
 
     return (
-        <SidebarCard title={t.worldMarkets} icon="🌍">
+        <SidebarCard title={t.worldMarkets}>
             <div className="px-5 pb-2">
                 {loaded.length === 0 ? (
                     <div className="space-y-3 pb-3">

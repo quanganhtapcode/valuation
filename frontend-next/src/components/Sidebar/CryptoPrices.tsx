@@ -18,7 +18,6 @@ export default function CryptoPrices() {
     return (
         <SidebarCard
             title="Crypto (OKX)"
-            icon="🪙"
             status={status === 'connecting' ? '...' : status === 'disconnected' ? 'Reconnecting' : undefined}
         >
             <div className="px-5 pb-2">
