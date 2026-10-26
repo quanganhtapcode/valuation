@@ -26,10 +26,9 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
     const t = translations[lang].dashboard;
     if (isLoading) {
         return (
-            <Card className="p-4 md:p-6 border-tremor-border dark:border-dark-tremor-border shadow-sm">
-                <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
-                    <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
-                    <h3 className="text-base md:text-lg font-bold">{t.news}</h3>
+            <Card className="px-4 py-3 border-tremor-border dark:border-dark-tremor-border shadow-sm">
+                <div className="flex min-h-7 items-center">
+                    <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{t.news}</h2>
                 </div>
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-4">
                     {Array.from({ length: 6 }).map((_, i) => (
@@ -46,10 +45,9 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
 
     if (error) {
         return (
-            <Card className="p-4 md:p-6 border-tremor-border dark:border-dark-tremor-border shadow-sm">
-                <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
-                    <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
-                    <h3 className="text-base md:text-lg font-bold">{t.news}</h3>
+            <Card className="px-4 py-3 border-tremor-border dark:border-dark-tremor-border shadow-sm">
+                <div className="flex min-h-7 items-center">
+                    <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{t.news}</h2>
                 </div>
                 <div className="mt-4 rounded-lg bg-rose-50/80 dark:bg-rose-950/30 p-4">
                     <p className="text-rose-600 dark:text-rose-400 font-medium text-sm">⚠️ {error}</p>
@@ -59,12 +57,11 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
     }
 
     return (
-        <Card className="p-4 md:p-6 mt-2 md:mt-4 border-tremor-border dark:border-dark-tremor-border shadow-sm">
+        <Card className="px-4 py-3 mt-2 md:mt-4 border-tremor-border dark:border-dark-tremor-border shadow-sm">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
-                        <Icon icon={RiNewspaperLine} className="text-blue-500" size="sm" />
-                        <h3 className="text-base md:text-lg font-bold">{t.news}</h3>
+                    <div className="flex min-h-7 items-center">
+                        <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{t.news}</h2>
                     </div>
                     <p className="mt-1 text-xs md:text-sm text-slate-500 dark:text-slate-400">
                         {t.newsSubtitle}

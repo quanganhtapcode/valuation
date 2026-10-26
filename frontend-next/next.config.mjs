@@ -75,6 +75,10 @@ const nextConfig = {
         headers: [...immutableAssetHeaders, { key: 'Cloudflare-CDN-Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
+        source: '/crypto-logos/:path*',
+        headers: [...immutableAssetHeaders, { key: 'Cloudflare-CDN-Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
         source: '/favicon.ico',
         headers: immutableAssetHeaders,
       },
