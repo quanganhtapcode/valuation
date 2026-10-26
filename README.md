@@ -1,108 +1,92 @@
-<div align="center">
-
 # Quang Anh Stocks
 
-### Nền tảng nghiên cứu và định giá cổ phiếu Việt Nam
-
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
-
-[Khám phá tính năng](#tính-năng) · [Bắt đầu nhanh](#bắt-đầu-nhanh) · [Kiến trúc](#kiến-trúc) · [Đóng góp](#đóng-góp)
-
-</div>
-
-Quang Anh Stocks là nền tảng nghiên cứu thị trường chứng khoán Việt Nam, tập hợp dữ liệu thị trường, thông tin doanh nghiệp, công cụ sàng lọc và chỉ báo định giá trong một trải nghiệm song ngữ Việt–Anh.
-
-> **Lưu ý:** Sản phẩm phục vụ mục đích nghiên cứu và giáo dục; không phải là khuyến nghị đầu tư.
-
-## Tính năng
-
-| Nhóm | Điểm nổi bật |
-|---|---|
-| Tổng quan thị trường | Chỉ số, độ rộng thị trường, cổ phiếu biến động mạnh, heatmap ngành và thị trường quốc tế |
-| Phân tích cổ phiếu | Giá, biểu đồ, sổ lệnh, lịch sử giá, báo cáo tài chính, tỷ số, cổ đông, doanh nghiệp cùng ngành và sự kiện |
-| Định giá & kỹ thuật | Theo dõi P/E, P/B theo thời gian, đối chiếu với ngành, cùng tín hiệu kỹ thuật trực tiếp |
-| Stock Screener | Lọc cổ phiếu HOSE, HNX và UPCOM theo định giá, chất lượng, tăng trưởng, vốn hoá, sàn và ngành ICB |
-| Vĩ mô & dòng tiền | Giao dịch khối ngoại, tỷ giá, hàng hoá, chỉ báo kinh tế và cơ cấu GDP |
-| Tin tức hỗ trợ AI | Tin tức doanh nghiệp/thị trường, sự kiện cổ phiếu và các bản tóm tắt hỗ trợ nghiên cứu |
-
-## Công nghệ
-
-- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS và Recharts
-- **Backend:** Flask, Flask-Sock và Socket.IO
-- **Dữ liệu:** SQLite, Pandas, NumPy và các quy trình cập nhật Python
-- **Triển khai:** API REST qua proxy cùng WebSocket cho dữ liệu thời gian thực
-
-## Bắt đầu nhanh
-
-### Yêu cầu
-
-- Node.js 20.9 trở lên
-- Python 3.8 trở lên
-- npm
-
-### Cài đặt
-
-```bash
-git clone https://github.com/quanganhtapcode/valuation.git
-cd valuation
-
-pip install -r requirements.txt
-cd frontend-next && npm install && cd ..
-```
-
-### Chạy local
-
-Chạy backend và frontend trong hai terminal riêng:
-
-```bash
-# Terminal 1
-npm run start-backend
-```
-
-```bash
-# Terminal 2
-npm run start-frontend
-```
-
-Frontend mặc định chạy tại `http://localhost:3000`. Để cấu hình kết nối backend cục bộ, sao chép `frontend-next/.env.example` thành `frontend-next/.env.local` và điều chỉnh các biến môi trường cần thiết.
+Nền tảng nghiên cứu và định giá cổ phiếu Việt Nam: tổng quan thị trường, bộ lọc,
+báo cáo tài chính, lịch sử giá, định giá, dữ liệu vĩ mô và tin tức.
 
 ## Kiến trúc
 
-```text
-Browser
-  │
-  ├── REST /api/* ──> Next.js API proxy ──> Flask API
-  └── WebSocket ──────────────────────────> Flask Socket endpoint
-                                           │
-                                      SQLite & data pipelines
+- Frontend: Next.js, React và TypeScript trong `frontend-next/`; triển khai riêng trên Vercel.
+- Backend: Flask, Gunicorn/gevent và SQLite trên VPS tại `/var/www/valuation`.
+- HTTP: trình duyệt gọi `/api/...` cùng domain; Next.js chuyển tiếp tới backend.
+- WebSocket: kết nối trực tiếp tới `wss://api.quanganh.org/v1/valuation/ws/...`.
+- Production: `valuation.service` phục vụ `127.0.0.1:8000`, Nginx công bố `/v1/valuation/`.
+
+## Cấu trúc
+
+| Đường dẫn | Nội dung |
+| --- | --- |
+| `frontend-next/` | Giao diện, API proxy và kiểm thử frontend |
+| `backend/` | API, nghiệp vụ, client dữ liệu và batch updater |
+| `scripts/fetchers/` | Bộ thu thập dữ liệu theo nguồn |
+| `scripts/financials/` | Nhập và ghép dữ liệu báo cáo tài chính |
+| `automation/` | Cron, systemd, backup và công cụ bảo trì |
+| `data/sqlite/` | Database production; không commit hoặc xoá khi dọn source |
+| `data/financial-statements/` | Tệp dữ liệu báo cáo tải về |
+| `logs/`, `runtime/` | Nhật ký, cache và trạng thái vận hành |
+| `tests/` | Kiểm thử Python với database tạm và HTTP giả lập |
+| `docs/` | [Danh mục tài liệu kỹ thuật](docs/README.md) |
+
+## Cài đặt và chạy local
+
+VPS hiện dùng Python 3.14 và Node.js 22. Tạo môi trường riêng khi phát triển;
+không cài đè dependency hoặc chạy pipeline ghi dữ liệu để thử tài liệu trên production.
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cd frontend-next
+npm ci
+cp .env.example .env.local
 ```
 
-| Thư mục | Vai trò |
-|---|---|
-| `frontend-next/` | Ứng dụng Next.js: routes, components, API clients và giao diện |
-| `backend/` | Flask API, nghiệp vụ định giá và các dịch vụ dữ liệu |
-| `automation/` | Tác vụ cập nhật dữ liệu, backup và vận hành định kỳ |
-| `scripts/fetchers/` | Các công cụ thu thập và xử lý dữ liệu thị trường |
-| `data/sqlite/` | Cơ sở dữ liệu SQLite, WAL/SHM và backup runtime (không commit) |
-| `data/financial-statements/` | Dữ liệu báo cáo tài chính đã tải về (không commit) |
-| `config/` | Cấu hình và metadata được quản lý theo Git |
-| `runtime/`, `logs/` | Trạng thái tạm thời và nhật ký vận hành (không commit) |
-| `docs/` | Tài liệu kỹ thuật và vận hành |
+Cấu hình `.env` cho backend và `frontend-next/.env.local` cho frontend theo môi trường.
+Không commit `.env`, token, thông tin tài khoản dịch vụ hoặc dữ liệu production.
 
-Quy ước đặt tên và vị trí module được mô tả trong [cấu trúc code](docs/code-organization.md).
+Từ thư mục gốc, chạy backend trong một terminal:
 
-## Automation
+```bash
+.venv/bin/gunicorn --worker-class gevent --workers 2 --bind 127.0.0.1:8000 backend.server:app
+```
 
-- `setup_cron_vps.sh` quản lý lịch crawl SQLite; `--dry-run` xem lịch trước khi cài.
-- `vci_safe_run.sh` và `sqlite_backup.py` bảo vệ cập nhật dữ liệu bằng khóa, snapshot và rollback.
-- Các file `.service`/`.timer` phục vụ backend, dữ liệu dẫn xuất, AI, cảnh báo báo cáo tài chính, Excel, NAV quỹ và giám sát dung lượng VPS.
-- `optimize_sqlite.py` là công cụ bảo trì chạy thủ công, được mô tả trong [hướng dẫn SQLite](docs/sqlite-maintenance.md).
-- `publish_ticker_catalog.sh` được job công ty gọi để cập nhật danh mục mã cổ phiếu cho frontend.
+Trong terminal khác:
+
+```bash
+cd frontend-next
+npm run dev
+```
+
+Chi tiết kết nối và biến môi trường: [README frontend](frontend-next/README.md).
+
+## Vận hành VPS
+
+```bash
+systemctl status valuation.service
+journalctl -u valuation.service -n 50 --no-pager
+curl -sS http://127.0.0.1:8000/api/health
+systemctl list-timers --all
+crontab -l
+```
+
+Health check có thể trả `207` khi dịch vụ hoạt động nhưng dữ liệu hoặc ingestion
+cần được kiểm tra. Xem từng mục trong JSON; không coi cảnh báo dữ liệu cũ là lỗi CPU/RAM.
+
+- `automation/setup_cron_vps.sh --dry-run` chỉ hiển thị cron dự kiến.
+- `automation/vci_safe_run.sh` dùng khóa database, SQLite snapshot và kiểm tra chất lượng.
+- Exit code `75` của ingestion nghĩa là còn phần chưa hoàn tất; dữ liệu thành công được giữ.
+- Financials dùng `--resume-missing --resume-since-hours 144`; có lịch lấy bù các đêm tiếp theo.
+- News/events lưu vị trí tiếp tục để lỗi ở một số mã không chặn mọi mã phía sau.
+- `run_pipeline.py` cập nhật dữ liệu dẫn xuất và có ghi database; đây không phải lệnh test offline.
+- `fetch_vci_financial_data.py` vẫn được bot Excel import cho dữ liệu dự báo có bearer token.
 
 ## Kiểm tra chất lượng
+
+Từ thư mục gốc:
+
+```bash
+.venv/bin/python -m unittest discover -s tests
+```
+
+Frontend:
 
 ```bash
 cd frontend-next
@@ -111,45 +95,15 @@ npm test
 npm run build
 ```
 
-`npm test` chạy các test `src/lib/*.test.ts` và bộ test xuất Excel/định giá.
-`npm run test:unit` chỉ chạy các test tiện ích, API proxy và trạng thái frontend.
+## Dữ liệu và khôi phục
 
-Với thay đổi ở backend hoặc pipeline, hãy chạy trực tiếp tác vụ liên quan, ví dụ:
+Xem [backup/restore](docs/valuation-data-backup.md),
+[bảo trì SQLite](docs/sqlite-maintenance.md) và [danh mục dữ liệu](docs/data-inventory.md).
+Không xoá WAL/SHM, lock, database hoặc bản sao lưu chỉ vì không được Git quản lý.
+Các báo cáo kiểm tra theo ngày và hồ sơ migration cũ đã được đưa ra khỏi cây source;
+tài liệu hiện hành nằm trong `docs/`.
 
-```bash
-.venv/bin/python -m unittest discover -s tests
-```
+## Giấy phép và phạm vi sử dụng
 
-`python run_pipeline.py` dùng để cập nhật dữ liệu dẫn xuất khi cần; lệnh này có
-ghi database nên không thay thế bộ test offline.
-
-## Đóng góp
-
-Đóng góp, báo lỗi và đề xuất cải tiến đều được hoan nghênh. Trước khi mở pull request, vui lòng chạy lint/build cho phần frontend bị ảnh hưởng và mô tả rõ thay đổi cùng cách kiểm tra.
-
-## Miễn trừ trách nhiệm
-
-Dữ liệu và phân tích trên Quang Anh Stocks chỉ nhằm hỗ trợ nghiên cứu. Thông tin có thể bị chậm, thiếu hoặc thay đổi; luôn tự xác minh trước khi đưa ra bất kỳ quyết định đầu tư nào.
-
-## Giấy phép
-
-Phát hành theo [giấy phép MIT](LICENSE).
-
-### Chuẩn đường dẫn API frontend
-
-- HTTP từ trình duyệt luôn gọi đường dẫn tương đối `/api/...` trên domain website.
-- Quy tắc đặt tên, schema, lỗi và cache: [hợp đồng API](docs/api-contract.md). Đường dẫn mới dùng `/api/stocks/{symbol}/...`; alias cũ tiếp tục hoạt động.
-- Next.js proxy, snapshot trang chủ và ảnh chia sẻ dùng chung `src/lib/backendApi.server.ts`: `BACKEND_API_URL` cho production, `BACKEND_API_URL_LOCAL` cho development. Không đặt địa chỉ backend trực tiếp trong component.
-- WebSocket dùng duy nhất `NEXT_PUBLIC_BACKEND_WS_URL` và helper `getWsUrl()`; mặc định production là `wss://api.quanganh.org/v1/valuation`, development là `ws://127.0.0.1:8000`. WebSocket kết nối trực tiếp backend vì proxy HTTP trên Vercel không chuyển tiếp WebSocket.
-- `NEXT_PUBLIC_API_URL` và `NEXT_PUBLIC_REALTIME_API_URL` không còn được sử dụng. Khi thay đổi biến `NEXT_PUBLIC_*`, cần build/deploy lại frontend.
-
-
-https://sites.google.com/view/anhqle
-
-
-https://quanganh.org
-
-## Sao lưu dữ liệu production
-
-Source code được quản lý bằng Git; dữ liệu production dùng snapshot OneDrive riêng.
-Xem [quy trình backup/restore dữ liệu](docs/valuation-data-backup.md).
+Source sử dụng [giấy phép MIT](LICENSE). Dữ liệu và phân tích phục vụ nghiên cứu;
+người sử dụng cần tự xác minh thông tin trước khi đưa ra quyết định đầu tư.

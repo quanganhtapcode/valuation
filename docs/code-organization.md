@@ -52,8 +52,7 @@ tests/                  Test Python chạy offline bằng database tạm/mock HT
 - Tên module, hàm và biến dùng snake_case; class dùng PascalCase, hằng số dùng
   UPPER_SNAKE_CASE; thụt đầu dòng bằng 4 dấu cách.
 - Crawler dùng `fetch_<source>_<dataset>.py`. Ví dụ crawler chỉ số nằm trong
-  `scripts/fetchers/fetch_vci_index_history.py`; `fetch_vci.py` chỉ là entry point
-  tương thích cho crontab đã triển khai. Installer mới gọi tên cụ thể.
+  `scripts/fetchers/fetch_vci_index_history.py`; cron và installer đều gọi tên cụ thể.
 - Job chỉ số hằng ngày trong installer dùng `--incremental`: bắt đầu từ trang
   mới nhất, đọc đến mốc dữ liệu đã có và làm mới chồng lấn 7 ngày. Crawler kiểm
   tra thứ tự ngày, không báo thành công khi phản hồi API lỗi hoặc giới hạn trang

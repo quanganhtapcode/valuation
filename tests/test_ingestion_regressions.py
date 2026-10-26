@@ -455,13 +455,21 @@ class CronInstallerTests(unittest.TestCase):
             self.assertEqual(lines[0], unrelated)
             # Includes the daily Vietnam economic history job added alongside
             # the existing Yahoo macro history refresh.
-            self.assertEqual(len(lines), 18)
+            self.assertEqual(len(lines), 19)
             self.assertEqual(sum('--name\\ vietnam_macro' in line for line in lines), 1)
             for line in lines[1:]:
                 argv = shlex.split(line.split(maxsplit=5)[5])
                 self.assertEqual(argv[:5], ['systemd-run', '--scope', '--quiet', '--collect', '--slice=valuation.slice'])
                 self.assertEqual(argv[5:7], ['/bin/bash', '-lc'])
                 self.assertEqual(len(argv), 8)
+            financial_jobs = [line for line in lines if '--name\\ financials' in line]
+            self.assertEqual({tuple(line.split()[:5]) for line in financial_jobs},
+                             {('15', '18', '*', '*', '0'), ('15', '1', '*', '*', '1-6')})
+            for line in financial_jobs:
+                command = shlex.split(line.split(maxsplit=5)[5])[-1]
+                self.assertIn('--resume-missing --resume-since-hours 144', command)
+            news = next(line for line in lines if '--name\\ news_events' in line)
+            self.assertEqual(news.split()[:5], ['0', '20,23', '*', '*', '*'])
             stats = next(line for line in lines if '--name\\ stats_financial' in line)
             body = shlex.split(stats.split(maxsplit=5)[5])[-1]
             self.assertTrue(body.startswith('cd /var/www/valuation && bash automation/vci_safe_run.sh'))

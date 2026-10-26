@@ -944,6 +944,8 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="When enabled, skip symbols already marked ok; retry previously failed symbols.",
     )
+    parser.add_argument("--resume-since-hours", type=float, default=0,
+                        help="With --resume-missing, refresh successes older than N hours; 0 skips all successes.")
     parser.add_argument("--max-runtime", type=float, default=1800, help="Fetch time budget in seconds; post-fetch SQLite maintenance is excluded")
     parser.add_argument("--max-consecutive-errors", type=int, default=10, help="Stop after this many consecutive failed symbols")
     parser.add_argument("--retry", type=int, default=3, help="HTTP retries per request.")
@@ -996,19 +998,21 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _latest_successful_symbols(conn: sqlite3.Connection) -> set[str]:
+def _latest_successful_symbols(conn: sqlite3.Connection, since: str = "") -> set[str]:
     rows = conn.execute("""
         SELECT log.ticker FROM fetch_log log
         JOIN (SELECT ticker, MAX(fetched_at) AS fetched_at FROM fetch_log GROUP BY ticker) latest
           ON latest.ticker = log.ticker AND latest.fetched_at = log.fetched_at
-        WHERE log.status = 'ok'
-    """)
+        WHERE log.status = 'ok' AND log.fetched_at >= ?
+    """, (since,))
     return {row[0] for row in rows}
 
 
 def main() -> int:
     args = _parse_args()
     global REQUEST_DELAY_S, REQUEST_RETRIES, REQUEST_TIMEOUT_S, REQUEST_DEADLINE
+    if args.resume_since_hours < 0 or (args.resume_since_hours and not args.resume_missing):
+        raise ValueError("--resume-since-hours requires --resume-missing and a nonnegative age")
     if args.max_runtime <= 0 or args.max_consecutive_errors < 1:
         raise ValueError("Runtime and consecutive-error limits must be positive")
     REQUEST_DEADLINE = time.monotonic() + args.max_runtime
@@ -1107,7 +1111,8 @@ def main() -> int:
 
     if args.resume_missing:
         # A newer error must be retried even if an older run succeeded.
-        done = _latest_successful_symbols(conn)
+        since = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=args.resume_since_hours)).isoformat() if args.resume_since_hours else ""
+        done = _latest_successful_symbols(conn, since)
         symbols = [s for s in symbols if s not in done]
 
     symbols_path.write_text(

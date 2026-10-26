@@ -173,7 +173,7 @@ def _fetch_tab(symbol: str, tab: str) -> list[dict]:
         f"{VCI_IQ_BASE}/{cfg['path']}",
         params=params,
         headers=VCI_HEADERS,
-        timeout=12,
+        timeout=(5, 20),
     )
     resp.raise_for_status()
     payload = resp.json()
@@ -270,7 +270,7 @@ def run(incremental: bool = False, *, symbols: list[str] | None = None, workers:
     with read_connection(screen_db) as sc:
         universe = [r[0] for r in sc.execute("SELECT DISTINCT ticker FROM screening_data WHERE ticker IS NOT NULL AND ticker != ''").fetchall()]
     scope = 'subset' if symbols is not None else 'full'
-    symbols = list(dict.fromkeys(symbols if symbols is not None else universe))
+    symbols = sorted(set(symbols if symbols is not None else universe))
     if not symbols:
         logger.error("No symbols to fetch")
         return 1
@@ -300,6 +300,18 @@ def run(incremental: bool = False, *, symbols: list[str] | None = None, workers:
             for tab in TABS
             if (sym, tab) not in already_fetched
         ]
+        # Continue after the previous attempt even when its upstream requests
+        # failed; otherwise a few broken tickers can starve the entire universe.
+        cursor = conn.execute("SELECT v FROM meta WHERE k='resume_cursor'").fetchone()
+        if incremental and cursor:
+            try:
+                previous = tuple(json.loads(cursor[0]))
+                if previous in tasks:
+                    offset = tasks.index(previous) + 1
+                    tasks = tasks[offset:] + tasks[:offset]
+            except (TypeError, ValueError):
+                pass
+        last_attempted = None
         logger.info("Tasks to run: %d", len(tasks))
 
         done = 0
@@ -338,6 +350,7 @@ def run(incremental: bool = False, *, symbols: list[str] | None = None, workers:
                     future = next(iter(completed))
                     futures.remove(future)
                     symbol, tab, count, err, items = future.result()
+                    last_attempted = (symbol, tab)
                     errors_before = errors
                     done += 1
 
@@ -366,6 +379,9 @@ def run(incremental: bool = False, *, symbols: list[str] | None = None, workers:
                     if not any(f.done() for f in futures):
                         fill_workers()
 
+        if last_attempted is not None:
+            conn.execute("INSERT OR REPLACE INTO meta VALUES ('resume_cursor', ?)",
+                         (json.dumps(last_attempted),))
         conn.executemany("INSERT OR REPLACE INTO meta VALUES (?,?)", [
             ('last_run_finished', datetime.now(timezone.utc).isoformat()),
             ('last_run_status', 'partial' if errors or stop_reason else 'ok'),

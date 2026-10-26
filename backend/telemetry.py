@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
-from collections import defaultdict, deque
+from collections import deque
 
 
 _LOCK = threading.RLock()
@@ -36,6 +36,10 @@ def _percentile(sorted_values: list[float], p: float) -> float:
 
 def record_request_latency(route_key: str, duration_ms: float) -> None:
     key = str(route_key or "unknown")[:180]
+    # A WebSocket duration measures connection lifetime, not HTTP response latency.
+    parts = key.split(" ", 1)
+    if len(parts) == 2 and parts[1].startswith(("/ws/", "/v1/valuation/ws/")):
+        return
     ms = max(0.0, float(duration_ms or 0.0))
     now = time.time()
 
@@ -54,11 +58,10 @@ def record_request_latency(route_key: str, duration_ms: float) -> None:
 
 def get_latency_metrics(top_n: int = 20) -> dict:
     with _LOCK:
-        route_items = list(_ROUTE_LATENCY.items())
+        route_items = [(route, list(bucket.samples)) for route, bucket in _ROUTE_LATENCY.items()]
 
     details = []
-    for route, bucket in route_items:
-        values = list(bucket.samples)
+    for route, values in route_items:
         if not values:
             continue
         sorted_values = sorted(values)
@@ -79,11 +82,8 @@ def get_latency_metrics(top_n: int = 20) -> dict:
     top = details[:top_n]
 
     all_samples = []
-    for item in details:
-        route = item["route"]
-        bucket = _ROUTE_LATENCY.get(route)
-        if bucket:
-            all_samples.extend(bucket.samples)
+    for _, values in route_items:
+        all_samples.extend(values)
 
     sorted_all = sorted(all_samples)
     summary = {

@@ -43,9 +43,12 @@ CRON_INDEX_HISTORY="45 15 * * 1-5 cd /var/www/valuation && bash automation/vci_s
 
 CRON_VALUATION="30 18 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name valuation --db data/sqlite/vci_valuation.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_valuation.py --db data/sqlite/vci_valuation.sqlite\" >> logs/cron_valuation.log 2>&1"
 
-CRON_FINANCIALS="15 18 * * 0 cd /var/www/valuation && bash automation/vci_safe_run.sh --name financials --db data/sqlite/vci_financials.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_financial_statement.py --db-path data/sqlite/vci_financials.sqlite --workers 1 --batch-size 40 --max-years 0 --max-quarters 0\" >> logs/cron_financials.log 2>&1"
+CRON_FINANCIALS="15 18 * * 0 cd /var/www/valuation && bash automation/vci_safe_run.sh --name financials --db data/sqlite/vci_financials.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_financial_statement.py --db-path data/sqlite/vci_financials.sqlite --workers 1 --batch-size 40 --max-years 0 --max-quarters 0 --resume-missing --resume-since-hours 144\" >> logs/cron_financials.log 2>&1"
 
-CRON_NEWS_EVENTS="0 20 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name news_events --db data/sqlite/vci_news_events.sqlite --retries 2 --retry-sleep 30 --drop-total-pct 0.10 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python -m backend.updater.batch_news --incremental --workers 2\" >> logs/cron_news_events.log 2>&1"
+# Continue incomplete weekly financial refreshes on subsequent nights.
+CRON_FINANCIALS_CATCHUP="${CRON_FINANCIALS/15 18 \* \* 0 /15 1 * * 1-6 }"
+
+CRON_NEWS_EVENTS="0 20,23 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name news_events --db data/sqlite/vci_news_events.sqlite --retries 2 --retry-sleep 30 --drop-total-pct 0.10 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python -m backend.updater.batch_news --incremental --workers 2 --retries 1 --max-runtime 1800\" >> logs/cron_news_events.log 2>&1"
 
 CRON_FIREANT_MACRO="0 7 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name fireant_macro --db data/sqlite/fireant_macro.sqlite --retries 2 --retry-sleep 15 --drop-total-pct 0.05 --keep-ratio 0.90 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_fireant_macro.py --db data/sqlite/fireant_macro.sqlite --workers 1\" >> logs/cron_fireant_macro.log 2>&1"
 
@@ -79,7 +82,7 @@ render_crontab() {
   for line in \
     "$CRON_SCREENER" "$CRON_FOREIGN" "$CRON_NEWS" "$CRON_STATS_FINANCIAL" \
     "$CRON_PRICE_HISTORY" "$CRON_RATIO_DAILY" "$CRON_SHAREHOLDERS" \
-    "$CRON_INDEX_HISTORY" "$CRON_VALUATION" "$CRON_FINANCIALS" \
+    "$CRON_INDEX_HISTORY" "$CRON_VALUATION" "$CRON_FINANCIALS" "$CRON_FINANCIALS_CATCHUP" \
     "$CRON_NEWS_EVENTS" "$CRON_FIREANT_MACRO" "$CRON_MACRO_HISTORY" "$CRON_VIETNAM_MACRO" \
     "$CRON_COMPANY" "$CRON_FIREANT_BETA" "$CRON_TELEGRAM"; do
     read -r minute hour day month weekday command <<< "$line"

@@ -1,81 +1,62 @@
-# Frontend Next.js
+# Frontend Quang Anh Stocks
 
-Next.js 16 + React 19 frontend for the Vietnamese stock valuation platform.
-Routes live in `src/app`, reusable UI in `src/components`, and API clients,
-types and browser utilities in `src/lib`.
+Ứng dụng Next.js, React và TypeScript cho nền tảng nghiên cứu cổ phiếu.
+Xem [README dự án](../README.md) để biết kiến trúc backend và cách vận hành VPS.
 
-## Commands
+## Bắt đầu
+
+Chạy từ `frontend-next/`:
 
 ```bash
+npm ci
+cp .env.example .env.local
 npm run dev
-npm run lint
-npm run build
-npm run start
 ```
 
-From the repository root:
+Các lệnh hỗ trợ: `npm run lint`, `npm test`, `npm run build`, `npm run start`.
+`npm run start` cần bản build đã hoàn tất.
 
-```bash
-npm run start-frontend
-```
+## Kết nối API
 
-## Runtime Architecture
-
-The browser uses same-origin REST calls through the Next.js proxy:
+HTTP đi qua proxy cùng domain:
 
 ```text
-Browser -> /api/* -> src/app/api/[...path]/route.ts -> Flask backend
+Trình duyệt -> /api/... -> src/app/api/[...path]/route.ts -> Flask API
 ```
 
-WebSocket traffic bypasses Vercel and connects directly to the VPS:
+| Biến | Vai trò |
+| --- | --- |
+| `BACKEND_API_URL` | Backend cho proxy phía server ở production |
+| `BACKEND_API_URL_LOCAL` | Backend cho môi trường development |
+| `NEXT_PUBLIC_BACKEND_WS_URL` | Địa chỉ WebSocket phía trình duyệt |
 
-```text
-Browser -> NEXT_PUBLIC_BACKEND_WS_URL/ws/*
-```
+Giá trị production của HTTP và WebSocket lần lượt là
+`https://api.quanganh.org/v1/valuation` và `wss://api.quanganh.org/v1/valuation`.
+Local thường dùng `http://127.0.0.1:8000/api` và `ws://127.0.0.1:8000`.
+WebSocket kết nối trực tiếp tới VPS. Không đặt địa chỉ backend rải rác trong component.
 
-Production values:
+Không dùng lại `NEXT_PUBLIC_API_URL` hoặc `NEXT_PUBLIC_REALTIME_API_URL`.
+Thay đổi biến `NEXT_PUBLIC_*` cần build và triển khai lại frontend.
 
-```text
-BACKEND_API_URL=https://api.quanganh.org/v1/valuation
-NEXT_PUBLIC_BACKEND_WS_URL=wss://api.quanganh.org/v1/valuation
-```
+## Cấu trúc chính
 
-Local development usually uses:
+| Đường dẫn | Nội dung |
+| --- | --- |
+| `src/app/` | Trang, route và API proxy |
+| `src/components/` | Giao diện theo tính năng và UI dùng chung |
+| `src/hooks/`, `src/contexts/` | Hook và trạng thái dùng chung |
+| `src/lib/` | API client, kiểu dữ liệu, formatter và xuất Excel |
+| `public/ticker_data.json` | Danh mục mã dùng cho frontend và Excel |
+| `scripts/` | Kiểm thử, kiểm tra bản dịch và công cụ phát triển |
 
-```text
-BACKEND_API_URL_LOCAL=http://127.0.0.1:8000/api
-NEXT_PUBLIC_BACKEND_WS_URL=ws://127.0.0.1:8000
-```
-
-Copy `.env.example` to `.env.local` for local overrides. Production values are
-also mirrored in the Vercel dashboard.
-
-## Important Paths
-
-| Path | Purpose |
-|---|---|
-| `src/app/[lang]/page.tsx` | Main overview page |
-| `src/app/[lang]/stock/[symbol]/page.tsx` | Stock detail route |
-| `src/app/api/[...path]/route.ts` | Backend proxy route |
-| `src/components/StockDetail/` | Overview, financials, valuation, holders and price-history tabs |
-| `src/components/Sidebar/` | Market pulse widgets |
-| `src/lib/api.ts` | Shared API fetchers, WebSocket handlers and formatters |
-| `src/lib/stockApi.ts` | Stock-specific API calls |
-| `src/lib/reportGenerator.ts` | Excel export generation |
-| `public/ticker_data.json` | Static ticker metadata used by frontend and Excel updater |
-
-## Verification
-
-For frontend changes, run:
+## Kiểm tra và triển khai
 
 ```bash
 npm run lint
+npm test
 npm run build
 ```
 
-For proxy or WebSocket changes, also smoke-test against a running backend:
-
-```bash
-curl -s http://127.0.0.1:3000/api/health
-curl -s http://127.0.0.1:3000/api/market/vci-indices
-```
+Với thay đổi proxy, kiểm tra `/api/health` qua frontend khi backend local đang chạy.
+Frontend production được triển khai riêng trên Vercel; sửa source trên VPS không
+tự cập nhật website. Không đưa secret phía server vào biến `NEXT_PUBLIC_*`.
