@@ -107,3 +107,24 @@ Heatmap dùng cache ngắn để giảm lần đi qua function tới backend khi
 Proxy và các fetch trực tiếp từ server chuyển URL chuẩn sang đường dẫn upstream tương thích dựa trên manifest chung. Vì vậy frontend mới hoạt động với cả backend cũ lẫn mới, không cần retry 404 và không phụ thuộc thứ tự triển khai. Backend mới cũng phục vụ trực tiếp các alias chuẩn. Bộ triển khai backend cần chứa manifest tại `frontend-next/src/lib/apiRouteAliases.json`, không cần cài hay build Node để đọc file này.
 
 Không xóa alias trong cùng đợt chuyển đổi. Trước khi bỏ một URL cũ, cần kiểm tra các client còn dùng nó và công bố thay đổi hợp đồng. Các tối ưu Python có hiệu lực khi tiến trình backend nạp phiên bản mới.
+
+## Tải dữ liệu thị trường
+
+`GET /api/exports/catalog` trả danh mục bộ dữ liệu, cột, nguồn, khả năng lọc ngày/mã và `available` dựa trên dữ liệu thực tế. Không có đường dẫn database hoặc SQL trong response.
+
+`GET /api/exports/market` xuất CSV UTF-8 có BOM hoặc Excel, với các query:
+
+| Query | Ý nghĩa |
+| --- | --- |
+| `dataset` | Một ID trong danh mục bên dưới |
+| `format` | `csv` (mặc định) hoặc `xlsx` |
+| `from`, `to` | Ngày ISO `YYYY-MM-DD`, bao gồm cả ngày cuối; chỉ dùng cho dữ liệu lịch sử |
+| `symbols` | Tối đa 50 mã, cách nhau bằng dấu phẩy; bắt buộc cho `stock-prices` |
+
+Các ID: `index-valuations`, `index-prices`, `stock-prices`, `daily-ratios`, `companies`, `screener`, `foreign-flow`, `macro-prices`, `news-events`, `fund-nav`, `market-breadth`. `companies` và `screener` là bản mới nhất; không nhận bộ lọc ngày. `foreign-flow` là giao dịch toàn thị trường theo phút, không phải từng cổ phiếu. `macro-prices` chứa chuỗi Yahoo Finance và các mã `ECONOMICS:...` từ TradingView. Độ phủ phụ thuộc dữ liệu đã thu thập; không tự gọi nguồn ngoài hoặc nội suy để lấp ô trống.
+
+Ví dụ: `/api/exports/market?dataset=stock-prices&symbols=FPT,VCB&from=2026-01-01&to=2026-10-23&format=xlsx`.
+
+Giới hạn 100.000 dòng/tệp và giới hạn lượt tải hiện hành. Vượt số dòng trả HTTP 413 và yêu cầu thu hẹp bộ lọc; không trả file bị cắt. HTTP 404 khi không có dòng phù hợp, 400 khi bộ lọc sai và 503 khi kho dữ liệu chưa sẵn sàng. Thành công có `X-Export-Rows`, `Content-Disposition` và `Cache-Control: no-store`. Excel có sheet `Data` và `About` (nguồn, bộ lọc, số dòng, thời điểm xuất). Các chuỗi có thể bị hiểu là công thức bảng tính được bảo vệ; giá trị số giữ nguyên.
+
+`GET /api/market/index-valuations?snapshot=1&compact=1&timeFrame=1Y` đọc trực tiếp lịch sử VNINDEX trong SQLite, không chờ upstream khi thiếu phiên gần nhất. Response giữ thống kê và độ chính xác, thêm `data_as_of` và `stale`. Lịch sử được cập nhật bởi pipeline định kỳ; giá hiện tại tiếp tục qua quote stream. Snapshot có TTL CDN 5 giây, browser không giữ cache; không có dữ liệu trả 503 `no-store`. Các lời gọi không có `snapshot=1` giữ cơ chế bổ sung OHLC hiện hành.

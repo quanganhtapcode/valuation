@@ -528,6 +528,28 @@ def register(market_bp: Blueprint) -> None:
         metric = _normalize_metric(request.args.get("metric", "both"))
         index = (request.args.get("index") or "VNINDEX").strip().upper()
         time_frame = (request.args.get("timeFrame") or "ALL").strip().upper()
+        # The interactive chart must never wait for the external provider.
+        # Scheduled ingestion supplies history; the quote stream supplies live prices.
+        if request.args.get("snapshot") == "1" and index == "VNINDEX":
+            stored = _read_valuation_from_sqlite(cutoff_date=_time_frame_to_cutoff(time_frame))
+            if not stored or not stored.get("data"):
+                response = jsonify({"error": "Historical data is temporarily unavailable"})
+                response.headers["Cache-Control"] = "no-store"
+                response.headers["Retry-After"] = "30"
+                return response, 503
+            latest = stored["data"][-1]["date"]
+            payload = {
+                "success": True, "source": "SQLite", "index": index,
+                "timeFrame": time_frame, "stats": stored["stats"],
+                "data": stored["data"], "data_as_of": latest,
+                "stale": latest < expected_session_date(datetime.now(timezone.utc)),
+            }
+            if request.args.get("compact") == "1":
+                payload = compact_chart_payload(payload)
+            response = jsonify(payload)
+            response.headers["Cache-Control"] = "public, max-age=0, s-maxage=5"
+            return response
+
         cache_key = f"index_valuation_{index}_{time_frame}_{metric}"
 
         def fetch_index_valuation():

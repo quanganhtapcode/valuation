@@ -24,6 +24,7 @@ from backend.services import GoldService
 from backend.extensions import init_provider
 from backend.routes.market import market_bp, init_market_routes
 from backend.routes.downloads import download_bp
+from backend.routes.market_exports import market_exports_bp
 from backend.routes.health import health_bp
 from backend.routes.aliases import register_api_aliases
 from backend.routes.stock import stock_bp
@@ -122,6 +123,7 @@ ff_ensure_started()
 app.register_blueprint(stock_bp, url_prefix='/api')
 app.register_blueprint(market_bp)
 app.register_blueprint(download_bp)
+app.register_blueprint(market_exports_bp)
 app.register_blueprint(health_bp)
 register_api_aliases(app)
 

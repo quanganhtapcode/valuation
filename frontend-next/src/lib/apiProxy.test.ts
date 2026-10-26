@@ -191,11 +191,20 @@ test('short names are preferred across every generation of financial URLs', () =
 });
 
 test('short export names retain download timeouts and no-store policies', () => {
-    for (const path of ['exports/financials', 'financial-statements/exports', 'financial-bulk-export',
+    for (const path of ['exports/financials', 'exports/market', 'financial-statements/exports', 'financial-bulk-export',
         'workbooks/archive', 'financial-statements/workbooks/archive', 'stock/excel-bulk']) {
         assert.equal(isBulkExport(path), true, path);
         assert.equal(resolveCachePolicy(path, new URLSearchParams()).mode, 'realtime', path);
     }
     assert.equal(isBulkExport('workbooks'), false);
     assert.equal(isBulkExport('exports/financials-preview'), false);
+});
+
+
+test('interactive index snapshots have a short cache and export row counts survive the proxy', () => {
+    assert.equal(resolveCachePolicy('market/index-valuations', new URLSearchParams('snapshot=1')).mode, 'snapshot');
+    assert.equal(resolveCachePolicy('market/pe-chart', new URLSearchParams('snapshot=1')).revalidateSeconds, 5);
+    assert.equal(resolveCachePolicy('market/index-valuations', new URLSearchParams('snapshot=1&nocache=1')).mode, 'realtime');
+    const headers = proxyResponseHeaders(new Headers({ 'X-Export-Rows': '123', 'Cache-Control': 'no-store' }), 'no-store');
+    assert.equal(headers.get('X-Export-Rows'), '123');
 });

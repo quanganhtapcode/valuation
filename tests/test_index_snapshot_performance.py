@@ -35,3 +35,31 @@ class IndexSnapshotPerformance(unittest.TestCase):
             result = chart.fetch_vci_index_valuation_payload()
         provider.assert_called_once_with(count_back=5)
         self.assertEqual(result['data'][-1]['date'], '2026-10-23')
+
+    def snapshot_client(self):
+        from flask import Blueprint, Flask
+        app = Flask(__name__)
+        bp = Blueprint('snapshot_test', __name__)
+        chart.register(bp)
+        app.register_blueprint(bp)
+        return app.test_client()
+
+    def test_interactive_snapshot_never_waits_for_provider_even_when_stale(self):
+        saved = {'data': [{'date': '2026-10-22', 'vnindex': 1700, 'pe': 12.345}], 'stats': {'pe': {'average': 12}}}
+        with patch.object(chart, '_read_valuation_from_sqlite', return_value=saved), \
+             patch.object(chart, 'expected_session_date', return_value='2026-10-23'), \
+             patch.object(chart, 'fetch_vci_index_valuation_payload', side_effect=AssertionError('network path used')):
+            response = self.snapshot_client().get('/pe-chart?snapshot=1&compact=1&timeFrame=1Y')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json['stale'])
+        self.assertEqual(response.json['data_as_of'], '2026-10-22')
+        self.assertEqual(response.json['source'], 'SQLite')
+        self.assertEqual(response.json['stats'], saved['stats'])
+        self.assertEqual(dict(zip(response.json['columns'], response.json['data'][0]))['pe'], 12.345)
+
+    def test_empty_snapshot_is_uncached_and_does_not_call_external_provider(self):
+        with patch.object(chart, '_read_valuation_from_sqlite', return_value=None), \
+             patch.object(chart, 'fetch_vci_index_valuation_payload', side_effect=AssertionError('network path used')):
+            response = self.snapshot_client().get('/pe-chart?snapshot=1')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')

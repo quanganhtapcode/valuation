@@ -36,10 +36,30 @@ export async function fetchPEChart(
     metric: ValuationMetric = 'both',
     options?: RequestInit,
 ): Promise<PEChartResult> {
-    const response = await fetchAPI<any>(`${API.INDEX_VALUATIONS}?metric=${metric}&compact=1`, options);
+    const response = await fetchAPI<any>(`${API.INDEX_VALUATIONS}?metric=${metric}&compact=1&snapshot=1`, options);
     const series = parsePEChartPayload(response);
     const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
     return { series, stats };
+}
+
+const rangeCache = new Map<string, { expires: number; result: PEChartResult }>();
+const rangeRequests = new Map<string, Promise<PEChartResult>>();
+
+/** A prefetch and a user pan share one request; cancelling one subscriber is safe. */
+function withSubscriberSignal<T>(promise: Promise<T>, signal?: AbortSignal | null): Promise<T> {
+    if (!signal) return promise;
+    if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+    return new Promise((resolve, reject) => {
+        const abort = () => reject(new DOMException('Aborted', 'AbortError'));
+        signal.addEventListener('abort', abort, { once: true });
+        promise.then(value => {
+            signal.removeEventListener('abort', abort);
+            if (!signal.aborted) resolve(value);
+        }, error => {
+            signal.removeEventListener('abort', abort);
+            reject(error);
+        });
+    });
 }
 
 export async function fetchPEChartByRange(
@@ -47,10 +67,26 @@ export async function fetchPEChartByRange(
     metric: ValuationMetric = 'both',
     options?: RequestInit,
 ): Promise<PEChartResult> {
-    const response = await fetchAPI<any>(`${API.INDEX_VALUATIONS}?metric=${metric}&timeFrame=${timeFrame}&compact=1`, options);
-    const series = parsePEChartPayload(response);
-    const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
-    return { series, stats };
+    const key = `${timeFrame}:${metric}`;
+    const cached = rangeCache.get(key);
+    if (cached && cached.expires > Date.now()) {
+        return withSubscriberSignal(Promise.resolve(cached.result), options?.signal);
+    }
+    let pending = rangeRequests.get(key);
+    if (!pending) {
+        pending = (async () => {
+            const response = await fetchAPI<any>(`${API.INDEX_VALUATIONS}?metric=${metric}&timeFrame=${timeFrame}&compact=1&snapshot=1`, {
+                ...options, signal: AbortSignal.timeout(15_000),
+            });
+            const result = { series: parsePEChartPayload(response), stats: (response?.stats ?? {}) as PEChartResult['stats'] };
+            if (rangeCache.size >= 18) rangeCache.delete(rangeCache.keys().next().value!);
+            rangeCache.set(key, { expires: Date.now() + 30_000, result });
+            return result;
+        })();
+        rangeRequests.set(key, pending);
+        pending.then(() => rangeRequests.delete(key), () => rangeRequests.delete(key));
+    }
+    return withSubscriberSignal(pending, options?.signal);
 }
 
 export function parsePEChartPayload(response: any): PEChartData[] {

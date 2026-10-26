@@ -2,7 +2,7 @@
 
 import { chartColors, getChartTheme } from '@/lib/chartTheme';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import {
     createChart,
     IChartApi,
@@ -16,6 +16,7 @@ import {
     MouseEventParams,
 } from 'lightweight-charts';
 import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, isTradingHours } from '@/lib/api';
+import { createFrameStore } from '@/lib/frameStore';
 import { cx } from '@/lib/utils';
 import { RiHistoryLine } from '@remixicon/react';
 import dynamic from 'next/dynamic';
@@ -146,6 +147,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const [vnRows,   setVnRows]   = useState<PEChartData[]>([]);
     const [vnTimeframe, setVnTimeframe] = useState<VnTimeframe>('1Y');
     const [vnLoad,   setVnLoad]   = useState(false);
+    const [vnError, setVnError] = useState(false);
+    const [vnRetry, setVnRetry] = useState(0);
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
     const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
@@ -167,7 +170,9 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const peRef     = useRef<ISeriesApi<'Line'> | null>(null);
     const pbRef     = useRef<ISeriesApi<'Line'> | null>(null);
     const previousCloseMap = useRef<Map<string, number>>(new Map());
-    const [tooltip, setTooltip]       = useState<any>(null);
+    const updatingSeriesRef = useRef(false);
+    const [tooltipStore] = useState(() => createFrameStore<TooltipData | null>(null));
+    const setTooltip = tooltipStore.publish;
     const [cw,      setContainerW]    = useState(800);
     const [ch,      setContainerH]    = useState(380);
 
@@ -180,23 +185,29 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         const cached = vnCache.current.get(vnTimeframe);
         if (cached) {
             vnLoadingRef.current = false;
-            setVnRows(cached);
+            queueMicrotask(() => { setVnLoad(false); setVnRows(cached); });
             return;
         }
 
         const controller = new AbortController();
-        setVnLoad(true);
+        queueMicrotask(() => {
+            if (!controller.signal.aborted) { setVnError(false); setVnLoad(true); }
+        });
+        vnLoadingRef.current = true;
         fetchPEChartByRange(vnTimeframe, 'both', { signal: controller.signal })
             .then(({ series }) => {
+                if (controller.signal.aborted) return;
                 vnCache.current.set(vnTimeframe, series);
                 setVnRows(series);
             })
             .catch(error => {
-                if (error.name !== 'AbortError') console.error(error);
+                if (!controller.signal.aborted) { setVnError(true); console.error(error); }
             })
-            .finally(() => setVnLoad(false));
+            .finally(() => {
+                if (!controller.signal.aborted) { vnLoadingRef.current = false; setVnLoad(false); }
+            });
         return () => controller.abort();
-    }, [vnTimeframe]);
+    }, [vnTimeframe, vnRetry]);
 
     // Fetch the next range ahead of a pan, after the current chart renders.
     useEffect(() => {
@@ -210,7 +221,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 .catch(error => {
                     if (error.name !== 'AbortError') console.error(error);
                 });
-        }, 200);
+        }, 1200);
         return () => {
             window.clearTimeout(timer);
             controller.abort();
@@ -290,8 +301,10 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
     // Latest stats for header display
     const latestVN = useMemo(() => {
-        const last = [...vnRows].reverse().find(d => d.vnindex !== null);
-        return last ?? null;
+        for (let i = vnRows.length - 1; i >= 0; i--) {
+            if (vnRows[i].vnindex !== null) return vnRows[i];
+        }
+        return null;
     }, [vnRows]);
 
     // ── Chart initialisation (once) ───────────────────────────────────────────
@@ -406,7 +419,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             if (prev !== undefined) {
                 const ch   = close - prev;
                 const pct  = prev > 0 ? (ch / prev) * 100 : 0;
-                change = `${ch >= 0 ? '+' : ''}${Math.abs(ch).toFixed(2)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+                change = `${ch >= 0 ? '+' : ''}${ch.toFixed(2)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
             }
 
             setTooltip({
@@ -427,17 +440,21 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         peRef.current    = pe;
         pbRef.current    = pb;
 
+        let resizeFrame = 0;
         const ro = new ResizeObserver(([e]) => {
             const w = e.contentRect.width;
             const h = w < 640 ? 300 : 380;
-            setContainerW(w || 800);
-            setContainerH(h);
-            chart.applyOptions({ width: w, height: h });
+            cancelAnimationFrame(resizeFrame);
+            resizeFrame = requestAnimationFrame(() => {
+                setContainerW(w || 800);
+                setContainerH(h);
+                chart.applyOptions({ width: w, height: h });
+            });
         });
         ro.observe(wrapRef.current);
 
         const onVisibleRangeChange = (range: { from: number; to: number } | null) => {
-            if (!range || vnLoadingRef.current || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex') return;
+            if (!range || updatingSeriesRef.current || vnLoadingRef.current || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex') return;
             // Load with half a screen of history still available.
             if (range.from > Math.max(60, (range.to - range.from) * 0.5)) return;
             // Lock synchronously, before React processes the next range event.
@@ -456,6 +473,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
 
         return () => {
             ro.disconnect();
+            cancelAnimationFrame(resizeFrame);
+            tooltipStore.dispose();
             chart.timeScale().unsubscribeVisibleLogicalRangeChange(onVisibleRangeChange);
             chart.remove();
             chartRef.current = areaRef.current = volRef.current = peRef.current = pbRef.current = null;
@@ -481,51 +500,47 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         const visibleRange = preserveVisibleRangeRef.current
             ? chartRef.current?.timeScale().getVisibleRange()
             : null;
-        areaRef.current.setData(priceTV.map(d => ({ time: d.time, value: d.value })));
-        previousCloseMap.current = new Map(priceTV.slice(1).map((d, i) => [dayKey(d.time), priceTV[i].value]));
-        volRef.current.setData(priceTV.map((d, i) => ({
-            time:  d.time,
-            value: d.volume,
-            color: i === 0 || d.value >= priceTV[i - 1].value
-                ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
-        })));
-        // Re-apply live today-point if already received
-        const livePoint = livePointsRef.current.get(selectedId);
-        if (livePoint) {
-            try { areaRef.current.update(livePoint); } catch {}
-        }
-        // Fit only a newly selected index. Do not snap the chart back to the
-        // latest year when older history arrives during a user pan.
-        if (visibleRange) {
-            chartRef.current?.timeScale().setVisibleRange(visibleRange);
-            preserveVisibleRangeRef.current = false;
+        updatingSeriesRef.current = true;
+        try {
+            areaRef.current.setData(priceTV.map(d => ({ time: d.time, value: d.value })));
+            previousCloseMap.current = new Map(priceTV.slice(1).map((d, i) => [dayKey(d.time), priceTV[i].value]));
+            volRef.current.setData(priceTV.map((d, i) => ({
+                time:  d.time,
+                value: d.volume,
+                color: i === 0 || d.value >= priceTV[i - 1].value
+                    ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
+            })));
+            peRef.current?.setData(isVN ? peTV : []);
+            pbRef.current?.setData(isVN ? pbTV : []);
+            // Re-apply live today-point if already received
+            const livePoint = livePointsRef.current.get(selectedId);
+            if (livePoint) {
+                try { areaRef.current.update(livePoint); } catch {}
+            }
+            // Fit only a newly selected index. Do not snap the chart back to the
+            // latest year when older history arrives during a user pan.
+            if (visibleRange) {
+                chartRef.current?.timeScale().setVisibleRange(visibleRange);
+                preserveVisibleRangeRef.current = false;
+                fittedViewForRef.current = selectedId;
+                return;
+            }
+            if (fittedViewForRef.current === selectedId) return;
+            const latest = livePoint
+                ? livePoint.time
+                : priceTV[priceTV.length - 1].time;
+            const from = new Date(Date.UTC(latest.year - 1, latest.month - 1, latest.day));
+            const firstDate = dayKey(priceTV[0].time);
+            const startDate = dateToISO(from);
+            chartRef.current?.timeScale().setVisibleRange({
+                from: toBusinessDay(startDate < firstDate ? firstDate : startDate),
+                to: latest,
+            });
             fittedViewForRef.current = selectedId;
-            return;
+        } finally {
+            updatingSeriesRef.current = false;
         }
-        if (fittedViewForRef.current === selectedId) return;
-        const latest = livePoint
-            ? livePoint.time
-            : priceTV[priceTV.length - 1].time;
-        const from = new Date(Date.UTC(latest.year - 1, latest.month - 1, latest.day));
-        const firstDate = dayKey(priceTV[0].time);
-        const startDate = dateToISO(from);
-        chartRef.current?.timeScale().setVisibleRange({
-            from: toBusinessDay(startDate < firstDate ? firstDate : startDate),
-            to: latest,
-        });
-        fittedViewForRef.current = selectedId;
-    }, [priceTV, selectedId]);
-
-    // ── Push PE/PB data ───────────────────────────────────────────────────────
-    useEffect(() => {
-        if (!peRef.current || !peTV.length) return;
-        peRef.current.setData(peTV);
-    }, [peTV]);
-
-    useEffect(() => {
-        if (!pbRef.current || !pbTV.length) return;
-        pbRef.current.setData(pbTV);
-    }, [pbTV]);
+    }, [priceTV, selectedId, isVN, peTV, pbTV]);
 
     // ── PE/PB overlay visibility ──────────────────────────────────────────────
     useEffect(() => {
@@ -535,7 +550,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         pbRef.current.applyOptions({ visible: showPB && isVN });
         chartRef.current.applyOptions({ leftPriceScale: { visible: hasOverlay } });
         queueMicrotask(() => setTooltip(null));
-    }, [showPE, showPB, isVN]);
+    }, [showPE, showPB, isVN, setTooltip]);
 
     // ── On index switch: hide overlays if leaving VN-Index ────────────────────
     useEffect(() => {
@@ -546,7 +561,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
             chartRef.current.applyOptions({ leftPriceScale: { visible: false } });
         }
         queueMicrotask(() => setTooltip(null));
-    }, [isVN, selectedId]);
+    }, [isVN, selectedId, setTooltip]);
 
     // ── Live selected-index point via the shared quote stream ──
     useEffect(() => {
@@ -696,16 +711,18 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 {/* Chart area */}
                 <div className="relative pt-3">
                     {isLoading && <LoadingOverlay isDark={isDark} />}
+                    {isVN && vnError && !vnLoad && <div role="alert" className="absolute inset-x-0 top-8 z-20 flex justify-center gap-2 text-xs text-gray-500">
+                        <span>{lang === 'vi' ? 'Chưa tải được dữ liệu biểu đồ.' : 'Chart data is unavailable.'}</span>
+                        <button type="button" className="underline" onClick={() => setVnRetry(value => value + 1)}>{lang === 'vi' ? 'Thử lại' : 'Retry'}</button>
+                    </div>}
 
-                    {tooltip && (
-                        <ChartTooltip
-                            tooltip={tooltip}
-                            cw={cw}
-                            theme={theme}
-                            showPE={showPE && isVN}
-                            showPB={showPB && isVN}
-                        />
-                    )}
+                    <ChartTooltip
+                        store={tooltipStore}
+                        cw={cw}
+                        theme={theme}
+                        showPE={showPE && isVN}
+                        showPB={showPB && isVN}
+                    />
 
                     <div
                         ref={wrapRef}
@@ -797,11 +814,18 @@ function LoadingOverlay({ isDark }: { isDark: boolean }) {
     );
 }
 
-function ChartTooltip({ tooltip, cw, theme, showPE, showPB }: {
-    tooltip: any; cw: number;
+interface TooltipData {
+    time: string; close: string; change: string; volume: string;
+    pe: string | null; pb: string | null; x: number; y: number;
+}
+
+function ChartTooltip({ store, cw, theme, showPE, showPB }: {
+    store: ReturnType<typeof createFrameStore<TooltipData | null>>; cw: number;
     theme: ReturnType<typeof buildTheme>;
     showPE: boolean; showPB: boolean;
 }) {
+    const tooltip = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+    if (!tooltip) return null;
     return (
         <div
             className="pointer-events-none absolute z-30 rounded-lg px-3 py-2 text-xs shadow-xl"
