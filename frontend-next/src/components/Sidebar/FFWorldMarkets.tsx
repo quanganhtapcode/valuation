@@ -38,7 +38,7 @@ export default function FFWorldMarkets() {
 
     return (
         <SidebarCard title={t.worldMarkets}>
-            <div className="px-5 pb-2">
+            <div className="px-4 pb-2">
                 {loaded.length === 0 ? (
                     <div className="space-y-3 pb-3">
                         {Array.from({ length: 5 }).map((_, i) => (

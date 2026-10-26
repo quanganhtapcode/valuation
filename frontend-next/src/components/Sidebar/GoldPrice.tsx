@@ -32,7 +32,7 @@ export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps)
 
     return (
         <SidebarCard title={t.goldSilver}>
-            <div className="px-5 pb-2">
+            <div className="px-4 pb-2">
                 {!isLoading && !displayPrices.length && <p role="status" className="py-4 text-sm text-gray-500">{labels.empty}</p>}
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-10">

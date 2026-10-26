@@ -39,7 +39,7 @@ export default function PolymarketEvents() {
 
     return (
         <SidebarCard title={lang === 'vi' ? 'Sự kiện Polymarket' : 'Polymarket Events'}>
-            <div className="px-5 pb-4">
+            <div className="px-4 pb-4">
                 {failed && (
                     <p role="status" className="mb-3 text-xs text-gray-500 dark:text-gray-400">
                         {lang === 'vi' ? 'Không thể cập nhật Polymarket. Sẽ tự động thử lại.' : 'Unable to refresh Polymarket. Retrying automatically.'}

@@ -20,7 +20,7 @@ export default function CryptoPrices() {
             title="Crypto (OKX)"
             status={status === 'connecting' ? '...' : status === 'disconnected' ? 'Reconnecting' : undefined}
         >
-            <div className="px-5 pb-2">
+            <div className="px-4 pb-2">
                 <div className="flex flex-col">
                     {OKX_INSTRUMENTS.map((it) => {
                         const st = data[it.instId];
