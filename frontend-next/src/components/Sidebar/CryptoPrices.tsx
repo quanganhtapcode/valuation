@@ -7,10 +7,10 @@ import SidebarCard from './SidebarCard';
 import { OKX_INSTRUMENTS, useOkxTickers } from '@/hooks/useOkxTickers';
 
 const CRYPTO_LOGOS: Record<string, string> = {
-    BTC: '/crypto-logos/btc-93c3748eaa15f82e15b1.png',
-    ETH: '/crypto-logos/eth-149976b3ecbd4793a9ff.png',
-    SOL: '/crypto-logos/sol-61d04e9c09fbc7f92124.png',
-    XRP: '/crypto-logos/xrp-b77cd0140985d622ca5b.png',
+    BTC: '/crypto-logos/btc-551c3d5fe4751a9ca984.svg',
+    ETH: '/crypto-logos/eth-4d8017962d675b54dedd.svg',
+    SOL: '/crypto-logos/sol-389f478488e06145d48e.svg',
+    XRP: '/crypto-logos/xrp-7ef9f0d812984cb142e8.svg',
 };
 
 function CryptoLogo({ symbol }: { symbol: string }) {
@@ -18,7 +18,7 @@ function CryptoLogo({ symbol }: { symbol: string }) {
     const src = CRYPTO_LOGOS[symbol];
 
     return (
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-tremor-border bg-white dark:border-dark-tremor-border dark:bg-gray-800">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-tremor-border bg-white dark:border-dark-tremor-border">
             {src && !errored ? (
                 <Image
                     src={src}
@@ -26,7 +26,7 @@ function CryptoLogo({ symbol }: { symbol: string }) {
                     width={36}
                     height={36}
                     unoptimized
-                    className="h-full w-full object-contain p-0.5"
+                    className={`h-full w-full rounded-full object-contain ${symbol === 'BTC' ? 'p-0.5' : 'p-1.5'}`}
                     onError={() => setErrored(true)}
                 />
             ) : (
