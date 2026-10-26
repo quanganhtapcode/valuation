@@ -38,6 +38,8 @@ Các đường dẫn dưới đây là GET, trừ nơi ghi method khác. `{symbo
 | `/api/stocks/metrics/sectors` | — | `{ success, sectors: […] }` |
 | `/api/stocks/{symbol}/news` | `compact=1` để giảm trường không cần cho danh sách | `{ success, data: […] }` |
 | `/api/stocks/{symbol}/events`, `/feed` | Feed dùng `tab` | Object chứa `data` và thông tin snapshot như `stale`, `partial`, `refresh_pending` khi có |
+| `/api/market/events` | `date=YYYYMMDD`, mặc định ngày Việt Nam; hoặc `fromDate`, `toDate` tối đa 7 ngày | Mảng sự kiện trực tiếp, lấy đủ các trang Vietcap và cache kết quả thành công 15 phút theo phạm vi ngày; timeout trả 504, lỗi nguồn/schema trả 502, không cache lỗi thành mảng rỗng. Lịch nhóm theo `displayDate1` hoặc `displayDate2` theo cách lọc ngày của Vietcap; ngày thông báo lấy `publicDate` |
+| `/api/market/events/export` | `fromDate`, `toDate` dạng `YYYYMMDD`, từ ngày ≤ đến ngày | File XLSX; ngày không hợp lệ trả 400, timeout trả 504, lỗi nguồn trả 502 |
 | `/api/stocks/{symbol}/peers` | — | `{ success, data: […] }` |
 | `/api/stocks/{symbol}/peer-valuations` | `mode=quarter\|year` | `{ success, data: […], medianPe, industry, period }` |
 | POST `/api/stocks/{symbol}/valuation` | JSON body chứa giả định định giá | Kết quả từ dịch vụ định giá, giữ schema từng mô hình |

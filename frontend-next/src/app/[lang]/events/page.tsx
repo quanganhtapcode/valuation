@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import StockLink from '@/components/StockLink';
 import { API } from '@/lib/api';
@@ -8,6 +8,7 @@ import { siteConfig } from '@/config/siteConfig';
 import { useI18n } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { localizedPath } from '@/lib/localePath';
+import { calendarWeek, shiftCalendarDate, summarizeEventDay } from '@/lib/eventCalendar';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -16,8 +17,10 @@ interface EventItem {
     ticker: string;
     organNameVi: string;
     eventNameVi: string;
+    eventNameEn?: string;
     eventTitleVi: string;
     displayDate1: string | null;
+    displayDate2: string | null;
     exrightDate: string | null;
     recordDate: string | null;
     publicDate: string | null;
@@ -29,7 +32,9 @@ type Category = 'ALL' | EventItem['category'];
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function toInputValue(date: Date): string {
-    return date.toISOString().slice(0, 10); // YYYY-MM-DD for input[type=date]
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(date);
 }
 
 function fromInputValue(s: string): string {
@@ -70,7 +75,7 @@ function CategoryBadge({ cat, lang }: { cat: EventItem['category']; lang: 'vi' |
 function SkeletonRow() {
     return (
         <tr className="border-b border-slate-100 dark:border-slate-800">
-            {[32, 48, 200, 120, 80].map((w, i) => (
+            {[48, 200, 100, 100, 100, 100].map((w, i) => (
                 <td key={i} className="px-4 py-3">
                     <div className={`h-4 rounded animate-pulse bg-slate-100 dark:bg-slate-800`} style={{ width: w }} />
                 </td>
@@ -103,28 +108,43 @@ export default function EventsPage() {
     const today = new Date();
     const [dateInput, setDateInput] = useState(toInputValue(today));
     const [category, setCategory]   = useState<Category>('ALL');
-    const [events, setEvents]       = useState<EventItem[]>([]);
-    const [loading, setLoading]     = useState(true);
+    const [weekData, setWeekData]   = useState<{ start: string; events: EventItem[] }>({ start: '', events: [] });
+    const [fetching, setFetching]   = useState(true);
     const [error, setError]         = useState(false);
+    const [retry, setRetry]         = useState(0);
 
     const dateYYYYMMDD = fromInputValue(dateInput); // e.g. "20260328"
+    const week = calendarWeek(dateInput);
+    const weekStart = week[0];
+    const weekEnd = week[6];
+    const loading = fetching || weekData.start !== weekStart;
+    const days = week.map(date => ({ date, ...summarizeEventDay(weekData.events, date, lang) }));
+    const events = days.find(day => day.date === dateInput)?.events ?? [];
+    const shortDate = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
 
-    const load = useCallback(async (date: string) => {
-        setLoading(true);
-        setError(false);
-        try {
-            const res = await fetch(API.MARKET_EVENTS(date));
-            if (!res.ok) throw new Error('fetch failed');
-            setEvents(await res.json());
-        } catch {
-            setError(true);
-            setEvents([]);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => { load(dateYYYYMMDD); }, [dateYYYYMMDD, load]);
+    useEffect(() => {
+        const controller = new AbortController();
+        const load = async () => {
+            setFetching(true);
+            setError(false);
+            try {
+                const res = await fetch(API.MARKET_EVENTS_RANGE(fromInputValue(weekStart), fromInputValue(weekEnd)), { signal: controller.signal });
+                if (!res.ok) throw new Error('fetch failed');
+                const data: unknown = await res.json();
+                if (!Array.isArray(data)) throw new Error('invalid events response');
+                if (!controller.signal.aborted) setWeekData({ start: weekStart, events: data });
+            } catch {
+                if (!controller.signal.aborted) {
+                    setError(true);
+                    setWeekData({ start: weekStart, events: [] });
+                }
+            } finally {
+                if (!controller.signal.aborted) setFetching(false);
+            }
+        };
+        void load();
+        return () => controller.abort();
+    }, [weekStart, weekEnd, retry]);
 
     // ── Filtered list ──────────────────────────────────────────────────────
     const filtered = category === 'ALL' ? events : events.filter(e => e.category === category);
@@ -155,10 +175,20 @@ export default function EventsPage() {
 
                 {/* Controls */}
                 <div className="flex flex-wrap items-center gap-3 mb-5">
+                    <button type="button" onClick={() => setDateInput(toInputValue(new Date()))}
+                        className="rounded-lg bg-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700">
+                        {copy.today}
+                    </button>
+                    <button type="button" aria-label={copy.previousWeek} onClick={() => setDateInput(shiftCalendarDate(dateInput, -7))}
+                        className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">‹</button>
+                    <span className="text-base font-bold tabular-nums">{shortDate(weekStart)}{weekStart.slice(0, 4) !== weekEnd.slice(0, 4) ? `/${weekStart.slice(0, 4)}` : ''} – {shortDate(weekEnd)}/{weekEnd.slice(0, 4)}</span>
+                    <button type="button" aria-label={copy.nextWeek} onClick={() => setDateInput(shiftCalendarDate(dateInput, 7))}
+                        className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">›</button>
                     <input
                         type="date"
+                        aria-label={copy.chooseDate}
                         value={dateInput}
-                        onChange={e => setDateInput(e.target.value)}
+                        onChange={e => { if (e.target.value) setDateInput(e.target.value); }}
                         className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
@@ -173,6 +203,28 @@ export default function EventsPage() {
                     <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">
                         {!loading && `${events.length} ${copy.count}`}
                     </span>
+                </div>
+
+                <div className="mb-6 grid grid-cols-[repeat(7,minmax(170px,1fr))] gap-3 overflow-x-auto pb-2" aria-label={`${copy.title} ${copy.accent}`}>
+                    {days.map(day => (
+                        <button type="button" key={day.date} aria-pressed={dateInput === day.date}
+                            onClick={() => setDateInput(day.date)}
+                            className={`flex min-h-36 flex-col justify-start rounded-lg border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 ${dateInput === day.date
+                                ? 'border-blue-400 bg-blue-50 dark:border-slate-500 dark:bg-slate-700'
+                                : 'border-slate-200 bg-white hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800'}`}>
+                            <span className={`mb-2 inline-block self-start pb-1 text-base font-bold tabular-nums ${dateInput === day.date ? 'border-b-2 border-emerald-500' : 'border-b-2 border-transparent'}`}>{shortDate(day.date)}</span>
+                            {loading ? <div className="h-14 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+                                : error ? <p className="text-xs text-slate-500 dark:text-slate-400">{copy.failed}</p>
+                                : day.events.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">{copy.empty}</p>
+                                : <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                                    {day.groups.map(group => <div key={group.label} className="flex items-center gap-3">
+                                        <span className="min-w-0 flex-1 truncate" title={group.label}>{group.label}</span>
+                                        <span className="tabular-nums">{group.count}</span>
+                                    </div>)}
+                                    {day.other > 0 && <div className="flex justify-between gap-3"><span>{copy.categories.other}</span><span className="tabular-nums">{day.other}</span></div>}
+                                </div>}
+                        </button>
+                    ))}
                 </div>
 
                 {/* Category tabs */}
@@ -212,6 +264,7 @@ export default function EventsPage() {
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden sm:table-cell">{copy.type}</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden md:table-cell">{copy.exDate}</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-32 hidden lg:table-cell">{copy.date}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-36">{copy.announced}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -219,13 +272,14 @@ export default function EventsPage() {
                                     Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
                                 ) : error ? (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                                        <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
                                             {copy.failed}
+                                            <button type="button" onClick={() => setRetry(value => value + 1)} className="ml-3 font-semibold text-blue-600 dark:text-blue-400">{copy.retry}</button>
                                         </td>
                                     </tr>
                                 ) : filtered.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                                        <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
                                             {copy.empty} {category !== 'ALL' ? `"${copy.categories[catConfig(category as EventItem['category']).label]}"` : ''} {copy.emptySuffix}
                                         </td>
                                     </tr>
@@ -267,6 +321,9 @@ export default function EventsPage() {
                                             {/* Exercise/display date */}
                                             <td className="px-4 py-3 text-slate-500 dark:text-slate-400 tabular-nums hidden lg:table-cell">
                                                 {fmtDate(event.displayDate1, locale)}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-slate-500 dark:text-slate-400 tabular-nums">
+                                                {fmtDate(event.publicDate, locale)}
                                             </td>
                                         </tr>
                                     ))

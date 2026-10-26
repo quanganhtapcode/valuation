@@ -31,6 +31,8 @@ export const API = {
         ? `${API_BASE}/market/macro/indicators?types=${types}`
         : `${API_BASE}/market/macro/indicators`,
     MARKET_EVENTS: (date: string) => `${API_BASE}/market/events?date=${date}`,
+    MARKET_EVENTS_RANGE: (fromDate: string, toDate: string) =>
+        `${API_BASE}/market/events?fromDate=${fromDate}&toDate=${toDate}`,
     MARKET_EVENTS_EXPORT: (fromDate: string, toDate: string) =>
         `${API_BASE}/market/events/export?fromDate=${fromDate}&toDate=${toDate}`,
     MACRO_HISTORY: (symbol: string, days: number) =>
