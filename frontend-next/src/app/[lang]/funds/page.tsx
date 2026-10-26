@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
 import { BACKEND_API } from '@/lib/backendApi.server';
-import { getRequestLang } from '@/lib/i18nRouting';
+import { createLocalizedMetadata } from '@/lib/i18nRouting';
 import { fundsCopy } from '@/lib/fundsCopy';
 import type { FundSnapshot } from '@/lib/fundsApi';
 import FundsClient from './FundsClient';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
-    const lang = await getRequestLang(params);
-    return { title: fundsCopy[lang].title, description: fundsCopy[lang].description };
+    return createLocalizedMetadata(params, '/funds', {
+        vi: { title: fundsCopy.vi.title, description: fundsCopy.vi.description },
+        en: { title: fundsCopy.en.title, description: fundsCopy.en.description },
+    });
 }
 
 export default async function FundsPage() {

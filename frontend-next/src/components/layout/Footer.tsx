@@ -14,6 +14,7 @@ export default function Footer() {
         product: [
             { name: t.marketOverview, href: localizedPath('/', lang), external: false },
             { name: t.stockAnalysis, href: localizedPath('/stock/VCB', lang), external: false },
+            { name: lang === 'vi' ? 'Danh sách doanh nghiệp' : 'Company directory', href: localizedPath('/company', lang), external: false },
         ],
         resources: [
             { name: t.disclaimer, href: localizedPath('/disclaimer', lang), external: false },

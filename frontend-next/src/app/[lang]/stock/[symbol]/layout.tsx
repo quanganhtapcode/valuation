@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
+import { notFound } from 'next/navigation';
 import { siteConfig } from '@/config/siteConfig';
 import tickerData from '../../../../../public/ticker_data.json';
 import { getRequestLang, localizedPath } from '@/lib/i18nRouting';
@@ -23,7 +24,7 @@ type StockSeoData = {
 };
 
 function normalizeSymbol(symbol: string): string {
-  return (symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+  return symbol.toUpperCase();
 }
 
 function buildDescription(data: StockSeoData, lang: Lang): string {
@@ -54,13 +55,12 @@ function buildDescription(data: StockSeoData, lang: Lang): string {
   return `${parts.join(', ')}. Theo dõi giá, lịch sử giao dịch, báo cáo tài chính, P/E, P/B, ROE, cổ đông, tin tức và mô hình định giá.`;
 }
 
-const getStockSeoData = cache((symbol: string): StockSeoData | null => {
-  const tickers = Array.isArray((tickerData as any).tickers) ? (tickerData as any).tickers : [];
-  const ticker = tickers.find((item: any) => String(item?.symbol || '').toUpperCase() === symbol);
+const getStockSeoData = cache((symbol: string, lang: Lang): StockSeoData | null => {
+  const ticker = tickerData.tickers.find(item => item.symbol.toUpperCase() === symbol);
   if (!ticker) return null;
 
-  const name = String(ticker.name || ticker.en_name || symbol).trim() || symbol;
-  const sector = String(ticker.sector || ticker.en_sector || 'N/A').trim() || 'N/A';
+  const name = String((lang === 'en' ? ticker.en_name : ticker.name) || ticker.name || symbol).trim() || symbol;
+  const sector = String((lang === 'en' ? ticker.en_sector : ticker.sector) || ticker.sector || 'N/A').trim() || 'N/A';
   const exchange = String(ticker.exchange || 'N/A').trim() || 'N/A';
 
   return {
@@ -77,21 +77,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const lang = await getRequestLang(params);
   const sym = normalizeSymbol(symbol);
 
-  if (!sym) {
-    return {
-      title: 'Cổ phiếu',
-      description: 'Phân tích và định giá cổ phiếu Việt Nam.',
-      robots: { index: false, follow: false },
-    };
-  }
-
-  const stock = getStockSeoData(sym) || {
-    symbol: sym,
-    companyName: sym,
-    sector: 'N/A',
-    exchange: 'N/A',
-    price: null,
-  };
+  const stock = getStockSeoData(sym, lang);
+  if (!stock) notFound();
 
   const hasCompanyName = stock.companyName && stock.companyName !== sym;
   const pageTitle = hasCompanyName
@@ -176,11 +163,8 @@ export default async function StockLayout({
   const sym = normalizeSymbol(symbol);
   const lang = await getRequestLang(params);
 
-  if (!sym) {
-    return <>{children}</>;
-  }
-
-  const stock = getStockSeoData(sym);
+  const stock = getStockSeoData(sym, lang);
+  if (!stock) notFound();
   const companyName = stock?.companyName || sym;
   const pageUrl = `${siteConfig.url}${localizedPath(`/stock/${sym}`, lang)}`;
   const displayName = companyName !== sym ? `${companyName} (${sym})` : sym;

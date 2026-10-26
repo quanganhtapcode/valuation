@@ -11,10 +11,8 @@ export default function robots(): MetadataRoute.Robots {
           '/_next/static/',
           '/_next/image',
         ],
-        disallow: [
-          '/api/',
-          '/stock/*/opengraph-image',
-        ],
+        // Public JSON is needed to render quotes, charts and company profiles.
+        // X-Robots-Tag prevents API indexing without blocking rendering.
       },
     ],
     sitemap: `${siteConfig.url}/sitemap.xml`,

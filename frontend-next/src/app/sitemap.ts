@@ -40,8 +40,6 @@ async function loadStockSymbols(): Promise<{ symbols: string[]; lastModified: Da
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-
   const routes = [
     { path: '/', changeFrequency: 'daily', priority: 1.0 },
     { path: '/funds', changeFrequency: 'daily', priority: 0.75 },
@@ -57,7 +55,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const vi = `${siteConfig.url}${localizedPath(routePath, 'vi')}`;
     const en = `${siteConfig.url}${localizedPath(routePath, 'en')}`;
     const alternates = { languages: { 'vi-VN': vi, 'en-US': en, 'x-default': vi } };
-    return [{ url: vi, lastModified: now, changeFrequency, priority, alternates }, { url: en, lastModified: now, changeFrequency, priority, alternates }];
+    // Omit lastmod when the actual content modification date is unknown.
+    return [{ url: vi, changeFrequency, priority, alternates }, { url: en, changeFrequency, priority, alternates }];
   });
 
   const { symbols, lastModified: stockLastModified } = await loadStockSymbols();
