@@ -10,6 +10,7 @@ Checks:
 
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
 import subprocess
@@ -22,7 +23,10 @@ from flask import Blueprint, jsonify, request
 from backend.cache_utils import cache_stats, cache_invalidate_namespaces
 from backend.telemetry import get_latency_metrics
 from backend.sqlite_utils import read_connection
+from backend.db_path import resolve_vci_screening_db_path
+from .stock.cache import _cache_get, _cache_set
 
+logger = logging.getLogger(__name__)
 health_bp = Blueprint("health", __name__)
 
 # ─── Path helpers ─────────────────────────────────────────────────────────────
@@ -382,3 +386,27 @@ def invalidate_cache_namespaces() -> tuple:
 
 # Also register at /api/health so nginx /v1/valuation/health works
 health_bp.add_url_rule("/api/health", endpoint="api_health", view_func=health)
+
+
+@health_bp.route("/api/db/stats")
+def api_db_stats():
+    """Return high-level statistics about VCI SQLite sources."""
+    cache_key = "db_stats"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+
+    try:
+        screening_path = resolve_vci_screening_db_path()
+        stats: dict = {}
+        with sqlite3.connect(screening_path) as conn:
+            row = conn.execute("SELECT COUNT(DISTINCT ticker) FROM screening_data").fetchone()
+            stats["symbols_count"] = row[0] if row else 0
+            row = conn.execute("SELECT MAX(fetched_at) FROM screening_data").fetchone()
+            stats["screening_updated_at"] = row[0] if row else None
+        stats["generated_at"] = datetime.utcnow().isoformat() + "Z"
+        _cache_set(cache_key, stats)
+        return jsonify(stats)
+    except Exception as exc:
+        logger.error(f"GET /db/stats error: {exc}")
+        return jsonify({"error": str(exc)}), 500

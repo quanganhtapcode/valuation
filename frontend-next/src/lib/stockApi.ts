@@ -160,7 +160,7 @@ export async function fetchStockRatioSeries(symbol: string): Promise<Record<stri
  */
 export async function fetchStockOverviewFull(symbol: string): Promise<StockApiData | null> {
     try {
-        const response = await fetch(API.STOCK_OVERVIEW_FULL(symbol));
+        const response = await fetch(API.STOCK_OVERVIEW(symbol));
         if (!response.ok) return null;
         return unwrap<StockApiData>(await response.json());
     } catch (error) {
@@ -228,7 +228,7 @@ export async function fetchFinancialReport(
 ): Promise<FinancialReportBase[]> {
     try {
         const response = await fetch(
-            `${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/financial-statements?type=${type}&period=${period}`
+            `${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/financials?type=${type}&period=${period}`
         );
         if (!response.ok) return [];
         const data = await response.json();
@@ -286,7 +286,7 @@ export async function fetchRatios(
  */
 export async function fetchCurrentPrice(symbol: string): Promise<RealtimePrice | null> {
     try {
-        const response = await fetch(API.CURRENT_PRICE(symbol));
+        const response = await fetch(API.STOCK_QUOTE(symbol));
         if (!response.ok) return null;
         return unwrap<RealtimePrice>(await response.json());
     } catch (error) {
@@ -303,7 +303,7 @@ export async function fetchPriceHistory(
     period: '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | 'ALL' = '3M'
 ): Promise<PriceData[]> {
     try {
-        const response = await fetch(`${API.STOCK_HISTORY(symbol)}?period=${period}`);
+        const response = await fetch(`${API.PRICE_HISTORY(symbol)}?period=${period}`);
         if (!response.ok) return [];
         return unwrapArray<PriceData>(await response.json());
     } catch (error) {
@@ -333,7 +333,7 @@ export async function fetchBatchPrice(symbols: string[]): Promise<Record<string,
  */
 export async function fetchHistoricalChartData(symbol: string): Promise<HistoricalChartData | null> {
     try {
-        const response = await fetch(API.HISTORICAL_CHART(symbol));
+        const response = await fetch(API.STOCK_CHART(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         if (!json.success) return null;
@@ -380,7 +380,7 @@ export async function fetchHistoricalChartData(symbol: string): Promise<Historic
  */
 export async function fetchStockNews(symbol: string): Promise<StockNews[]> {
     try {
-        const response = await fetch(API.NEWS_STOCK(symbol));
+        const response = await fetch(API.STOCK_NEWS(symbol));
         if (!response.ok) return [];
         return unwrapArray<StockNews>(await response.json());
     } catch (error) {

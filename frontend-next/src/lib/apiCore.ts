@@ -10,9 +10,9 @@ const stockSymbol = (symbol: string) => encodeURIComponent(symbol.trim().toUpper
 // Canonical resource URLs. Legacy URLs are supported only at the backend boundary.
 export const API = {
     // Market Data
-    PE_CHART: `${API_BASE}/market/index-valuations`,
+    INDEX_VALUATIONS: `${API_BASE}/market/index-valuations`,
     SCREENER: `${API_BASE}/market/screener`,
-    VCI_INDICES: `${REALTIME_API_BASE}/market/indices`,
+    INDICES: `${REALTIME_API_BASE}/market/indices`,
     NEWS: `${API_BASE}/market/news`,
     TOP_MOVERS: `${REALTIME_API_BASE}/market/top-movers`,
     FOREIGN_FLOW: `${API_BASE}/market/foreign-flow`,
@@ -26,8 +26,8 @@ export const API = {
     STOCK_AI_ANALYSIS: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/ai-analysis`,
     MACRO_RATES: `${API_BASE}/market/macro/rates`,
     MACRO_ECONOMIC: `${API_BASE}/market/macro/economic`,
-    MACRO_FIREANT_GDP: `${API_BASE}/market/macro/gdp`,
-    MACRO_FIREANT: (types?: string) => types
+    GDP: `${API_BASE}/market/macro/gdp`,
+    MACRO_INDICATORS: (types?: string) => types
         ? `${API_BASE}/market/macro/indicators?types=${types}`
         : `${API_BASE}/market/macro/indicators`,
     MARKET_EVENTS: (date: string) => `${API_BASE}/market/events?date=${date}`,
@@ -46,15 +46,13 @@ export const API = {
     STOCK_PROFILE: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/profile`,
     STOCK_RATIO_HISTORY: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/ratio-history`,
     STOCK_RATIO_SERIES: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/ratio-series`,
-    STOCK_OVERVIEW_FULL: (symbol: string) => `${REALTIME_API_BASE}/stocks/${stockSymbol(symbol)}/overview`,
-    APP_DATA: (symbol: string) => `${API_BASE}/app-data/${stockSymbol(symbol)}?fetch_price=true`,
-    CURRENT_PRICE: (symbol: string) => `${REALTIME_API_BASE}/stocks/${stockSymbol(symbol)}/quote`,
-    PRICE: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/quote`,
-    HISTORICAL_CHART: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/chart-data`,
-    STOCK_HISTORY: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/price-history`,
+    STOCK_OVERVIEW: (symbol: string) => `${REALTIME_API_BASE}/stocks/${stockSymbol(symbol)}/overview`,
+    STOCK_QUOTE: (symbol: string) => `${REALTIME_API_BASE}/stocks/${stockSymbol(symbol)}/quote`,
+    STOCK_CHART: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/chart-data`,
+    PRICE_HISTORY: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/price-history`,
     COMPANY_PROFILE: (symbol: string) => `${API_BASE}/companies/${stockSymbol(symbol)}/profile`,
-    NEWS_STOCK: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/news`,
-    EVENTS: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/events`,
+    STOCK_NEWS: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/news`,
+    STOCK_EVENTS: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/events`,
 
     // Valuation
     VALUATION: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/valuation`,

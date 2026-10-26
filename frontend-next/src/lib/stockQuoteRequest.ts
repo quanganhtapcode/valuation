@@ -43,7 +43,7 @@ export function requestStockQuote(symbol: string): Promise<StockQuotePayload | n
         requests.delete(requests.keys().next().value!);
     }
     const entry: { promise: Promise<StockQuotePayload | null>; completedAt?: number } = {
-        promise: fetch(API.CURRENT_PRICE(key), {
+        promise: fetch(API.STOCK_QUOTE(key), {
             cache: 'no-store', signal: AbortSignal.timeout(8000),
         })
             .then(response => response.ok ? response.json() as Promise<StockQuotePayload> : null)

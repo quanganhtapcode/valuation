@@ -10,7 +10,7 @@ from backend.sqlite_utils import read_connection, row_dict
 from backend.vci_data_access import _connect, VCIDataAccess
 from backend.updater import batch_news
 from backend.routes.stock import news_events, loan_breakdown
-from backend.routes.health_routes import _check_ingestion
+from backend.routes.health import _check_ingestion
 from backend import db_path
 
 
@@ -335,7 +335,7 @@ class SectorJoinTests(unittest.TestCase):
     def test_indexable_join_preserves_case_insensitive_results(self):
         # Exercise the actual endpoint query, with all selected fields present.
         import ast
-        module = Path('backend/routes/stock/misc.py').read_text()
+        module = Path('backend/routes/stock/metrics.py').read_text()
         tree = ast.parse(module)
         query = next(node for node in ast.walk(tree) if isinstance(node, ast.JoinedStr)
                      and any(isinstance(v, ast.Constant) and isinstance(v.value, str)

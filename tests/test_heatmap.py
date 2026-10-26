@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from backend.routes.market import heatmap, overview_refresh
+from backend.routes.market import heatmap, overview
 
 
 class HeatmapQuotes(unittest.TestCase):
@@ -48,7 +48,7 @@ class HeatmapQuotes(unittest.TestCase):
         self.assertEqual(sector['avgChange'], -2.5)
 
     def test_overview_shares_heatmap_implementation(self):
-        self.assertIs(overview_refresh._fetch_heatmap, heatmap.fetch_heatmap)
+        self.assertIs(overview._fetch_heatmap, heatmap.fetch_heatmap)
 
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.routes.handlers.vci_top_movers import top_movers_from_screener_sqlite
+from backend.routes.handlers.top_movers import top_movers_from_screener_sqlite
 from backend.services import market_ai_takeaways as ai
 from backend.services.market_sessions import expected_session_date
 from backend.services.vci_news_sqlite import compact_news_item, query_recent_market_news

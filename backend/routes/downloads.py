@@ -1446,7 +1446,7 @@ def download_financial_data(ticker):
         # Note: We assume 'data/' is relative to the project root, which is one level up from 'backend/'
         # but 'backend/routes/' is two levels down.
         # Adjusted path logic:
-        # __file__ is in backend/routes/download_routes.py
+        # __file__ is in backend/routes/downloads.py
         # os.path.dirname(__file__) -> backend/routes
         # os.path.dirname(...) -> backend
         # os.path.dirname(...) -> root

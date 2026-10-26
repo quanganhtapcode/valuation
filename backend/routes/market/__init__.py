@@ -29,16 +29,16 @@ def register_market_routes(bp: Blueprint) -> None:
     from .gold import register as register_gold
     from .funds import register as register_funds
     from .prices import register as register_prices
-    from .valuation_chart import register as register_cafef
+    from .valuation_chart import register as register_valuation_chart
     from .foreign import register as register_foreign
     from .news import register as register_news
     from .movers import register as register_movers
-    from .vci_indices import register as register_vci_indices
+    from .indices import register as register_indices
     from .index_history import register as register_index_history
     from .lottery import register as register_lottery
     from .world_indices import register as register_world_indices
     from .heatmap import register as register_heatmap
-    from .overview_refresh import register as register_overview_refresh
+    from .overview import register as register_overview
     from .macro import register as register_macro
     from .events import register as register_events
     from .earnings_season import register as register_earnings_season
@@ -47,16 +47,16 @@ def register_market_routes(bp: Blueprint) -> None:
     register_gold(bp)
     register_funds(bp)
     register_prices(bp)
-    register_cafef(bp)
+    register_valuation_chart(bp)
     register_foreign(bp)
     register_news(bp)
     register_movers(bp)
-    register_vci_indices(bp)
+    register_indices(bp)
     register_index_history(bp)
     register_lottery(bp)
     register_world_indices(bp)
     register_heatmap(bp)
-    register_overview_refresh(bp)
+    register_overview(bp)
     register_macro(bp)
     register_events(bp)
     register_earnings_season(bp)

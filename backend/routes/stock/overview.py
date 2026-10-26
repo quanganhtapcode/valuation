@@ -19,6 +19,8 @@ import os
 from backend.sqlite_utils import read_connection
 
 import pandas as pd
+from .cache import _cache_get, _cache_set
+
 from flask import Blueprint, jsonify, request
 
 from backend.db_path import resolve_vci_company_db_path
@@ -297,3 +299,37 @@ def register(stock_bp: Blueprint) -> None:
         except Exception as exc:
             logger.error(f"API /stock/{symbol}/overview-full error: {exc}")
             return jsonify({"success": False, "error": str(exc)}), 500
+
+
+    @stock_bp.route("/batch-overview")
+    def api_batch_overview():
+        """
+        Return stock overview for multiple symbols at once.
+        Query param: symbols=VCB,HPG,VNM (comma-separated, max 20)
+        """
+        symbols_param = request.args.get("symbols", "")
+        if not symbols_param:
+            return jsonify({"error": "Missing 'symbols' parameter"}), 400
+
+        symbols = [s.strip().upper() for s in symbols_param.split(",") if s.strip()][:20]
+
+        cache_key = f"batch_overview_{'_'.join(sorted(symbols))}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return jsonify(cached)
+
+        provider = get_provider()
+        result: dict = {}
+        for sym in symbols:
+            try:
+                data = provider.get_stock_data(sym, period="year")
+                if data and data.get("success"):
+                    result[sym] = data
+                else:
+                    result[sym] = {"symbol": sym, "success": False}
+            except Exception as exc:
+                logger.warning(f"batch-overview error for {sym}: {exc}")
+                result[sym] = {"symbol": sym, "success": False, "error": str(exc)}
+
+        _cache_set(cache_key, result)
+        return jsonify(result)

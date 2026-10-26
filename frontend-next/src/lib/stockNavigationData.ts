@@ -60,7 +60,7 @@ export const peekStockSummary = (symbol: string) => summaries.peek(ticker(symbol
 export const requestStockSummary = (symbol: string) => summaries.request(ticker(symbol), `${API.STOCK_SUMMARY(symbol)}?realtime=0`);
 export const peekStockHistory = (symbol: string, period: HistoryPeriod = '1Y') => histories.peek(historyKey(symbol, period));
 export const requestStockHistory = (symbol: string, period: HistoryPeriod = '1Y') => histories.request(
-    historyKey(symbol, period), `${API.STOCK_HISTORY(symbol)}?period=${period}&snapshot=1`,
+    historyKey(symbol, period), `${API.PRICE_HISTORY(symbol)}?period=${period}&snapshot=1`,
 );
 
 let chartCode: Promise<unknown> | undefined;

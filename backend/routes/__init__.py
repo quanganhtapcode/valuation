@@ -5,8 +5,8 @@ Flask Blueprints for organizing API endpoints
 
 from .market import market_bp, init_market_routes
 from .stock import stock_bp
-from .download_routes import download_bp
-from .health_routes import health_bp
+from .downloads import download_bp
+from .health import health_bp
 
 __all__ = [
     'market_bp',

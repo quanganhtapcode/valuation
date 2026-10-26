@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 from flask import Blueprint, Flask
 
-from backend.routes.market import news, overview_refresh, prices
-from backend.routes.stock import missing_routes
+from backend.routes.market import news, overview, prices
+from backend.routes.stock import companies, cache
 from backend.services import vci_news_sqlite
 from backend.sqlite_utils import read_connection
 from scripts.fetchers.fetch_vci_market_news import ensure_schema, upsert_items
@@ -119,7 +119,7 @@ class CompactNewsTests(unittest.TestCase):
     def test_overview_compact_omits_duplicate_chart_and_uses_separate_news_cache(self):
         app = Flask(__name__)
         bp = Blueprint("overview_compact", __name__)
-        overview_refresh.register(bp)
+        overview.register(bp)
         app.register_blueprint(bp)
         keys = []
 
@@ -127,11 +127,11 @@ class CompactNewsTests(unittest.TestCase):
             keys.append(key)
             return producer(), False
 
-        with patch.object(overview_refresh, "cache_func", return_value=fetch), \
-             patch.object(overview_refresh, "_fetch_watchlist_prices", return_value={}), \
-             patch.object(overview_refresh, "_fetch_pe_chart", return_value={"points": [1]}), \
-             patch.object(overview_refresh, "_fetch_heatmap", return_value={"sectors": []}), \
-             patch.object(overview_refresh, "default_news_db_path", return_value=str(self.path)):
+        with patch.object(overview, "cache_func", return_value=fetch), \
+             patch.object(overview, "_fetch_watchlist_prices", return_value={}), \
+             patch.object(overview, "_fetch_pe_chart", return_value={"points": [1]}), \
+             patch.object(overview, "_fetch_heatmap", return_value={"sectors": []}), \
+             patch.object(overview, "default_news_db_path", return_value=str(self.path)):
             full = app.test_client().get("/overview-refresh").json
             compact = app.test_client().get("/overview-refresh?compact=1").json
         self.assertIn("peChart", full)
@@ -144,33 +144,33 @@ class CompactNewsTests(unittest.TestCase):
 
 class ResponseCacheTests(unittest.TestCase):
     def setUp(self):
-        missing_routes._cache.clear()
-        self.addCleanup(missing_routes._cache.clear)
+        cache._cache.clear()
+        self.addCleanup(cache._cache.clear)
 
     def test_live_unique_requests_cannot_exceed_capacity(self):
-        with patch.object(missing_routes, "_CACHE_MAX_ENTRIES", 3):
+        with patch.object(cache, "_CACHE_MAX_ENTRIES", 3):
             for i in range(10):
-                missing_routes._cache_set(str(i), [i])
-            self.assertEqual(len(missing_routes._cache), 3)
-            self.assertIsNone(missing_routes._cache_get("0"))
-            self.assertEqual(missing_routes._cache_get("9"), [9])
-            missing_routes._cache_set("9", [99])
-            self.assertEqual(len(missing_routes._cache), 3)
-            self.assertEqual(missing_routes._cache_get("7"), [7])
+                cache._cache_set(str(i), [i])
+            self.assertEqual(len(cache._cache), 3)
+            self.assertIsNone(cache._cache_get("0"))
+            self.assertEqual(cache._cache_get("9"), [9])
+            cache._cache_set("9", [99])
+            self.assertEqual(len(cache._cache), 3)
+            self.assertEqual(cache._cache_get("7"), [7])
 
     def test_expired_entries_are_removed_on_read(self):
-        with patch.object(missing_routes._time, "monotonic", return_value=1):
-            missing_routes._cache_set("empty", [])
-        with patch.object(missing_routes._time, "monotonic", return_value=1000):
-            self.assertIsNone(missing_routes._cache_get("empty"))
-        self.assertNotIn("empty", missing_routes._cache)
+        with patch.object(cache._time, "monotonic", return_value=1):
+            cache._cache_set("empty", [])
+        with patch.object(cache._time, "monotonic", return_value=1000):
+            self.assertIsNone(cache._cache_get("empty"))
+        self.assertNotIn("empty", cache._cache)
 
     def test_empty_company_search_is_cached(self):
         app = Flask(__name__)
         bp = Blueprint("cached_search", __name__)
-        missing_routes.register(bp)
+        companies.register(bp)
         app.register_blueprint(bp)
-        with patch.object(missing_routes, "get_stock_service") as service:
+        with patch.object(companies, "get_stock_service") as service:
             service.return_value.search_stocks.return_value = []
             for _ in range(2):
                 self.assertEqual(app.test_client().get("/companies/search?q=missing").json, [])

@@ -1135,10 +1135,10 @@ export default function FinancialsTab({
         });
 
         Promise.allSettled([
-            fetchAPI<any>(`/api/stocks/${symbol}/financial-statements?type=income&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
-            fetchAPI<any>(`/api/stocks/${symbol}/financial-statements?type=balance&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
-            fetchAPI<any>(`/api/stocks/${symbol}/financial-statements?type=cashflow&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
-            fetchAPI<any>(`/api/stocks/${symbol}/financial-statements?type=ratio&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
+            fetchAPI<any>(`/api/stocks/${symbol}/financials?type=income&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
+            fetchAPI<any>(`/api/stocks/${symbol}/financials?type=balance&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
+            fetchAPI<any>(`/api/stocks/${symbol}/financials?type=cashflow&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
+            fetchAPI<any>(`/api/stocks/${symbol}/financials?type=ratio&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
         ]).then(([income, balance, cashflow, ratio]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
@@ -1176,7 +1176,7 @@ export default function FinancialsTab({
             }
         });
 
-        fetchAPI<any>(`/api/stocks/${symbol}/financial-statements?type=note&period=${effectivePeriod}&limit=160`, {
+        fetchAPI<any>(`/api/stocks/${symbol}/financials?type=note&period=${effectivePeriod}&limit=160`, {
             signal: controller.signal,
         })
             .then(payload => {

@@ -76,16 +76,18 @@ trung vào tên crawler chỉ số, ranh giới crawler/importer và cách phân
 hook/context/layout của React. Import và CLI đã được cập nhật đồng bộ.
 
 Một số module còn lớn: `reportGenerator.ts`, `FinancialsTab.tsx`,
-`download_routes.py`, `valuation_service.py`, `fetch_vci_financial_statement.py`.
+`downloads.py`, `valuation_service.py`, `fetch_vci_financial_statement.py`.
 Chúng cần một đợt tách theo trách nhiệm và kiểm tra hợp đồng dữ liệu riêng;
-không nên chỉ chia file theo số dòng. `missing_routes.py` cũng chứa nhiều nhóm
-endpoint và nên tách theo catalogue, báo cáo và valuation khi refactor phần API.
+không nên chỉ chia file theo số dòng. Các nhóm route đã được tách theo trách nhiệm: `companies.py`, `financials.py`,
+`metrics.py`, `peers.py`, `freshness.py`; định giá và độ nhạy nằm trong `valuation.py`.
+`stock/overview.py` phục vụ overview cổ phiếu; `market/overview.py` phục vụ tổng quan thị trường.
+`downloads.py` và `health.py` đặt ở cấp routes; `stock/cache.py` chứa cache response dùng chung.
 
 Hook `useScroll` chỉ cập nhật React state khi vượt qua hoặc trở lại dưới ngưỡng,
 tránh gọi state setter ở mỗi scroll event. Chưa đo FPS hoặc thời gian tải trên
 trình duyệt thực tế. Giảm request của crawler chỉ số đã được kiểm tra offline
 với trang chồng lấn, khoảng thiếu nhiều trang và database mới; chưa benchmark
-API production. Cấu hình cron mới cần được cài lại để có hiệu lực.
+API production. Backend cần nạp source mới để nhận các module và alias URL mới.
 
 Đợt thay đổi này giữ hành vi API, schema/database và giao diện. Không chạy
 import/merge dữ liệu production hay cài lại cron/systemd khi kiểm tra cấu trúc.

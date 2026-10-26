@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { afterEach, mock, test } from 'node:test';
 import { proxyApiRequest } from './apiProxy';
-import { normalizeApiPath, resolveCachePolicy } from './apiProxyPolicy';
+import { isBulkExport, normalizeApiPath, resolveCachePolicy } from './apiProxyPolicy';
 import { API, ApiRequestError, fetchAPI } from './apiCore';
 import aliases from './apiRouteAliases.json';
-import { backendApiPath } from './apiRouteRegistry';
+import { backendApiPath, canonicalApiPath } from './apiRouteRegistry';
 import { proxyResponseHeaders } from './apiResponse';
 
 afterEach(() => mock.restoreAll());
@@ -166,7 +166,7 @@ test('cache freshness never exceeds the upstream or route limit', () => {
 });
 
 test('URL builders normalize symbols and shared fetch retains error code', async () => {
-    assert.equal(API.CURRENT_PRICE(' vcb '), '/api/stocks/VCB/quote');
+    assert.equal(API.STOCK_QUOTE(' vcb '), '/api/stocks/VCB/quote');
     mock.method(console, 'error', () => {});
     mock.method(globalThis, 'fetch', async () => Response.json({ success: false,
         error: { code: 'SERVICE_UNAVAILABLE', message: 'Snapshot pending' } }, { status: 503 }));
@@ -176,4 +176,26 @@ test('URL builders normalize symbols and shared fetch retains error code', async
         assert.equal(error.message, 'Snapshot pending');
         return true;
     });
+});
+
+
+test('short names are preferred across every generation of financial URLs', () => {
+    for (const path of ['stocks/FPT/financials', 'stocks/FPT/financial-statements', 'stock/FPT/financial-report']) {
+        assert.equal(canonicalApiPath(path), 'stocks/FPT/financials');
+        assert.equal(backendApiPath(path), 'stock/FPT/financial-report');
+    }
+    assert.equal(canonicalApiPath('stocks/FPT/financial-metrics'), 'stocks/FPT/metrics');
+    assert.equal(canonicalApiPath('financial-statements/workbooks/manifest'), 'workbooks');
+    assert.equal(backendApiPath('workbooks'), 'stock/excel-manifest');
+    assert.equal(backendApiPath('stocks/metrics'), 'stock/stats-financial');
+});
+
+test('short export names retain download timeouts and no-store policies', () => {
+    for (const path of ['exports/financials', 'financial-statements/exports', 'financial-bulk-export',
+        'workbooks/archive', 'financial-statements/workbooks/archive', 'stock/excel-bulk']) {
+        assert.equal(isBulkExport(path), true, path);
+        assert.equal(resolveCachePolicy(path, new URLSearchParams()).mode, 'realtime', path);
+    }
+    assert.equal(isBulkExport('workbooks'), false);
+    assert.equal(isBulkExport('exports/financials-preview'), false);
 });

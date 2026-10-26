@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from flask import Flask
-from backend.routes import download_routes as exports
+from backend.routes import downloads as exports
 from scripts.fetchers.fetch_vci_stats_financial import ensure_schema
 
 

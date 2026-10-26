@@ -16,7 +16,7 @@ const policies: Record<ProxyCachePolicy['mode'], ProxyCachePolicy> = {
 
 /** Classify compatibility URLs by the same resource as their canonical URL. */
 export function normalizeApiPath(path: string): string {
-    return canonicalApiPath(path.toLowerCase().replace(/^\/+|\/+$/g, ''))
+    const resource = canonicalApiPath(path.toLowerCase().replace(/^\/+|\/+$/g, ''))
         .replace(/^stock\/history\/([^/]+)$/, 'stocks/$1/price-history')
         .replace(/^(?:stock\/)?peers-vci\/([^/]+)$/, 'stocks/$1/peer-valuations')
         .replace(/^stock\/peers\/([^/]+)$/, 'stocks/$1/peers')
@@ -45,6 +45,7 @@ export function normalizeApiPath(path: string): string {
         .replace(/^market\/index-history$/, 'market/indices/history')
         .replace(/^market\/(?:pe-chart|index-valuation-chart)$/, 'market/index-valuations')
         .replace(/^market\/overview-refresh$/, 'market/overview');
+    return canonicalApiPath(resource);
 }
 
 export function resolveCachePolicy(path: string, params: URLSearchParams): ProxyCachePolicy {
@@ -58,14 +59,14 @@ export function resolveCachePolicy(path: string, params: URLSearchParams): Proxy
     if (resource === 'market/ai-takeaways' || resource === 'market/macro/rates') return policies.short;
     if (/^market\/(?:world-indices|macro\/(?:economic|gdp|indicators|history(?:\/batch)?))$/.test(resource)) return policies.medium;
     if (/^stocks\/[^/]+\/price-history$/.test(resource) && params.get('snapshot') === '1') return policies.snapshot;
-    if (/^stocks\/financial-metrics(?:\/sectors)?$/.test(resource)) return policies.medium;
+    if (/^stocks\/metrics(?:\/sectors)?$/.test(resource)) return policies.medium;
 
     // Quotes and snapshots that contain quotes must observe the current RAM cache.
     // Unknown resources also stay uncached until they have an explicit policy.
     if (/^stocks\/(?:quotes|overviews)$/.test(resource)
-        || /^stocks\/[^/]+(?:\/(?:quote|overview|price-history|freshness|workbook|report-file))?$/.test(resource)
+        || /^stocks\/[^/]+(?:\/(?:quote|overview|price-history|freshness|workbook|report))?$/.test(resource)
         || /^stocks\/[^/]+\/summary$/.test(resource) && params.get('realtime') !== '0'
-        || /^(?:health$|cache\/|financial-statements\/(?:exports|workbooks)(?:\/|$))/.test(resource)
+        || /^(?:health$|cache\/|exports\/|workbooks(?:\/|$))/.test(resource)
         || /^(?:stock\/excel|stocks\/excel|download\/|financial-bulk-export)/.test(legacy)
         || /^(?:market\/(?:indices|prices|orderbook|overview|screener)|market\/macro\/rates)$/.test(resource)) {
         return policies.realtime;
@@ -75,11 +76,10 @@ export function resolveCachePolicy(path: string, params: URLSearchParams): Proxy
     if (resource === 'tickers' || /^companies\/[^/]+\/profile$/.test(resource)
         || /^stocks\/[^/]+\/profile$/.test(resource)) return policies.long;
     if (/^stocks\//.test(resource) || /^app-data\//.test(resource)
-        || /^(?:market\/(?:index-valuations|indices\/history|lottery)|financial-statements\/years)$/.test(resource)) return policies.medium;
+        || /^(?:market\/(?:index-valuations|indices\/history|lottery)|financials\/years)$/.test(resource)) return policies.medium;
     return policies.realtime;
 }
 
 export function isBulkExport(path: string): boolean {
-    return ['financial-bulk-export', 'stock/excel-bulk', 'financial-statements/exports',
-        'financial-statements/workbooks/archive'].includes(path.toLowerCase());
+    return ['exports/financials', 'workbooks/archive'].includes(normalizeApiPath(path));
 }

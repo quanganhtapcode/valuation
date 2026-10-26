@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from flask import Blueprint, Flask
 from backend.services.stock_service import StockService
-from backend.routes.stock import missing_routes
+from backend.routes.stock import companies, cache
 
 
 class CompanyTests(unittest.TestCase):
@@ -82,12 +82,12 @@ class CompanyTests(unittest.TestCase):
     def test_http_search_and_invalid_pagination(self):
         app = Flask(__name__)
         bp = Blueprint('company_test', __name__)
-        missing_routes.register(bp)
+        companies.register(bp)
         app.register_blueprint(bp, url_prefix='/api')
         client = app.test_client()
-        missing_routes._cache.clear()
-        self.addCleanup(missing_routes._cache.clear)
-        with patch.object(missing_routes, 'get_stock_service', return_value=self.service):
+        cache._cache.clear()
+        self.addCleanup(cache._cache.clear)
+        with patch.object(companies, 'get_stock_service', return_value=self.service):
             response = client.get('/api/companies/search?q=fpt')
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json[0]['symbol'], 'FPT')

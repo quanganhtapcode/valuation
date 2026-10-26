@@ -36,7 +36,7 @@ export async function fetchPEChart(
     metric: ValuationMetric = 'both',
     options?: RequestInit,
 ): Promise<PEChartResult> {
-    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}&compact=1`, options);
+    const response = await fetchAPI<any>(`${API.INDEX_VALUATIONS}?metric=${metric}&compact=1`, options);
     const series = parsePEChartPayload(response);
     const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
     return { series, stats };
@@ -47,7 +47,7 @@ export async function fetchPEChartByRange(
     metric: ValuationMetric = 'both',
     options?: RequestInit,
 ): Promise<PEChartResult> {
-    const response = await fetchAPI<any>(`${API.PE_CHART}?metric=${metric}&timeFrame=${timeFrame}&compact=1`, options);
+    const response = await fetchAPI<any>(`${API.INDEX_VALUATIONS}?metric=${metric}&timeFrame=${timeFrame}&compact=1`, options);
     const series = parsePEChartPayload(response);
     const stats = (response?.stats ?? {}) as { pe?: ValuationStats; pb?: ValuationStats };
     return { series, stats };

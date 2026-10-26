@@ -4,10 +4,11 @@ Frontend gọi REST qua cùng origin `/api`; Next.js chuyển tiếp tới backe
 
 ## Đặt tên và tương thích
 
-- Dùng danh từ số nhiều cho tập tài nguyên: `/stocks`, `/companies`, `/financial-statements`.
+- Dùng danh từ số nhiều cho tập tài nguyên: `/stocks`, `/companies`, `/financials`.
 - Đặt mã chứng khoán trước tài nguyên con: `/stocks/{symbol}/price-history`. Chuẩn hóa mã thành chữ hoa và mã hóa bằng `encodeURIComponent` khi tạo URL.
 - Dùng chữ thường và dấu gạch nối; tên công khai mô tả dữ liệu, không phụ thuộc nhà cung cấp như `vci` hoặc `fireant`.
 - Dùng query cho bộ lọc, khoảng thời gian và phân trang. GET đọc dữ liệu; POST tính định giá với giả định trong JSON body.
+- Các URL dài trước đây (`/stocks/{symbol}/financial-statements`, `/financial-statements/exports`, `/financial-statements/workbooks/manifest`) tiếp tục hoạt động. Tên hiện hành lần lượt là `/stocks/{symbol}/financials`, `/exports/financials` và `/workbooks`.
 - Giữ URL cũ làm alias để client đang chạy tiếp tục hoạt động. Alias dùng cùng handler, HTTP method, validation và giới hạn tải; không chuyển hướng HTTP.
 - Code mới chỉ dùng đường dẫn chuẩn. Không thêm đường dẫn cũ vào component hoặc tạo thêm tên đồng nghĩa. Manifest chung nằm tại [apiRouteAliases.json](../frontend-next/src/lib/apiRouteAliases.json), được cả backend và proxy đọc; URL của frontend tập trung tại [apiCore.ts](../frontend-next/src/lib/apiCore.ts).
 
@@ -30,11 +31,11 @@ Các đường dẫn dưới đây là GET, trừ nơi ghi method khác. `{symbo
 | `/api/stocks/{symbol}/valuation-history` | `limit`, tối đa 250 | `{ success, symbol, period, source, count, data: […] }`, chỉ số PE/PB theo ngày |
 | `/api/stocks/{symbol}/chart-data` | `period=quarter\|year` | `{ success, symbol, period, count, data: […] }`, chỉ số tài chính theo kỳ |
 | `/api/stocks/{symbol}/ratio-history`, `/ratio-series` | — | Object chứa các chuỗi chỉ số phục vụ biểu đồ |
-| `/api/stocks/{symbol}/financial-statements` | `type=income\|balance\|cashflow\|ratio\|note`, `period=quarter\|year`, `limit` | Mảng bản ghi trực tiếp; mỗi bản ghi gồm kỳ báo cáo và các trường tài chính |
-| `/api/stocks/{symbol}/financial-statements/fields` | `type` | `{ data: […], field_map, field_map_en }`, nhãn và cấu trúc trường |
-| `/api/stocks/{symbol}/financial-metrics` | — | `{ success, symbol, data: […] }`, bản ghi chỉ số gần nhất |
-| `/api/stocks/financial-metrics` | `icb_l3` nếu lọc ngành | `{ success, count, icb_l3, data: […] }` |
-| `/api/stocks/financial-metrics/sectors` | — | `{ success, sectors: […] }` |
+| `/api/stocks/{symbol}/financials` | `type=income\|balance\|cashflow\|ratio\|note`, `period=quarter\|year`, `limit` | Mảng bản ghi trực tiếp; mỗi bản ghi gồm kỳ báo cáo và các trường tài chính |
+| `/api/stocks/{symbol}/financials/fields` | `type` | `{ data: […], field_map, field_map_en }`, nhãn và cấu trúc trường |
+| `/api/stocks/{symbol}/metrics` | — | `{ success, symbol, data: […] }`, bản ghi chỉ số gần nhất |
+| `/api/stocks/metrics` | `icb_l3` nếu lọc ngành | `{ success, count, icb_l3, data: […] }` |
+| `/api/stocks/metrics/sectors` | — | `{ success, sectors: […] }` |
 | `/api/stocks/{symbol}/news` | `compact=1` để giảm trường không cần cho danh sách | `{ success, data: […] }` |
 | `/api/stocks/{symbol}/events`, `/feed` | Feed dùng `tab` | Object chứa `data` và thông tin snapshot như `stale`, `partial`, `refresh_pending` khi có |
 | `/api/stocks/{symbol}/peers` | — | `{ success, data: […] }` |
@@ -58,13 +59,14 @@ Các tài nguyên cổ phiếu khác dùng cùng cấu trúc tên: `/shareholder
 | `/api/market/news` | `{ success, data: […] }`; query `page`, `size`, `compact=1` |
 | `/api/market/funds` | `{ success, data: […], count, fetched_at, source, stale? }` |
 | `/api/market/funds/{symbol}` | `{ success, fund, history, yearly_returns, … }` |
-| `/api/financial-statements/years` | `{ first_year, last_year }` |
-| `/api/financial-statements/fields` | Bảng mã trường tài chính do Next.js phục vụ |
-| `/api/financial-statements/exports` | File báo cáo theo phạm vi lựa chọn; giữ `Content-Type` và `Content-Disposition` |
-| `/api/financial-statements/workbooks/manifest` | `{ success, files: […], count, missing }`, URL tải workbook gốc |
-| `/api/financial-statements/workbooks/archive` | File ZIP chứa workbook gốc |
+| `/api/financials/years` | `{ first_year, last_year }` |
+| `/api/financials/fields` | Bảng mã trường tài chính do Next.js phục vụ |
+| `/api/exports/financials` | File báo cáo theo phạm vi lựa chọn; giữ `Content-Type` và `Content-Disposition` |
+| `/api/workbooks` | `{ success, files: […], count, missing }`, URL tải workbook gốc |
+| `/api/workbooks/archive` | File ZIP chứa workbook gốc |
 | `/api/stocks/{symbol}/workbook` | Object chứa URL workbook gốc |
-| `/api/stocks/{symbol}/report-file` | Tải báo cáo của một mã |
+| `/api/stocks/{symbol}/report` | Tải báo cáo của một mã |
+| `/api/stats/database` | Thống kê database; tương thích `/api/db/stats` |
 | `/api/health` | Trạng thái sức khỏe dịch vụ và dữ liệu |
 
 Các tên đã rõ nghĩa như `/market/screener`, `/market/heatmap`, `/market/top-movers`, `/market/foreign-flow`, `/market/world-indices`, `/market/events`, `/market/earnings-releases`, `/market/macro/rates` tiếp tục được sử dụng.

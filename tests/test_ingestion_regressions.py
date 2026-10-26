@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 
 from backend.data_sources.vci import VCIClient
 from backend.updater import batch_news, update_price_history as price
-from backend.routes.health_routes import _check_ingestion
+from backend.routes.health import _check_ingestion
 from scripts.fetchers import fetch_vci_financial_statement as financial
 from scripts.fetchers import fetch_vci_stats_financial as stats_financial
 from scripts.fetchers import fetch_vci_index_history as index_history

@@ -4,7 +4,8 @@ from unittest.mock import Mock, patch
 from flask import Flask
 
 from backend.routes.aliases import API_ALIASES, register_api_aliases
-from backend.routes.download_routes import download_bp
+from backend.routes.downloads import download_bp
+from backend.routes.health import health_bp
 from backend.routes.market import market_bp
 from backend.routes.stock import stock_bp
 
@@ -16,6 +17,7 @@ class CanonicalApiContract(unittest.TestCase):
         cls.app.register_blueprint(stock_bp, url_prefix="/api")
         cls.app.register_blueprint(market_bp)
         cls.app.register_blueprint(download_bp)
+        cls.app.register_blueprint(health_bp)
         register_api_aliases(cls.app)
 
     def test_aliases_preserve_wrapped_handlers_methods_and_parameters(self):
@@ -27,6 +29,26 @@ class CanonicalApiContract(unittest.TestCase):
                               self.app.view_functions[new.endpoint])
                 self.assertEqual(old.methods, new.methods)
                 self.assertEqual(old.arguments, new.arguments)
+
+    def test_short_financial_routes_preserve_older_validation(self):
+        client = self.app.test_client()
+        for short, previous in [
+            ('/api/stocks/BAD!/financials', '/api/stocks/BAD!/financial-statements'),
+            ('/api/stocks/BAD!/financials/fields', '/api/stocks/BAD!/financial-statements/fields'),
+            ('/api/stocks/BAD!/metrics', '/api/stocks/BAD!/financial-metrics'),
+        ]:
+            with self.subTest(path=short):
+                current, legacy = client.get(short), client.get(previous)
+                self.assertEqual(current.status_code, 400)
+                self.assertEqual(current.status_code, legacy.status_code)
+                self.assertEqual(current.json, legacy.json)
+
+    def test_metrics_collection_is_not_captured_as_a_stock_symbol(self):
+        adapter = self.app.url_map.bind('localhost')
+        endpoint, arguments = adapter.match('/api/stocks/metrics')
+        legacy, _ = adapter.match('/api/stock/stats-financial')
+        self.assertIs(self.app.view_functions[endpoint], self.app.view_functions[legacy])
+        self.assertEqual(arguments, {})
 
     def test_news_alias_returns_identical_payload(self):
         payload = {"success": True, "data": [{"title": "Tin mới", "url": "https://example.com"}]}

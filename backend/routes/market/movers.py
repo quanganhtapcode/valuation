@@ -5,7 +5,7 @@ import os
 
 from flask import Blueprint, jsonify, request
 
-from backend.routes.handlers.vci_top_movers import top_movers_from_screener_sqlite
+from backend.routes.handlers.top_movers import top_movers_from_screener_sqlite
 
 from .deps import cache_func
 from .paths import screener_db_path

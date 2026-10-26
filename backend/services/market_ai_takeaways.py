@@ -62,7 +62,7 @@ def _compact_mover(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _load_movers_with_news(now: datetime | None = None) -> list[dict[str, Any]]:
-    from backend.routes.handlers.vci_top_movers import top_movers_from_screener_sqlite
+    from backend.routes.handlers.top_movers import top_movers_from_screener_sqlite
     from backend.routes.market.paths import screener_db_path
 
     movers = []

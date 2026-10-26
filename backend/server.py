@@ -23,8 +23,8 @@ from werkzeug.exceptions import HTTPException
 from backend.services import GoldService
 from backend.extensions import init_provider
 from backend.routes.market import market_bp, init_market_routes
-from backend.routes.download_routes import download_bp
-from backend.routes.health_routes import health_bp
+from backend.routes.downloads import download_bp
+from backend.routes.health import health_bp
 from backend.routes.aliases import register_api_aliases
 from backend.routes.stock import stock_bp
 from backend.data_sources.vci import VCIClient

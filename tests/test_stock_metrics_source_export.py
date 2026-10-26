@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from flask import Flask
 from openpyxl import Workbook
-from backend.routes import download_routes as exports
+from backend.routes import downloads as exports
 
 
 class SourceExportTests(unittest.TestCase):

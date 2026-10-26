@@ -1,17 +1,4 @@
-"""
-Missing routes that frontend stockApi.ts expects but backend never exposed.
-
-Endpoints added:
-  GET  /api/companies                          – list all companies (paginated)
-  GET  /api/companies/search?q=&limit=         – full-text search by ticker / name
-  GET  /api/companies/industry/<industry>      – list stocks in an industry
-  GET  /api/financial-report/<symbol>          – income / balance / cashflow / ratio
-  GET  /api/financial-report-metrics/<symbol>  – field-code mapping for statements
-  GET  /api/batch-overview?symbols=            – stock overview for multiple tickers
-  GET  /api/db/stats                           – database statistics
-  GET  /api/stock/<symbol>/freshness           – data-freshness for a symbol
-  GET/POST /api/valuation/<symbol>/sensitivity – 9×9 DCF sensitivity matrix
-"""
+"""Financial statements and field labels for stock reports."""
 
 from __future__ import annotations
 
@@ -19,34 +6,16 @@ import json
 import logging
 import os
 import sqlite3
-import time as _time
-from datetime import datetime
 from pathlib import Path
-from threading import RLock
-
 from flask import Blueprint, jsonify, request
-from backend.services.valuation_validation import ValuationInputError
-
-from backend.db_path import (
-    resolve_vci_company_db_path,
-    resolve_vci_financial_statement_db_path,
-    resolve_vci_screening_db_path,
-    resolve_vci_stats_financial_db_path,
-)
-from backend.extensions import get_provider, get_stock_service, get_valuation_service
+from backend.db_path import resolve_vci_financial_statement_db_path, resolve_vci_stats_financial_db_path
 from backend.utils import validate_stock_symbol
+from .cache import _cache_get, _cache_set
 
 logger = logging.getLogger(__name__)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-# Simple in-memory cache (reuse pattern from stock_routes)
-_cache: dict = {}
-_CACHE_TTL = 600  # 10 min
-_CACHE_MAX_ENTRIES = 300
-_CACHE_LOCK = RLock()
-
-# Fallback labels for fields that exist in statement values but are not exposed
-# with titleVi/titleEn by VCI metrics endpoint for some bank/off-balance codes.
 _FALLBACK_METRIC_LABELS: dict[str, str] = {
     "bsb126": "Bảo lãnh (Bảo lãnh vay vốn + Bảo lãnh khác)",
     "bsb157": "Bảo lãnh (Bảo lãnh vay vốn + Bảo lãnh khác)",
@@ -56,129 +25,7 @@ _FALLBACK_METRIC_LABELS: dict[str, str] = {
     "cfb47": "CFB47 (VCI chưa công bố title)",
 }
 
-
-def _cache_get(key):
-    with _CACHE_LOCK:
-        entry = _cache.get(key)
-        if entry is not None:
-            if (_time.monotonic() - entry[0]) < _CACHE_TTL:
-                return entry[1]
-            _cache.pop(key, None)
-    return None
-
-
-def _cache_set(key, data):
-    now = _time.monotonic()
-    with _CACHE_LOCK:
-        _cache.pop(key, None)
-        if len(_cache) >= _CACHE_MAX_ENTRIES:
-            for expired in [k for k, (stamp, _) in _cache.items() if now - stamp >= _CACHE_TTL]:
-                _cache.pop(expired, None)
-        while len(_cache) >= _CACHE_MAX_ENTRIES:
-            _cache.pop(next(iter(_cache)))
-        _cache[key] = (now, data)
-
-
 def register(stock_bp: Blueprint) -> None:
-
-    # ------------------------------------------------------------------ #
-    # GET /api/companies                                                    #
-    # ------------------------------------------------------------------ #
-    @stock_bp.route("/companies")
-    def api_companies():
-        """Return all companies, optionally filtered by exchange."""
-        exchange = request.args.get("exchange", "").upper()
-        try:
-            page = max(1, int(request.args.get("page", 1)))
-            limit = min(500, max(10, int(request.args.get("limit", 200))))
-        except ValueError:
-            return jsonify({"error": "page and limit must be integers"}), 400
-
-        cache_key = f"companies_{exchange}_{page}_{limit}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return jsonify(cached)
-
-        try:
-            result = get_stock_service().list_companies(exchange, page, limit)
-            _cache_set(cache_key, result)
-            return jsonify(result)
-        except Exception as exc:
-            logger.error(f"GET /companies error: {exc}")
-            return jsonify({"error": str(exc)}), 500
-
-    # ------------------------------------------------------------------ #
-    # GET /api/companies/search                                             #
-    # ------------------------------------------------------------------ #
-    @stock_bp.route("/companies/search")
-    def api_companies_search():
-        """Search companies by ticker or name."""
-        q = request.args.get("q", "").strip()
-        try:
-            limit = min(50, max(1, int(request.args.get("limit", 20))))
-        except ValueError:
-            return jsonify({"error": "limit must be an integer"}), 400
-        if not q:
-            return jsonify([])
-
-        cache_key = f"co_search_{q.lower()}_{limit}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return jsonify(cached)
-
-        try:
-            stock_service = get_stock_service()
-            results = stock_service.search_stocks(q, limit)
-            _cache_set(cache_key, results)
-            return jsonify(results)
-        except Exception as exc:
-            logger.error(f"GET /companies/search error: {exc}")
-            return jsonify({"error": str(exc)}), 500
-
-    # ------------------------------------------------------------------ #
-    # GET /api/companies/industry/<industry>                                #
-    # ------------------------------------------------------------------ #
-    @stock_bp.route("/companies/industry/<path:industry>")
-    def api_companies_by_industry(industry: str):
-        """Return stocks belonging to an industry (ICB level-3 or level-4)."""
-        cache_key = f"co_industry_{industry.lower()}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return jsonify(cached)
-
-        company_path = resolve_vci_company_db_path()
-        screening_path = resolve_vci_screening_db_path()
-        try:
-            conn = sqlite3.connect(company_path)
-            conn.row_factory = sqlite3.Row
-            conn.execute(f"ATTACH DATABASE '{screening_path}' AS scr")
-            cur = conn.cursor()
-
-            cur.execute(
-                """
-                SELECT c.ticker AS symbol, c.organ_name AS name,
-                       COALESCE(sc.exchange, c.floor, 'HOSE') AS exchange,
-                       COALESCE(sc.viSector, c.icb_name4, c.icb_name3, '') AS industry
-                FROM companies c
-                LEFT JOIN scr.screening_data sc ON UPPER(sc.ticker) = UPPER(c.ticker)
-                WHERE COALESCE(sc.enSector, c.icb_name3, '') = ?
-                ORDER BY c.ticker
-                """,
-                (industry,),
-            )
-            rows = cur.fetchall()
-            conn.close()
-
-            result = [dict(r) for r in rows]
-            _cache_set(cache_key, result)
-            return jsonify(result)
-        except Exception as exc:
-            logger.error(f"GET /companies/industry error: {exc}")
-            return jsonify({"error": str(exc)}), 500
-
-    # ------------------------------------------------------------------ #
-    # GET /api/financial-report/<symbol>                                    #
-    # ------------------------------------------------------------------ #
     @stock_bp.route("/financial-report/<symbol>")
     @stock_bp.route("/stock/<symbol>/financial-report")
     def api_financial_report(symbol: str):
@@ -441,9 +288,6 @@ def register(stock_bp: Blueprint) -> None:
             logger.error(f"GET /financial-report/{clean_symbol} error: {exc}")
             return jsonify({"error": str(exc)}), 500
 
-    # ------------------------------------------------------------------ #
-    # GET /api/financial-report-metrics/<symbol>                         #
-    # ------------------------------------------------------------------ #
     @stock_bp.route("/financial-report-metrics/<symbol>")
     @stock_bp.route("/stock/<symbol>/financial-report-metrics")
     def api_financial_report_metrics(symbol: str):
@@ -560,127 +404,3 @@ def register(stock_bp: Blueprint) -> None:
         except Exception as exc:
             logger.error(f"GET /financial-report-metrics/{clean_symbol} error: {exc}")
             return jsonify({"error": str(exc)}), 500
-
-    # ------------------------------------------------------------------ #
-    # GET /api/batch-overview                                               #
-    # ------------------------------------------------------------------ #
-    @stock_bp.route("/batch-overview")
-    def api_batch_overview():
-        """
-        Return stock overview for multiple symbols at once.
-        Query param: symbols=VCB,HPG,VNM (comma-separated, max 20)
-        """
-        symbols_param = request.args.get("symbols", "")
-        if not symbols_param:
-            return jsonify({"error": "Missing 'symbols' parameter"}), 400
-
-        symbols = [s.strip().upper() for s in symbols_param.split(",") if s.strip()][:20]
-
-        cache_key = f"batch_overview_{'_'.join(sorted(symbols))}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return jsonify(cached)
-
-        provider = get_provider()
-        result: dict = {}
-        for sym in symbols:
-            try:
-                data = provider.get_stock_data(sym, period="year")
-                if data and data.get("success"):
-                    result[sym] = data
-                else:
-                    result[sym] = {"symbol": sym, "success": False}
-            except Exception as exc:
-                logger.warning(f"batch-overview error for {sym}: {exc}")
-                result[sym] = {"symbol": sym, "success": False, "error": str(exc)}
-
-        _cache_set(cache_key, result)
-        return jsonify(result)
-
-    # ------------------------------------------------------------------ #
-    # GET /api/db/stats                                                     #
-    # ------------------------------------------------------------------ #
-    @stock_bp.route("/db/stats")
-    def api_db_stats():
-        """Return high-level statistics about VCI SQLite sources."""
-        cache_key = "db_stats"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return jsonify(cached)
-
-        try:
-            screening_path = resolve_vci_screening_db_path()
-            stats: dict = {}
-            with sqlite3.connect(screening_path) as conn:
-                row = conn.execute("SELECT COUNT(DISTINCT ticker) FROM screening_data").fetchone()
-                stats["symbols_count"] = row[0] if row else 0
-                row = conn.execute("SELECT MAX(fetched_at) FROM screening_data").fetchone()
-                stats["screening_updated_at"] = row[0] if row else None
-            stats["generated_at"] = datetime.utcnow().isoformat() + "Z"
-            _cache_set(cache_key, stats)
-            return jsonify(stats)
-        except Exception as exc:
-            logger.error(f"GET /db/stats error: {exc}")
-            return jsonify({"error": str(exc)}), 500
-
-    # ------------------------------------------------------------------ #
-    # GET /api/stock/<symbol>/freshness                                     #
-    # ------------------------------------------------------------------ #
-    @stock_bp.route("/stock/<symbol>/freshness")
-    def api_stock_freshness(symbol: str):
-        """Return data-freshness metadata for a symbol from VCI sources."""
-        is_valid, clean_symbol = validate_stock_symbol(symbol)
-        if not is_valid:
-            return jsonify({"error": clean_symbol}), 400
-
-        try:
-            from backend.db_path import resolve_price_history_db_path, resolve_vci_stats_financial_db_path
-            freshness: dict = {"symbol": clean_symbol}
-
-            try:
-                with sqlite3.connect(resolve_price_history_db_path()) as conn:
-                    row = conn.execute(
-                        "SELECT MAX(time) FROM stock_price_history WHERE symbol = ?",
-                        (clean_symbol,),
-                    ).fetchone()
-                    freshness["price_latest_date"] = row[0] if row else None
-            except Exception:
-                pass
-
-            try:
-                with sqlite3.connect(resolve_vci_stats_financial_db_path()) as conn:
-                    row = conn.execute(
-                        "SELECT fetched_at FROM stats_financial WHERE ticker = ? LIMIT 1",
-                        (clean_symbol,),
-                    ).fetchone()
-                    freshness["ratios_updated_at"] = row[0] if row else None
-            except Exception:
-                pass
-
-            freshness["checked_at"] = datetime.utcnow().isoformat() + "Z"
-            return jsonify(freshness)
-        except Exception as exc:
-            logger.error(f"GET /stock/{clean_symbol}/freshness error: {exc}")
-            return jsonify({"error": str(exc)}), 500
-
-    # ------------------------------------------------------------------ #
-    # POST /api/valuation/<symbol>/sensitivity                              #
-    # ------------------------------------------------------------------ #
-    @stock_bp.route("/valuation/<symbol>/sensitivity", methods=["GET", "POST"])
-    def api_valuation_sensitivity(symbol: str):
-        """Return DCF sensitivity matrix (WACC-growth grid)."""
-        is_valid, clean_symbol = validate_stock_symbol(symbol)
-        if not is_valid:
-            return jsonify({"success": False, "error": clean_symbol}), 400
-
-        body: dict = {}
-        if request.method == "POST":
-            body = request.get_json(silent=True) if request.is_json else {}
-        try:
-            result = get_valuation_service().calculate_sensitivity(clean_symbol, body)
-            return jsonify(result), (200 if result.get("success") else 404)
-        except ValuationInputError as exc:
-            return jsonify({'success': False, 'error': str(exc), 'field': exc.field}), 400
-        except Exception as exc:
-            logger.error(f"sensitivity endpoint error {clean_symbol}: {exc}")
-            return jsonify({"success": False, "error": str(exc)}), 500

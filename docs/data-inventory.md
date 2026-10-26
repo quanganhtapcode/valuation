@@ -44,7 +44,7 @@ Vì vậy sự hiện diện của chúng không chứng minh có dữ liệu t�
 trong financials. Dữ liệu đó hiện nằm trong các file chuyên biệt ở bảng trên.
 
 Không xóa tự động: `backend/stock_provider.py` và
-`backend/routes/stock/missing_routes.py` vẫn có truy vấn schema cũ như
+`backend/routes/stock/financials.py` vẫn có truy vấn schema cũ như
 `financial_ratios`, `company_overview`. Cần di chuyển các đường đọc này trước khi
 loại bỏ schema. Tổng dung lượng của 15 bảng rỗng và index tương ứng chỉ 140 KiB.
 

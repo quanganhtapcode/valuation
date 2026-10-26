@@ -27,7 +27,7 @@ interface IndicesStreamPayload {
  * Fetch all indices data with realtime prices.
  */
 export async function fetchAllIndices(): Promise<Record<string, MarketIndexData>> {
-    const items = await fetchAPI<VciIndexItem[]>(API.VCI_INDICES);
+    const items = await fetchAPI<VciIndexItem[]>(API.INDICES);
     const bySymbol = new Map<string, VciIndexItem>();
     for (const it of items || []) {
         if (it?.symbol) bySymbol.set(String(it.symbol).toUpperCase(), it);

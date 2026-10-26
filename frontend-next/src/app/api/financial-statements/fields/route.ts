@@ -1,3 +1,3 @@
-export { GET } from '../../financial-field-codes/route';
+export { GET } from '../../financials/fields/route';
 
 export const dynamic = 'force-dynamic';

@@ -78,6 +78,23 @@ cần được kiểm tra. Xem từng mục trong JSON; không coi cảnh báo d
 - `run_pipeline.py` cập nhật dữ liệu dẫn xuất và có ghi database; đây không phải lệnh test offline.
 - `fetch_vci_financial_data.py` vẫn được bot Excel import cho dữ liệu dự báo có bearer token.
 
+## Quy ước tên và endpoint
+
+File Python dùng `snake_case`, component React dùng `PascalCase`; module route đặt
+theo tài nguyên (`companies.py`, `financials.py`, `metrics.py`, `peers.py`).
+Các URL dùng danh từ, chữ thường và gạch nối. Một số đường dẫn chính:
+
+| Tài nguyên | URL |
+| --- | --- |
+| Báo cáo tài chính | `/api/stocks/{symbol}/financials` |
+| Chỉ số tài chính | `/api/stocks/{symbol}/metrics` |
+| Xuất báo cáo | `/api/exports/financials` |
+| Danh mục workbook | `/api/workbooks` |
+| Thống kê database | `/api/stats/database` |
+
+URL cũ tiếp tục dùng cùng handler, method và chính sách cache. Xem
+[hợp đồng API](docs/api-contract.md) để biết query và schema của từng tài nguyên.
+
 ## Kiểm tra chất lượng
 
 Từ thư mục gốc:
