@@ -281,10 +281,7 @@ export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, 
     <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 p-0.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       {!useExternalOnly && (
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{labels.breadth}</p>
-            <h3 className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100">{labels.heatmap}</h3>
-          </div>
+          <h2 className="min-w-0 text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{labels.heatmap}</h2>
           <div className="grid grid-cols-3 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-900">
             {HEATMAP_EXCHANGES.map(item => (
               <button
