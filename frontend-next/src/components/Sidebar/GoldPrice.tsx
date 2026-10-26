@@ -12,7 +12,7 @@ interface GoldPriceProps {
     stale?: boolean;
 }
 
-export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps) {
+export default function GoldPrice({ prices, isLoading }: GoldPriceProps) {
     const { lang } = useLanguage();
     const t = translations[lang].dashboard;
     const labels = {
@@ -27,8 +27,6 @@ export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps)
     // Order: SJC, ring 9999, PQ bar 9999, silver bar
     const order = ['Vàng SJC (Miếng)', 'Nhẫn Vàng 9999', 'Vàng PQ 9999 (Miếng)', 'Vàng Phú Quý (Miếng)', 'Bạc Thỏi Phú Quý 999'];
     displayPrices.sort((a, b) => order.indexOf(a.TypeName) - order.indexOf(b.TypeName));
-
-    const sourceLabel = source === 'BTMC' ? 'BTMC' : 'Phú Quý';
 
     return (
         <SidebarCard title={t.goldSilver}>
@@ -66,10 +64,11 @@ export default function GoldPrice({ prices, isLoading, source }: GoldPriceProps)
                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                                                 {displayName}
                                             </span>
-                                            <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">
-                                                {item.BranchName || sourceLabel}
-                                                {item.Unit ? ` · ${item.Unit}` : ''}
-                                            </span>
+                                            {item.Unit && (
+                                                <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">
+                                                    {item.Unit}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
