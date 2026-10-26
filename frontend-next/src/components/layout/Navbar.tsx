@@ -10,6 +10,7 @@ import {
     RiBuilding2Line,
     RiCalendarEventLine,
     RiCloseLine,
+    RiFileChartLine,
     RiFilterLine,
     RiGlobalLine,
     RiLineChartLine,
@@ -79,6 +80,7 @@ export function Navbar() {
             label: t.stocks,
             items: [
                 { label: t.company, href: localizedPath('/stock/VCB', lang), icon: RiBuilding2Line, desc: t.companyDesc },
+                { label: t.earnings, href: localizedPath('/earnings', lang), icon: RiFileChartLine, desc: t.earningsDesc },
                 { label: t.screener, href: localizedPath('/screener', lang), icon: RiFilterLine, desc: t.screenerDesc },
                 { label: t.news, href: localizedPath('/news', lang), icon: RiCalendarEventLine, desc: t.newsDesc },
             ],
