@@ -48,16 +48,16 @@ export default function PolymarketEvents() {
                 {loading ? (
                     <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-500 border-t-transparent" /></div>
                 ) : events.length ? (
-                    <div className="flex flex-col gap-3">
+                    <div className="divide-y divide-gray-200 dark:divide-gray-800">
                         {events.map((event) => (
                             <a
                                 key={event.id}
                                 href={event.url || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block rounded-2xl border border-gray-200 px-4 py-3.5 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"
+                                className="group block py-4 transition-colors first:pt-0 last:pb-0 hover:bg-gray-50 dark:hover:bg-gray-800/40"
                             >
-                                <h3 className="pr-1 text-[15px] font-medium leading-snug text-gray-800 dark:text-gray-100">{event.title}</h3>
+                                <h3 className="pr-1 text-[15px] font-medium leading-snug text-gray-800 group-hover:text-blue-600 dark:text-gray-100 dark:group-hover:text-blue-400">{event.title}</h3>
                                 <div className="mt-3 space-y-2">
                                     {event.outcomes.map((outcome, index) => {
                                         return (
