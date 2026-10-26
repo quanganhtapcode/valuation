@@ -63,9 +63,6 @@ export default function NewsSection({ news, isLoading, error }: NewsSectionProps
                     <div className="flex min-h-7 items-center">
                         <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{t.news}</h2>
                     </div>
-                    <p className="mt-1 text-xs md:text-sm text-slate-500 dark:text-slate-400">
-                        {t.newsSubtitle}
-                    </p>
                 </div>
                 <Link
                     href="/news"
