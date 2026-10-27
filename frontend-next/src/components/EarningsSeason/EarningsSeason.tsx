@@ -79,7 +79,6 @@ export default function EarningsSeason() {
                 <p className="px-4 pb-4 text-sm text-gray-400 dark:text-gray-500">{copy.waiting}</p>
             ) : (
                 <div className="overflow-hidden">
-                    <p className="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">{isEnglish ? 'Prioritized by strength of VCI sentiment score; unscored articles follow by recency.' : 'Ưu tiên tin có điểm sắc thái VCI lệch mạnh khỏi trung tính; tin chưa có điểm xếp theo thời gian.'}</p>
                     <div className="divide-y divide-tremor-border dark:divide-dark-tremor-border">
                         {news.slice(0, 5).map((item, index) => {
                             const source = takeaways.news_sources?.[index];
