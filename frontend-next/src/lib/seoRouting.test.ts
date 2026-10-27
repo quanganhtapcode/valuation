@@ -15,7 +15,7 @@ test('legacy and lowercase stock links converge in one permanent redirect', () =
         ['/stock/VCB', '/vi/stock/VCB'],
         ['/vi/stock/vcb', '/vi/stock/VCB'],
         ['/en/stock/vcb', '/en/stock/VCB'],
-        ['/company', '/vi/company'],
+        ['/screener', '/vi/screener'],
         ['/en/funds/bvfed', '/en/funds/BVFED'],
         ['/funds/bvfed', '/vi/funds/BVFED'],
         ['/en/funds/vcbf-bcf', '/en/funds/VCBF-BCF'],
@@ -27,7 +27,7 @@ test('legacy and lowercase stock links converge in one permanent redirect', () =
 });
 
 test('canonical pages and rendering resources do not redirect', () => {
-    for (const path of ['/vi/stock/VCB', '/en/company', '/robots.txt', '/sitemap.xml',
+    for (const path of ['/vi/stock/VCB', '/en/screener', '/robots.txt', '/sitemap.xml',
         '/api/stocks/VCB/summary', '/_next/static/chunk.js', '/ticker_data.json']) {
         assert.equal(proxy(request(path)).headers.get('location'), null, path);
     }

@@ -46,7 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: '/news', changeFrequency: 'hourly', priority: 0.8 }, { path: '/screener', changeFrequency: 'daily', priority: 0.85 },
     { path: '/macro', changeFrequency: 'daily', priority: 0.8 }, { path: '/foreign', changeFrequency: 'hourly', priority: 0.75 },
     { path: '/events', changeFrequency: 'daily', priority: 0.75 }, { path: '/earnings', changeFrequency: 'daily', priority: 0.7 },
-    { path: '/downloads', changeFrequency: 'weekly', priority: 0.55 }, { path: '/company', changeFrequency: 'weekly', priority: 0.7 },
+    { path: '/downloads', changeFrequency: 'weekly', priority: 0.55 },
     { path: '/about', changeFrequency: 'monthly', priority: 0.4 }, { path: '/contact', changeFrequency: 'monthly', priority: 0.3 },
     { path: '/terms', changeFrequency: 'yearly', priority: 0.2 }, { path: '/privacy', changeFrequency: 'yearly', priority: 0.2 },
     { path: '/disclaimer', changeFrequency: 'yearly', priority: 0.2 },
