@@ -2,17 +2,22 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import { siteConfig } from '@/config/siteConfig';
+import { STOCK_PRERENDER_SYMBOLS } from '@/config/stockPrerender';
 import tickerData from '../../../../../public/ticker_data.json';
 import { getRequestLang, localizedPath } from '@/lib/i18nRouting';
 import type { Lang } from '@/lib/translations';
 
 type Props = { params: Promise<{ lang: string; symbol: string }> };
 
-// Stock shells use only the maintained local catalogue. Generate every ticker
-// in both languages so the first visitor never waits for a cold server render.
+// Build only a small set in both languages. Other valid catalogue symbols are
+// rendered on first request and cached with the same ISR policy.
 export function generateStaticParams() {
-  return tickerData.tickers.map(ticker => ({ symbol: ticker.symbol }));
+  return tickerData.tickers
+    .filter(ticker => STOCK_PRERENDER_SYMBOLS.has(ticker.symbol))
+    .map(ticker => ({ symbol: ticker.symbol }));
 }
+export const dynamic = 'force-static';
+export const dynamicParams = true;
 export const revalidate = 300;
 
 type StockSeoData = {
