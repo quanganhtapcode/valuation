@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import StockLink from '@/components/StockLink';
+import { DownloadIcon, StockTabIconButton } from '@/components/StockDetail/StockTabControls';
 import { API } from '@/lib/api';
 import { siteConfig } from '@/config/siteConfig';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -174,35 +175,20 @@ export default function EventsPage() {
                 </div>
 
                 {/* Controls */}
-                <div className="mb-5 flex flex-wrap items-center gap-2 sm:gap-3">
-                    <button type="button" onClick={() => setDateInput(toInputValue(new Date()))}
-                        className="rounded-lg bg-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700">
-                        {copy.today}
-                    </button>
-                    <button type="button" aria-label={copy.previousWeek} onClick={() => setDateInput(shiftCalendarDate(dateInput, -7))}
-                        className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">‹</button>
-                    <span className="text-sm font-bold tabular-nums sm:text-base">{shortDate(weekStart)}{weekStart.slice(0, 4) !== weekEnd.slice(0, 4) ? `/${weekStart.slice(0, 4)}` : ''} – {shortDate(weekEnd)}/{weekEnd.slice(0, 4)}</span>
-                    <button type="button" aria-label={copy.nextWeek} onClick={() => setDateInput(shiftCalendarDate(dateInput, 7))}
-                        className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">›</button>
-                    <input
-                        type="date"
-                        aria-label={copy.chooseDate}
-                        value={dateInput}
+                <div className="mb-4 flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center justify-between rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 sm:flex-none sm:gap-4">
+                        <button type="button" aria-label={copy.previousWeek} onClick={() => setDateInput(shiftCalendarDate(dateInput, -7))}
+                            className="flex h-10 w-7 shrink-0 items-center justify-center rounded-lg text-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 sm:w-10">‹</button>
+                        <span className="whitespace-nowrap text-center text-xs font-bold tabular-nums sm:text-base">{shortDate(weekStart)}{weekStart.slice(0, 4) !== weekEnd.slice(0, 4) ? `/${weekStart.slice(0, 4)}` : ''} – {shortDate(weekEnd)}/{weekEnd.slice(0, 4)}</span>
+                        <button type="button" aria-label={copy.nextWeek} onClick={() => setDateInput(shiftCalendarDate(dateInput, 7))}
+                            className="flex h-10 w-7 shrink-0 items-center justify-center rounded-lg text-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 sm:w-10">›</button>
+                    </div>
+                    <input type="date" aria-label={copy.chooseDate} value={dateInput}
                         onChange={e => { if (e.target.value) setDateInput(e.target.value); }}
-                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                        onClick={handleExport}
-                        className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                            <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        {copy.download}
-                    </button>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">
-                        {!loading && `${events.length} ${copy.count}`}
-                    </span>
+                        className="h-10 w-[7.5rem] min-w-0 rounded-lg border border-slate-200 bg-white px-1 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 sm:w-auto sm:px-3 sm:text-sm" />
+                    <div className="shrink-0">
+                        <StockTabIconButton onClick={handleExport} title={copy.download}><DownloadIcon /></StockTabIconButton>
+                    </div>
                 </div>
 
                 <div className="mb-6 grid grid-cols-7 gap-1 sm:grid-cols-[repeat(7,minmax(170px,1fr))] sm:gap-3 sm:overflow-x-auto sm:pb-2" aria-label={`${copy.title} ${copy.accent}`}>
