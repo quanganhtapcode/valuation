@@ -60,11 +60,8 @@ entry points and unrelated operational files were retained.
 
 ## Verification and limits
 
-Run `.venv/bin/python -m unittest discover -s tests -q` from the repository root.
-In `frontend-next`, run `npm run test:valuation-export`, `npm run lint`, and
-`npm run build -- --webpack`. The frontend regression command now covers model
-selection as well as Excel formulas. Run `npx tsc --noEmit` after the build because
-Next.js replaces generated types while building.
+In `frontend-next`, run `npm run lint` and `npm run build -- --webpack`. Run
+`npx tsc --noEmit` after the build because Next.js replaces generated types.
 
 This is still a simplified valuation toolkit. Flat cash-flow growth does not
 replace a forecast tied to reinvestment, segment economics and cyclicality.

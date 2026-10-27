@@ -19,7 +19,6 @@ Run from the repository root:
 ```sh
 .venv/bin/python automation/optimize_sqlite.py
 .venv/bin/python automation/optimize_sqlite.py --apply
-.venv/bin/python -m unittest discover -s tests -p test_sqlite_improvements.py
 ```
 
 The default command only reports redundant indexes. `--apply` acquires the same

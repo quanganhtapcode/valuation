@@ -26,15 +26,9 @@ of division errors. Excel is instructed to recalculate the workbook on opening.
 Validation, from `frontend-next/`:
 
 ```sh
-npm run test:valuation-export
 npm run lint
 npm run build -- --webpack
 npx tsc --noEmit
 ```
 
 Run the TypeScript check after the build, since building replaces `.next/types`.
-Regression tests independently evaluate the exported formulas against public FPT
-and VCB API snapshots, then change assumptions to verify recalculation. They also
-cover 1, 5, 10 and 20 projection years and workbook serialization. Set
-`VALUATION_EXPORT_ARTIFACT_DIR` to retain sample workbooks for layout inspection;
-historical rows in these test artifacts are synthetic, not investment data.

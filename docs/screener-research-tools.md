@@ -19,4 +19,4 @@ Không cần biến môi trường, dependency hoặc migration database mới.
 
 ## Kiểm tra
 
-Chạy `cd frontend-next && npm run test:screener-state` để kiểm tra khôi phục tham số URL, đơn vị vốn hóa, dữ liệu đầu vào lỗi và giới hạn mã so sánh. Chạy thêm `npm run lint` và `npm run build` cho frontend.
+Chạy `cd frontend-next && npm run lint` và `npm run build` để kiểm tra frontend.

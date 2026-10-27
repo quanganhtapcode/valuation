@@ -23,7 +23,6 @@ báo cáo tài chính, lịch sử giá, định giá, dữ liệu vĩ mô và t
 | `data/sqlite/` | Database production; không commit hoặc xoá khi dọn source |
 | `data/financial-statements/` | Tệp dữ liệu báo cáo tải về |
 | `logs/`, `runtime/` | Nhật ký, cache và trạng thái vận hành |
-| `tests/` | Kiểm thử Python với database tạm và HTTP giả lập |
 | `docs/` | [Danh mục tài liệu kỹ thuật](docs/README.md) |
 
 ## Cài đặt và chạy local
@@ -97,18 +96,11 @@ URL cũ tiếp tục dùng cùng handler, method và chính sách cache. Xem
 
 ## Kiểm tra chất lượng
 
-Từ thư mục gốc:
-
-```bash
-.venv/bin/python -m unittest discover -s tests
-```
-
 Frontend:
 
 ```bash
 cd frontend-next
 npm run lint
-npm test
 npm run build
 ```
 

@@ -46,7 +46,6 @@ scripts/
     import_ssi.py       Nhập JSONL SSI vào SQLite
     merge_ssi.py        Ghép dữ liệu SSI vào dữ liệu Vietcap
 automation/             Lịch chạy, service/timer, backup và script vận hành
-tests/                  Test Python chạy offline bằng database tạm/mock HTTP
 ```
 
 - Tên module, hàm và biến dùng snake_case; class dùng PascalCase, hằng số dùng

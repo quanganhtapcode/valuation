@@ -11,7 +11,6 @@ Logs: `logs/cron_vietnam_macro.log`. The first production refresh on 13 October 
 Checks:
 
 ```bash
-.venv/bin/python -m unittest discover -s tests -p test_vietnam_macro.py
 bash -n automation/setup_cron_vps.sh
 .venv/bin/python scripts/fetchers/fetch_vietnam_macro.py --symbols ECONOMICS:VNCPI --dry-run
 ```

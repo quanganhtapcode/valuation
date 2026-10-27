@@ -41,7 +41,6 @@ python3 scripts/financials/merge_ssi_metrics.py \
 python3 scripts/financials/merge_ssi_metrics.py \
   --ssi-db data/financial-statements/ssi-stock-metrics/SSI_financial_ratios.sqlite
 
-python3 -m unittest discover -s tests -p test_ssi_metrics_merge.py -v
 ```
 
 Validation: new merge/refresh regression passed; existing ingestion regression suite passed 37/38 tests. The unrelated cron installer assertion expects 17 rendered lines, whereas the current installer renders 18; no cron installer changes were made for this merge.

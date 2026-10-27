@@ -17,7 +17,6 @@ import {
 import styles from './page.module.css';
 import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import DeferredPanel from '@/components/ui/DeferredPanel';
-import TradingViewForexTable from '@/components/Macro/TradingViewForexTable';
 
 const moversDelay = () => isTradingHours() ? 30000 : 300000;
 const newsDelay = () => 120000;
@@ -30,6 +29,9 @@ function PanelSkeleton({ height = 'h-40' }: { height?: string }) {
     );
 }
 
+const TradingViewForexTable = dynamic(() => import('@/components/Macro/TradingViewForexTable'), {
+    loading: () => <PanelSkeleton height="h-80" />,
+});
 const NewsSection = dynamic(() => import('@/components/NewsSection'), {
     loading: () => <PanelSkeleton height="h-80" />,
 });
