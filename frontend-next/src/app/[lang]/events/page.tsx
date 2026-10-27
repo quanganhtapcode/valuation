@@ -174,14 +174,14 @@ export default function EventsPage() {
                 </div>
 
                 {/* Controls */}
-                <div className="flex flex-wrap items-center gap-3 mb-5">
+                <div className="mb-5 flex flex-wrap items-center gap-2 sm:gap-3">
                     <button type="button" onClick={() => setDateInput(toInputValue(new Date()))}
                         className="rounded-lg bg-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700">
                         {copy.today}
                     </button>
                     <button type="button" aria-label={copy.previousWeek} onClick={() => setDateInput(shiftCalendarDate(dateInput, -7))}
                         className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">‹</button>
-                    <span className="text-base font-bold tabular-nums">{shortDate(weekStart)}{weekStart.slice(0, 4) !== weekEnd.slice(0, 4) ? `/${weekStart.slice(0, 4)}` : ''} – {shortDate(weekEnd)}/{weekEnd.slice(0, 4)}</span>
+                    <span className="text-sm font-bold tabular-nums sm:text-base">{shortDate(weekStart)}{weekStart.slice(0, 4) !== weekEnd.slice(0, 4) ? `/${weekStart.slice(0, 4)}` : ''} – {shortDate(weekEnd)}/{weekEnd.slice(0, 4)}</span>
                     <button type="button" aria-label={copy.nextWeek} onClick={() => setDateInput(shiftCalendarDate(dateInput, 7))}
                         className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">›</button>
                     <input
@@ -205,14 +205,16 @@ export default function EventsPage() {
                     </span>
                 </div>
 
-                <div className="mb-6 grid grid-cols-[repeat(7,minmax(170px,1fr))] gap-3 overflow-x-auto pb-2" aria-label={`${copy.title} ${copy.accent}`}>
+                <div className="mb-6 grid grid-cols-7 gap-1 sm:grid-cols-[repeat(7,minmax(170px,1fr))] sm:gap-3 sm:overflow-x-auto sm:pb-2" aria-label={`${copy.title} ${copy.accent}`}>
                     {days.map(day => (
                         <button type="button" key={day.date} aria-pressed={dateInput === day.date}
                             onClick={() => setDateInput(day.date)}
-                            className={`flex min-h-36 flex-col justify-start rounded-lg border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 ${dateInput === day.date
+                            className={`flex min-w-0 flex-col items-center rounded-lg border px-0.5 py-2 text-center transition-colors sm:min-h-36 sm:items-stretch sm:p-4 sm:text-left focus-visible:outline-2 focus-visible:outline-blue-500 ${dateInput === day.date
                                 ? 'border-blue-400 bg-blue-50 dark:border-slate-500 dark:bg-slate-700'
                                 : 'border-slate-200 bg-white hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800'}`}>
-                            <span className={`mb-2 inline-block self-start pb-1 text-base font-bold tabular-nums ${dateInput === day.date ? 'border-b-2 border-emerald-500' : 'border-b-2 border-transparent'}`}>{shortDate(day.date)}</span>
+                            <span className={`inline-block pb-1 text-xs font-bold tabular-nums sm:mb-2 sm:self-start sm:text-base ${dateInput === day.date ? 'border-b-2 border-emerald-500' : 'border-b-2 border-transparent'}`}>{shortDate(day.date)}</span>
+                            <span className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 sm:hidden">{loading ? "…" : error ? "—" : day.events.length}</span>
+                            <div className="hidden sm:block">
                             {loading ? <div className="h-14 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
                                 : error ? <p className="text-xs text-slate-500 dark:text-slate-400">{copy.failed}</p>
                                 : day.events.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">{copy.empty}</p>
@@ -223,6 +225,7 @@ export default function EventsPage() {
                                     </div>)}
                                     {day.other > 0 && <div className="flex justify-between gap-3"><span>{copy.categories.other}</span><span className="tabular-nums">{day.other}</span></div>}
                                 </div>}
+                            </div>
                         </button>
                     ))}
                 </div>
@@ -235,7 +238,7 @@ export default function EventsPage() {
                             type="button"
                             aria-pressed={category === cat.id}
                             onClick={() => setCategory(cat.id)}
-                            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-5 py-3 text-base font-semibold transition-colors ${
+                            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-3 text-sm font-semibold sm:px-5 sm:text-base transition-colors ${
                                 category === cat.id
                                     ? 'border-blue-600 text-blue-700 dark:text-blue-400'
                                     : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
@@ -253,8 +256,39 @@ export default function EventsPage() {
                     ))}
                 </div>
 
+                {/* Mobile event cards */}
+                <div className="space-y-3 sm:hidden">
+                    {loading ? (
+                        Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />)
+                    ) : error ? (
+                        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900">
+                            {copy.failed} <button type="button" onClick={() => setRetry(value => value + 1)} className="font-semibold text-blue-600 dark:text-blue-400">{copy.retry}</button>
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900">
+                            {copy.empty} {category !== 'ALL' ? `"${copy.categories[catConfig(category as EventItem['category']).label]}"` : ''} {copy.emptySuffix}
+                        </div>
+                    ) : filtered.map(event => (
+                        <article key={event.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                            <div className="flex items-center justify-between gap-3">
+                                <StockLink symbol={event.ticker} href={localizedPath(`/stock/${event.ticker}`, lang)} className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
+                                    <StockLogo ticker={event.ticker} /> {event.ticker}
+                                </StockLink>
+                                <CategoryBadge cat={event.category} lang={lang} />
+                            </div>
+                            <p className="mt-3 text-sm font-semibold leading-snug text-slate-800 dark:text-slate-200">{event.eventTitleVi}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{event.organNameVi}</p>
+                            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                {event.exrightDate && <span>{copy.exDate}: <span className="font-medium tabular-nums text-slate-700 dark:text-slate-300">{fmtDate(event.exrightDate, locale)}</span></span>}
+                                {event.displayDate1 && <span>{copy.date}: <span className="font-medium tabular-nums text-slate-700 dark:text-slate-300">{fmtDate(event.displayDate1, locale)}</span></span>}
+                                {event.publicDate && <span>{copy.announced}: <span className="font-medium tabular-nums text-slate-700 dark:text-slate-300">{fmtDate(event.publicDate, locale)}</span></span>}
+                            </div>
+                        </article>
+                    ))}
+                </div>
+
                 {/* Table */}
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                <div className="hidden sm:block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
