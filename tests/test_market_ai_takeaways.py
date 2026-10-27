@@ -96,6 +96,15 @@ class MarketAIValidation(unittest.TestCase):
         first, second = self.news(), self.news(url='https://example.org/fpt?utm_source=other')
         self.assertEqual(len(ai._eligible_news([first, second], NOW)), 1)
 
+    def test_news_ranks_sentiment_strength_then_recency(self):
+        neutral = {**self.news(url='https://example.org/neutral'), 'score': 5}
+        strong = {**self.news(date='2026-10-16 08:00:00', url='https://example.org/strong'), 'score': 0}
+        missing = {**self.news(url='https://example.org/missing'), 'score': None}
+        invalid = {**self.news(url='https://example.org/invalid'), 'score': 11}
+        ranked = ai._rank_news([missing, neutral, invalid, strong], NOW)
+        self.assertEqual([x['url'] for x in ranked], [strong['url'], neutral['url'], missing['url'], invalid['url']])
+        self.assertEqual(compact_news_item({**self.article(), 'Score': 0})['score'], 0)
+
     def compute(self, generated):
         fresh = self.news()
         mover = {'symbol': 'PNJ', 'price': 102, 'ref_price': 100, 'change_pct': -6.99,
@@ -253,7 +262,7 @@ class MarketAIValidation(unittest.TestCase):
     def test_provider_failure_preserves_bilingual_news_with_original_timestamp(self):
         previous = ai._fallback_takeaways([], [], NOW)
         previous.update(available=True, news_summary=['English summary'],
-                        news_summary_vi=['Tóm tắt'], news_sources=[{'url': 'https://example.org'}])
+                        news_summary_vi=['Tóm tắt'], news_sources=[self.news()])
         fallback = ai._fallback_takeaways([], [], NOW)
         with patch.object(ai, 'resolve_valuation_cache_db_path', return_value=self.db), \
              patch.object(ai, 'datetime', FixedDatetime), \

@@ -111,7 +111,7 @@ _NEWS_TZ = dt.timezone(dt.timedelta(hours=7))
 
 
 def news_published_at(item: dict[str, Any]) -> dt.datetime | None:
-    value = item.get('publish_date') or item.get('PublishDate') or item.get('update_date')
+    value = item.get('publish_date') or item.get('published_at') or item.get('PublishDate') or item.get('update_date')
     try:
         parsed = dt.datetime.fromisoformat(str(value).replace('Z', '+00:00'))
         return parsed.replace(tzinfo=_NEWS_TZ) if parsed.tzinfo is None else parsed
@@ -164,7 +164,7 @@ def normalize_news_item(item: dict[str, Any]) -> dict[str, Any]:
     publish = item.get("PublishDate") or item.get("publish_date") or item.get("PostDate") or item.get("update_date") or ""
     image = item.get("ImageThumb") or item.get("Avatar") or item.get("image_url") or item.get("news_image_url") or ""
     sentiment = item.get("Sentiment") or item.get("sentiment") or item.get("sentiment") or ""
-    score = item.get("Score") or item.get("score")
+    score = item.get("Score") if item.get("Score") is not None else item.get("score")
     symbol = item.get("Symbol") or item.get("symbol") or item.get("ticker") or ""
 
     out = dict(item)

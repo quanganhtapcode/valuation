@@ -67,7 +67,7 @@ export default function EarningsSeason() {
     return (
         <Card className="p-0 overflow-hidden border-tremor-border dark:border-dark-tremor-border shadow-sm">
             <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-3">
-                <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{copy.summary}</h2>
+                <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{isEnglish ? 'News signals · 24h' : 'Tín hiệu tin tức · 24h'}</h2>
                 {takeaways && (
                     <p className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
                         {takeaways.stale || takeaways.news_stale ? (isEnglish ? 'Last available' : 'Dữ liệu gần nhất') : (isEnglish ? 'Updated' : 'Cập nhật')}{' '}
@@ -79,6 +79,7 @@ export default function EarningsSeason() {
                 <p className="px-4 pb-4 text-sm text-gray-400 dark:text-gray-500">{copy.waiting}</p>
             ) : (
                 <div className="overflow-hidden">
+                    <p className="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">{isEnglish ? 'Prioritized by strength of VCI sentiment score; unscored articles follow by recency.' : 'Ưu tiên tin có điểm sắc thái VCI lệch mạnh khỏi trung tính; tin chưa có điểm xếp theo thời gian.'}</p>
                     <div className="divide-y divide-tremor-border dark:divide-dark-tremor-border">
                         {news.slice(0, 5).map((item, index) => {
                             const source = takeaways.news_sources?.[index];

@@ -20,8 +20,8 @@ from backend.services.vci_news_sqlite import (
 )
 
 logger = logging.getLogger(__name__)
-_CACHE_KEY = "market_ai_takeaways_v3"
-_SCHEMA_VERSION = 3
+_CACHE_KEY = "market_ai_takeaways_v4"
+_SCHEMA_VERSION = 4
 _MOVE_LIMIT = 5
 _RECENT_NEWS_LIMIT = 100
 _LLM_NEWS_LIMIT = 5
@@ -108,6 +108,20 @@ def _eligible_news(items: list[dict[str, Any]], now: datetime) -> list[dict[str,
     return selected
 
 
+def _rank_news(items: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
+    """Prioritize strong sentiment signals, with recency as a tiebreaker."""
+    def rank(item: dict[str, Any]) -> tuple[bool, float, float]:
+        try:
+            score = float(item.get('score'))
+            valid = math.isfinite(score) and 0 <= score <= 10
+        except (TypeError, ValueError):
+            valid, score = False, 5.0
+        published = news_published_at(item)
+        return valid, abs(score - 5) if valid else 0.0, published.timestamp() if published else 0.0
+
+    return sorted(_eligible_news(items, now), key=rank, reverse=True)
+
+
 def _llm_news_item(item: dict[str, Any]) -> dict[str, str]:
     url = str(item['url'])
     return {
@@ -132,7 +146,7 @@ def _llm_input(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]],
         "market_scope": "News only. No inference about today's stock-price movement.",
         "recent_news_24h": [],
     }
-    for item in _eligible_news(recent_news, now):
+    for item in _rank_news(recent_news, now):
         article = _llm_news_item(item)
         candidate = {**payload, "recent_news_24h": payload['recent_news_24h'] + [article]}
         if len(json.dumps(candidate, ensure_ascii=False)) > _LLM_INPUT_JSON_MAX_CHARS:
@@ -207,7 +221,7 @@ def _fallback_takeaways(movers: list[dict[str, Any]], recent_news: list[dict[str
     if not market_en:
         market_en = ["Price data for this session is not available yet."]
         market_vi = ["Chưa có dữ liệu giá cập nhật cho phiên này."]
-    recent_news = _eligible_news(recent_news, now)
+    recent_news = _rank_news(recent_news, now)
     fallbacks = [_news_fallback(item) for item in recent_news[:5]]
     news_en = [row[0] for row in fallbacks]
     news_vi = [row[1] for row in fallbacks]
@@ -238,7 +252,7 @@ def _build_prompt(movers: list[dict[str, Any]], recent_news: list[dict[str, Any]
         "\"title_vi\":\"Short Vietnamese headline, max 80 characters\","
         "\"summary\":\"English factual summary, max 350 characters\","
         "\"summary_vi\":\"Vietnamese equivalent, max 350 characters\"}]}. "
-        "Summarize all supplied articles (up to 5), newest first. Every summary must cite exactly one provided source_id. "
+        "Summarize all supplied articles (up to 5) in the supplied order. Every summary must cite exactly one provided source_id. "
         "Headlines must be concise and distinct from the detailed summaries. "
         "Keep each summary under 350 characters in each language. Preserve numerical values; "
         "do not add calculated equivalents or convert units. Write quarters in English words "
@@ -341,7 +355,7 @@ def compute_ai_takeaways() -> dict[str, Any]:
                 break
         if not used:
             raise ValueError('AI response has no valid source-grounded news')
-        # Preserve newest-first ordering even if the model reorders or skips an
+        # Preserve ranked ordering even if the model reorders or skips an
         # article. Invalid/missing summaries use language-specific fallbacks.
         accepted = {source['source_id']: (en, vi, source)
                     for en, vi, source in zip(news_en, news_vi, used)}
@@ -386,6 +400,13 @@ def read_market_ai_takeaways() -> dict[str, Any] | None:
         if (payload.get('schema_version') != _SCHEMA_VERSION
                 or generated.tzinfo is None or not timedelta(0) <= now - generated <= timedelta(days=7)):
             return None
+        sources = payload.get('news_sources', [])
+        valid_urls = {item['url'] for item in _eligible_news(sources, now)}
+        indices = [i for i, source in enumerate(sources) if source.get('url') in valid_urls]
+        for key in ('news_sources', 'news_summary', 'news_summary_vi'):
+            values = payload.get(key, [])
+            payload[key] = [values[i] for i in indices if i < len(values)]
+        payload['recent_news'] = _eligible_news(payload.get('recent_news', []), now)
         payload['stale'] = (now - generated > timedelta(hours=6)
                             or payload.get('market_session_date') != expected_session_date(now))
         # Repair older fallback snapshots without calling a provider on reads.
@@ -423,7 +444,9 @@ def refresh_market_ai_takeaways() -> dict[str, Any]:
         recent_news = timedelta(0) <= news_age <= timedelta(days=7)
     except (ValueError, TypeError):
         recent_news = False
-    if not data.get('available') and previous and previous.get('available') and recent_news:
+    previous_sources = (previous or {}).get('news_sources', [])
+    sources_in_window = bool(previous_sources) and len(_eligible_news(previous_sources, datetime.now(timezone.utc))) == len(previous_sources)
+    if not data.get('available') and previous and previous.get('available') and recent_news and sources_in_window:
         for key in ('news_summary', 'news_summary_vi', 'news_sources', 'recent_news'):
             data[key] = previous.get(key, [])
         data['news_generated_at'] = previous.get('news_generated_at') or previous['generated_at']
