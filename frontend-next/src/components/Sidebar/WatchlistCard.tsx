@@ -190,7 +190,6 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                     <StockLogo symbol={item.symbol} />
                                     <StockLink symbol={item.symbol}
                                         href={localizedPath(`/stock/${item.symbol}`, lang)}
-                                        prefetch={true}
                                         className="flex-1 min-w-0 hover:opacity-75 transition-opacity"
                                     >
                                         <div className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong truncate leading-tight">{item.name}</div>

@@ -170,21 +170,21 @@ export function Navbar() {
         }
         const upper = deferredQuery.toUpperCase();
         const lower = deferredQuery.toLowerCase();
-        const filtered = allTickers.filter(t =>
-            t && (
-                (t.symbol || '').toUpperCase().includes(upper) ||
-                (t.name || '').toLowerCase().includes(lower) ||
-                (t.en_name || '').toLowerCase().includes(lower)
-            )
-        ).sort((a, b) => {
-            const sa = (a?.symbol || '').toUpperCase();
-            const sb = (b?.symbol || '').toUpperCase();
-            if (sa === upper && sb !== upper) return -1;
-            if (sb === upper && sa !== upper) return 1;
-            if (sa.startsWith(upper) && !sb.startsWith(upper)) return -1;
-            if (!sa.startsWith(upper) && sb.startsWith(upper)) return 1;
-            return 0;
-        }).slice(0, 10);
+        // Preserve the existing exact/prefix/other ranking without sorting every
+        // match: the dropdown can only display ten entries.
+        const exact: Ticker[] = [];
+        const prefix: Ticker[] = [];
+        const other: Ticker[] = [];
+        for (const ticker of allTickers) {
+            if (!ticker) continue;
+            const symbol = (ticker.symbol || '').toUpperCase();
+            if (!symbol.includes(upper) &&
+                !(ticker.name || '').toLowerCase().includes(lower) &&
+                !(ticker.en_name || '').toLowerCase().includes(lower)) continue;
+            const group = symbol === upper ? exact : symbol.startsWith(upper) ? prefix : other;
+            if (group.length < 10) group.push(ticker);
+        }
+        const filtered = [...exact, ...prefix, ...other].slice(0, 10);
         setSearchResults(filtered);
     }, [deferredQuery, allTickers]);
 
