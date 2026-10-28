@@ -199,6 +199,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
 
         const controller = new AbortController();
         const loadTechnical = async () => {
+            if (document.visibilityState !== 'visible' || controller.signal.aborted) return;
             try {
                 const response = await fetch(`/api/stocks/${symbol}/technical/ONE_DAY`, { signal: controller.signal });
                 if (!response.ok) return;
@@ -211,9 +212,14 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
 
         void loadTechnical();
         const refreshId = window.setInterval(loadTechnical, 60_000);
+        const refreshOnVisibility = () => {
+            if (document.visibilityState === 'visible') void loadTechnical();
+        };
+        document.addEventListener('visibilitychange', refreshOnVisibility);
         return () => {
             controller.abort();
             window.clearInterval(refreshId);
+            document.removeEventListener('visibilitychange', refreshOnVisibility);
         };
     }, [symbol]);
 

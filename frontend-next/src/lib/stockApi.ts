@@ -4,6 +4,7 @@
  */
 
 import { API, API_BASE } from './apiCore';
+import { requestStockQuote } from './stockQuoteRequest';
 import type {
     Company,
     StockOverview,
@@ -286,9 +287,8 @@ export async function fetchRatios(
  */
 export async function fetchCurrentPrice(symbol: string): Promise<RealtimePrice | null> {
     try {
-        const response = await fetch(API.STOCK_QUOTE(symbol));
-        if (!response.ok) return null;
-        return unwrap<RealtimePrice>(await response.json());
+        const quote = await requestStockQuote(symbol);
+        return quote ? unwrap<RealtimePrice>(quote) : null;
     } catch (error) {
         console.error(`Error fetching current price for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;

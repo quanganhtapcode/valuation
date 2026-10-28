@@ -1,4 +1,4 @@
-import { API } from './apiCore';
+import { API, API_BASE } from './apiCore';
 
 interface OrderLevel { price?: number; volume?: number }
 export interface StockQuotePayload {
@@ -28,6 +28,33 @@ const requests = new Map<string, {
     completedAt?: number;
 }>();
 
+async function fetchQuote(key: string): Promise<StockQuotePayload | null> {
+    const directUrl = API.STOCK_QUOTE(key);
+    const proxyUrl = `${API_BASE}/stocks/${encodeURIComponent(key)}/quote`;
+    const usesDirectApi = directUrl !== proxyUrl;
+    try {
+        const response = await fetch(directUrl, {
+            cache: 'no-store',
+            credentials: 'omit',
+            signal: AbortSignal.timeout(usesDirectApi ? 3000 : 8000),
+        });
+        // Do not retry client errors, especially rate limits, through another IP.
+        if (response.ok) return await response.json() as StockQuotePayload;
+        if (response.status < 500) return null;
+    } catch {
+        // Network, timeout, CORS or malformed responses can use the same-origin proxy.
+    }
+    if (!usesDirectApi) return null;
+    try {
+        const response = await fetch(proxyUrl, {
+            cache: 'no-store', signal: AbortSignal.timeout(8000),
+        });
+        return response.ok ? await response.json() as StockQuotePayload : null;
+    } catch {
+        return null;
+    }
+}
+
 /** Share an intent prefetch with navigation, keeping completed quotes for at most 1s. */
 export function requestStockQuote(symbol: string): Promise<StockQuotePayload | null> {
     const key = symbol.trim().toUpperCase();
@@ -43,11 +70,7 @@ export function requestStockQuote(symbol: string): Promise<StockQuotePayload | n
         requests.delete(requests.keys().next().value!);
     }
     const entry: { promise: Promise<StockQuotePayload | null>; completedAt?: number } = {
-        promise: fetch(API.STOCK_QUOTE(key), {
-            cache: 'no-store', signal: AbortSignal.timeout(8000),
-        })
-            .then(response => response.ok ? response.json() as Promise<StockQuotePayload> : null)
-            .catch(() => null)
+        promise: fetchQuote(key)
             .then(result => {
                 entry.completedAt = Date.now();
                 if (!result?.success && requests.get(key) === entry) requests.delete(key);

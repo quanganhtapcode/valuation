@@ -204,7 +204,8 @@ export default function OverviewTab({
             const data = await fetchAiAnalysis(_symbol);
             if (cancelled) return;
             if (data.available) setAiData(data);
-            timer = setTimeout(() => { void load(); }, data.available ? 300_000 : 15_000);
+            // Match the proxy's 120-second cache for unavailable analyses.
+            timer = setTimeout(() => { void load(); }, data.available ? 300_000 : 120_000);
         };
         void load();
         return () => { cancelled = true; clearTimeout(timer); };
