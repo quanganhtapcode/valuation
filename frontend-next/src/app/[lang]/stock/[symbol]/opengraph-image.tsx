@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { BACKEND_API } from '@/lib/backendApi.server';
+import { backendRequestHeaders } from '@/lib/backendRequestHeaders';
 import { backendApiPath } from '@/lib/apiRouteRegistry';
 
 type Props = {
@@ -46,6 +47,7 @@ async function fetchStockCardData(symbol: string): Promise<StockCardData> {
   try {
     const response = await fetch(`${BACKEND_API}/${backendApiPath(`stocks/${encodeURIComponent(symbol)}`)}?fetch_price=true`, {
       headers: {
+        ...backendRequestHeaders,
         'User-Agent': 'Next.js OG Image Renderer',
         Accept: 'application/json',
       },

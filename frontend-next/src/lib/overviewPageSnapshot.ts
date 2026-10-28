@@ -1,4 +1,5 @@
 import { backendApiPath } from './apiRouteRegistry';
+import { backendRequestHeaders } from './backendRequestHeaders';
 import { INDEX_MAP, type VciIndexItem } from './marketTypes';
 import { resolveMarketIndexQuote } from './marketIndexQuote';
 import type { HeatmapData } from './heatmapTypes';
@@ -12,7 +13,7 @@ async function resource<T>(backendApi: string, path: string, revalidate: number,
     const [pathname, query] = path.split('?');
     try {
         const options: RequestInit & { next: { revalidate: number } } = {
-            headers: { Accept: 'application/json' },
+            headers: { ...backendRequestHeaders, Accept: 'application/json' },
             next: { revalidate },
             signal: AbortSignal.timeout(timeout),
         };

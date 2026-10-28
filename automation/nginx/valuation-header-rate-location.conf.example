@@ -1,0 +1,5 @@
+# STAGED ONLY: use with valuation-header-rate-zone.conf.example.
+limit_req zone=valuation_website burst=100 nodelay;
+limit_req zone=valuation_crawler;
+limit_req_status 429;
+error_page 429 = @valuation_rate_limited;

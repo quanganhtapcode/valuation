@@ -1,0 +1,17 @@
+# STAGED ONLY: replace the existing zone after the frontend is deployed and
+# trusted proxy / real-client-IP handling has been verified.
+# Origin and Referer are client-controlled, not authentication.
+map "$http_origin|$http_referer" $valuation_is_website {
+    default 0;
+    ~^https://stock\.quanganh\.org\|https://stock\.quanganh\.org/ 1;
+}
+map $valuation_is_website $valuation_website_key {
+    0 "";
+    1 $binary_remote_addr;
+}
+map $valuation_is_website $valuation_crawler_key {
+    0 $binary_remote_addr;
+    1 "";
+}
+limit_req_zone $valuation_website_key zone=valuation_website:10m rate=20r/s;
+limit_req_zone $valuation_crawler_key zone=valuation_crawler:10m rate=2r/m;

@@ -1,6 +1,7 @@
 import { isBulkExport, resolveCachePolicy } from './apiProxyPolicy';
 import { apiError, proxyErrorPayload, proxyResponseHeaders } from './apiResponse';
 import { backendApiPath } from './apiRouteRegistry';
+import { backendRequestHeaders } from './backendRequestHeaders';
 
 export async function proxyApiRequest(request: Request, apiPath: string, backendApi: string) {
     const method = request.method;
@@ -23,6 +24,7 @@ export async function proxyApiRequest(request: Request, apiPath: string, backend
         const response = await fetch(`${backendApi}/${backendApiPath(apiPath)}${query ? `?${query}` : ''}`, {
             method,
             headers: {
+                ...backendRequestHeaders,
                 'User-Agent': 'Next.js API Proxy',
                 Accept: '*/*',
                 ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
