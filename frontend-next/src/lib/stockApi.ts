@@ -5,6 +5,7 @@
 
 import { API, API_BASE, resolveApiLink } from './apiCore';
 import { requestStockQuote } from './stockQuoteRequest';
+import { decodePriceHistory } from './priceHistoryPayload';
 import type {
     Company,
     StockOverview,
@@ -303,9 +304,10 @@ export async function fetchPriceHistory(
     period: '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | 'ALL' = '3M'
 ): Promise<PriceData[]> {
     try {
-        const response = await fetch(`${API.PRICE_HISTORY(symbol)}?period=${period}`);
+        const response = await fetch(`${API.PRICE_HISTORY(symbol)}?period=${period}&format=columns`);
         if (!response.ok) return [];
-        return unwrapArray<PriceData>(await response.json());
+        const payload = decodePriceHistory(await response.json());
+        return (payload?.data || []).map(row => ({ ...row, time: row.time || row.date || '' }));
     } catch (error) {
         console.error(`Error fetching price history for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return [];
@@ -449,7 +451,7 @@ export async function checkDataFreshness(symbol: string): Promise<DataFreshness 
  */
 export async function fetchDatabaseStats(): Promise<DatabaseStats | null> {
     try {
-        const response = await fetch(`${API_BASE}/db/stats`);
+        const response = await fetch(`${API_BASE}/stats/database`);
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {

@@ -67,6 +67,8 @@ export const API = {
     COMPANY_PROFILE: (symbol: string) => `${API_BASE}/companies/${stockSymbol(symbol)}/profile`,
     STOCK_NEWS: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/news`,
     STOCK_EVENTS: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/events`,
+    STOCK_TECHNICAL: (symbol: string, timeframe = '1d') =>
+        `${API_BASE}/stocks/${stockSymbol(symbol)}/technical?timeframe=${encodeURIComponent(timeframe)}&compact=1`,
 
     // Valuation
     VALUATION: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/valuation`,

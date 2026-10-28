@@ -69,7 +69,6 @@ export default function DownloadsPage() {
     const [downloadKind, setDownloadKind] = useState<'financials' | 'market'>('financials');
     const [fieldCodes, setFieldCodes] = useState<FieldCodeMap>({});
     const [fieldCodesLoading, setFieldCodesLoading] = useState(false);
-    const [fieldCodesLoaded, setFieldCodesLoaded] = useState(false);
     const [fieldSection, setFieldSection] = useState<FieldCodeSection>('INCOME_STATEMENT');
 
     useEffect(() => {
@@ -100,14 +99,14 @@ export default function DownloadsPage() {
     })(); }, [c.errorTickers]);
 
     useEffect(() => {
-        if (activeTab !== 'variables' || fieldCodesLoading || fieldCodesLoaded) return;
+        if (activeTab !== 'variables' || fieldCodesLoading || fieldCodes[fieldSection] !== undefined) return;
         setFieldCodesLoading(true);
-        void fetch(apiUrl('/financials/fields'), { cache: 'force-cache' })
+        void fetch(apiUrl(`/financials/fields?compact=1&section=${fieldSection}`), { cache: 'force-cache' })
             .then((response) => { if (!response.ok) throw new Error(); return response.json() as Promise<FieldCodeMap>; })
-            .then(setFieldCodes)
-            .catch(() => setFieldCodes({}))
-            .finally(() => { setFieldCodesLoaded(true); setFieldCodesLoading(false); });
-    }, [activeTab, fieldCodesLoaded, fieldCodesLoading]);
+            .then(data => setFieldCodes(previous => ({ ...previous, ...data })))
+            .catch(() => setFieldCodes(previous => ({ ...previous, [fieldSection]: [] })))
+            .finally(() => setFieldCodesLoading(false));
+    }, [activeTab, fieldCodes, fieldCodesLoading, fieldSection]);
 
     const sectors = useMemo(() => Array.from(new Set(tickers.map((ticker) => ticker.sector).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'vi')), [tickers]);
     const symbols = query.split(/[\s,]+/).map((value) => value.trim().toUpperCase()).filter(Boolean);

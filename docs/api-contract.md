@@ -1,6 +1,6 @@
 # Quy ước API công khai
 
-Frontend gọi REST qua cùng origin `/api`; Next.js chuyển tiếp tới backend. Các đường dẫn trong tài liệu dùng tiền tố này. WebSocket giữ cấu hình riêng.
+Frontend gọi REST trực tiếp tới `https://api.quanganh.org/v1/valuation`. Trong các bảng dưới, `/api` là tiền tố nội bộ Flask; khi gọi công khai, thay bằng `/v1/valuation`. Các route Next.js `/api` còn giữ cho tương thích và rollback. Xem `public-api-architecture.md`.
 
 ## Đặt tên và tương thích
 
@@ -22,12 +22,12 @@ Các đường dẫn dưới đây là GET, trừ nơi ghi method khác. `{symbo
 | `/api/stocks/{symbol}/summary` | `realtime=0` để chỉ lấy dữ liệu nền | Object phẳng: `success`, `symbol`, thông tin cơ bản, giá và chỉ số chính |
 | `/api/stocks/{symbol}/profile` | — | Object phẳng: `success`, `symbol`, `name`, `exchange`, `industry`, `company_profile` |
 | `/api/companies/{symbol}/profile` | — | Hồ sơ xuất sẵn: `company_name`, `company_profile`, `history`, vốn điều lệ…; khác schema của stock profile |
-| `/api/companies/{symbol}/description` | `lang=vi\|en` | `{ available, profile, source }`, mô tả đa ngôn ngữ từ Next.js |
+| `/api/companies/{symbol}/description` | `lang=vi\|en` | `{ available, profile, source }`, mô tả đa ngôn ngữ từ backend |
 | `/api/stocks/{symbol}/overview` | — | Object gộp summary, profile và các chuỗi chỉ số |
 | `/api/stocks/{symbol}/quote` | — | Object phẳng: `success`, `symbol`, `current_price`, thay đổi giá, khối lượng, `orderbook`… |
 | `/api/stocks/quotes` | `symbols=FPT,VCB` | Object theo mã: `{ "FPT": { "price": …, "changePercent": …, "companyName": …, "exchange": … } }` |
 | `/api/stocks/overviews` | `symbols=FPT,VCB` | Object theo mã chứa overview tương ứng |
-| `/api/stocks/{symbol}/price-history` | `period=1M\|3M\|6M\|1Y\|2Y\|3Y\|5Y\|ALL` | `{ success, symbol, data: […], count, source, latest_date }` |
+| `/api/stocks/{symbol}/price-history` | `period=1M\|3M\|6M\|1Y\|2Y\|3Y\|5Y\|ALL`, `format=rows\|columns` | `{ success, symbol, data: […], count, source, latest_date }`; dạng `columns` khai báo tên cột một lần |
 | `/api/stocks/{symbol}/valuation-history` | `limit`, tối đa 250 | `{ success, symbol, period, source, count, data: […] }`, chỉ số PE/PB theo ngày |
 | `/api/stocks/{symbol}/chart-data` | `period=quarter\|year` | `{ success, symbol, period, count, data: […] }`, chỉ số tài chính theo kỳ |
 | `/api/stocks/{symbol}/ratio-history`, `/ratio-series` | — | Object chứa các chuỗi chỉ số phục vụ biểu đồ |
@@ -46,7 +46,7 @@ Các đường dẫn dưới đây là GET, trừ nơi ghi method khác. `{symbo
 | GET/POST `/api/stocks/{symbol}/valuation/sensitivity` | Giả định và khoảng biến thiên | Ma trận độ nhạy định giá |
 | `/api/companies`, `/api/companies/search` | Danh sách: `exchange`, `page`, `limit`; tìm kiếm: `q`, `limit` | Mảng doanh nghiệp trực tiếp |
 
-Các tài nguyên cổ phiếu khác dùng cùng cấu trúc tên: `/shareholders`, `/financial-dashboard`, `/revenue-profit`, `/loan-breakdown`, `/technical`, `/technical/{timeframe}`, `/ai-analysis`, `/freshness`. Giữ nguyên schema của từng endpoint; `/ai-analysis` có thể trả `available: false` khi chưa có bài phân tích.
+Các tài nguyên cổ phiếu khác dùng cùng cấu trúc tên: `/shareholders`, `/financial-dashboard`, `/revenue-profit`, `/loan-breakdown`, `/technical`, `/ai-analysis`, `/freshness`. Client mới dùng `/technical?timeframe=1h|1d|1w&compact=1`; đường dẫn cũ `/technical/ONE_DAY` và giá trị `ONE_HOUR`, `ONE_DAY`, `ONE_WEEK` vẫn hoạt động. `/ai-analysis` có thể trả `available: false` khi chưa có bài phân tích.
 
 ## Thị trường và tải dữ liệu
 
@@ -62,7 +62,7 @@ Các tài nguyên cổ phiếu khác dùng cùng cấu trúc tên: `/shareholder
 | `/api/market/funds` | `{ success, data: […], count, fetched_at, source, stale? }` |
 | `/api/market/funds/{symbol}` | `{ success, fund, history, yearly_returns, … }` |
 | `/api/financials/years` | `{ first_year, last_year }` |
-| `/api/financials/fields` | Bảng mã trường tài chính do Next.js phục vụ |
+| `/api/financials/fields` | Bảng mã trường tài chính từ backend; `section`, `fields`, `compact=1` lọc đúng dữ liệu cần |
 | `/api/exports/financials` | File báo cáo theo phạm vi lựa chọn; giữ `Content-Type` và `Content-Disposition` |
 | `/api/workbooks` | `{ success, files: […], count, missing }`, URL tải workbook gốc |
 | `/api/workbooks/archive` | File ZIP chứa workbook gốc |
@@ -78,6 +78,24 @@ Các tên đã rõ nghĩa như `/market/screener`, `/market/heatmap`, `/market/t
 Response thành công giữ schema theo endpoint để tương thích: có endpoint trả object phẳng, có endpoint trả mảng, có endpoint dùng `{ success, data }`. Việc chuẩn hóa tên URL không tự bọc thêm một lớp `data` hay đổi tên tất cả trường. Khi đổi schema sau này, phải cập nhật type, client và kiểm thử tương ứng.
 
 JSON dùng UTF-8 và dạng gọn mặc định. Chỉ thêm `?pretty=1` khi cần thụt dòng để đọc; User-Agent của curl hay trình duyệt không làm thay đổi cách định dạng.
+
+## Response gọn cho client mới
+
+- `compact=1` là lựa chọn rút gọn có chủ đích tại endpoint hỗ trợ; không tự ý bỏ giá trị `0`, `false` hoặc `null` trên toàn bộ API.
+- `/stocks/VCB/price-history?period=1Y&snapshot=1&format=columns` trả tên cột trong `columns`, mỗi phần tử `data` là một hàng cùng thứ tự. Giữ nguyên giá trị và độ chính xác; không làm tròn để giảm dung lượng. Frontend giải mã về object tại một helper chung.
+- `/financials/fields?compact=1&section=INCOME_STATEMENT` chỉ lấy một nhóm. `section` nhận danh sách nhóm cách nhau bằng dấu phẩy. `fields=field,titleVi,titleEn` lấy riêng nhãn hiển thị. Chỉ các nhóm và trường trong danh sách cho phép được chấp nhận; sai trả 400.
+- Bản field-code gọn bỏ `name`, `parent` và `fullTitleVi/fullTitleEn` khi trùng với nhãn ngắn. Nhãn đầy đủ khác nội dung vẫn giữ; giao diện dùng nhãn đầy đủ hoặc nhãn ngắn dự phòng.
+- `/stocks/VCB/technical?timeframe=1d&compact=1` giữ dữ liệu chỉ báo, mã, kỳ và thời điểm cập nhật; bỏ trace ID, mã trạng thái và thông điệp debug của nguồn.
+- `/stocks/VCB/ai-analysis?compact=1` trả `analysis` và `news` dưới dạng JSON object, bỏ bài văn bản lặp, model và các bản sao năm/quý. Giữ `available`, `ticker`, `quarter`, `generated_at`; adapter frontend tương thích với component cũ.
+- JSON cacheable có ETag và hỗ trợ `If-None-Match` → HTTP 304, không truyền lại body khi không đổi. Không gắn ETag cho giá trực tiếp, lỗi, POST hoặc stream tải file. Trình duyệt tự revalidate; client không cần tự thêm header gây CORS preflight.
+
+Ví dụ lịch sử gọn:
+
+```json
+{"success":true,"symbol":"VCB","columns":["date","open","high","low","close","volume"],"data":[["2026-10-27",58000,59000,57000,58500,1200000]],"count":1,"source":"sqlite","latest_date":"2026-10-27"}
+```
+
+Các định dạng đầy đủ và alias cũ vẫn giữ để tương thích. Dùng danh từ rõ nghĩa (`quote`, `summary`, `financials`, `price-history`), không đổi thành mã viết tắt khó đọc chỉ để rút ngắn URL. Phần tiết kiệm chính nằm ở body, nén và tránh tải lại dữ liệu.
 
 Lỗi HTTP dùng cùng cấu trúc tại backend và proxy:
 
@@ -106,7 +124,7 @@ Heatmap dùng cache ngắn để giảm lần đi qua function tới backend khi
 
 ## Triển khai
 
-Proxy và các fetch trực tiếp từ server chuyển URL chuẩn sang đường dẫn upstream tương thích dựa trên manifest chung. Vì vậy frontend mới hoạt động với cả backend cũ lẫn mới, không cần retry 404 và không phụ thuộc thứ tự triển khai. Backend mới cũng phục vụ trực tiếp các alias chuẩn. Bộ triển khai backend cần chứa manifest tại `frontend-next/src/lib/apiRouteAliases.json`, không cần cài hay build Node để đọc file này.
+Browser mới gọi trực tiếp các URL chuẩn; proxy tương thích và các fetch server-side vẫn dịch URL theo manifest chung. Triển khai backend trước frontend khi thêm định dạng response hoặc tham số mới. Backend và proxy cần `frontend-next/src/lib/apiRouteAliases.json` cùng `apiCacheRules.json`; backend không cần cài hay build Node để đọc chúng.
 
 Không xóa alias trong cùng đợt chuyển đổi. Trước khi bỏ một URL cũ, cần kiểm tra các client còn dùng nó và công bố thay đổi hợp đồng. Các tối ưu Python có hiệu lực khi tiến trình backend nạp phiên bản mới.
 

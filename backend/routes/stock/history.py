@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 
 from flask import Blueprint, jsonify, request
+from backend.services.api_payloads import column_history
 
 from backend.utils import validate_stock_symbol
 from backend.db_path import resolve_price_history_db_path
@@ -341,6 +342,9 @@ def register(stock_bp: Blueprint) -> None:
             if not is_valid:
                 return jsonify({"error": result, "success": False}), 400
             symbol = result
+            response_format = request.args.get("format", "rows")
+            if response_format not in {"rows", "columns"}:
+                return jsonify(error="format must be rows or columns"), 400
 
             try:
                 range_param = request.args.get("period", request.args.get("range", "6M")).upper()
@@ -389,9 +393,10 @@ def register(stock_bp: Blueprint) -> None:
                     response.headers['Cache-Control'] = 'no-store'
                     return response
 
-                response = jsonify({"symbol": symbol, "data": history_data, "count": len(history_data),
-                                    "success": True, "source": data_source,
-                                    "latest_date": history_data[-1]['date']})
+                payload = {"symbol": symbol, "data": history_data, "count": len(history_data),
+                           "success": True, "source": data_source,
+                           "latest_date": history_data[-1]['date']}
+                response = jsonify(column_history(payload) if response_format == "columns" else payload)
                 response.headers['Cache-Control'] = (
                     'public, max-age=0, s-maxage=5, stale-while-revalidate=10' if snapshot else 'no-store'
                 )

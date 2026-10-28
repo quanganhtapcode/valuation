@@ -212,7 +212,7 @@ def after_request(response):
     header['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     header['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
     header['Access-Control-Expose-Headers'] = (
-        'Content-Disposition, Retry-After, Server-Timing, X-Source, X-Cache, X-DB, X-Export-Rows'
+        'Content-Disposition, ETag, Retry-After, Server-Timing, X-Source, X-Cache, X-DB, X-Export-Rows'
     )
 
     # Compact UTF-8 is the default for every client. Pretty printing is opt-in.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from pathlib import Path
@@ -11,6 +12,7 @@ from flask import Blueprint, jsonify, request, send_file
 
 from backend.cache_utils import cache_get_ns, cache_set_ns
 from backend.services.polymarket_selection import select_polymarket_events
+from backend.services.api_payloads import project_field_codes
 
 logger = logging.getLogger(__name__)
 public_resources_bp = Blueprint("public_resources", __name__, url_prefix="/api")
@@ -26,6 +28,18 @@ def financial_fields():
     path = ROOT / "config" / "vci_field_codes.json"
     if not path.is_file():
         return jsonify(error="Financial field-code map is unavailable"), 404
+    if request.args.get("compact") == "1" or request.args.get("section") or request.args.get("fields"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            response = jsonify(project_field_codes(data, request.args.get("section"),
+                               request.args.get("compact") == "1", request.args.get("fields")))
+            response.headers["Cache-Control"] = "public, max-age=86400"
+            return response
+        except (OSError, json.JSONDecodeError):
+            logger.exception("Financial field-code map is unavailable")
+            return jsonify(error="Financial field-code map is unavailable"), 503
+        except ValueError as error:
+            return jsonify(error=str(error)), 400
     return send_file(path, mimetype="application/json", max_age=86400)
 
 

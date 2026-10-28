@@ -6,15 +6,18 @@ from flask import Blueprint, jsonify, request
 
 from backend.services.vci_technical_sqlite import default_technical_db_path, query_technical_snapshot
 from backend.utils import validate_stock_symbol
+from backend.services.api_payloads import compact_technical
 
 
 logger = logging.getLogger(__name__)
 
 ALLOWED_TIMEFRAMES = {"ONE_HOUR", "ONE_DAY", "ONE_WEEK"}
+TIMEFRAME_ALIASES = {"1H": "ONE_HOUR", "1D": "ONE_DAY", "1W": "ONE_WEEK"}
 
 
 def _resolve_timeframe(route_timeframe: str | None) -> str:
     timeframe = (request.args.get("timeframe") or route_timeframe or "ONE_DAY").strip().upper()
+    timeframe = TIMEFRAME_ALIASES.get(timeframe, timeframe)
     if timeframe not in ALLOWED_TIMEFRAMES:
         raise ValueError(f"Unsupported timeframe: {timeframe}")
     return timeframe
@@ -41,7 +44,7 @@ def register(stock_bp: Blueprint) -> None:
                     "timeframe": clean_timeframe,
                 }), 404
 
-            return jsonify(snapshot)
+            return jsonify(compact_technical(snapshot) if request.args.get("compact") == "1" else snapshot)
         except ValueError as exc:
             return jsonify({"success": False, "error": str(exc)}), 400
         except Exception as exc:

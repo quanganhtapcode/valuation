@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+import json
 import sqlite3
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from backend.db_path import resolve_valuation_cache_db_path
 
@@ -33,6 +34,17 @@ def register(stock_bp: Blueprint) -> None:
                 return jsonify({"available": False}), 200
 
             year, q, analysis, analysis_json, news_json, model, generated_at = row
+            if request.args.get("compact") == "1":
+                def decoded(value):
+                    try:
+                        return json.loads(value) if value else None
+                    except (TypeError, ValueError):
+                        return value
+                return jsonify({
+                    "available": True, "ticker": ticker, "quarter": f"Q{q}.{year}",
+                    "analysis": decoded(analysis_json), "news": decoded(news_json),
+                    "generated_at": generated_at,
+                })
             return jsonify({
                 "available": True,
                 "ticker": ticker,

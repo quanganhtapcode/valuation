@@ -57,4 +57,13 @@ def register_api_http(app: Flask) -> None:
         if policy == "no-store" or not response.headers.get("Cache-Control"):
             response.headers["Cache-Control"] = policy
         response.headers["X-Robots-Tag"] = "noindex"
+        # Conditional GETs save the entire body when a cacheable JSON payload
+        # has not changed. Never buffer file streams or validators for live data.
+        cache_control = response.headers.get("Cache-Control", "").lower()
+        if (request.method in {"GET", "HEAD"} and response.status_code == 200
+                and not any(flag in cache_control for flag in ("no-store", "private"))
+                and response.mimetype == "application/json" and not response.is_streamed):
+            if not response.get_etag()[0]:
+                response.add_etag()
+            response.make_conditional(request)
         return response

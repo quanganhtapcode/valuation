@@ -70,7 +70,17 @@ export interface AiAnalysisData {
 
 export async function fetchAiAnalysis(symbol: string): Promise<AiAnalysisData> {
     try {
-        return await fetchAPI<AiAnalysisData>(API.STOCK_AI_ANALYSIS(symbol));
+        const result = await fetchAPI<AiAnalysisData & { analysis?: unknown; news?: unknown }>(
+            `${API.STOCK_AI_ANALYSIS(symbol)}?compact=1`,
+        );
+        const asJson = (value: unknown) => value == null ? undefined
+            : typeof value === 'string' ? value : JSON.stringify(value);
+        const { analysis, news, ...data } = result;
+        return {
+            ...data,
+            analysis_json: analysis === undefined ? data.analysis_json : asJson(analysis),
+            news_json: news === undefined ? data.news_json : asJson(news),
+        };
     } catch {
         return { available: false };
     }

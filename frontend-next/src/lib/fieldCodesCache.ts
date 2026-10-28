@@ -3,12 +3,18 @@ type FieldLabel = { vi: string; en: string }
 type FieldMap = Record<string, FieldLabel>
 
 let cachedMap: FieldMap | null = null
+let pendingMap: Promise<FieldMap> | null = null
 
 export async function getFieldCodes(): Promise<FieldMap> {
     if (cachedMap) return cachedMap
+    if (pendingMap) return pendingMap
+    pendingMap = loadFieldCodes()
+    try { return await pendingMap } finally { pendingMap = null }
+}
 
+async function loadFieldCodes(): Promise<FieldMap> {
     try {
-        const res = await fetch(apiUrl("/financials/fields"))
+        const res = await fetch(apiUrl("/financials/fields?compact=1&fields=field,titleVi,titleEn"))
         if (!res.ok) return {}
         const data = await res.json()
         const map: FieldMap = {}
