@@ -4,6 +4,8 @@ import { createLocalizedMetadata } from '@/lib/i18nRouting';
 import { fundsCopy } from '@/lib/fundsCopy';
 import type { FundSnapshot } from '@/lib/fundsApi';
 import FundsClient from './FundsClient';
+import { Suspense } from 'react';
+import Loading from '../loading';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
     return createLocalizedMetadata(params, '/funds', {
@@ -12,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     });
 }
 
-export default async function FundsPage() {
+async function FundsSnapshot() {
     let initial: FundSnapshot | null = null;
     try {
         const response = await fetch(`${BACKEND_API}/market/funds`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(8000) });
@@ -22,4 +24,8 @@ export default async function FundsPage() {
         }
     } catch { /* The client offers retry if the initial snapshot is unavailable. */ }
     return <FundsClient initial={initial} />;
+}
+
+export default function FundsPage() {
+    return <Suspense fallback={<Loading />}><FundsSnapshot /></Suspense>;
 }

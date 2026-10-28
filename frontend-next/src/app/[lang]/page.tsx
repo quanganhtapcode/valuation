@@ -1,4 +1,6 @@
 import OverviewClient from './OverviewClient';
+import { Suspense } from 'react';
+import Loading from './loading';
 import { getOverviewSnapshot } from '@/lib/overviewSnapshot.server';
 import { createLocalizedMetadata, type LocalizedPageProps } from '@/lib/i18nRouting';
 
@@ -10,7 +12,11 @@ export const generateMetadata = ({ params }: LocalizedPageProps) => createLocali
   en: { title: 'Vietnam Stock Market Today | VNINDEX, VN30 & Analysis', description: 'Track VNINDEX, VN30, top movers, market heatmap, foreign flows, news, and Vietnamese stock valuation.' },
 });
 
-export default async function OverviewPage() {
+async function OverviewSnapshot() {
   const snapshot = await getOverviewSnapshot();
   return <OverviewClient {...snapshot} />;
+}
+
+export default function OverviewPage() {
+  return <Suspense fallback={<Loading />}><OverviewSnapshot /></Suspense>;
 }

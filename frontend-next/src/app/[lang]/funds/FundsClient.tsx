@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import FundsTabs from '@/components/Funds/FundsTabs';
 import IssuerLogo from '@/components/Funds/IssuerLogo';
 import { fundIssuers } from '@/lib/fundIssuers';
@@ -21,10 +22,12 @@ const FundsComparison = dynamic(() => import('@/components/Funds/FundsComparison
 const fundRefreshDelay = () => 300000;
 
 export default function FundsClient({ initial }: { initial: FundSnapshot | null }) {
+    const router = useRouter();
     const { lang } = useLanguage();
     const t = fundsCopy[lang];
     const headings = fundDetailCopy[lang];
     const locale = { vi: 'vi-VN', en: 'en-US' }[lang];
+    const prefetchFund = (symbol: string) => router.prefetch(`/${lang}/funds/${encodeURIComponent(symbol)}`);
     const numberFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }), [locale]);
     const [snapshot, setSnapshot] = useState(initial);
     const [loading, setLoading] = useState(!initial);
@@ -116,7 +119,7 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row: FundPrice) => <tr key={row.short_name} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
                     <td className="px-3 py-3.5 md:px-4"><div className="flex items-center gap-3">
                         <IssuerLogo manager={row.fund_owner_name} />
-                        <div className="min-w-0"><Link prefetch={false} href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} aria-label={`${row.short_name} — ${formatFundDisplayName(row.name)}`} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">{row.short_name}</Link>
+                        <div className="min-w-0"><Link prefetch={false} onMouseEnter={() => prefetchFund(row.short_name)} onFocus={() => prefetchFund(row.short_name)} onTouchStart={() => prefetchFund(row.short_name)} href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} aria-label={`${row.short_name} — ${formatFundDisplayName(row.name)}`} className="font-semibold text-blue-600 hover:underline dark:text-blue-400">{row.short_name}</Link>
                             <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{typeLabel(row.fund_type)}</div>
                         </div>
                     </div></td>
@@ -131,7 +134,7 @@ export default function FundsClient({ initial }: { initial: FundSnapshot | null 
             <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
                 <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-slate-500"><span>{rows.length} {t.result}</span><select aria-label={lang === 'vi' ? 'Sắp xếp quỹ' : 'Sort funds'} value={`${sort.key}:${sort.descending}`} onChange={event => { const [key, descending] = event.target.value.split(':'); setSort({ key: key as SortKey, descending: descending === 'true' }); }} className="min-w-0 max-w-[65%] rounded border border-slate-200 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-900">{columns.flatMap(column => [false, true].map(descending => <option key={`${column.key}:${descending}`} value={`${column.key}:${descending}`}>{column.label} {descending ? '↓' : '↑'}</option>))}</select></div>
                 {rows.slice(0, mobileVisible).map(row => <article key={row.short_name} className="px-3 py-3">
-                    <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><IssuerLogo manager={row.fund_owner_name} /><div className="min-w-0"><Link prefetch={false} href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} className="text-sm font-semibold text-blue-600 dark:text-blue-400">{row.short_name}</Link><p className="truncate text-[11px] text-slate-500">{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</p></div></div><div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums">{numberFormatter.format(row.nav)}</p><p className="text-[10px] text-slate-400">{row.nav_update_at || '—'}</p></div></div>
+                    <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><IssuerLogo manager={row.fund_owner_name} /><div className="min-w-0"><Link prefetch={false} onMouseEnter={() => prefetchFund(row.short_name)} onFocus={() => prefetchFund(row.short_name)} onTouchStart={() => prefetchFund(row.short_name)} href={`/${lang}/funds/${encodeURIComponent(row.short_name)}`} title={formatFundDisplayName(row.name)} className="text-sm font-semibold text-blue-600 dark:text-blue-400">{row.short_name}</Link><p className="truncate text-[11px] text-slate-500">{fundIssuers[row.fund_owner_name]?.shortName || formatFundDisplayName(row.fund_owner_name)}</p></div></div><div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums">{numberFormatter.format(row.nav)}</p><p className="text-[10px] text-slate-400">{row.nav_update_at || '—'}</p></div></div>
                     <div className="mt-2 flex items-center justify-between gap-2 text-[11px]"><span className="text-slate-500">{typeLabel(row.fund_type)}</span><span className="whitespace-nowrap">{lang === 'vi' ? '1 năm' : '1Y'} <span className="font-semibold">{percent(row.nav_change_12m)}</span></span><span className="whitespace-nowrap">{lang === 'vi' ? '3 năm/năm' : '3Y ann.'} <span className="font-semibold">{percent(row.nav_change_36m_annualized)}</span></span></div>
                 </article>)}
                 {rows.length > mobileVisible && <button type="button" onClick={() => setMobileVisible(count => count + 12)} className="w-full py-3 text-sm font-medium text-blue-600 dark:text-blue-400">{lang === 'vi' ? 'Xem thêm quỹ' : 'Show more funds'} ({Math.min(mobileVisible, rows.length)}/{rows.length})</button>}
