@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { apiUrl } from '@/lib/apiCore';
 
 import { useState, useEffect, useTransition, useCallback } from 'react';
@@ -256,7 +258,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     });
 
                 // Retry a missing profile independently; never queue it behind summary.
-                if (!initialStockInfo.overview?.description) fetch(apiUrl(`/companies/${symbol}/description?lang=${lang}`), { signal: controller.signal })
+                if (!initialStockInfo.overview?.description) apiFetch(apiUrl(`/companies/${symbol}/description?lang=${lang}`), { signal: controller.signal })
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         if (res?.available && typeof res.profile === 'string') {
@@ -339,7 +341,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 // PHASE 2: Non-critical overview enrichments. Keep them off the
                 // critical path so first paint is not competing with extra API calls.
                 idleCleanups.push(scheduleIdleWork(() => {
-                    fetch(apiUrl(`/stocks/${symbol}/news?compact=1`), { signal: controller.signal })
+                    apiFetch(apiUrl(`/stocks/${symbol}/news?compact=1`), { signal: controller.signal })
                         .then(r => r.ok ? r.json() : null)
                         .then(res => {
                             const newsData = res?.data || res;

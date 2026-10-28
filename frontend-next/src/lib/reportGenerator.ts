@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 import { apiUrl } from '@/lib/apiCore';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -188,7 +189,7 @@ export class ReportGenerator {
     private async fetchHistoricalStatements(symbol: string): Promise<HistoricalData> {
         const fetch3 = async (type: string) => {
             try {
-                const resp = await fetch(
+                const resp = await apiFetch(
                     apiUrl(`/stocks/${symbol}/financials?type=${type}&period=year&limit=7`),
                     { cache: 'no-store' }
                 );
@@ -235,7 +236,7 @@ export class ReportGenerator {
     ): Promise<Record<string, unknown> | null> {
         for (const period of ['quarter', 'year'] as const) {
             try {
-                const resp = await fetch(
+                const resp = await apiFetch(
                     apiUrl(`/stocks/${symbol}/financials?type=${type}&period=${period}&limit=1`),
                     { cache: 'no-store' }
                 );
@@ -269,7 +270,7 @@ export class ReportGenerator {
             // Try R2 raw statements
             let statementsArrayBuffer: ArrayBuffer | null = null;
             try {
-                const resp = await fetch(
+                const resp = await apiFetch(
                     `${API_BASE}/stocks/${encodeURIComponent(symbol)}/report?proxy=1`,
                     { cache: 'no-store' }
                 );

@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { apiUrl } from '@/lib/apiCore';
 
 import ChartTooltip from '@/components/charts/ChartTooltip';
@@ -43,7 +45,7 @@ export default function ValuationHistoryChart({ symbol, lang }: { symbol: string
 
     useEffect(() => {
         const controller = new AbortController();
-        fetch(apiUrl(`/stocks/${symbol}/valuation-history?limit=250`), { signal: controller.signal })
+        apiFetch(apiUrl(`/stocks/${symbol}/valuation-history?limit=250`), { signal: controller.signal })
             .then((response) => response.ok ? response.json() : null)
             .then((response) => { if (response) setRows(toRows(response)); })
             .catch(() => undefined);

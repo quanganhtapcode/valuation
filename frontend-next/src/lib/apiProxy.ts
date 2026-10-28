@@ -46,7 +46,8 @@ export async function proxyApiRequest(request: Request, apiPath: string, backend
             headers.delete('ETag');
             headers.delete('Last-Modified');
             headers.delete('Content-Disposition');
-            return Response.json(proxyErrorPayload(response.status, payload), {
+            const error = proxyErrorPayload(response.status, payload);
+            return Response.json(headers.get('X-API-Schema') === '2' ? { error: error.error } : error, {
                 status: response.status, headers,
             });
         }

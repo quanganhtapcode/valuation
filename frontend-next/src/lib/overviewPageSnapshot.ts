@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 import { backendApiPath } from './apiRouteRegistry';
 import { backendRequestHeaders } from './backendRequestHeaders';
 import { INDEX_MAP, type VciIndexItem } from './marketTypes';
@@ -17,7 +18,7 @@ async function resource<T>(backendApi: string, path: string, revalidate: number,
             next: { revalidate },
             signal: AbortSignal.timeout(timeout),
         };
-        const response = await fetch(`${backendApi}/${backendApiPath(pathname)}${query ? `?${query}` : ''}`, options);
+        const response = await apiFetch(`${backendApi}/${backendApiPath(pathname)}${query ? `?${query}` : ''}`, options);
         if (!response.ok) return null;
         const data: T = await response.json();
         // Keep the age of responses served from Next's persistent data cache.

@@ -1,0 +1,659 @@
+[
+  {
+    "name": "quote",
+    "route": "/api/stocks/<symbol>/quote",
+    "payload": {
+      "symbol": "VCB",
+      "current_price": 12345.678901,
+      "price_change": 0,
+      "price_change_percent": 0,
+      "timestamp": "2026-10-28T15:48:41.832065",
+      "success": true,
+      "source": "VCI_RAM",
+      "open": 56200.0,
+      "high": 57600.0,
+      "low": 56100.0,
+      "volume": 0,
+      "ceiling": 60000.0,
+      "floor": 52200.0,
+      "ref_price": 56100.0,
+      "market_cap": null,
+      "shares_outstanding": null,
+      "orderbook": {
+        "bid": [
+          {
+            "price": 57300.0,
+            "volume": 5000.0
+          },
+          {
+            "price": 57200.0,
+            "volume": 7700.0
+          },
+          {
+            "price": 57100.0,
+            "volume": 20900.0
+          }
+        ],
+        "ask": [
+          {
+            "price": 57500.0,
+            "volume": 191400.0
+          },
+          {
+            "price": 57600.0,
+            "volume": 197200.0
+          },
+          {
+            "price": 57700.0,
+            "volume": 42900.0
+          }
+        ]
+      }
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "symbol": "VCB",
+        "orderbook": {
+          "columns": [
+            "price",
+            "volume"
+          ],
+          "bid": [
+            [
+              57300.0,
+              5000.0
+            ],
+            [
+              57200.0,
+              7700.0
+            ],
+            [
+              57100.0,
+              20900.0
+            ]
+          ],
+          "ask": [
+            [
+              57500.0,
+              191400.0
+            ],
+            [
+              57600.0,
+              197200.0
+            ],
+            [
+              57700.0,
+              42900.0
+            ]
+          ]
+        },
+        "price": {
+          "last": 12345.678901,
+          "change": 0,
+          "change_pct": 0,
+          "reference": 56100.0,
+          "ceiling": 60000.0,
+          "floor": 52200.0
+        },
+        "session": {
+          "open": 56200.0,
+          "high": 57600.0,
+          "low": 56100.0,
+          "volume": 0
+        },
+        "capital": {
+          "market_cap": null,
+          "shares": null
+        }
+      },
+      "meta": {
+        "source": "VCI_RAM",
+        "timestamp": "2026-10-28T15:48:41.832065"
+      }
+    },
+    "shape": "quote;success"
+  },
+  {
+    "name": "summary",
+    "route": "/api/stock/<symbol>/summary",
+    "payload": {
+      "success": true,
+      "symbol": "VCB",
+      "name": "Ngân hàng",
+      "exchange": "HOSE",
+      "industry": "Banks",
+      "isbank": true,
+      "current_price": 0,
+      "pe": null,
+      "pb": 0,
+      "roe": 0,
+      "after_tax_margin": null,
+      "net_margin": null,
+      "profit_growth": -2.6,
+      "debt_to_equity": 0,
+      "nim": 0,
+      "asset_turnover": 1.123456789
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "symbol": "VCB",
+        "company": {
+          "name": "Ngân hàng",
+          "exchange": "HOSE",
+          "industry": "Banks",
+          "is_bank": true
+        },
+        "price": {
+          "last": 0
+        },
+        "valuation": {
+          "pe": null,
+          "pb": 0
+        },
+        "profitability": {
+          "roe": 0,
+          "after_tax_margin": null,
+          "net_margin": null
+        },
+        "growth": {
+          "profit": -2.6
+        },
+        "balance": {
+          "debt_to_equity": 0
+        },
+        "banking": {
+          "nim": 0
+        },
+        "efficiency": {
+          "assets": 1.123456789
+        }
+      }
+    },
+    "shape": "summary;success"
+  },
+  {
+    "name": "rows",
+    "route": "/api/stocks/<symbol>/financials",
+    "payload": [
+      {
+        "year": 2026,
+        "q": 3,
+        "revenue": 0,
+        "profit": null
+      }
+    ],
+    "status": 200,
+    "envelope": {
+      "data": [
+        {
+          "year": 2026,
+          "q": 3,
+          "revenue": 0,
+          "profit": null
+        }
+      ]
+    },
+    "shape": "list"
+  },
+  {
+    "name": "empty-list",
+    "route": "/api/companies",
+    "payload": [],
+    "status": 200,
+    "envelope": {
+      "data": []
+    },
+    "shape": "list"
+  },
+  {
+    "name": "count-derived",
+    "route": "/api/stocks/<symbol>/price-history",
+    "payload": {
+      "success": true,
+      "symbol": "VCB",
+      "columns": [
+        "date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume"
+      ],
+      "data": [
+        [
+          "2026-10-27",
+          1,
+          2,
+          1,
+          2,
+          0
+        ]
+      ],
+      "count": 1,
+      "source": "sqlite",
+      "latest_date": "2026-10-27"
+    },
+    "status": 200,
+    "envelope": {
+      "data": [
+        [
+          "2026-10-27",
+          1,
+          2,
+          1,
+          2,
+          0
+        ]
+      ],
+      "meta": {
+        "symbol": "VCB",
+        "columns": [
+          "date",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "source": "sqlite",
+        "latest_date": "2026-10-27"
+      }
+    },
+    "shape": "data;success;count"
+  },
+  {
+    "name": "paginated-total",
+    "route": "/api/market/news",
+    "payload": {
+      "success": true,
+      "data": [
+        {
+          "title": "News"
+        }
+      ],
+      "count": 100,
+      "page": 1,
+      "has_more": true
+    },
+    "status": 200,
+    "envelope": {
+      "data": [
+        {
+          "title": "News"
+        }
+      ],
+      "meta": {
+        "count": 100,
+        "page": 1,
+        "has_more": true
+      }
+    },
+    "shape": "data;success"
+  },
+  {
+    "name": "empty-collection",
+    "route": "/api/stocks/<symbol>/news",
+    "payload": {
+      "success": true,
+      "data": [],
+      "count": 0,
+      "available": false
+    },
+    "status": 200,
+    "envelope": {
+      "data": [],
+      "meta": {
+        "available": false
+      }
+    },
+    "shape": "data;success;count"
+  },
+  {
+    "name": "capital-Data",
+    "route": "/api/market/top-movers",
+    "payload": {
+      "Data": [
+        {
+          "symbol": "VCB",
+          "price": 0
+        }
+      ],
+      "Source": "provider"
+    },
+    "status": 200,
+    "envelope": {
+      "data": [
+        {
+          "symbol": "VCB",
+          "price": 0
+        }
+      ],
+      "meta": {
+        "Source": "provider"
+      }
+    },
+    "shape": "Data"
+  },
+  {
+    "name": "ticker-catalogue",
+    "route": "/api/tickers",
+    "payload": {
+      "tickers": [
+        {
+          "symbol": "VCB",
+          "isbank": false
+        }
+      ],
+      "count": 1,
+      "last_updated": "2026-10-28"
+    },
+    "status": 200,
+    "envelope": {
+      "data": [
+        {
+          "symbol": "VCB",
+          "isbank": false
+        }
+      ],
+      "meta": {
+        "last_updated": "2026-10-28"
+      }
+    },
+    "shape": "tickers;count"
+  },
+  {
+    "name": "sector-list",
+    "route": "/api/stocks/metrics/sectors",
+    "payload": {
+      "success": true,
+      "sectors": [
+        "Banks"
+      ]
+    },
+    "status": 200,
+    "envelope": {
+      "data": [
+        "Banks"
+      ]
+    },
+    "shape": "sectors;success"
+  },
+  {
+    "name": "manifest",
+    "route": "/api/workbooks",
+    "payload": {
+      "success": true,
+      "files": [
+        {
+          "filename": "VCB.xlsx",
+          "url": "https://storage.example/file?signature=keep"
+        }
+      ],
+      "count": 1,
+      "missing": []
+    },
+    "status": 200,
+    "envelope": {
+      "data": [
+        {
+          "filename": "VCB.xlsx",
+          "url": "https://storage.example/file?signature=keep"
+        }
+      ],
+      "meta": {
+        "missing": []
+      }
+    },
+    "shape": "files;success;count"
+  },
+  {
+    "name": "object-map",
+    "route": "/api/market/prices",
+    "payload": {
+      "VCB": {
+        "price": 0,
+        "changePercent": 0
+      },
+      "FPT": {
+        "price": null
+      }
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "VCB": {
+          "price": 0,
+          "changePercent": 0
+        },
+        "FPT": {
+          "price": null
+        }
+      }
+    },
+    "shape": "object"
+  },
+  {
+    "name": "field-map",
+    "route": "/api/financials/fields",
+    "payload": {
+      "INCOME_STATEMENT": [
+        {
+          "field": "isa1",
+          "titleVi": "Doanh thu"
+        }
+      ]
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "INCOME_STATEMENT": [
+          {
+            "field": "isa1",
+            "titleVi": "Doanh thu"
+          }
+        ]
+      }
+    },
+    "shape": "object"
+  },
+  {
+    "name": "technical",
+    "route": "/api/stocks/<symbol>/technical",
+    "payload": {
+      "success": true,
+      "symbol": "VCB",
+      "timeframe": "ONE_DAY",
+      "fetched_at_utc": "2026-10-28",
+      "data": {
+        "gaugeSummary": {
+          "rating": null
+        },
+        "price": 0
+      }
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "gaugeSummary": {
+          "rating": null
+        },
+        "price": 0
+      },
+      "meta": {
+        "symbol": "VCB",
+        "timeframe": "ONE_DAY",
+        "fetched_at_utc": "2026-10-28"
+      }
+    },
+    "shape": "data;success"
+  },
+  {
+    "name": "business-false",
+    "route": "/api/market/funds",
+    "payload": {
+      "success": false,
+      "data": [],
+      "available": false
+    },
+    "status": 200,
+    "envelope": {
+      "data": [],
+      "meta": {
+        "success": false,
+        "available": false
+      }
+    },
+    "shape": "data"
+  },
+  {
+    "name": "business-meta-key",
+    "route": "/api/market/macro/rates",
+    "payload": {
+      "meta": {
+        "business": "keep"
+      },
+      "source": "provider",
+      "updated_at": "2026-10-28",
+      "rates": {
+        "USD": null
+      }
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "meta": {
+          "business": "keep"
+        },
+        "rates": {
+          "USD": null
+        }
+      },
+      "meta": {
+        "source": "provider",
+        "updated_at": "2026-10-28"
+      }
+    },
+    "shape": "object"
+  },
+  {
+    "name": "group-name-collision",
+    "route": "/api/stocks/<symbol>/quote",
+    "payload": {
+      "price": {
+        "business": "keep"
+      },
+      "current_price": 0,
+      "success": true
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "price": {
+          "business": "keep"
+        },
+        "current_price": 0
+      }
+    },
+    "shape": "object;success"
+  },
+  {
+    "name": "null",
+    "route": "/api/example",
+    "payload": null,
+    "status": 200,
+    "envelope": {
+      "data": null
+    },
+    "shape": "value"
+  },
+  {
+    "name": "scalar",
+    "route": "/api/example",
+    "payload": 0,
+    "status": 200,
+    "envelope": {
+      "data": 0
+    },
+    "shape": "value"
+  },
+  {
+    "name": "error",
+    "route": "/api/stocks/<symbol>",
+    "payload": {
+      "success": false,
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "Symbol not found"
+      }
+    },
+    "status": 404,
+    "envelope": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "Symbol not found"
+      }
+    },
+    "shape": "error"
+  },
+  {
+    "name": "identical-margin-aliases",
+    "route": "/api/stocks/<symbol>/summary",
+    "payload": {
+      "success": true,
+      "net_profit_margin": 0.123456789,
+      "after_tax_margin": 0.123456789,
+      "net_margin": 0.123456789
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "profitability": {
+          "net_profit_margin": 0.123456789
+        }
+      }
+    },
+    "shape": "summary;success;margins"
+  },
+  {
+    "name": "distinct-margins",
+    "route": "/api/stocks/<symbol>/summary",
+    "payload": {
+      "success": true,
+      "net_profit_margin": 0,
+      "after_tax_margin": null,
+      "net_margin": 0
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "profitability": {
+          "net_profit_margin": 0,
+          "after_tax_margin": null,
+          "net_margin": 0
+        }
+      }
+    },
+    "shape": "summary;success"
+  },
+  {
+    "name": "null-margins",
+    "route": "/api/stocks/<symbol>/summary",
+    "payload": {
+      "success": true,
+      "net_profit_margin": null,
+      "after_tax_margin": null,
+      "net_margin": null
+    },
+    "status": 200,
+    "envelope": {
+      "data": {
+        "profitability": {
+          "net_profit_margin": null
+        }
+      }
+    },
+    "shape": "summary;success;margins"
+  }
+]

@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { chartColors, getChartTheme } from '@/lib/chartTheme';
 
 import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
@@ -249,7 +251,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         const controller = new AbortController();
         setIdxLoad(true);
         setIdxBars([]);
-        fetch(`${API_BASE}/market/indices/history?index=${info.vciSymbol}&days=-1&compact=1`, { signal: controller.signal })
+        apiFetch(`${API_BASE}/market/indices/history?index=${info.vciSymbol}&days=-1&compact=1`, { signal: controller.signal })
             .then(r => r.json())
             .then((rows: any[]) => {
                 if (controller.signal.aborted || !Array.isArray(rows)) return;

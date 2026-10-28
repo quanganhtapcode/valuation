@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:api": "node scripts/check-api-contract.mjs",
     "i18n:audit": "node scripts/check-i18n.mjs",
     "i18n:check": "node scripts/check-i18n.mjs --strict"
   },

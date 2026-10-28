@@ -24,9 +24,13 @@ _CANONICAL.update({
 })
 
 
+def canonical_api_route(route: str) -> str:
+    return _CANONICAL.get(route, route)
+
+
 def cache_policy(route: str, args) -> str:
     """Classify canonical and legacy Flask route templates identically."""
-    route = _CANONICAL.get(route, route)
+    route = canonical_api_route(route)
     resource = route.removeprefix("/api/").strip("/").lower()
     if (args.get("cache") == "no-store" or args.get("nocache") == "1"
             or "pretty" in args or args.get("fetch_price") == "true"):

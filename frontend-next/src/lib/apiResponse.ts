@@ -32,7 +32,8 @@ export function proxyErrorPayload(status: number, payload: unknown): ApiErrorRes
 export function proxyResponseHeaders(upstream: Headers, cacheControl: string): Headers {
     const headers = new Headers();
     for (const name of ['content-type', 'content-disposition', 'etag', 'last-modified',
-        'retry-after', 'vary', 'server-timing', 'x-source', 'x-cache', 'x-db', 'x-export-rows']) {
+        'retry-after', 'vary', 'server-timing', 'x-source', 'x-cache', 'x-db', 'x-export-rows',
+        'x-api-schema', 'x-api-shape']) {
         const value = upstream.get(name);
         if (value) headers.set(name, value);
     }

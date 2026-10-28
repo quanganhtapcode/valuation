@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 import { API } from './apiCore';
 import { requestStockQuote } from './stockQuoteRequest';
 import { decodePriceHistory, type StockHistoryPayload } from './priceHistoryPayload';
@@ -24,7 +25,7 @@ function snapshotResource<T extends { success?: boolean }>(ttl: number, normaliz
         if (existing) return existing.promise;
         while (entries.size >= 20) entries.delete(entries.keys().next().value!);
         const entry: { promise: Promise<T | null>; value?: T; completedAt?: number } = {
-            promise: fetch(url, { signal: AbortSignal.timeout(8000) })
+            promise: apiFetch(url, { signal: AbortSignal.timeout(8000) })
                 .then(response => response.ok ? response.json() : null)
                 .then(normalize)
                 .catch(() => null)

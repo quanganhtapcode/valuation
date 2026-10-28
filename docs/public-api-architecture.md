@@ -19,6 +19,9 @@ storage downloads and vendor-operated streams are separate asset/feed transports
   settings. Never put credentials in these public variables.
 
 Components use `API`, `API_BASE` or `apiUrl()` from `src/lib/apiCore.ts`.
+Requests use `apiFetch()` to negotiate the structured `schema=2` response contract.
+API location configuration lives in `apiConfig.ts`; wire grouping and legacy
+adaptation are shared through `apiContract.json`. See `api-response-schema.md`.
 `resolveApiLink()` resolves relative `/api/...` links returned in workbook
 responses to the public API base and leaves signed storage URLs intact.
 Static ticker files remain a local fallback and build-time SEO catalogue.

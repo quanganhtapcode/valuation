@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 import { apiUrl } from '@/lib/apiCore';
 type FieldLabel = { vi: string; en: string }
 type FieldMap = Record<string, FieldLabel>
@@ -14,7 +15,7 @@ export async function getFieldCodes(): Promise<FieldMap> {
 
 async function loadFieldCodes(): Promise<FieldMap> {
     try {
-        const res = await fetch(apiUrl("/financials/fields?compact=1&fields=field,titleVi,titleEn"))
+        const res = await apiFetch(apiUrl("/financials/fields?compact=1&fields=field,titleVi,titleEn"))
         if (!res.ok) return {}
         const data = await res.json()
         const map: FieldMap = {}

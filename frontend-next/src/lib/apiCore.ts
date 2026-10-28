@@ -1,21 +1,6 @@
-// One public REST origin for browser data and exports. /api remains a local
-// development / rollback option and a compatibility endpoint for older clients.
-export const API_BASE = (
-    process.env.NEXT_PUBLIC_API_BASE_URL
-    || (process.env.NODE_ENV === 'production' ? 'https://api.quanganh.org/v1/valuation' : '/api')
-).trim().replace(/\/+$/, '');
-export const REALTIME_API_BASE = API_BASE;
-
-/** Resolve a resource path without hardcoding a deployment host in components. */
-export function apiUrl(path: string): string {
-    const resource = path.replace(/^\/api(?:\/|$)/, '').replace(/^\/+/, '');
-    return `${API_BASE}/${resource}`;
-}
-
-/** Backend manifests may contain relative API URLs or signed storage URLs. */
-export function resolveApiLink(url: string): string {
-    return url.startsWith('/api/') ? apiUrl(url) : url;
-}
+import { apiFetch } from './apiFetch';
+import { API_BASE, REALTIME_API_BASE } from './apiConfig';
+export { API_BASE, REALTIME_API_BASE, apiUrl, resolveApiLink } from './apiConfig';
 
 const stockSymbol = (symbol: string) => encodeURIComponent(symbol.trim().toUpperCase());
 
@@ -102,7 +87,7 @@ export async function fetchAPI<T>(url: string, options?: RequestInit): Promise<T
         const headers = new Headers(options?.headers);
         headers.set('Accept', 'application/json');
         if (options?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-        const response = await fetch(resolvedUrl, {
+        const response = await apiFetch(resolvedUrl, {
             ...options,
             headers,
             signal: options?.signal ?? AbortSignal.timeout(20_000),

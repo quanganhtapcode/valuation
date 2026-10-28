@@ -33,6 +33,7 @@ from backend.data_sources.vci import VCIClient
 from backend.data_sources.ff_ws import ensure_started as ff_ensure_started, get_prices as ff_get_prices, register_client as ff_register, unregister_client as ff_unregister
 from backend.telemetry import record_request_latency
 from backend.services.api_http import register_api_http
+from backend.services.api_contract import register_api_contract
 
 # Initialize Flask App
 class _UnsortedJSONProvider(DefaultJSONProvider):
@@ -52,6 +53,7 @@ app.config['JSON_AS_ASCII'] = False
 # Enable gzip compression
 compress = Compress()
 compress.init_app(app)
+register_api_contract(app)
 app.config['COMPRESS_MIMETYPES'] = ['application/json', 'text/html', 'text/css', 'text/javascript']
 app.config['COMPRESS_LEVEL'] = 6
 app.config['COMPRESS_MIN_SIZE'] = 500
@@ -212,7 +214,7 @@ def after_request(response):
     header['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     header['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
     header['Access-Control-Expose-Headers'] = (
-        'Content-Disposition, ETag, Retry-After, Server-Timing, X-Source, X-Cache, X-DB, X-Export-Rows'
+        'Content-Disposition, ETag, Retry-After, Server-Timing, X-Source, X-Cache, X-DB, X-Export-Rows, X-API-Schema, X-API-Shape'
     )
 
     # Compact UTF-8 is the default for every client. Pretty printing is opt-in.

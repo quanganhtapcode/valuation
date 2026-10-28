@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { API } from '@/lib/apiCore';
 
 import { useEffect, useState } from 'react';
@@ -203,7 +205,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
         const loadTechnical = async () => {
             if (document.visibilityState !== 'visible' || controller.signal.aborted) return;
             try {
-                const response = await fetch(API.STOCK_TECHNICAL(symbol), { signal: controller.signal });
+                const response = await apiFetch(API.STOCK_TECHNICAL(symbol), { signal: controller.signal });
                 if (!response.ok) return;
                 const next = toLiveTechnicalSnapshot(await response.json());
                 if (next) setLiveTechnical(next);

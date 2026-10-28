@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import StockLink from '@/components/StockLink';
@@ -129,7 +131,7 @@ export default function EventsPage() {
             setFetching(true);
             setError(false);
             try {
-                const res = await fetch(API.MARKET_EVENTS_RANGE(fromInputValue(weekStart), fromInputValue(weekEnd)), { signal: controller.signal });
+                const res = await apiFetch(API.MARKET_EVENTS_RANGE(fromInputValue(weekStart), fromInputValue(weekEnd)), { signal: controller.signal });
                 if (!res.ok) throw new Error('fetch failed');
                 const data: unknown = await res.json();
                 if (!Array.isArray(data)) throw new Error('invalid events response');

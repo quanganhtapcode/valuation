@@ -75,6 +75,11 @@ Các tên đã rõ nghĩa như `/market/screener`, `/market/heatmap`, `/market/t
 
 ## JSON và lỗi
 
+Client mới dùng `schema=2`: thành công trả `{ data, meta? }`, lỗi trả `{ error }`.
+Giá và summary có các nhóm nghiệp vụ rõ ràng; metadata tách khỏi dữ liệu. Chi tiết
+và ví dụ ở `api-response-schema.md`. Các mô tả response cũ trong bảng ở trên vẫn
+áp dụng cho request không có `schema=2` và được adapter frontend hỗ trợ.
+
 Response thành công giữ schema theo endpoint để tương thích: có endpoint trả object phẳng, có endpoint trả mảng, có endpoint dùng `{ success, data }`. Việc chuẩn hóa tên URL không tự bọc thêm một lớp `data` hay đổi tên tất cả trường. Khi đổi schema sau này, phải cập nhật type, client và kiểm thử tương ứng.
 
 JSON dùng UTF-8 và dạng gọn mặc định. Chỉ thêm `?pretty=1` khi cần thụt dòng để đọc; User-Agent của curl hay trình duyệt không làm thay đổi cách định dạng.

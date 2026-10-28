@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, Title, Select, SelectItem, Button, Icon } from '@tremor/react';
 import { RiCloseLine, RiDownloadLine } from '@remixicon/react';
@@ -27,7 +29,7 @@ export default function IndexHistoryModal({ isOpen, onClose, indexId, indexName 
         const fetchData = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`${API_BASE}/market/indices/history?index=${symbol}&days=${days}`);
+                const res = await apiFetch(`${API_BASE}/market/indices/history?index=${symbol}&days=${days}`);
                 const json = await res.json();
                 if (Array.isArray(json)) {
                     setData(json);

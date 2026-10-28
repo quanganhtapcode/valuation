@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { cache } from 'react';
 import { BACKEND_API } from '@/lib/backendApi.server';
@@ -9,7 +10,7 @@ import FundDetailClient from './FundDetailClient';
 type Props = { params: Promise<{ lang: string; symbol: string }> };
 
 const loadFund = cache(async (symbol: string): Promise<FundDetail> => {
-    const response = await fetch(`${BACKEND_API}/market/funds/${encodeURIComponent(symbol.toUpperCase())}`, { headers: backendRequestHeaders, next: { revalidate: 300 }, signal: AbortSignal.timeout(10000) });
+    const response = await apiFetch(`${BACKEND_API}/market/funds/${encodeURIComponent(symbol.toUpperCase())}`, { headers: backendRequestHeaders, next: { revalidate: 300 }, signal: AbortSignal.timeout(10000) });
     if (response.status === 404) notFound();
     if (!response.ok) throw new Error('Unable to load fund');
     return response.json();

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 import { apiUrl } from '@/lib/apiCore';
 let cachedTickers: any = null;
 let pendingTickers: Promise<any> | null = null;
@@ -9,7 +10,7 @@ export async function getTickerData() {
     // Navbar, watchlist and search can request the same directory simultaneously.
     pendingTickers = (async () => {
         try {
-            const response = await fetch(apiUrl('/tickers'));
+            const response = await apiFetch(apiUrl('/tickers'));
             if (response.ok) {
                 cachedTickers = await response.json();
                 return cachedTickers;

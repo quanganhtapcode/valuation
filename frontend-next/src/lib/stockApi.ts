@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 /**
  * Stock API Functions
  * Functions to fetch stock data from SQLite-backed Python backend
@@ -50,7 +51,7 @@ function unwrapArray<T>(raw: unknown): T[] {
  */
 export async function fetchCompanyProfile(symbol: string): Promise<Company | null> {
     try {
-        const response = await fetch(API.COMPANY_PROFILE(symbol));
+        const response = await apiFetch(API.COMPANY_PROFILE(symbol));
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
@@ -67,7 +68,7 @@ export async function fetchAllCompanies(exchange?: string): Promise<Company[]> {
         const url = exchange
             ? `${API_BASE}/companies?exchange=${exchange}`
             : `${API_BASE}/companies`;
-        const response = await fetch(url);
+        const response = await apiFetch(url);
         if (!response.ok) return [];
         return await response.json();
     } catch (error) {
@@ -81,7 +82,7 @@ export async function fetchAllCompanies(exchange?: string): Promise<Company[]> {
  */
 export async function searchCompanies(query: string, limit: number = 20): Promise<SearchResult[]> {
     try {
-        const response = await fetch(`${API_BASE}/companies/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+        const response = await apiFetch(`${API_BASE}/companies/search?q=${encodeURIComponent(query)}&limit=${limit}`);
         if (!response.ok) return [];
         return await response.json();
     } catch (error) {
@@ -98,7 +99,7 @@ export async function searchCompanies(query: string, limit: number = 20): Promis
  */
 export async function fetchStockSummary(symbol: string): Promise<Record<string, any> | null> {
     try {
-        const response = await fetch(API.STOCK_SUMMARY(symbol));
+        const response = await apiFetch(API.STOCK_SUMMARY(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         return json.success ? json : null;
@@ -114,7 +115,7 @@ export async function fetchStockSummary(symbol: string): Promise<Record<string, 
  */
 export async function fetchStockProfile(symbol: string): Promise<Record<string, any> | null> {
     try {
-        const response = await fetch(API.STOCK_PROFILE(symbol));
+        const response = await apiFetch(API.STOCK_PROFILE(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         return json.success ? json : null;
@@ -130,7 +131,7 @@ export async function fetchStockProfile(symbol: string): Promise<Record<string, 
  */
 export async function fetchStockRatioHistory(symbol: string): Promise<Record<string, any> | null> {
     try {
-        const response = await fetch(API.STOCK_RATIO_HISTORY(symbol));
+        const response = await apiFetch(API.STOCK_RATIO_HISTORY(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         return json.success ? json : null;
@@ -146,7 +147,7 @@ export async function fetchStockRatioHistory(symbol: string): Promise<Record<str
  */
 export async function fetchStockRatioSeries(symbol: string): Promise<Record<string, any> | null> {
     try {
-        const response = await fetch(API.STOCK_RATIO_SERIES(symbol));
+        const response = await apiFetch(API.STOCK_RATIO_SERIES(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         return json.success ? json : null;
@@ -162,7 +163,7 @@ export async function fetchStockRatioSeries(symbol: string): Promise<Record<stri
  */
 export async function fetchStockOverviewFull(symbol: string): Promise<StockApiData | null> {
     try {
-        const response = await fetch(API.STOCK_OVERVIEW(symbol));
+        const response = await apiFetch(API.STOCK_OVERVIEW(symbol));
         if (!response.ok) return null;
         return unwrap<StockApiData>(await response.json());
     } catch (error) {
@@ -177,7 +178,7 @@ export async function fetchStockOverviewFull(symbol: string): Promise<StockApiDa
  */
 export async function fetchStockOverview(symbol: string): Promise<StockApiData | null> {
     try {
-        const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}`);
+        const response = await apiFetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}`);
         if (!response.ok) return null;
         return unwrap<StockApiData>(await response.json());
     } catch (error) {
@@ -191,7 +192,7 @@ export async function fetchStockOverview(symbol: string): Promise<StockApiData |
  */
 export async function fetchStockPeers(symbol: string): Promise<any[]> {
     try {
-        const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/peers`);
+        const response = await apiFetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/peers`);
         if (!response.ok) return [];
         const data = await response.json();
         return data.data || [];
@@ -206,7 +207,7 @@ export async function fetchStockPeers(symbol: string): Promise<any[]> {
  */
 export async function fetchBatchOverview(symbols: string[]): Promise<Record<string, StockOverview>> {
     try {
-        const response = await fetch(`${API_BASE}/stocks/overviews?symbols=${symbols.join(',')}`);
+        const response = await apiFetch(`${API_BASE}/stocks/overviews?symbols=${symbols.join(',')}`);
         if (!response.ok) return {};
         return await response.json();
     } catch (error) {
@@ -229,7 +230,7 @@ export async function fetchFinancialReport(
     period: PeriodType = 'quarter'
 ): Promise<FinancialReportBase[]> {
     try {
-        const response = await fetch(
+        const response = await apiFetch(
             `${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/financials?type=${type}&period=${period}`
         );
         if (!response.ok) return [];
@@ -304,7 +305,7 @@ export async function fetchPriceHistory(
     period: '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | 'ALL' = '3M'
 ): Promise<PriceData[]> {
     try {
-        const response = await fetch(`${API.PRICE_HISTORY(symbol)}?period=${period}&format=columns`);
+        const response = await apiFetch(`${API.PRICE_HISTORY(symbol)}?period=${period}&format=columns`);
         if (!response.ok) return [];
         const payload = decodePriceHistory(await response.json());
         return (payload?.data || []).map(row => ({ ...row, time: row.time || row.date || '' }));
@@ -319,7 +320,7 @@ export async function fetchPriceHistory(
  */
 export async function fetchBatchPrice(symbols: string[]): Promise<Record<string, RealtimePrice>> {
     try {
-        const response = await fetch(`${API_BASE}/stocks/quotes?symbols=${symbols.join(',')}`);
+        const response = await apiFetch(`${API_BASE}/stocks/quotes?symbols=${symbols.join(',')}`);
         if (!response.ok) return {};
         return unwrap<Record<string, RealtimePrice>>(await response.json());
     } catch (error) {
@@ -335,7 +336,7 @@ export async function fetchBatchPrice(symbols: string[]): Promise<Record<string,
  */
 export async function fetchHistoricalChartData(symbol: string): Promise<HistoricalChartData | null> {
     try {
-        const response = await fetch(API.STOCK_CHART(symbol));
+        const response = await apiFetch(API.STOCK_CHART(symbol));
         if (!response.ok) return null;
         const json = await response.json();
         if (!json.success) return null;
@@ -382,7 +383,7 @@ export async function fetchHistoricalChartData(symbol: string): Promise<Historic
  */
 export async function fetchStockNews(symbol: string): Promise<StockNews[]> {
     try {
-        const response = await fetch(API.STOCK_NEWS(symbol));
+        const response = await apiFetch(API.STOCK_NEWS(symbol));
         if (!response.ok) return [];
         return unwrapArray<StockNews>(await response.json());
     } catch (error) {
@@ -398,7 +399,7 @@ export async function fetchStockNews(symbol: string): Promise<StockNews[]> {
  */
 export async function fetchAvailableSymbols(): Promise<string[]> {
     try {
-        const response = await fetch(`${API_BASE}/tickers`);
+        const response = await apiFetch(`${API_BASE}/tickers`);
         if (!response.ok) return [];
         const data = await response.json();
         // Handle multiple possible response formats
@@ -423,7 +424,7 @@ export async function fetchAvailableSymbols(): Promise<string[]> {
  */
 export async function fetchSymbolsByIndustry(industry: string): Promise<StockListItem[]> {
     try {
-        const response = await fetch(`${API_BASE}/companies/industry/${encodeURIComponent(industry)}`);
+        const response = await apiFetch(`${API_BASE}/companies/industry/${encodeURIComponent(industry)}`);
         if (!response.ok) return [];
         return await response.json();
     } catch (error) {
@@ -437,7 +438,7 @@ export async function fetchSymbolsByIndustry(industry: string): Promise<StockLis
  */
 export async function checkDataFreshness(symbol: string): Promise<DataFreshness | null> {
     try {
-        const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/freshness`);
+        const response = await apiFetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/freshness`);
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
@@ -451,7 +452,7 @@ export async function checkDataFreshness(symbol: string): Promise<DataFreshness 
  */
 export async function fetchDatabaseStats(): Promise<DatabaseStats | null> {
     try {
-        const response = await fetch(`${API_BASE}/stats/database`);
+        const response = await apiFetch(`${API_BASE}/stats/database`);
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
@@ -471,7 +472,7 @@ export async function fetchValuationData(symbol: string): Promise<{
     peers?: object[];
 } | null> {
     try {
-        const response = await fetch(API.VALUATION(symbol));
+        const response = await apiFetch(API.VALUATION(symbol));
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
@@ -484,7 +485,7 @@ export async function fetchValuationData(symbol: string): Promise<{
  * Calculate valuation with custom assumptions - POST
  */
 export async function calculateValuation(symbol: string, assumptions: Record<string, unknown>, signal?: AbortSignal): Promise<ValuationResult | null> {
-    const response = await fetch(API.VALUATION(symbol), {
+    const response = await apiFetch(API.VALUATION(symbol), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(assumptions), signal,
     });
@@ -500,7 +501,7 @@ export async function calculateValuation(symbol: string, assumptions: Record<str
  */
 export async function getExcelExportUrl(symbol: string): Promise<string | null> {
     try {
-        const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/workbook`);
+        const response = await apiFetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/workbook`);
         if (!response.ok) return null;
         const data = await response.json();
         return data.success && typeof data.url === 'string' ? resolveApiLink(data.url) : null;

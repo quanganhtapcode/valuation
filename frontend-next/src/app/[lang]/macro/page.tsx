@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { API } from '@/lib/api';
@@ -74,7 +76,7 @@ function macroValue(value: number, sym: string, lang: 'vi' | 'en') {
 function loadMacroHistoryBatch(symbols: string[]): Promise<Record<string, PricePoint[]>> {
     if (!symbols.length) return Promise.resolve({});
     const days = Math.max(...symbols.map((symbol) => TV_CONFIGS[symbol].defaultDays));
-    return fetch(API.MACRO_HISTORY_BATCH(symbols, days))
+    return apiFetch(API.MACRO_HISTORY_BATCH(symbols, days))
         .then((response) => response.ok ? response.json() : {})
         .catch(() => ({} as Record<string, PricePoint[]>));
 }
@@ -318,7 +320,7 @@ function WorldTab() {
     const [ffIndices, setFfIndices] = useState<Map<string, FFPrice>>(new Map());
 
     const loadRates = useCallback(async () => {
-        try { const r = await fetch(API.MACRO_RATES, { cache: 'no-store' }); if (r.ok) setRates(await r.json()); }
+        try { const r = await apiFetch(API.MACRO_RATES, { cache: 'no-store' }); if (r.ok) setRates(await r.json()); }
         catch { /* ignore */ } finally { setRL(false); }
     }, []);
 

@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { apiUrl } from '@/lib/apiCore';
 
 import { useState, useEffect } from 'react';
@@ -27,7 +29,7 @@ export default function NewsPage() {
         async function loadNews() {
             try {
                 setIsLoading(true);
-                const response = await fetch(apiUrl(`/market/news?page=${page}&size=${pageSize}&compact=1&cache=no-store`), {
+                const response = await apiFetch(apiUrl(`/market/news?page=${page}&size=${pageSize}&compact=1&cache=no-store`), {
                     cache: 'no-store',
                 });
                 if (!response.ok) throw new Error('Failed to fetch news');

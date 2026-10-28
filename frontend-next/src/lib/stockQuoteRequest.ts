@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 import { API } from './apiCore';
 
 interface OrderLevel { price?: number; volume?: number }
@@ -33,7 +34,7 @@ async function fetchQuote(key: string): Promise<StockQuotePayload | null> {
     const proxyUrl = `/api/stocks/${encodeURIComponent(key)}/quote`;
     const usesDirectApi = directUrl !== proxyUrl;
     try {
-        const response = await fetch(directUrl, {
+        const response = await apiFetch(directUrl, {
             cache: 'no-store',
             credentials: 'omit',
             signal: AbortSignal.timeout(usesDirectApi ? 3000 : 8000),
@@ -46,7 +47,7 @@ async function fetchQuote(key: string): Promise<StockQuotePayload | null> {
     }
     if (!usesDirectApi) return null;
     try {
-        const response = await fetch(proxyUrl, {
+        const response = await apiFetch(proxyUrl, {
             cache: 'no-store', signal: AbortSignal.timeout(8000),
         });
         return response.ok ? await response.json() as StockQuotePayload : null;

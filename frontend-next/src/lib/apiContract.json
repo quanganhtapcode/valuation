@@ -1,0 +1,122 @@
+{
+  "metadata": [
+    "source",
+    "timestamp",
+    "updated_at",
+    "fetched_at",
+    "fetched_at_utc",
+    "data_as_of",
+    "latest_date",
+    "stale",
+    "partial",
+    "refresh_pending",
+    "last_updated",
+    "generated_at",
+    "period",
+    "timeframe"
+  ],
+  "resources": {
+    "quote": {
+      "pattern": "^/api/stocks/<[^>]+>/quote$",
+      "groups": {
+        "price": {
+          "last": "current_price",
+          "change": "price_change",
+          "change_pct": "price_change_percent",
+          "reference": "ref_price",
+          "ceiling": "ceiling",
+          "floor": "floor"
+        },
+        "session": {
+          "open": "open",
+          "high": "high",
+          "low": "low",
+          "volume": "volume"
+        },
+        "capital": {
+          "market_cap": "market_cap",
+          "shares": "shares_outstanding"
+        }
+      }
+    },
+    "summary": {
+      "pattern": "^/api/stocks/<[^>]+>/summary$",
+      "groups": {
+        "company": {
+          "name": "name",
+          "exchange": "exchange",
+          "industry": "industry",
+          "is_bank": "isbank"
+        },
+        "price": {
+          "last": "current_price",
+          "change": "price_change",
+          "change_pct": "price_change_percent"
+        },
+        "valuation": {
+          "pe": "pe",
+          "pb": "pb",
+          "ps": "ps",
+          "pcf": "pcf_ratio",
+          "eps": "eps",
+          "book_value": "bvps",
+          "dividend_yield": "dividend_yield",
+          "market_cap": "market_cap",
+          "shares": "shares_outstanding",
+          "target_price": "target_price",
+          "ev_to_ebitda": "ev_to_ebitda"
+        },
+        "profitability": {
+          "roe": "roe",
+          "roa": "roa",
+          "net_profit_margin": "net_profit_margin",
+          "after_tax_margin": "after_tax_margin",
+          "net_margin": "net_margin",
+          "gross_margin": "gross_margin",
+          "pre_tax_margin": "pre_tax_margin",
+          "roic": "roic",
+          "ebit_margin": "ebit_margin"
+        },
+        "growth": {
+          "profit": "profit_growth",
+          "revenue": "revenue_growth"
+        },
+        "balance": {
+          "debt_to_equity": "debt_to_equity",
+          "leverage": "financial_leverage",
+          "current_ratio": "current_ratio",
+          "quick_ratio": "quick_ratio",
+          "cash_ratio": "cash_ratio"
+        },
+        "banking": {
+          "nim": "nim",
+          "npl": "npl",
+          "ldr": "ldr",
+          "cir": "cir",
+          "casa": "casa"
+        },
+        "efficiency": {
+          "assets": "asset_turnover",
+          "inventory": "inventory_turnover"
+        }
+      }
+    }
+  },
+  "collections": [
+    "data",
+    "Data",
+    "tickers",
+    "sectors",
+    "files"
+  ],
+  "duplicate_sets": {
+    "margins": {
+      "resource": "summary",
+      "canonical": "net_profit_margin",
+      "aliases": [
+        "after_tax_margin",
+        "net_margin"
+      ]
+    }
+  }
+}

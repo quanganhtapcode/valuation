@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { API } from '@/lib/apiCore';
 
 import { useEffect, useState } from 'react';
@@ -297,7 +299,7 @@ export default function TechnicalTab({ symbol }: TechnicalTabProps) {
 
         Promise.allSettled(
             TIMEFRAMES.map(async (frame) => {
-                const response = await fetch(API.STOCK_TECHNICAL(symbol, TIMEFRAME_LABELS[frame].toLowerCase()), { signal: controller.signal });
+                const response = await apiFetch(API.STOCK_TECHNICAL(symbol, TIMEFRAME_LABELS[frame].toLowerCase()), { signal: controller.signal });
                 const json = response.ok ? await response.json() : null;
                 return [frame, json] as const;
             }),

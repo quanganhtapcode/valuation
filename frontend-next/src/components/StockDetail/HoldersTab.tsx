@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { API_BASE } from '@/lib/api';
@@ -105,7 +107,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
             setError(null);
         });
 
-        fetch(`${API_BASE}/stocks/${symbol}/shareholders`, {
+        apiFetch(`${API_BASE}/stocks/${symbol}/shareholders`, {
             cache: 'no-store',
             signal: controller.signal,
         })

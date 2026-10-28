@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogPanel } from '@tremor/react';
 import { RiArrowDownSLine, RiCloseLine, RiDownloadLine } from '@remixicon/react';
@@ -56,7 +58,7 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
         const controller = new AbortController();
         async function load() {
             try {
-                const response = await fetch(API.MACRO_HISTORY_FULL(series.symbol), { signal: controller.signal });
+                const response = await apiFetch(API.MACRO_HISTORY_FULL(series.symbol), { signal: controller.signal });
                 if (!response.ok) throw new Error('History request failed');
                 const data: unknown = await response.json();
                 if (!Array.isArray(data)) throw new Error('Invalid history response');

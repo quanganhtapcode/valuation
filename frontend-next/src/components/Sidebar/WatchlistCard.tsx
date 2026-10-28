@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { apiUrl } from '@/lib/apiCore';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -114,7 +116,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
 
         const ctrl = new AbortController();
         const fetchPrices = () => {
-            fetch(apiUrl(`/market/prices?symbols=${watchlist.join(',')}`), { signal: ctrl.signal })
+            apiFetch(apiUrl(`/market/prices?symbols=${watchlist.join(',')}`), { signal: ctrl.signal })
                 .then(r => r.ok ? r.json() : null)
                 .then((data: Record<string, { price: number; changePercent: number }> | null) => {
                     if (!data) return;

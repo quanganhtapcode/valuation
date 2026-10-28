@@ -28,7 +28,8 @@ def financial_fields():
     path = ROOT / "config" / "vci_field_codes.json"
     if not path.is_file():
         return jsonify(error="Financial field-code map is unavailable"), 404
-    if request.args.get("compact") == "1" or request.args.get("section") or request.args.get("fields"):
+    if (request.args.get("compact") == "1" or request.args.get("section")
+            or request.args.get("fields") or request.args.get("schema") == "2"):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             response = jsonify(project_field_codes(data, request.args.get("section"),

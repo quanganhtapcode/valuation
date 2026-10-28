@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { apiUrl } from '@/lib/apiCore';
 
 import StockLink from '@/components/StockLink';
@@ -65,7 +67,7 @@ export default function EarningsPage() {
     const copy = translations[lang].pages.earnings;
 
     useEffect(() => {
-        fetch(apiUrl('/market/earnings-releases'))
+        apiFetch(apiUrl('/market/earnings-releases'))
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(setData)
             .catch(() => setError(true));

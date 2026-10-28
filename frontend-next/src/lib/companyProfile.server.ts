@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiFetch';
 import 'server-only';
 import type { Lang } from '@/lib/translations';
 import { BACKEND_API } from './backendApi.server';
@@ -7,7 +8,7 @@ import { backendRequestHeaders } from './backendRequestHeaders';
 export async function getCompanyProfile(symbol: string, lang: Lang, timeoutMs = 2000): Promise<string | null> {
     if (!/^[A-Z0-9]{1,10}$/.test(symbol)) return null;
     try {
-        const response = await fetch(`${BACKEND_API}/companies/${encodeURIComponent(symbol)}/description?lang=${lang}`, {
+        const response = await apiFetch(`${BACKEND_API}/companies/${encodeURIComponent(symbol)}/description?lang=${lang}`, {
             headers: { ...backendRequestHeaders, Accept: 'application/json' },
             cache: 'no-store',
             signal: AbortSignal.timeout(timeoutMs),

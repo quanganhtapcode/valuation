@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/apiFetch';
+
 import { getChartTheme } from '@/lib/chartTheme';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
@@ -215,7 +217,7 @@ export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, 
       running = true;
       let delay = regularDelay();
       try {
-        const response = await fetch(`${API_BASE}/market/heatmap?exchange=${exchange}&limit=200`, {
+        const response = await apiFetch(`${API_BASE}/market/heatmap?exchange=${exchange}&limit=200`, {
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]),
         });
         if (!response.ok) throw new Error(`Heatmap request failed: ${response.status}`);
