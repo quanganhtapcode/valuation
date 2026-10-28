@@ -1,3 +1,4 @@
+import { apiUrl } from '@/lib/apiCore';
 import { fetchAPI } from './apiCore';
 
 export interface FundPrice {
@@ -25,7 +26,7 @@ export interface FundSnapshot {
 }
 
 export function fetchFundPrices(): Promise<FundSnapshot> {
-    return fetchAPI<FundSnapshot>('/api/market/funds');
+    return fetchAPI<FundSnapshot>(apiUrl('/market/funds'));
 }
 
 export interface FundDetail {

@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import IssuerLogo from '@/components/Funds/IssuerLogo';
 import { chartSeriesColors, chartAxisTick, chartCursor, chartTooltipStyle } from '@/lib/chartTheme';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -33,7 +35,7 @@ export default function FundsComparison({ funds, initialDetail }: { funds?: Fund
     useEffect(() => {
         if (funds) return;
         const controller = new AbortController();
-        fetchAPI<FundSnapshot>('/api/market/funds', { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) }).then(result => {
+        fetchAPI<FundSnapshot>(apiUrl('/market/funds'), { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) }).then(result => {
             if (!result.success) throw new Error('Unavailable');
             setAvailable(result.data);
             setListingError(false);
@@ -47,7 +49,7 @@ export default function FundsComparison({ funds, initialDetail }: { funds?: Fund
         void Promise.resolve().then(async () => {
             if (controller.signal.aborted) return;
             setBusy(missing.length > 0);
-            const results = await Promise.allSettled(missing.map(symbol => fetchAPI<FundDetail>(`/api/market/funds/${encodeURIComponent(symbol)}`, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) })));
+            const results = await Promise.allSettled(missing.map(symbol => fetchAPI<FundDetail>(apiUrl(`/market/funds/${encodeURIComponent(symbol)}`), { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) })));
             if (controller.signal.aborted) return;
             const failed: string[] = [];
             results.forEach((result, index) => {

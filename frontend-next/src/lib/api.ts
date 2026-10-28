@@ -8,7 +8,7 @@ export * from './types';
 
 export * from './stockApi';
 
-export { API, API_BASE, REALTIME_API_BASE, fetchAPI } from './apiCore';
+export { API, API_BASE, REALTIME_API_BASE, apiUrl, fetchAPI } from './apiCore';
 
 export { INDEX_MAP } from './marketTypes';
 

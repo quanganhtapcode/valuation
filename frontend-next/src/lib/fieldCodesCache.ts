@@ -1,3 +1,4 @@
+import { apiUrl } from '@/lib/apiCore';
 type FieldLabel = { vi: string; en: string }
 type FieldMap = Record<string, FieldLabel>
 
@@ -7,7 +8,7 @@ export async function getFieldCodes(): Promise<FieldMap> {
     if (cachedMap) return cachedMap
 
     try {
-        const res = await fetch("/vci_field_codes.json")
+        const res = await fetch(apiUrl("/financials/fields"))
         if (!res.ok) return {}
         const data = await res.json()
         const map: FieldMap = {}

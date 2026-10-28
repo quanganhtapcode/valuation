@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import StockLink from '@/components/StockLink';
 import {
@@ -123,7 +125,7 @@ const AnalysisTab = ({ symbol, isLoading = false }: AnalysisTabProps) => {
             if (!cancelled) setLoading(true);
         });
 
-        const peersPromise = fetchAPI<any>(`/api/stocks/${symbol}/peer-valuations`);
+        const peersPromise = fetchAPI<any>(apiUrl(`/stocks/${symbol}/peer-valuations`));
 
         peersPromise
             .then((peersRes) => {

@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl, resolveApiLink } from '@/lib/apiCore';
+
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import MarketDownloads from '@/components/Downloads/MarketDownloads';
@@ -72,7 +74,7 @@ export default function DownloadsPage() {
 
     useEffect(() => {
         const controller = new AbortController();
-        void fetch('/api/financials/years', { signal: controller.signal })
+        void fetch(apiUrl('/financials/years'), { signal: controller.signal })
             .then((response) => { if (!response.ok) throw new Error(); return response.json() as Promise<{ first_year: number }>; })
             .then(({ first_year }) => {
                 if (Number.isInteger(first_year) && first_year > 0 && first_year <= currentYear) {
@@ -85,7 +87,7 @@ export default function DownloadsPage() {
 
     useEffect(() => { void (async () => {
         try {
-            const response = await fetch('/api/tickers', { cache: 'force-cache' });
+            const response = await fetch(apiUrl('/tickers'), { cache: 'force-cache' });
             if (!response.ok) throw new Error();
             const data = await response.json() as { tickers?: Ticker[] } | Ticker[];
             setTickers(Array.isArray(data) ? data : data.tickers ?? []);
@@ -100,7 +102,7 @@ export default function DownloadsPage() {
     useEffect(() => {
         if (activeTab !== 'variables' || fieldCodesLoading || fieldCodesLoaded) return;
         setFieldCodesLoading(true);
-        void fetch('/api/financials/fields', { cache: 'force-cache' })
+        void fetch(apiUrl('/financials/fields'), { cache: 'force-cache' })
             .then((response) => { if (!response.ok) throw new Error(); return response.json() as Promise<FieldCodeMap>; })
             .then(setFieldCodes)
             .catch(() => setFieldCodes({}))
@@ -158,12 +160,12 @@ export default function DownloadsPage() {
                 setProgress([0, originalSymbols.length]);
                 for (const [index, ticker] of originalSymbols.entries()) {
                     if (index > 0) await new Promise((resolve) => window.setTimeout(resolve, 1000));
-                    const response = await fetch(`/api/exports/financials?${individualExportParams(ticker)}`, { cache: 'no-store' }); if (!response.ok) throw new Error();
+                    const response = await fetch(apiUrl(`/exports/financials?${individualExportParams(ticker)}`), { cache: 'no-store' }); if (!response.ok) throw new Error();
                     const writable = await (await directory.getFileHandle(`${ticker}_${fromYear}-${toYear}.xlsx`, { create: true })).createWritable();
                     await writable.write(await response.blob()); await writable.close(); setProgress([index + 1, originalSymbols.length]);
                 }
             } else {
-                const response = await fetch(`/api/exports/financials?${params()}`, { cache: 'no-store' }); if (!response.ok) throw new Error();
+                const response = await fetch(apiUrl(`/exports/financials?${params()}`), { cache: 'no-store' }); if (!response.ok) throw new Error();
                 const filename = `${scope === 'ticker' ? (symbols.length === 1 ? symbols[0] : `${symbols.length}-tickers`) : `financials-${scope}`}_${fromYear}-${toYear}.${format === 'csv' ? 'zip' : 'xlsx'}`;
                 saveBlob(await response.blob(), filename);
             }
@@ -175,7 +177,7 @@ export default function DownloadsPage() {
         if (!originalSymbols.length) return;
         if (originalSymbols.length === 1) {
             setOriginalStatus('loading');
-            try { const response = await fetch(`/api/stocks/${encodeURIComponent(originalSymbols[0])}/workbook`); const data = await response.json() as { success?: boolean; url?: string }; if (!data.success || !data.url) throw new Error(); window.location.href = data.url; setOriginalStatus('done'); } catch { setMessage(c.errorOriginal); setOriginalStatus('error'); }
+            try { const response = await fetch(apiUrl(`/stocks/${encodeURIComponent(originalSymbols[0])}/workbook`)); const data = await response.json() as { success?: boolean; url?: string }; if (!data.success || !data.url) throw new Error(); window.location.href = resolveApiLink(data.url); setOriginalStatus('done'); } catch { setMessage(c.errorOriginal); setOriginalStatus('error'); }
             return;
         }
         const picker = (window as Window & { showDirectoryPicker?: () => Promise<DirectoryHandle> }).showDirectoryPicker;
@@ -184,10 +186,10 @@ export default function DownloadsPage() {
         try {
             const directoryName = scope === 'ticker' ? `vietcap-${originalSymbols.join('-')}` : `vietcap-${scope}-${exchanges.join('-')}`;
             const directory = await (await picker()).getDirectoryHandle(directoryName.slice(0, 80), { create: true });
-            const response = await fetch(`/api/workbooks?${originalParams()}`, { cache: 'no-store' }); if (!response.ok) throw new Error();
+            const response = await fetch(apiUrl(`/workbooks?${originalParams()}`), { cache: 'no-store' }); if (!response.ok) throw new Error();
             const files = ((await response.json()) as { files?: Array<{ filename: string; url: string }> }).files ?? [];
             setProgress([0, files.length]);
-            for (const [index, file] of files.entries()) { const fileResponse = await fetch(file.url); if (!fileResponse.ok) throw new Error(); const writable = await (await directory.getFileHandle(file.filename, { create: true })).createWritable(); await writable.write(await fileResponse.blob()); await writable.close(); setProgress([index + 1, files.length]); }
+            for (const [index, file] of files.entries()) { const fileResponse = await fetch(resolveApiLink(file.url)); if (!fileResponse.ok) throw new Error(); const writable = await (await directory.getFileHandle(file.filename, { create: true })).createWritable(); await writable.write(await fileResponse.blob()); await writable.close(); setProgress([index + 1, files.length]); }
             setOriginalStatus('done');
         } catch { setMessage(c.errorOriginal); setOriginalStatus('error'); }
     };

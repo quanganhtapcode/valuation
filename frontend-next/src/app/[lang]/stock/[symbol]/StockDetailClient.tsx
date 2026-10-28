@@ -1,10 +1,12 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import { useState, useEffect, useTransition, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { completeStockNavigation } from '@/lib/stockNavigationTransition';
-import { formatNumber, formatPercentChange, subscribePricesStream } from '@/lib/api';
+import { formatNumber, formatPercentChange, getExcelExportUrl, subscribePricesStream } from '@/lib/api';
 import type { StockApiData } from '@/lib/types';
 import { useWatchlist } from '@/contexts/WatchlistContext';
 import { RiStarFill, RiStarLine } from '@remixicon/react';
@@ -176,9 +178,19 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         });
     }, [activeTab]);
 
-    const handleDownloadExcel = useCallback(() => {
+    const handleDownloadExcel = useCallback(async () => {
         if (!symbol) return;
-        window.open(`https://fiin.quanganh.org/excel/${symbol}.xlsx`, '_blank');
+        // Open during the click gesture so the asynchronous API lookup is not
+        // blocked as a popup. The backend owns storage and download URL selection.
+        const downloadWindow = window.open('about:blank', '_blank');
+        if (downloadWindow) downloadWindow.opener = null;
+        const url = await getExcelExportUrl(symbol);
+        if (!url) {
+            downloadWindow?.close();
+            return;
+        }
+        if (downloadWindow) downloadWindow.location.replace(url);
+        else window.location.assign(url);
     }, [symbol]);
 
     // 1. Fetch Static Data & Parallel Pre-fetching
@@ -244,7 +256,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                     });
 
                 // Retry a missing profile independently; never queue it behind summary.
-                if (!initialStockInfo.overview?.description) fetch(`/api/companies/${symbol}/description?lang=${lang}`, { signal: controller.signal })
+                if (!initialStockInfo.overview?.description) fetch(apiUrl(`/companies/${symbol}/description?lang=${lang}`), { signal: controller.signal })
                     .then(r => r.ok ? r.json() : null)
                     .then(res => {
                         if (res?.available && typeof res.profile === 'string') {
@@ -327,7 +339,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 // PHASE 2: Non-critical overview enrichments. Keep them off the
                 // critical path so first paint is not competing with extra API calls.
                 idleCleanups.push(scheduleIdleWork(() => {
-                    fetch(`/api/stocks/${symbol}/news?compact=1`, { signal: controller.signal })
+                    fetch(apiUrl(`/stocks/${symbol}/news?compact=1`), { signal: controller.signal })
                         .then(r => r.ok ? r.json() : null)
                         .then(res => {
                             const newsData = res?.data || res;

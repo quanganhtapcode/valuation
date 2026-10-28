@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import { StockTabDropdown } from './StockTabControls';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
@@ -161,7 +163,7 @@ const BankingPeerTable = ({ symbol, initialPeers }: Props) => {
         queueMicrotask(() => {
             if (!cancelled) setLoading(true);
         });
-        fetchAPI<any>(`/api/stocks/${symbol}/peer-valuations?mode=${mode}`)
+        fetchAPI<any>(apiUrl(`/stocks/${symbol}/peer-valuations?mode=${mode}`))
             .then(res => {
                 if (cancelled) return;
                 if (res?.success) {

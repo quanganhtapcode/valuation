@@ -1,4 +1,6 @@
-﻿'use client';
+'use client';
+
+import { apiUrl } from '@/lib/apiCore';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from '@tremor/react';
@@ -112,7 +114,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
 
         const ctrl = new AbortController();
         const fetchPrices = () => {
-            fetch(`/api/market/prices?symbols=${watchlist.join(',')}`, { signal: ctrl.signal })
+            fetch(apiUrl(`/market/prices?symbols=${watchlist.join(',')}`), { signal: ctrl.signal })
                 .then(r => r.ok ? r.json() : null)
                 .then((data: Record<string, { price: number; changePercent: number }> | null) => {
                     if (!data) return;

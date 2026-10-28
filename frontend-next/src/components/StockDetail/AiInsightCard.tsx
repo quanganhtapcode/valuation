@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
@@ -201,7 +203,7 @@ export default function AiInsightCard({ symbol, analysisJson, newsJson, quarter 
         const loadTechnical = async () => {
             if (document.visibilityState !== 'visible' || controller.signal.aborted) return;
             try {
-                const response = await fetch(`/api/stocks/${symbol}/technical/ONE_DAY`, { signal: controller.signal });
+                const response = await fetch(apiUrl(`/stocks/${symbol}/technical/ONE_DAY`), { signal: controller.signal });
                 if (!response.ok) return;
                 const next = toLiveTechnicalSnapshot(await response.json());
                 if (next) setLiveTechnical(next);

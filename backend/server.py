@@ -26,11 +26,13 @@ from backend.routes.market import market_bp, init_market_routes
 from backend.routes.downloads import download_bp
 from backend.routes.market_exports import market_exports_bp
 from backend.routes.health import health_bp
+from backend.routes.public_resources import public_resources_bp
 from backend.routes.aliases import register_api_aliases
 from backend.routes.stock import stock_bp
 from backend.data_sources.vci import VCIClient
 from backend.data_sources.ff_ws import ensure_started as ff_ensure_started, get_prices as ff_get_prices, register_client as ff_register, unregister_client as ff_unregister
 from backend.telemetry import record_request_latency
+from backend.services.api_http import register_api_http
 
 # Initialize Flask App
 class _UnsortedJSONProvider(DefaultJSONProvider):
@@ -41,6 +43,7 @@ class _UnsortedJSONProvider(DefaultJSONProvider):
 app = Flask(__name__)
 app.json_provider_class = _UnsortedJSONProvider
 app.json = _UnsortedJSONProvider(app)
+register_api_http(app)
 sock = Sock(app)
 
 # Ensure JSON responses use UTF-8 encoding (display Vietnamese correctly)
@@ -125,6 +128,7 @@ app.register_blueprint(market_bp)
 app.register_blueprint(download_bp)
 app.register_blueprint(market_exports_bp)
 app.register_blueprint(health_bp)
+app.register_blueprint(public_resources_bp)
 register_api_aliases(app)
 
 
@@ -207,6 +211,9 @@ def after_request(response):
     header['Access-Control-Allow-Origin'] = '*'
     header['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     header['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+    header['Access-Control-Expose-Headers'] = (
+        'Content-Disposition, Retry-After, Server-Timing, X-Source, X-Cache, X-DB, X-Export-Rows'
+    )
 
     # Compact UTF-8 is the default for every client. Pretty printing is opt-in.
     if response.mimetype == 'application/json':

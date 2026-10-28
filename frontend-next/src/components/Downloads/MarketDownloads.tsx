@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import { FormEvent, useEffect, useRef, useState } from 'react';
 
 type Dataset = {
@@ -32,7 +34,7 @@ export default function MarketDownloads({ lang }: { lang: 'vi' | 'en' }) {
 
     useEffect(() => {
         const controller = new AbortController();
-        fetch('/api/exports/catalog', { signal: controller.signal, cache: 'no-store' })
+        fetch(apiUrl('/exports/catalog'), { signal: controller.signal, cache: 'no-store' })
             .then(async response => {
                 if (!response.ok) throw new Error();
                 const payload = await response.json() as { datasets: Dataset[] };
@@ -60,7 +62,7 @@ export default function MarketDownloads({ lang }: { lang: 'vi' | 'en' }) {
         }
         if (dataset.symbols && symbols.trim()) params.set('symbols', symbols.trim().toUpperCase());
         try {
-            const response = await fetch(`/api/exports/market?${params}`, { signal: controller.signal, cache: 'no-store' });
+            const response = await fetch(apiUrl(`/exports/market?${params}`), { signal: controller.signal, cache: 'no-store' });
             if (!response.ok) {
                 const errors: Record<number, string> = vi ? {
                     400: 'Bộ lọc chưa hợp lệ. Kiểm tra ngày và danh sách mã (tối đa 50 mã).',

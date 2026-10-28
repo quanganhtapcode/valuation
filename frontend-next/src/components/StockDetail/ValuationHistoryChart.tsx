@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import ChartTooltip from '@/components/charts/ChartTooltip';
 import { useEffect, useMemo, useState } from 'react';
 import { Card, LineChart, Text, Title } from '@tremor/react';
@@ -41,7 +43,7 @@ export default function ValuationHistoryChart({ symbol, lang }: { symbol: string
 
     useEffect(() => {
         const controller = new AbortController();
-        fetch(`/api/stocks/${symbol}/valuation-history?limit=250`, { signal: controller.signal })
+        fetch(apiUrl(`/stocks/${symbol}/valuation-history?limit=250`), { signal: controller.signal })
             .then((response) => response.ok ? response.json() : null)
             .then((response) => { if (response) setRows(toRows(response)); })
             .catch(() => undefined);

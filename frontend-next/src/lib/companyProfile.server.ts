@@ -1,28 +1,20 @@
 import 'server-only';
 import type { Lang } from '@/lib/translations';
+import { BACKEND_API } from './backendApi.server';
+import { backendRequestHeaders } from './backendRequestHeaders';
 
-const DETAILS_URL = 'https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/details';
-const PROFILE_REVALIDATE_SECONDS = 60 * 60 * 24 * 30;
-
-/** Share the existing persistent profile cache between HTML rendering and the API. */
+/** Compatibility adapter; the central backend owns profile fetching and caching. */
 export async function getCompanyProfile(symbol: string, lang: Lang, timeoutMs = 2000): Promise<string | null> {
     if (!/^[A-Z0-9]{1,10}$/.test(symbol)) return null;
     try {
-        const response = await fetch(`${DETAILS_URL}?ticker=${encodeURIComponent(symbol)}`, {
-            headers: {
-                Accept: 'application/json',
-                'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8',
-                Origin: 'https://trading.vietcap.com.vn',
-                Referer: 'https://trading.vietcap.com.vn/',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
-                'device-id': '7a3c8d9e1f20',
-            },
-            next: { revalidate: PROFILE_REVALIDATE_SECONDS },
+        const response = await fetch(`${BACKEND_API}/companies/${encodeURIComponent(symbol)}/description?lang=${lang}`, {
+            headers: { ...backendRequestHeaders, Accept: 'application/json' },
+            cache: 'no-store',
             signal: AbortSignal.timeout(timeoutMs),
         });
         if (!response.ok) return null;
         const payload = await response.json();
-        const profile = lang === 'en' ? payload?.data?.enProfile : payload?.data?.profile;
+        const profile = payload?.profile;
         return typeof profile === 'string' && profile.trim() ? profile : null;
     } catch {
         // A cold/missing upstream response must not hold up the page indefinitely.

@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import { useState, useEffect } from 'react';
 import { NewsItem, formatRelativeTime } from '@/lib/api';
 import styles from './page.module.css';
@@ -25,7 +27,7 @@ export default function NewsPage() {
         async function loadNews() {
             try {
                 setIsLoading(true);
-                const response = await fetch(`/api/market/news?page=${page}&size=${pageSize}&compact=1&cache=no-store`, {
+                const response = await fetch(apiUrl(`/market/news?page=${page}&size=${pageSize}&compact=1&cache=no-store`), {
                     cache: 'no-store',
                 });
                 if (!response.ok) throw new Error('Failed to fetch news');

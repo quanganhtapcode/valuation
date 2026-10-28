@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import StockLink from '@/components/StockLink';
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -63,7 +65,7 @@ export default function EarningsPage() {
     const copy = translations[lang].pages.earnings;
 
     useEffect(() => {
-        fetch('/api/market/earnings-releases')
+        fetch(apiUrl('/market/earnings-releases'))
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(setData)
             .catch(() => setError(true));

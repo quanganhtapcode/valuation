@@ -1,4 +1,4 @@
-import { API, API_BASE } from './apiCore';
+import { API } from './apiCore';
 
 interface OrderLevel { price?: number; volume?: number }
 export interface StockQuotePayload {
@@ -30,7 +30,7 @@ const requests = new Map<string, {
 
 async function fetchQuote(key: string): Promise<StockQuotePayload | null> {
     const directUrl = API.STOCK_QUOTE(key);
-    const proxyUrl = `${API_BASE}/stocks/${encodeURIComponent(key)}/quote`;
+    const proxyUrl = `/api/stocks/${encodeURIComponent(key)}/quote`;
     const usesDirectApi = directUrl !== proxyUrl;
     try {
         const response = await fetch(directUrl, {

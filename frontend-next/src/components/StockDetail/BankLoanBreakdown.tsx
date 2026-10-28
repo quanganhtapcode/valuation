@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import { chartSeriesColors, chartTooltipClass } from '@/lib/chartTheme';
 import { useEffect, useState } from 'react';
 import {
@@ -122,7 +124,7 @@ export default function BankLoanBreakdown({ symbol }: { symbol: string }) {
             setError(null);
         });
         const yearParam = selectedYear ? `?year=${selectedYear}` : '';
-        fetchAPI<LoanBreakdownData>(`/api/stocks/${symbol}/loan-breakdown${yearParam}`)
+        fetchAPI<LoanBreakdownData>(apiUrl(`/stocks/${symbol}/loan-breakdown${yearParam}`))
             .then((d: LoanBreakdownData) => {
                 setData(d);
             })

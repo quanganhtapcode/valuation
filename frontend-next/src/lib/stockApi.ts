@@ -3,7 +3,7 @@
  * Functions to fetch stock data from SQLite-backed Python backend
  */
 
-import { API, API_BASE } from './apiCore';
+import { API, API_BASE, resolveApiLink } from './apiCore';
 import { requestStockQuote } from './stockQuoteRequest';
 import type {
     Company,
@@ -501,7 +501,7 @@ export async function getExcelExportUrl(symbol: string): Promise<string | null> 
         const response = await fetch(`${API_BASE}/stocks/${encodeURIComponent(symbol.trim().toUpperCase())}/workbook`);
         if (!response.ok) return null;
         const data = await response.json();
-        return data.success ? data.url : null;
+        return data.success && typeof data.url === 'string' ? resolveApiLink(data.url) : null;
     } catch (error) {
         console.error(`Error getting Excel URL for ${encodeURIComponent(symbol.trim().toUpperCase())}:`, error);
         return null;

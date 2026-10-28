@@ -1,11 +1,11 @@
 # Stock quote transport
 
 Production stock quotes use `https://api.quanganh.org/v1/valuation/stocks/<symbol>/quote`
-directly from the browser. Summary, history and other REST resources keep the
-same-origin `/api` proxy and their existing cache policies. WebSockets keep their
-existing direct backend connection.
+directly from the browser. The subsequent central API migration extends this
+transport to the other REST resources. See `public-api-architecture.md` for the
+current configuration and deployment order.
 
-`NEXT_PUBLIC_STOCK_QUOTE_API_URL` overrides the quote API base. Production defaults
+`NEXT_PUBLIC_API_BASE_URL` overrides the shared API base. Production defaults
 to the public backend; development defaults to `/api`. Set the variable to `/api`
 and rebuild to roll back to the Vercel proxy. This public URL is not a credential.
 No database migration is required.
@@ -32,7 +32,7 @@ took 1,563 ms. Both history paths returned identical content. These are samples
 from one network location, not Vietnam browser timings or an isolated measurement
 of Cloudflare overhead. Measure again from the target audience after deployment.
 
-Verify a deployed stock page in browser Network: the quote should go to the
-configured direct host, while summary/history stay on `/api`. A local-only blocked
+Verify a deployed stock page in browser Network: quotes, summary and history go to
+the configured direct host. A local-only blocked
 request to the direct quote host should trigger one same-origin fallback. A 429
 should not. Check prices, orderbook and WebSocket updates on navigation.

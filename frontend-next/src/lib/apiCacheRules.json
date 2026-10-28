@@ -1,0 +1,81 @@
+{
+  "policies": {
+    "realtime": {
+      "mode": "realtime",
+      "revalidateSeconds": 0,
+      "responseCacheControl": "no-store"
+    },
+    "snapshot": {
+      "mode": "snapshot",
+      "revalidateSeconds": 5,
+      "responseCacheControl": "public, max-age=0, s-maxage=5, stale-while-revalidate=10"
+    },
+    "short": {
+      "mode": "short",
+      "revalidateSeconds": 30,
+      "responseCacheControl": "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
+    },
+    "medium": {
+      "mode": "medium",
+      "revalidateSeconds": 120,
+      "responseCacheControl": "public, max-age=0, s-maxage=120, stale-while-revalidate=300"
+    },
+    "long": {
+      "mode": "long",
+      "revalidateSeconds": 600,
+      "responseCacheControl": "public, max-age=0, s-maxage=600, stale-while-revalidate=1200"
+    }
+  },
+  "rules": [
+    {
+      "pattern": "^market/polymarket-events$",
+      "mode": "medium"
+    },
+    {
+      "pattern": "^market/(?:heatmap|gold|top-movers|foreign-flow|foreign-net-value|foreign-volume-chart)$",
+      "mode": "snapshot"
+    },
+    {
+      "pattern": "^market/(?:ai-takeaways|macro/rates)$",
+      "mode": "short"
+    },
+    {
+      "pattern": "^market/(?:world-indices|macro/(?:economic|gdp|indicators|history(?:/batch)?))$",
+      "mode": "medium"
+    },
+    {
+      "pattern": "^(?:market/index-valuations|stocks/[^/]+/price-history)$",
+      "query": {
+        "snapshot": "1"
+      },
+      "mode": "snapshot"
+    },
+    {
+      "pattern": "^stocks/metrics(?:/sectors)?$",
+      "mode": "medium"
+    },
+    {
+      "pattern": "^stocks/(?:quotes|overviews)$|^stocks/[^/]+(?:/(?:quote|overview|price-history|freshness|workbook|report))?$|^(?:health$|cache/|exports/|workbooks(?:/|$))|^(?:market/(?:indices|prices|orderbook|overview|screener))$",
+      "mode": "realtime"
+    },
+    {
+      "pattern": "^stocks/[^/]+/summary$",
+      "unlessQuery": {
+        "realtime": "0"
+      },
+      "mode": "realtime"
+    },
+    {
+      "pattern": "^market/(?:news|funds)(?:/|$)|^stocks/[^/]+/(?:news|events|feed|shareholders|valuation)(?:/|$)",
+      "mode": "short"
+    },
+    {
+      "pattern": "^tickers$|^companies/[^/]+/(?:profile|description)$|^stocks/[^/]+/profile$|^financials/fields$",
+      "mode": "long"
+    },
+    {
+      "pattern": "^stocks/|^app-data/|^(?:market/(?:index-valuations|indices/history|lottery)|financials/years)$",
+      "mode": "medium"
+    }
+  ]
+}

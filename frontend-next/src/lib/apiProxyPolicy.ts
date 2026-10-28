@@ -1,4 +1,5 @@
 import { canonicalApiPath } from './apiRouteRegistry';
+import cacheRules from './apiCacheRules.json';
 
 export interface ProxyCachePolicy {
     mode: 'realtime' | 'snapshot' | 'short' | 'medium' | 'long';
@@ -6,13 +7,7 @@ export interface ProxyCachePolicy {
     responseCacheControl: string;
 }
 
-const policies: Record<ProxyCachePolicy['mode'], ProxyCachePolicy> = {
-    realtime: { mode: 'realtime', revalidateSeconds: 0, responseCacheControl: 'no-store' },
-    snapshot: { mode: 'snapshot', revalidateSeconds: 5, responseCacheControl: 'public, max-age=0, s-maxage=5, stale-while-revalidate=10' },
-    short: { mode: 'short', revalidateSeconds: 30, responseCacheControl: 'public, s-maxage=30, stale-while-revalidate=60' },
-    medium: { mode: 'medium', revalidateSeconds: 120, responseCacheControl: 'public, s-maxage=120, stale-while-revalidate=300' },
-    long: { mode: 'long', revalidateSeconds: 600, responseCacheControl: 'public, s-maxage=600, stale-while-revalidate=1200' },
-};
+const policies = cacheRules.policies as Record<ProxyCachePolicy['mode'], ProxyCachePolicy>;
 
 /** Classify compatibility URLs by the same resource as their canonical URL. */
 export function normalizeApiPath(path: string): string {
@@ -50,34 +45,15 @@ export function normalizeApiPath(path: string): string {
 
 export function resolveCachePolicy(path: string, params: URLSearchParams): ProxyCachePolicy {
     const resource = normalizeApiPath(path);
-    const legacy = path.toLowerCase();
     if (params.get('cache') === 'no-store' || params.get('nocache') === '1'
         || params.has('pretty') || params.get('fetch_price') === 'true') return policies.realtime;
 
-    // Share a brief heatmap snapshot at the edge without retaining it in browsers.
-    if (/^market\/(?:heatmap|gold|top-movers|foreign-flow|foreign-net-value|foreign-volume-chart)$/.test(resource)) return policies.snapshot;
-    if (resource === 'market/ai-takeaways' || resource === 'market/macro/rates') return policies.short;
-    if (/^market\/(?:world-indices|macro\/(?:economic|gdp|indicators|history(?:\/batch)?))$/.test(resource)) return policies.medium;
-    if (resource === 'market/index-valuations' && params.get('snapshot') === '1') return policies.snapshot;
-    if (/^stocks\/[^/]+\/price-history$/.test(resource) && params.get('snapshot') === '1') return policies.snapshot;
-    if (/^stocks\/metrics(?:\/sectors)?$/.test(resource)) return policies.medium;
-
-    // Quotes and snapshots that contain quotes must observe the current RAM cache.
-    // Unknown resources also stay uncached until they have an explicit policy.
-    if (/^stocks\/(?:quotes|overviews)$/.test(resource)
-        || /^stocks\/[^/]+(?:\/(?:quote|overview|price-history|freshness|workbook|report))?$/.test(resource)
-        || /^stocks\/[^/]+\/summary$/.test(resource) && params.get('realtime') !== '0'
-        || /^(?:health$|cache\/|exports\/|workbooks(?:\/|$))/.test(resource)
-        || /^(?:stock\/excel|stocks\/excel|download\/|financial-bulk-export)/.test(legacy)
-        || /^(?:market\/(?:indices|prices|orderbook|overview|screener)|market\/macro\/rates)$/.test(resource)) {
-        return policies.realtime;
+    for (const rule of cacheRules.rules) {
+        if (!new RegExp(rule.pattern).test(resource)) continue;
+        if ('query' in rule && Object.entries(rule.query ?? {}).some(([key, value]) => params.get(key) !== value)) continue;
+        if ('unlessQuery' in rule && Object.entries(rule.unlessQuery ?? {}).every(([key, value]) => params.get(key) === value)) continue;
+        return policies[rule.mode as ProxyCachePolicy['mode']];
     }
-    if (/^market\/(?:news|funds)(?:\/|$)/.test(resource)
-        || /^stocks\/[^/]+\/(?:news|events|feed|shareholders|valuation)(?:\/|$)/.test(resource)) return policies.short;
-    if (resource === 'tickers' || /^companies\/[^/]+\/profile$/.test(resource)
-        || /^stocks\/[^/]+\/profile$/.test(resource)) return policies.long;
-    if (/^stocks\//.test(resource) || /^app-data\//.test(resource)
-        || /^(?:market\/(?:index-valuations|indices\/history|lottery)|financials\/years)$/.test(resource)) return policies.medium;
     return policies.realtime;
 }
 

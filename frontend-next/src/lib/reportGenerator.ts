@@ -1,3 +1,4 @@
+import { apiUrl } from '@/lib/apiCore';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
@@ -188,7 +189,7 @@ export class ReportGenerator {
         const fetch3 = async (type: string) => {
             try {
                 const resp = await fetch(
-                    `/api/stocks/${symbol}/financials?type=${type}&period=year&limit=7`,
+                    apiUrl(`/stocks/${symbol}/financials?type=${type}&period=year&limit=7`),
                     { cache: 'no-store' }
                 );
                 if (!resp.ok) return [];
@@ -235,7 +236,7 @@ export class ReportGenerator {
         for (const period of ['quarter', 'year'] as const) {
             try {
                 const resp = await fetch(
-                    `/api/stocks/${symbol}/financials?type=${type}&period=${period}&limit=1`,
+                    apiUrl(`/stocks/${symbol}/financials?type=${type}&period=${period}&limit=1`),
                     { cache: 'no-store' }
                 );
                 if (!resp.ok) continue;

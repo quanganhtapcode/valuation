@@ -8,7 +8,7 @@ Hai location REST `/v1/valuation/` trên VPS dùng giới hạn sau từ `automa
 - Các request còn lại: 2 request/phút cho mỗi IP, không burst; request tiếp theo được nhận sau 30 giây.
 - Vượt giới hạn trả HTTP 429 theo chuẩn lỗi API, `Retry-After: 30` và `Cache-Control: no-store`. WebSocket không dùng rule này; giới hạn export hiện có vẫn áp dụng.
 
-Các header này do client tự đặt và có thể giả mạo: rule chỉ hạn chế crawler thông thường, không xác thực nguồn truy cập. Crawler cũng có thể gọi frontend proxy công khai `/api`, nơi hiện không có hạn mức riêng theo khách. Muốn kiểm soát thực sự cần bảo vệ ở edge frontend và xác thực giữa proxy với origin.
+Các header này do client tự đặt và có thể giả mạo: rule chỉ hạn chế crawler thông thường, không xác thực nguồn truy cập. Browser mới gọi REST trực tiếp qua domain API, nên cần bảo vệ tại edge của `api.quanganh.org`. Frontend proxy công khai `/api` vẫn còn cho tương thích và rollback, hiện không có hạn mức riêng theo khách; cần tính cả đường này khi thiết kế chống crawl. Cấu trúc và cấu hình hiện tại nằm trong `public-api-architecture.md`.
 
 Nginx chỉ tin `CF-Connecting-IP` từ dải proxy Cloudflare liệt kê trong `valuation-cloudflare-realip.conf`, áp dụng riêng tại hai location REST; kết nối trực tiếp dùng IP socket. Cập nhật các dải theo danh sách chính thức của Cloudflare. Request server-side từ Vercel vẫn được tính theo IP Vercel, có thể dùng chung giữa nhiều người. Không tin `X-Forwarded-For` hoặc header Cloudflare do client trực tiếp gửi.
 

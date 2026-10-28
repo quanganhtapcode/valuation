@@ -1,11 +1,21 @@
-// Cached resources use the same-origin proxy. Uncached stock quotes go directly
-// to the backend to avoid the Vercel-to-origin round trip.
-export const API_BASE = '/api';
-export const REALTIME_API_BASE = API_BASE;
-const STOCK_QUOTE_API_BASE = (
-    process.env.NEXT_PUBLIC_STOCK_QUOTE_API_URL
-    || (process.env.NODE_ENV === 'production' ? 'https://api.quanganh.org/v1/valuation' : API_BASE)
+// One public REST origin for browser data and exports. /api remains a local
+// development / rollback option and a compatibility endpoint for older clients.
+export const API_BASE = (
+    process.env.NEXT_PUBLIC_API_BASE_URL
+    || (process.env.NODE_ENV === 'production' ? 'https://api.quanganh.org/v1/valuation' : '/api')
 ).trim().replace(/\/+$/, '');
+export const REALTIME_API_BASE = API_BASE;
+
+/** Resolve a resource path without hardcoding a deployment host in components. */
+export function apiUrl(path: string): string {
+    const resource = path.replace(/^\/api(?:\/|$)/, '').replace(/^\/+/, '');
+    return `${API_BASE}/${resource}`;
+}
+
+/** Backend manifests may contain relative API URLs or signed storage URLs. */
+export function resolveApiLink(url: string): string {
+    return url.startsWith('/api/') ? apiUrl(url) : url;
+}
 
 const stockSymbol = (symbol: string) => encodeURIComponent(symbol.trim().toUpperCase());
 
@@ -51,7 +61,7 @@ export const API = {
     STOCK_RATIO_HISTORY: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/ratio-history`,
     STOCK_RATIO_SERIES: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/ratio-series`,
     STOCK_OVERVIEW: (symbol: string) => `${REALTIME_API_BASE}/stocks/${stockSymbol(symbol)}/overview`,
-    STOCK_QUOTE: (symbol: string) => `${STOCK_QUOTE_API_BASE}/stocks/${stockSymbol(symbol)}/quote`,
+    STOCK_QUOTE: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/quote`,
     STOCK_CHART: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/chart-data`,
     PRICE_HISTORY: (symbol: string) => `${API_BASE}/stocks/${stockSymbol(symbol)}/price-history`,
     COMPANY_PROFILE: (symbol: string) => `${API_BASE}/companies/${stockSymbol(symbol)}/profile`,

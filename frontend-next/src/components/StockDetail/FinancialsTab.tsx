@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiCore';
+
 import React, { useEffect, useState, useRef } from 'react';
 import { fetchAPI, formatNumber } from '@/lib/api';
 import { cx } from '@/lib/utils';
@@ -1135,10 +1137,10 @@ export default function FinancialsTab({
         });
 
         Promise.allSettled([
-            fetchAPI<any>(`/api/stocks/${symbol}/financials?type=income&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
-            fetchAPI<any>(`/api/stocks/${symbol}/financials?type=balance&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
-            fetchAPI<any>(`/api/stocks/${symbol}/financials?type=cashflow&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
-            fetchAPI<any>(`/api/stocks/${symbol}/financials?type=ratio&period=${effectivePeriod}&limit=160`, { signal: controller.signal }),
+            fetchAPI<any>(apiUrl(`/stocks/${symbol}/financials?type=income&period=${effectivePeriod}&limit=160`), { signal: controller.signal }),
+            fetchAPI<any>(apiUrl(`/stocks/${symbol}/financials?type=balance&period=${effectivePeriod}&limit=160`), { signal: controller.signal }),
+            fetchAPI<any>(apiUrl(`/stocks/${symbol}/financials?type=cashflow&period=${effectivePeriod}&limit=160`), { signal: controller.signal }),
+            fetchAPI<any>(apiUrl(`/stocks/${symbol}/financials?type=ratio&period=${effectivePeriod}&limit=160`), { signal: controller.signal }),
         ]).then(([income, balance, cashflow, ratio]) => {
             if (controller.signal.aborted) return;
             const unwrap = (res: PromiseSettledResult<any>) => {
@@ -1176,7 +1178,7 @@ export default function FinancialsTab({
             }
         });
 
-        fetchAPI<any>(`/api/stocks/${symbol}/financials?type=note&period=${effectivePeriod}&limit=160`, {
+        fetchAPI<any>(apiUrl(`/stocks/${symbol}/financials?type=note&period=${effectivePeriod}&limit=160`), {
             signal: controller.signal,
         })
             .then(payload => {
