@@ -1,4 +1,5 @@
-# STAGED ONLY: use with valuation-header-rate-zone.conf.example.
+# Include inside each valuation REST location.
+include /etc/nginx/snippets/valuation-cloudflare-realip.conf;
 limit_req zone=valuation_website burst=100 nodelay;
 limit_req zone=valuation_crawler;
 limit_req_status 429;

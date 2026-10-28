@@ -1,5 +1,4 @@
-# STAGED ONLY: replace the existing zone after the frontend is deployed and
-# trusted proxy / real-client-IP handling has been verified.
+# Include in nginx's http context alongside the Cloudflare real IP location config.
 # Origin and Referer are client-controlled, not authentication.
 map "$http_origin|$http_referer" $valuation_is_website {
     default 0;

@@ -1,15 +1,17 @@
 # Bảo vệ API tại VPS
 
-Quy ước endpoint, lỗi và cache được mô tả trong `api-contract.md`. Không đổi schema thành công của endpoint hiện có khi bổ sung bảo vệ.
+Quy ước endpoint, lỗi và cache nằm trong `api-contract.md`. Schema thành công không thay đổi.
 
-Các snippet trong `automation/nginx/` cung cấp giới hạn tổng quát cho REST ở origin: 50 request/giây mỗi địa chỉ kết nối, cho phép burst 200; vượt giới hạn trả HTTP 429 theo chuẩn lỗi API, `Retry-After` và `Cache-Control: no-store`. Đây là giới hạn bảo vệ VPS, không phải hạn mức riêng cho từng người dùng. Các kết nối WebSocket không dùng rule này. Giới hạn export hiện có vẫn áp dụng.
+Hai location REST `/v1/valuation/` trên VPS dùng giới hạn sau từ `automation/nginx/valuation-header-rate-*.conf.example`:
 
-Trên VPS hiện tại, `valuation-rate-zone.conf` nằm trong `/etc/nginx/conf.d/`; hai snippet còn lại nằm trong `/etc/nginx/snippets/` và được include tại các virtual host API và địa chỉ IP trực tiếp. Khi thay đổi, đồng bộ các snippet vào những vị trí này, kiểm tra `nginx -t` trước khi reload và theo dõi 429 cùng tải thực tế để điều chỉnh. Các file trong repository không tự triển khai.
+- Có cả `Origin: https://stock.quanganh.org` và `Referer` bắt đầu bằng `https://stock.quanganh.org/`: 20 request/giây cho mỗi IP kết nối, burst 100.
+- Các request còn lại: 2 request/phút cho mỗi IP, không burst; request tiếp theo được nhận sau 30 giây.
+- Vượt giới hạn trả HTTP 429 theo chuẩn lỗi API, `Retry-After: 30` và `Cache-Control: no-store`. WebSocket không dùng rule này; giới hạn export hiện có vẫn áp dụng.
 
-Origin nhìn thấy IP của Cloudflare hoặc Vercel, có thể đại diện cho nhiều người dùng. Không dùng `X-Forwarded-For` hoặc `CF-Connecting-IP` do client gửi trực tiếp làm khóa giới hạn: chúng có thể bị giả mạo. Muốn giới hạn theo khách thực cần cấu hình real IP với danh sách proxy đáng tin cậy được cập nhật và bảo vệ origin khỏi truy cập trực tiếp, hoặc đặt rate limit/WAF ở edge có xác thực IP. Thêm quota theo người dùng tại edge, phân biệt export và API thông thường, sau khi đo lưu lượng. Không thể suy ra cấu hình WAF riêng của Vietcap từ website công khai.
+Các header này do client tự đặt và có thể giả mạo: rule chỉ hạn chế crawler thông thường, không xác thực nguồn truy cập. Crawler cũng có thể gọi frontend proxy công khai `/api`, nơi hiện không có hạn mức riêng theo khách. Muốn kiểm soát thực sự cần bảo vệ ở edge frontend và xác thực giữa proxy với origin.
 
-`robots.txt` và `X-Robots-Tag` là chỉ dẫn lập chỉ mục, không ngăn crawler cố tình truy cập. Không chặn hàng loạt theo User-Agent vì dễ giả mạo và có thể ảnh hưởng trình duyệt hoặc công cụ tìm kiếm hợp lệ.
+Nginx chỉ tin `CF-Connecting-IP` từ dải proxy Cloudflare liệt kê trong `valuation-cloudflare-realip.conf`, áp dụng riêng tại hai location REST; kết nối trực tiếp dùng IP socket. Cập nhật các dải theo danh sách chính thức của Cloudflare. Request server-side từ Vercel vẫn được tính theo IP Vercel, có thể dùng chung giữa nhiều người. Không tin `X-Forwarded-For` hoặc header Cloudflare do client trực tiếp gửi.
 
-Một số request tới Vietcap trong dự án gửi `Origin`, `Referer`, `User-Agent` và `device-id`; các giá trị này không chứng minh danh tính vì client có thể tự đặt. API hiện còn được Next.js server, các tích hợp trực tiếp và tác vụ nội bộ gọi, nên không yêu cầu các header giả trình duyệt ở origin. Nếu cần hạn chế truy cập thực sự, triển khai xác thực giữa proxy và origin bằng bí mật lưu ở server, đồng thời kiểm kê và chuyển đổi mọi client trước khi bắt buộc xác thực.
+Trên VPS, nội dung zone được cài tại `/etc/nginx/conf.d/valuation-rate-zone.conf`; location, lỗi và real IP nằm trong `/etc/nginx/snippets/`. Các file `.example` là nguồn đã triển khai dù giữ đuôi tên để tránh tự động được include. Khi thay đổi phải đồng bộ, chạy `nginx -t`, reload và theo dõi 429. `valuation-rate-zone.conf` và `valuation-rate-location.conf` cũ trong repository là phương án rollback 50 request/giây, burst 200.
 
-Frontend đã chuẩn bị gửi `Origin` và `Referer` của website trong các request server-side tới API. Hai file `valuation-header-rate-*.conf.example` là cấu hình dự thảo: request có cả hai header phù hợp dùng giới hạn 20 request/giây, burst 100; request còn lại dùng 2 request/phút, không burst (cách nhau ít nhất 30 giây). Dự thảo chưa bật: cần triển khai frontend mới và kiểm tra nhận diện IP thực từ Cloudflare trước, nếu không có thể chặn website hoặc nhiều crawler dùng chung IP Cloudflare. Khi bật, sửa `Retry-After` của response 429 thành ít nhất 30 giây. Header có thể giả mạo, nên rule này chỉ hạn chế crawler thông thường, không ngăn bot cố tình vượt qua.
+`robots.txt` và `X-Robots-Tag` chỉ là chỉ dẫn lập chỉ mục, không ngăn crawler cố tình truy cập. Không thể suy ra cấu hình WAF riêng của Vietcap từ website công khai.
