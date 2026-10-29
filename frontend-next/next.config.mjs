@@ -49,17 +49,6 @@ const nextConfig = {
         headers: securityHeaders,
       },
       {
-        // Public overview HTML can be served at the nearest CDN without an ISR
-        // round trip on every 15-second source-cache cycle. Keep browser and
-        // RSC caching under Next's policies; live quotes refresh in the client.
-        source: '/:lang(vi|en)',
-        missing: [{ type: 'header', key: 'rsc' }],
-        headers: [{
-          key: 'Vercel-CDN-Cache-Control',
-          value: 'public, max-age=60, stale-while-revalidate=15',
-        }],
-      },
-      {
         source: '/api/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex' }],
       },

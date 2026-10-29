@@ -82,7 +82,8 @@ and assets whose code path immediately returned `NextResponse.next()`.
 The matcher now targets only the cookie-dependent `/` entry, unlocalized legacy
 URLs and stock/fund detail routes requiring symbol casing or early stock 404s.
 Localized public pages, including their RSC requests, API requests and static
-assets bypass Proxy and can proceed directly to normal CDN/ISR handling.
+assets bypass Proxy and can proceed directly to normal CDN/ISR handling. No
+additional HTML cache headers or longer market data TTLs are introduced.
 
 `node scripts/check-routing.mjs` uses the installed Next matcher and response
 helpers to check excluded and included paths, language-cookie redirects,
@@ -91,17 +92,3 @@ permanent legacy redirects and actual 404s for invalid stocks. Lint and
 and [Vercel caching layers](https://vercel.com/docs/how-vercel-cdn-works#caching-layers)
 for runtime and cache behavior; response routing IDs alone cannot identify
 all time spent in individual layers.
-
-Repeated production measurements across the 15-second page revalidation window
-showed that this matcher change alone did not eliminate the regional ISR round
-trip. The public overview document responses (`/vi` and `/en`, excluding RSC)
-therefore also receive a targeted `Vercel-CDN-Cache-Control` policy: 60 seconds
-fresh, with a 15-second stale-while-revalidate window. This header is consumed by
-Vercel; Next still controls browser caching and RSC caching. It is not a Cloudflare
-cache rule and does not apply to `/`, API, stock details or other routes.
-
-The tradeoff is a longer-lived initial HTML snapshot. Index WebSockets, heatmap
-age checks and panel polling continue to refresh data after hydration; source
-fetch TTLs and live APIs are unchanged. The routing tests also check the exact
-scope of this cache override and exclusion of RSC requests. Vercel documents the
-[priority of its targeted CDN header](https://vercel.com/docs/caching/cache-control-headers#vercel-cdn-cache-control).
