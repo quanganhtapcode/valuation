@@ -27,6 +27,46 @@ export interface PEChartResult {
     stats: { pe?: ValuationStats; pb?: ValuationStats };
 }
 
+export const VALUATION_PAGE_SIZE = 250;
+
+export interface ValuationPagination {
+    hasMore: boolean;
+    nextBefore: string | null;
+}
+
+export function parseValuationPagination(payload: unknown): ValuationPagination | null {
+    const page = (payload as { pagination?: ValuationPagination } | null)?.pagination;
+    if (!page || typeof page.hasMore !== 'boolean') return null;
+    if (page.hasMore && (typeof page.nextBefore !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(page.nextBefore))) return null;
+    return { hasMore: page.hasMore, nextBefore: page.hasMore ? page.nextBefore : null };
+}
+
+/** Keep newer values on overlap, while adding only the missing older dates. */
+export function mergeValuationHistory(current: PEChartData[], older: PEChartData[]): PEChartData[] {
+    const rows = new Map(older.map(row => [row.date.getTime(), row]));
+    for (const row of current) rows.set(row.date.getTime(), row);
+    return [...rows.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+export async function fetchPEChartPage(before?: string, options?: RequestInit): Promise<PEChartResult & { pagination: ValuationPagination }> {
+    const query = new URLSearchParams({ metric: 'both', limit: String(VALUATION_PAGE_SIZE), compact: '1', snapshot: '1' });
+    if (before) query.set('before', before);
+    const timeout = AbortSignal.timeout(15_000);
+    const response = await fetchAPI<any>(`${API.INDEX_VALUATIONS}?${query}`, {
+        ...options,
+        signal: options?.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
+    });
+    const pagination = parseValuationPagination(response);
+    const series = parsePEChartPayload(response);
+    // Never interpret an older backend's unbounded response as a history page.
+    if (!pagination || series.length > VALUATION_PAGE_SIZE ||
+        (pagination.hasMore && (!series.length || (before && pagination.nextBefore! >= before))) ||
+        (before && series.some(row => row.date.toISOString().slice(0, 10) >= before))) {
+        throw new Error('Invalid valuation history page');
+    }
+    return { series, stats: response?.stats ?? {}, pagination };
+}
+
 /**
  * Fetch P/E chart historical data
  */

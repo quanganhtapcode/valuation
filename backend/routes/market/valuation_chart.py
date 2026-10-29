@@ -274,21 +274,45 @@ def _attach_ema50(series: list[dict[str, Any]], period: int = 50) -> list[dict[s
     return series
 
 
-def _read_valuation_from_sqlite(cutoff_date: date | None = None) -> dict[str, Any] | None:
-    """Read valuation history from SQLite filtered by cutoff_date, returning flat data rows."""
+def _read_valuation_from_sqlite(
+    cutoff_date: date | None = None,
+    *,
+    before: date | None = None,
+    limit: int | None = None,
+) -> dict[str, Any] | None:
+    """Read a date-indexed history slice; paged reads never load the full table."""
     db = _VALUATION_SQLITE
     if not db.exists():
         return None
     try:
         with read_connection(db) as conn:
-            where = "WHERE date >= ?" if cutoff_date else ""
+            conditions = ["(vnindex IS NOT NULL OR pe IS NOT NULL OR pb IS NOT NULL)"]
+            parameters: list[Any] = []
+            if cutoff_date:
+                conditions.append("date >= ?")
+                parameters.append(cutoff_date.isoformat())
+            if before:
+                conditions.append("date < ?")
+                parameters.append(before.isoformat())
+            where = "WHERE " + " AND ".join(conditions)
+            order = "DESC LIMIT ?" if limit is not None else "ASC"
+            if limit is not None:
+                parameters.append(limit + 1)
             rows = conn.execute(
                 f"SELECT date, pe, pb, vnindex, open, high, low, close, ema50, volume "
-                f"FROM valuation_history {where} ORDER BY date",
-                (cutoff_date.isoformat(),) if cutoff_date else (),
+                f"FROM valuation_history {where} ORDER BY date {order}",
+                parameters,
             ).fetchall()
-            if not rows:
+            if not rows and (limit is None or before is None):
                 return None
+            has_more = limit is not None and len(rows) > limit
+            if limit is not None:
+                rows = list(reversed(rows[:limit]))
+            latest = conn.execute(
+                "SELECT date FROM valuation_history WHERE "
+                "vnindex IS NOT NULL OR pe IS NOT NULL OR pb IS NOT NULL "
+                "ORDER BY date DESC LIMIT 1"
+            ).fetchone() if limit is not None else None
             try:
                 stat_rows = conn.execute(
                     "SELECT metric, average, plus_one_sd, plus_two_sd, minus_one_sd, minus_two_sd "
@@ -324,7 +348,14 @@ def _read_valuation_from_sqlite(cutoff_date: date | None = None) -> dict[str, An
                 "minusTwoSD": sr["minus_two_sd"],
             }
 
-        return {"data": data, "stats": stats}
+        result = {"data": data, "stats": stats}
+        if limit is not None:
+            result["data_as_of"] = latest["date"] if latest else None
+            result["pagination"] = {
+                "hasMore": has_more,
+                "nextBefore": data[0]["date"] if has_more and data else None,
+            }
+        return result
     except Exception as exc:
         logger.warning("Failed to read valuation SQLite: %s", exc)
         return None
@@ -528,6 +559,42 @@ def register(market_bp: Blueprint) -> None:
         metric = _normalize_metric(request.args.get("metric", "both"))
         index = (request.args.get("index") or "VNINDEX").strip().upper()
         time_frame = (request.args.get("timeFrame") or "ALL").strip().upper()
+        paged = "limit" in request.args or "before" in request.args
+        if paged:
+            try:
+                limit = int(request.args.get("limit", "250"))
+                before_raw = request.args.get("before")
+                before = date.fromisoformat(before_raw) if before_raw else None
+                if (
+                    not 1 <= limit <= 500 or index != "VNINDEX"
+                    or "timeFrame" in request.args
+                    or (before_raw is not None and
+                        (before is None or before.isoformat() != before_raw))
+                ):
+                    raise ValueError("Invalid history page")
+            except (ValueError, TypeError):
+                return jsonify({
+                    "error": "Use limit=1..500 and an optional before=YYYY-MM-DD "
+                             "for VNINDEX; omit timeFrame",
+                }), 400
+            stored = _read_valuation_from_sqlite(before=before, limit=limit)
+            if stored is None:
+                response = jsonify({"error": "Historical data is temporarily unavailable"})
+                response.headers["Cache-Control"] = "no-store"
+                response.headers["Retry-After"] = "30"
+                return response, 503
+            latest = stored["data_as_of"]
+            payload = {
+                "success": True, "source": "SQLite", "index": index,
+                "stats": stored["stats"], "data": stored["data"],
+                "pagination": stored["pagination"], "data_as_of": latest,
+                "stale": bool(latest and latest < expected_session_date(datetime.now(timezone.utc))),
+            }
+            if request.args.get("compact") == "1":
+                payload = compact_chart_payload(payload)
+            response = jsonify(payload)
+            response.headers["Cache-Control"] = "public, max-age=0, s-maxage=5"
+            return response
         # The interactive chart must never wait for the external provider.
         # Scheduled ingestion supplies history; the quote stream supplies live prices.
         if request.args.get("snapshot") == "1" and index == "VNINDEX":

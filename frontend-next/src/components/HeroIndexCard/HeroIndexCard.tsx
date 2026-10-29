@@ -17,8 +17,8 @@ import {
     CrosshairMode,
     MouseEventParams,
 } from 'lightweight-charts';
-import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, isTradingHours } from '@/lib/api';
-import { parsePEChartPayload } from '@/lib/valuationChartApi';
+import { API_BASE, INDEX_MAP, PEChartData, isTradingHours } from '@/lib/api';
+import { fetchPEChartPage, mergeValuationHistory, parseValuationPagination, parsePEChartPayload } from '@/lib/valuationChartApi';
 import { createFrameStore } from '@/lib/frameStore';
 import { cx } from '@/lib/utils';
 import { RiHistoryLine } from '@remixicon/react';
@@ -53,7 +53,6 @@ interface HeroIndexCardProps {
 }
 
 interface SimpleBar { date: string; close: number; volume: number }
-type VnTimeframe = '1Y' | '2Y' | '5Y' | 'ALL';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -150,14 +149,19 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
     // ── Data state ────────────────────────────────────────────────────────────
     const initialRows = useMemo(() => parsePEChartPayload(initialChart), [initialChart]);
     const [vnRows,   setVnRows]   = useState<PEChartData[]>(initialRows);
-    const [vnTimeframe, setVnTimeframe] = useState<VnTimeframe>('1Y');
+    const [vnRequest, setVnRequest] = useState<{ before?: string; id: number }>({ id: 0 });
     const [vnLoad,   setVnLoad]   = useState(false);
     const [vnError, setVnError] = useState(false);
     const [vnRetry, setVnRetry] = useState(0);
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
     const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
-    const vnCache   = useRef<Map<string, PEChartData[]>>(new Map(initialRows.length ? [['1Y', initialRows]] : []));
+    const paginationRef = useRef(parseValuationPagination(initialChart) ?? {
+        hasMore: initialRows.length > 0,
+        nextBefore: initialRows.length ? dateToISO(initialRows[0].date) : null,
+    });
+    const vnErrorRef = useRef(false);
+    const timelineRef = useRef<string[]>([]);
     const livePointsRef = useRef<Map<string, { time: BusinessDay; value: number }>>(new Map());
     const userChartInteractionRef = useRef(false);
     const fittedViewForRef = useRef<string | null>(null);
@@ -165,7 +169,6 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
     const preserveVisibleRangeRef = useRef(false);
     const vnLoadingRef = useRef(vnLoad);
 
-    useEffect(() => { vnLoadingRef.current = vnLoad; }, [vnLoad]);
 
     // ── Chart refs ────────────────────────────────────────────────────────────
     const wrapRef   = useRef<HTMLDivElement>(null);
@@ -184,40 +187,40 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
     const isVN     = selectedId === 'vnindex';
     const selected = indices.find(i => i.id === selectedId) || indices[0];
 
-    // Start small for LCP, then progressively expand only when the visitor
-    // pans to the beginning of the range: 1Y → 2Y → 5Y → all history.
+    // Fetch a bounded page, then request only older dates as the user pans left.
     useEffect(() => {
-        const cached = vnCache.current.get(vnTimeframe);
-        if (cached) {
-            vnLoadingRef.current = false;
-            queueMicrotask(() => { setVnLoad(false); setVnRows(cached); });
-            return;
-        }
-
+        if (vnRequest.id === 0 && initialRows.length && vnRetry === 0) return;
         const controller = new AbortController();
         queueMicrotask(() => {
             if (!controller.signal.aborted) { setVnError(false); setVnLoad(true); }
         });
+        vnErrorRef.current = false;
         vnLoadingRef.current = true;
-        fetchPEChartByRange(vnTimeframe, 'both', { signal: controller.signal })
-            .then(({ series }) => {
+        fetchPEChartPage(vnRequest.before, { signal: controller.signal })
+            .then(({ series, pagination }) => {
                 if (controller.signal.aborted) return;
-                vnCache.current.set(vnTimeframe, series);
-                setVnRows(series);
+                paginationRef.current = pagination;
+                preserveVisibleRangeRef.current = Boolean(vnRequest.before) && selectedIdRef.current === 'vnindex';
+                setVnRows(current => mergeValuationHistory(current, series));
             })
             .catch(error => {
-                if (!controller.signal.aborted) { setVnError(true); console.error(error); }
+                if (!controller.signal.aborted) {
+                    vnErrorRef.current = true;
+                    setVnError(true);
+                    console.error(error);
+                }
             })
             .finally(() => {
                 if (!controller.signal.aborted) { vnLoadingRef.current = false; setVnLoad(false); }
             });
         return () => controller.abort();
-    }, [vnTimeframe, vnRetry]);
+    }, [vnRequest, vnRetry, initialRows.length]);
 
     useEffect(() => {
         selectedIdRef.current = selectedId;
         preserveVisibleRangeRef.current = false;
         userChartInteractionRef.current = false;
+        timelineRef.current = [];
         // Switching an index should fit that index once; extending its history
         // must preserve the user's current pan position.
         fittedViewForRef.current = null;
@@ -443,17 +446,11 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
             if (!range || updatingSeriesRef.current || vnLoadingRef.current || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex') return;
             // Load with half a screen of history still available.
             if (range.from > Math.max(60, (range.to - range.from) * 0.5)) return;
-            // Lock synchronously, before React processes the next range event.
+            const page = paginationRef.current;
+            if (!page.hasMore || !page.nextBefore || vnErrorRef.current) return;
+            // Lock before React processes another pan event.
             vnLoadingRef.current = true;
-            preserveVisibleRangeRef.current = true;
-            setVnTimeframe(current => {
-                if (current === '1Y') return '2Y';
-                if (current === '2Y') return '5Y';
-                if (current === '5Y') return 'ALL';
-                vnLoadingRef.current = false;
-                preserveVisibleRangeRef.current = false;
-                return current;
-            });
+            setVnRequest(current => ({ before: page.nextBefore!, id: current.id + 1 }));
         };
         chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange);
 
@@ -484,8 +481,15 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
         if (!areaRef.current || !volRef.current || !priceTV.length) return;
         // Preserve the latest view, including pans made while loading.
         const visibleRange = preserveVisibleRangeRef.current
-            ? chartRef.current?.timeScale().getVisibleRange()
+            ? chartRef.current?.timeScale().getVisibleLogicalRange()
             : null;
+        const timeline = [...new Set([
+            ...priceTV.map(row => dayKey(row.time)),
+            ...(isVN ? [...peTV, ...pbTV].map(row => dayKey(row.time)) : []),
+        ])].sort();
+        const oldFirst = timelineRef.current[0];
+        const added = oldFirst ? timeline.filter(date => date < oldFirst).length : 0;
+        timelineRef.current = timeline;
         updatingSeriesRef.current = true;
         try {
             areaRef.current.setData(priceTV.map(d => ({ time: d.time, value: d.value })));
@@ -506,7 +510,7 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
             // Fit only a newly selected index. Do not snap the chart back to the
             // latest year when older history arrives during a user pan.
             if (visibleRange) {
-                chartRef.current?.timeScale().setVisibleRange(visibleRange);
+                chartRef.current?.timeScale().setVisibleLogicalRange({ from: visibleRange.from + added, to: visibleRange.to + added });
                 preserveVisibleRangeRef.current = false;
                 fittedViewForRef.current = selectedId;
                 return;
@@ -699,8 +703,11 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                 {/* Chart area */}
                 <div className="relative pt-3">
                     {isLoading && <LoadingOverlay isDark={isDark} />}
+                    {isVN && vnLoad && vnRows.length > 0 && <div role="status" className="pointer-events-none absolute left-3 top-5 z-20 rounded-md bg-white/90 px-2 py-1 text-xs text-gray-500 dark:bg-gray-900/90">
+                        {lang === 'vi' ? 'Đang tải lịch sử…' : 'Loading history…'}
+                    </div>}
                     {isVN && vnError && !vnLoad && <div role="alert" className="absolute inset-x-0 top-8 z-20 flex justify-center gap-2 text-xs text-gray-500">
-                        <span>{lang === 'vi' ? 'Chưa tải được dữ liệu biểu đồ.' : 'Chart data is unavailable.'}</span>
+                        <span>{vnRows.length ? (lang === 'vi' ? 'Chưa tải được đoạn lịch sử trước.' : 'Earlier history is unavailable.') : (lang === 'vi' ? 'Chưa tải được dữ liệu biểu đồ.' : 'Chart data is unavailable.')}</span>
                         <button type="button" className="underline" onClick={() => setVnRetry(value => value + 1)}>{lang === 'vi' ? 'Thử lại' : 'Retry'}</button>
                     </div>}
 
