@@ -2,31 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import MarketIndices, { type OverviewIndexData } from '@/components/HeroIndexCard/MarketIndices';
-import { HeatmapVN30 } from '@/components/HeatmapVN30';
-import type { HeatmapData } from '@/lib/heatmapTypes';
-import {
-    isTradingHours,
-    fetchTopMovers,
-    fetchGoldPrices,
-    fetchNews,
-    NewsItem,
-    TopMoverItem,
-    GoldPriceItem,
-} from '@/lib/api';
-import styles from './page.module.css';
+import { isTradingHours, fetchTopMovers, fetchGoldPrices, fetchNews, type NewsItem, type TopMoverItem, type GoldPriceItem } from '@/lib/api';
 import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import DeferredPanel from '@/components/ui/DeferredPanel';
 
 const moversDelay = () => isTradingHours() ? 30000 : 300000;
 const newsDelay = () => 120000;
 
-function PanelSkeleton({ height = 'h-40' }: { height?: string }) {
-    return (
-        <div className={`rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${height}`}>
-            <div className="h-full animate-pulse bg-slate-100 dark:bg-slate-800/60" />
-        </div>
-    );
+export function PanelSkeleton({ height = 'h-48' }: { height?: string }) {
+    return <div aria-hidden="true" className={`rounded-lg border border-slate-200 bg-slate-100 animate-pulse motion-reduce:animate-none dark:border-slate-800 dark:bg-slate-800/60 ${height}`} />;
 }
 
 const TradingViewForexTable = dynamic(() => import('@/components/Macro/TradingViewForexTable'), {
@@ -57,21 +41,6 @@ const PolymarketEvents = dynamic(() => import('@/components/Sidebar/PolymarketEv
     loading: () => <PanelSkeleton height="h-48" />,
 });
 
-interface OverviewClientProps {
-    initialIndices: OverviewIndexData[];
-    initialHeatmap: HeatmapData | null;
-    initialHeatmapFetchedAt: number;
-    initialNews: NewsItem[];
-    initialNewsFetchedAt: number;
-    initialGainers: TopMoverItem[];
-    initialLosers: TopMoverItem[];
-    initialMoversFetchedAt: number;
-    initialGoldPrices: GoldPriceItem[];
-    initialGoldSource: string;
-    initialGoldStale: boolean;
-    initialGoldFetchedAt: number;
-}
-
 function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
     if (a === b) return true;
     if (!a || !b || a.length !== b.length) return false;
@@ -86,40 +55,33 @@ function sameMovers(a: TopMoverItem[], b: TopMoverItem[]): boolean {
     return true;
 }
 
-export default function OverviewClient({
-    initialIndices,
-    initialHeatmap,
-    initialHeatmapFetchedAt,
-    initialNews,
-    initialNewsFetchedAt,
-    initialGainers,
-    initialLosers,
-    initialMoversFetchedAt,
-    initialGoldPrices,
-    initialGoldSource,
-    initialGoldStale,
-    initialGoldFetchedAt,
-}: OverviewClientProps) {
-    const [news, setNews] = useState<NewsItem[]>(initialNews);
-    const [newsLoading, setNewsLoading] = useState(initialNews.length === 0);
-    const [newsError, setNewsError] = useState<string | null>(null);
-    const [gainers, setGainers] = useState<TopMoverItem[]>(initialGainers);
-    const [losers, setLosers] = useState<TopMoverItem[]>(initialLosers);
-    const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
-    const [goldPrices, setGoldPrices] = useState<GoldPriceItem[]>(initialGoldPrices);
+export function NewsPanel({ initialNews, initialNewsFetchedAt }: { initialNews: NewsItem[]; initialNewsFetchedAt: number }) {
+    const [news, setNews] = useState(initialNews);
+    const [loading, setLoading] = useState(initialNews.length === 0);
+    const [error, setError] = useState<string | null>(null);
+    const refresh = useCallback(async () => {
+        try {
+            setError(null);
+            setNews(await fetchNews(1, 30));
+        } catch (error) {
+            console.error('Error loading market news:', error);
+            setError('Unable to refresh market news');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+    useVisiblePolling(refresh, newsDelay, initialNews.length === 0, initialNewsFetchedAt);
+    return <NewsSection news={news} isLoading={loading} error={error} />;
+}
+
+export function GoldPanel({ initialGoldPrices, initialGoldSource, initialGoldStale, initialGoldFetchedAt }: {
+    initialGoldPrices: GoldPriceItem[]; initialGoldSource: string; initialGoldStale: boolean; initialGoldFetchedAt: number;
+}) {
+    const [goldPrices, setGoldPrices] = useState(initialGoldPrices);
     const [goldSource, setGoldSource] = useState(initialGoldSource);
     const [goldStale, setGoldStale] = useState(initialGoldStale);
-
     const goldNeedsRefresh = useRef(initialGoldPrices.length === 0 || initialGoldStale);
     const goldDelay = useCallback(() => goldNeedsRefresh.current ? 5_000 : 60_000, []);
-    const newsInFlightRef = useRef(false);
-    const moversInFlightRef = useRef(false);
-    // Use refs so loadMovers callback is stable (never recreated)
-    const gainersRef = useRef<TopMoverItem[]>(initialGainers);
-    const losersRef = useRef<TopMoverItem[]>(initialLosers);
-    useEffect(() => { gainersRef.current = gainers; }, [gainers]);
-    useEffect(() => { losersRef.current = losers; }, [losers]);
-
     const loadGold = useCallback(async () => {
         try {
             const result = await fetchGoldPrices();
@@ -134,23 +96,21 @@ export default function OverviewClient({
         }
     }, []);
 
-    const loadNews = useCallback(async () => {
-        if (newsInFlightRef.current) return;
-        try {
-            newsInFlightRef.current = true;
-            setNewsError(null);
-            const nextNews = await fetchNews(1, 30);
-            setNews(nextNews);
-        } catch (error) {
-            console.error('Error loading market news:', error);
-            setNewsError('Unable to refresh market news');
-        } finally {
-            newsInFlightRef.current = false;
-            setNewsLoading(false);
-        }
-    }, []);
+    useVisiblePolling(loadGold, goldDelay, initialGoldPrices.length === 0, initialGoldFetchedAt);
+    return <GoldPrice prices={goldPrices} isLoading={false} source={goldSource} stale={goldStale} />;
+}
 
-    // Stable loadMovers — uses refs, never recreated
+export function MoversPanel({ initialGainers, initialLosers, initialMoversFetchedAt }: {
+    initialGainers: TopMoverItem[]; initialLosers: TopMoverItem[]; initialMoversFetchedAt: number;
+}) {
+    const [gainers, setGainers] = useState(initialGainers);
+    const [losers, setLosers] = useState(initialLosers);
+    const [moversLoading, setMoversLoading] = useState(initialGainers.length === 0 && initialLosers.length === 0);
+    const moversInFlightRef = useRef(false);
+    const gainersRef = useRef(initialGainers);
+    const losersRef = useRef(initialLosers);
+    useEffect(() => { gainersRef.current = gainers; }, [gainers]);
+    useEffect(() => { losersRef.current = losers; }, [losers]);
     const loadMovers = useCallback(async () => {
         if (moversInFlightRef.current) return;
         const coldStart = gainersRef.current.length === 0 && losersRef.current.length === 0;
@@ -171,44 +131,29 @@ export default function OverviewClient({
         }
     }, []); // stable — no deps
 
-    useVisiblePolling(loadGold, goldDelay, initialGoldPrices.length === 0, initialGoldFetchedAt);
-
-    // News polling
-    useVisiblePolling(loadNews, newsDelay, initialNews.length === 0, initialNewsFetchedAt);
-
-    // Movers: cold start
     useVisiblePolling(loadMovers, moversDelay, initialGainers.length === 0 || initialLosers.length === 0, initialMoversFetchedAt);
+    return <DeferredPanel height={256}><MarketPulse gainers={gainers} losers={losers} isLoading={moversLoading} /></DeferredPanel>;
+}
 
-    return (
-        <div className={styles.container}>
-            <div className={styles.mainContent}>
-                <div className={styles.leftColumn}>
-                    <MarketIndices initialIndices={initialIndices} />
+export function OverviewWidgets() {
+    return <>
+        <DeferredPanel><FFWorldMarkets /></DeferredPanel>
+        <DeferredPanel><CryptoPrices /></DeferredPanel>
+    </>;
+}
 
-                    <HeatmapVN30 initialData={initialHeatmap} initialFetchedAt={initialHeatmapFetchedAt} />
+export function OverviewWatchlist() {
+    return <DeferredPanel height={208}><WatchlistCard /></DeferredPanel>;
+}
 
-                    <DeferredPanel height={288}><EarningsSeason /></DeferredPanel>
+export function OverviewEarnings() {
+    return <DeferredPanel height={288}><EarningsSeason /></DeferredPanel>;
+}
 
-                    <div className="order-2">
-                        <NewsSection news={news} isLoading={newsLoading} error={newsError} />
-                        <section className="mt-4" aria-label="TradingView forex rates">
-                            <DeferredPanel height={360}><TradingViewForexTable /></DeferredPanel>
-                        </section>
-                    </div>
-                </div>
+export function OverviewForex() {
+    return <section className="mt-4" aria-label="TradingView forex rates"><DeferredPanel height={360}><TradingViewForexTable /></DeferredPanel></section>;
+}
 
-                <aside className={styles.rightColumn}>
-                    <DeferredPanel height={208}><WatchlistCard /></DeferredPanel>
-                    <DeferredPanel height={256}><MarketPulse gainers={gainers} losers={losers} isLoading={moversLoading} /></DeferredPanel>
-                    <DeferredPanel><FFWorldMarkets /></DeferredPanel>
-                    <DeferredPanel><CryptoPrices /></DeferredPanel>
-                    <GoldPrice prices={goldPrices} isLoading={false} source={goldSource} stale={goldStale} />
-                    <DeferredPanel height={480}><PolymarketEvents /></DeferredPanel>
-                    <p className="px-1 text-[11px] leading-relaxed text-justify text-gray-400 dark:text-gray-500">
-                        Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.
-                    </p>
-                </aside>
-            </div>
-        </div>
-    );
+export function OverviewPredictions() {
+    return <DeferredPanel height={480}><PolymarketEvents /></DeferredPanel>;
 }

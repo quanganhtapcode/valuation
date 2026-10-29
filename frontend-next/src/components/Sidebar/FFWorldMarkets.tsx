@@ -21,11 +21,11 @@ const ITEMS = [
 ];
 
 const MARKET_LOGOS: Record<string, string> = {
-    'SPX/USD': 'https://commons.wikimedia.org/wiki/Special:FilePath/S%26P%20Global%20logo.svg',
-    'NDX/USD': 'https://commons.wikimedia.org/wiki/Special:FilePath/NASDAQ%20Logo.svg',
-    'Dow/USD': 'https://commons.wikimedia.org/wiki/Special:FilePath/Dow%20Jones%20Logo.svg',
-    'Nikkei/JPY': 'https://commons.wikimedia.org/wiki/Special:FilePath/Nikkei%20Logo.svg',
-    'KOSPI/USD': 'https://commons.wikimedia.org/wiki/Special:FilePath/Korea%20Exchange%20Logo.svg',
+    'SPX/USD': '/market-logos/sp-global.v1.svg',
+    'NDX/USD': '/market-logos/nasdaq.v1.svg',
+    'Dow/USD': '/market-logos/dow-jones.v1.svg',
+    'Nikkei/JPY': '/market-logos/nikkei.v1.svg',
+    'KOSPI/USD': '/market-logos/kospi.v1.svg',
 };
 
 function MarketLogo({ channel, label }: { channel: string; label: string }) {

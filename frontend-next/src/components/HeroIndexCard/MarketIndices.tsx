@@ -38,7 +38,7 @@ const PLACEHOLDER_INDICES: { id: string; name: string }[] = Object.entries(INDEX
 
 // Keep live quote updates local so the rest of the dashboard does not re-render
 // for every market-index snapshot.
-export default function MarketIndices({ initialIndices }: { initialIndices: OverviewIndexData[] }) {
+export default function MarketIndices({ initialIndices, initialChart }: { initialIndices: OverviewIndexData[]; initialChart?: unknown }) {
     const [indices, setIndices] = useState(initialIndices);
 
     const mapMarketDataToIndices = useCallback((marketData: Record<string, MarketIndexData>) => {
@@ -119,6 +119,7 @@ export default function MarketIndices({ initialIndices }: { initialIndices: Over
 
     return (
         <HeroIndexCard
+            initialChart={initialChart}
             indices={PLACEHOLDER_INDICES.map((placeholder) => {
                 const data = indices.find(d => d.id === placeholder.id);
                 return {

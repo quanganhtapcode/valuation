@@ -18,6 +18,7 @@ import {
     MouseEventParams,
 } from 'lightweight-charts';
 import { API_BASE, INDEX_MAP, fetchPEChartByRange, PEChartData, isTradingHours } from '@/lib/api';
+import { parsePEChartPayload } from '@/lib/valuationChartApi';
 import { createFrameStore } from '@/lib/frameStore';
 import { cx } from '@/lib/utils';
 import { RiHistoryLine } from '@remixicon/react';
@@ -48,6 +49,7 @@ interface IndexData {
 
 interface HeroIndexCardProps {
     indices: IndexData[];
+    initialChart?: unknown;
 }
 
 interface SimpleBar { date: string; close: number; volume: number }
@@ -133,7 +135,7 @@ function PctChip({ pct, large = false }: { pct: number; large?: boolean }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
+export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardProps) {
     const { lang } = useLanguage();
     const referenceLabel = lang === 'vi' ? 'Giá tham chiếu' : 'Reference price';
     const isDark = useDarkMode();
@@ -146,7 +148,8 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const [modalOpen,  setModalOpen]  = useState(false);
 
     // ── Data state ────────────────────────────────────────────────────────────
-    const [vnRows,   setVnRows]   = useState<PEChartData[]>([]);
+    const initialRows = useMemo(() => parsePEChartPayload(initialChart), [initialChart]);
+    const [vnRows,   setVnRows]   = useState<PEChartData[]>(initialRows);
     const [vnTimeframe, setVnTimeframe] = useState<VnTimeframe>('1Y');
     const [vnLoad,   setVnLoad]   = useState(false);
     const [vnError, setVnError] = useState(false);
@@ -154,7 +157,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
     const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
-    const vnCache   = useRef<Map<string, PEChartData[]>>(new Map());
+    const vnCache   = useRef<Map<string, PEChartData[]>>(new Map(initialRows.length ? [['1Y', initialRows]] : []));
     const livePointsRef = useRef<Map<string, { time: BusinessDay; value: number }>>(new Map());
     const userChartInteractionRef = useRef(false);
     const fittedViewForRef = useRef<string | null>(null);

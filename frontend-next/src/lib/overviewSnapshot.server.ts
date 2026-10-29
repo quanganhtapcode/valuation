@@ -1,7 +1,7 @@
 import 'server-only';
 import { BACKEND_API } from './backendApi.server';
-import { getOverviewPageSnapshot } from './overviewPageSnapshot';
+import { getOverviewPageSnapshots } from './overviewPageSnapshot';
 
-export function getOverviewSnapshot() {
-    return getOverviewPageSnapshot(BACKEND_API);
+export function getOverviewSnapshots() {
+    return getOverviewPageSnapshots(BACKEND_API);
 }

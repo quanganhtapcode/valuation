@@ -27,3 +27,41 @@ The interactive VNINDEX chart requests the SQLite snapshot path so a cold reques
 Crosshair samples are coalesced once per animation frame and published only to the tooltip component. Price, volume, PE and PB series update together before restoring the visible date range when older history arrives. Loading state ignores cancelled requests, cached ranges clear the loading flag, and unavailable history offers a retry. Resize work is coalesced per frame.
 
 The downloads page now offers eleven public market datasets through a read-only, allowlisted export endpoint, in addition to the existing financial statements and original workbooks. Both CSV and Excel preserve numeric values and missing cells. See [API contract](api-contract.md#tải-dữ-liệu-thị-trường) for filters and limits. No database migration or additional dependency is required.
+
+## Overview loading (2026-10-29)
+
+The supplied valuation HAR contains only 29 image/fetch requests and no page,
+document or script entries. It cannot establish navigation timings or a full-page
+speed comparison with the Kalshi HAR. It does show twelve redirects for four
+Wikimedia market logos; these now use versioned local SVGs with immutable caching.
+Nikkei is also served locally. Asset source links are retained in
+`frontend-next/public/market-logos/README.md`.
+
+The overview starts its independent server requests together and renders market,
+heatmap, news, movers and gold through separate Suspense boundaries. An unresolved
+secondary source no longer holds the market section on an uncached render. Next's
+existing 15-second page revalidation and source-specific cache TTLs are preserved.
+Cached full-page responses still depend on the hosting layer's cache behavior.
+
+The first one-year compact chart snapshot is included in the market section.
+The client parses it once and seeds its range cache, eliminating the normal
+post-hydration chart request. An unavailable server chart (800 ms budget) still
+uses the existing client fetch/retry path. Longer history remains on demand.
+News, movers and gold keep their own refresh state so those updates do not
+re-render the main chart and heatmap.
+
+Validation:
+
+- `cd frontend-next && node scripts/check-overview-loading.mjs`
+- `cd frontend-next && npm run lint`
+- `cd frontend-next && npx tsc --noEmit --incremental false`
+- `cd frontend-next && npm run build -- --webpack`
+
+Production-mode localhost checks with a controlled backend confirmed that `/vi`
+contains the compact chart snapshot and index quote in its HTML, `/en` returns
+200, and a market logo returns SVG directly with immutable caching. These checks
+validate rendering and transport, not browser LCP or visual appearance.
+
+No new environment variables, backend changes or database migrations are required.
+Production LCP and browser timing improvements must be measured after deployment;
+the partial HAR and individual HTTP timings are not sufficient to quantify them.
