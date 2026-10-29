@@ -211,25 +211,6 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         return () => controller.abort();
     }, [vnTimeframe, vnRetry]);
 
-    // Fetch the next range ahead of a pan, after the current chart renders.
-    useEffect(() => {
-        if (vnLoad || !vnRows.length || vnTimeframe === 'ALL') return;
-        const next: VnTimeframe = vnTimeframe === '1Y' ? '2Y' : vnTimeframe === '2Y' ? '5Y' : 'ALL';
-        if (vnCache.current.has(next)) return;
-        const controller = new AbortController();
-        const timer = window.setTimeout(() => {
-            fetchPEChartByRange(next, 'both', { signal: controller.signal })
-                .then(({ series }) => { vnCache.current.set(next, series); })
-                .catch(error => {
-                    if (error.name !== 'AbortError') console.error(error);
-                });
-        }, 1200);
-        return () => {
-            window.clearTimeout(timer);
-            controller.abort();
-        };
-    }, [vnLoad, vnRows, vnTimeframe]);
-
     useEffect(() => {
         selectedIdRef.current = selectedId;
         preserveVisibleRangeRef.current = false;
@@ -324,7 +305,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                 fontFamily:  getComputedStyle(document.body).fontFamily,
             },
             grid: {
-                vertLines: { visible: true, color: t0.gridLine },
+                vertLines: { visible: false },
                 horzLines: { visible: true, color: t0.gridLine },
             },
             crosshair: {
@@ -356,7 +337,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
         });
 
         const area = chart.addSeries(AreaSeries, {
-            topColor:                       `${AREA_COLOR}38`,
+            topColor:                       `${AREA_COLOR}20`,
             bottomColor:                    `${AREA_COLOR}03`,
             lineColor:                      AREA_COLOR,
             lineWidth:                      2,
@@ -487,7 +468,7 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
     useEffect(() => {
         chartRef.current?.applyOptions({
             layout:          { textColor: theme.text },
-            grid:            { vertLines: { visible: true, color: theme.gridLine }, horzLines: { visible: true, color: theme.gridLine } },
+            grid:            { vertLines: { visible: false }, horzLines: { visible: true, color: theme.gridLine } },
             rightPriceScale: { borderColor: theme.border },
             leftPriceScale:  { borderColor: theme.border },
             timeScale:       { borderColor: theme.border },
@@ -678,10 +659,10 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                                             suffix={selected.floors ? `(${selected.floors})` : undefined} suffixColor="text-cyan-500" />
                                     )}
                                     {isVN && latestVN?.pe !== null && latestVN?.pe !== undefined && (
-                                        <Stat label="P/E" value={`${latestVN.pe.toFixed(2)}x`} color="text-indigo-500 dark:text-indigo-400" labelColor="text-indigo-400" />
+                                        <Stat label="P/E" value={`${latestVN.pe.toFixed(2)}x`} color="text-blue-600 dark:text-blue-400" />
                                     )}
                                     {isVN && latestVN?.pb !== null && latestVN?.pb !== undefined && (
-                                        <Stat label="P/B" value={`${latestVN.pb.toFixed(2)}x`} color="text-emerald-500 dark:text-emerald-400" labelColor="text-emerald-400" />
+                                        <Stat label="P/B" value={`${latestVN.pb.toFixed(2)}x`} color="text-violet-600 dark:text-violet-400" />
                                     )}
                                 </div>
                             </>
@@ -696,11 +677,13 @@ export default function HeroIndexCard({ indices }: HeroIndexCardProps) {
                         <div className="flex gap-1.5">
                             {isVN && (
                                 <>
-                                    <ToggleBtn active={showPE} color="indigo" label="P/E" onClick={() => setShowPE(v => !v)} />
-                                    <ToggleBtn active={showPB} color="emerald" label="P/B" onClick={() => setShowPB(v => !v)} />
+                                    <ToggleBtn active={showPE} color="blue" label="P/E" onClick={() => setShowPE(v => !v)} />
+                                    <ToggleBtn active={showPB} color="violet" label="P/B" onClick={() => setShowPB(v => !v)} />
                                 </>
                             )}
                             <button
+                                type="button"
+                                aria-label={lang === 'vi' ? 'Lịch sử chỉ số' : 'Index history'}
                                 onClick={() => setModalOpen(true)}
                                 className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700/60 rounded-lg text-[11px] font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer transition-colors"
                             >
@@ -776,15 +759,15 @@ function Stat({ label, value, color, labelColor, suffix, suffixColor }: {
 }
 
 function ToggleBtn({ active, color, label, onClick }: {
-    active: boolean; color: 'indigo' | 'emerald'; label: string; onClick: () => void;
+    active: boolean; color: 'blue' | 'violet'; label: string; onClick: () => void;
 }) {
     return (
-        <button onClick={onClick} className={cx(
+        <button type="button" aria-pressed={active} onClick={onClick} className={cx(
             'px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer',
-            active && color === 'indigo'
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400'
-                : active && color === 'emerald'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400'
+            active && color === 'blue'
+                ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400'
+                : active && color === 'violet'
+                ? 'bg-violet-50 border-violet-200 text-violet-600 dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-400'
                 : 'bg-gray-50 border-gray-100 text-gray-400 dark:bg-gray-800 dark:border-gray-700/60 hover:text-gray-600',
         )}>
             {label}
@@ -832,7 +815,7 @@ function ChartTooltip({ store, cw, theme, showPE, showPB }: {
         <div
             className="pointer-events-none absolute z-30 rounded-lg px-3 py-2 text-xs shadow-xl"
             style={{
-                left:  Math.min(tooltip.x + 14, cw - 200),
+                left:  Math.max(0, Math.min(tooltip.x + 14, cw - 200)),
                 top:   Math.max(tooltip.y - 10, 36),
                 backgroundColor: theme.tooltipBg,
                 border: `1px solid ${theme.tooltipBorder}`,
