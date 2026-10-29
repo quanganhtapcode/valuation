@@ -45,7 +45,7 @@ Cached full-page responses still depend on the hosting layer's cache behavior.
 
 The first one-year compact chart snapshot is included in the market section.
 The client parses it once and seeds its range cache, eliminating the normal
-post-hydration chart request. An unavailable server chart (800 ms budget) still
+post-hydration chart request. An unavailable server chart (2.5-second budget) still
 uses the existing client fetch/retry path. Longer history remains on demand.
 News, movers and gold keep their own refresh state so those updates do not
 re-render the main chart and heatmap.
@@ -61,6 +61,13 @@ Production-mode localhost checks with a controlled backend confirmed that `/vi`
 contains the compact chart snapshot and index quote in its HTML, `/en` returns
 200, and a market logo returns SVG directly with immutable caching. These checks
 validate rendering and transport, not browser LCP or visual appearance.
+
+Browser measurements after deployment found two follow-ups: the generic route
+loading skeleton placed the footer inside the initial desktop viewport, then
+pushed it away when the dashboard arrived; it now reserves at least one viewport
+of height. The original 800 ms server chart budget also missed the snapshot in
+five of six repeated production navigations, so it now uses the same 2.5-second
+budget as the primary index quote. Client fallback remains available.
 
 No new environment variables, backend changes or database migrations are required.
 Production LCP and browser timing improvements must be measured after deployment;

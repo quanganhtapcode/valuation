@@ -51,7 +51,9 @@ function mapIndices(items: VciIndexItem[]) {
 /** Start all requests together; each section can stream without waiting for its siblings. */
 export function getOverviewPageSnapshots(backendApi: string) {
     const indices = resource<VciIndexItem[]>(backendApi, 'market/indices', 15);
-    const chart = resource<unknown>(backendApi, 'market/index-valuations?metric=both&timeFrame=1Y&compact=1&snapshot=1', 60, 800);
+    // Cold origin connections need the same budget as the index quote. The
+    // initial 800 ms budget frequently dropped this snapshot in production.
+    const chart = resource<unknown>(backendApi, 'market/index-valuations?metric=both&timeFrame=1Y&compact=1&snapshot=1', 60);
     const heatmap = resource<HeatmapData>(backendApi, 'market/heatmap?exchange=HSX&limit=200', 15);
     const news = resource<{ data?: NewsItem[] }>(backendApi, 'market/news?page=1&size=30&compact=1', 60, 800);
     const gainers = resource<{ Data?: TopMoverItem[] }>(backendApi, 'market/top-movers?centerID=HOSE&type=UP', 15, 800);
