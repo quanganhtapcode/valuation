@@ -51,4 +51,15 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
 }
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };
+// Localized public pages already have their final URL and can go straight to
+// the CDN/ISR cache. Run Node Proxy only for locale entry/legacy redirects and
+// symbol routes that need casing or invalid-stock checks before streaming.
+export const config = {
+    matcher: [
+        '/',
+        '/((?!api(?:/|$)|_next(?:/|$)|vi(?:/|$)|en(?:/|$)|.*\\.[^/]+$).*)',
+        '/:lang(vi|en)/:resource(stock|funds)/:symbol/:path*',
+        '/stock/:path*',
+        '/funds/:path*',
+    ],
+};

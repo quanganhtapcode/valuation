@@ -72,3 +72,23 @@ budget as the primary index quote. Client fallback remains available.
 No new environment variables, backend changes or database migrations are required.
 Production LCP and browser timing improvements must be measured after deployment;
 the partial HAR and individual HTTP timings are not sufficient to quantify them.
+
+## Proxy routing and HTML TTFB (2026-10-29)
+
+Next 16 runs `proxy.ts` on Node.js. The former catch-all matcher invoked Proxy
+even for canonical public pages such as `/vi`, `/en` and `/vi/about`, plus API
+and assets whose code path immediately returned `NextResponse.next()`.
+
+The matcher now targets only the cookie-dependent `/` entry, unlocalized legacy
+URLs and stock/fund detail routes requiring symbol casing or early stock 404s.
+Localized public pages, including their RSC requests, API requests and static
+assets bypass Proxy and can proceed directly to normal CDN/ISR handling. No
+additional HTML cache headers or longer market data TTLs are introduced.
+
+`node scripts/check-routing.mjs` uses the installed Next matcher and response
+helpers to check excluded and included paths, language-cookie redirects,
+permanent legacy redirects and actual 404s for invalid stocks. Lint and
+`npm run build -- --webpack` also pass. See the [Next Proxy documentation](https://nextjs.org/docs/app/api-reference/file-conventions/proxy)
+and [Vercel caching layers](https://vercel.com/docs/how-vercel-cdn-works#caching-layers)
+for runtime and cache behavior; response routing IDs alone cannot identify
+all time spent in individual layers.
