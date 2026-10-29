@@ -5,8 +5,9 @@ import path from 'node:path';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { NextRequest } from 'next/server';
-import { unstable_doesMiddlewareMatch, getRedirectUrl, getRewrittenUrl } from 'next/experimental/testing/server';
+import { unstable_doesMiddlewareMatch, unstable_getResponseFromNextConfig, getRedirectUrl, getRewrittenUrl } from 'next/experimental/testing/server';
 import ts from 'typescript';
+import nextConfig from '../next.config.mjs';
 
 const filename = path.join(process.cwd(), 'src/proxy.ts');
 const sandboxModule = { exports: {} as typeof import('./proxy') };
@@ -68,4 +69,25 @@ test('unknown stock routes retain an actual 404 before streaming', () => {
         assert.equal(response.headers.get('x-robots-tag'), 'noindex');
     }
     assert.equal(proxy(request('/vi/stock/VCB')).headers.get('x-middleware-next'), '1');
+});
+
+test('only public overview HTML gets the explicit short Vercel edge cache', async () => {
+    for (const url of ['/vi', '/en', '/vi?utm_source=test']) {
+        const response = await unstable_getResponseFromNextConfig({ url: `https://stock.quanganh.org${url}`, nextConfig });
+        assert.equal(response.headers.get('vercel-cdn-cache-control'), 'public, max-age=60, stale-while-revalidate=15', url);
+        assert.equal(response.headers.get('cache-control'), null, 'browser cache policy is not overridden');
+    }
+    for (const url of ['/', '/vi/stock/VCB', '/vi/stock/ZZZZZ', '/vi/news', '/fr', '/api/health']) {
+        const response = await unstable_getResponseFromNextConfig({ url: `https://stock.quanganh.org${url}`, nextConfig });
+        assert.equal(response.headers.get('vercel-cdn-cache-control'), null, url);
+    }
+});
+
+test('RSC and client-navigation requests keep the framework cache policy', async () => {
+    for (const url of ['/vi', '/en?_rsc=test']) {
+        const response = await unstable_getResponseFromNextConfig({
+            url: `https://stock.quanganh.org${url}`, nextConfig, headers: { rsc: '1' },
+        });
+        assert.equal(response.headers.get('vercel-cdn-cache-control'), null, url);
+    }
 });
