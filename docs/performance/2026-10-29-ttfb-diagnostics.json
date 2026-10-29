@@ -1,0 +1,1809 @@
+{
+  "ttfb-before": [
+    {
+      "run": 1,
+      "url": "https://stock.quanganh.org/vi",
+      "http_code": 200,
+      "dns": 0.0291,
+      "connect": 0.036837,
+      "tls": 0.057958,
+      "ready": 0.058096,
+      "ttfb": 0.740115,
+      "waitAfterTls": 0.6820189999999999,
+      "total": 0.742078,
+      "headers": {
+        "age": "84",
+        "server": "cloudflare",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::lpf5k-1793278051901-3fc2d7275d9a",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 1,
+      "url": "https://stock.quanganh.org/en",
+      "http_code": 200,
+      "dns": 0.002024,
+      "connect": 0.009047,
+      "tls": 0.026218,
+      "ready": 0.026293,
+      "ttfb": 0.492538,
+      "waitAfterTls": 0.46624499999999997,
+      "total": 0.494737,
+      "headers": {
+        "age": "0",
+        "server": "cloudflare",
+        "x-vercel-cache": "PRERENDER",
+        "x-vercel-id": "iad1::lpf5k-1793278052588-46d51916d21a",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 1,
+      "url": "https://stock.quanganh.org/vi/about",
+      "http_code": 200,
+      "dns": 0.000729,
+      "connect": 0.009405,
+      "tls": 0.029329,
+      "ready": 0.029423,
+      "ttfb": 0.429475,
+      "waitAfterTls": 0.400052,
+      "total": 0.429871,
+      "headers": {
+        "age": "0",
+        "server": "cloudflare",
+        "x-vercel-cache": "PRERENDER",
+        "x-vercel-id": "iad1::2nsl6-1793278053111-4d4316d0662d",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 1,
+      "url": "https://stock.quanganh.org/favicon.ico",
+      "http_code": 200,
+      "dns": 0.000898,
+      "connect": 0.008126,
+      "tls": 0.024446,
+      "ready": 0.024542,
+      "ttfb": 0.713641,
+      "waitAfterTls": 0.689099,
+      "total": 0.714,
+      "headers": {
+        "age": "0",
+        "server": "cloudflare",
+        "x-vercel-cache": "PRERENDER",
+        "x-vercel-id": "iad1::dd8rn-1793278053597-fcb6b092daa0",
+        "cf-cache-status": "MISS"
+      }
+    },
+    {
+      "run": 1,
+      "url": "https://kalshi.com/",
+      "http_code": 429,
+      "dns": 0.022907,
+      "connect": 0.02439,
+      "tls": 0.044855,
+      "ready": 0.044979,
+      "ttfb": 0.063592,
+      "waitAfterTls": 0.018612999999999998,
+      "total": 0.064829,
+      "headers": {
+        "server": "Vercel",
+        "x-vercel-id": "iad1::1793278054-tzEKa7IomVN2ijZx2Or5oJj1RxPXgp3s"
+      }
+    },
+    {
+      "run": 1,
+      "url": "https://stock.quanganh.org/_next/static/chunks/9d739cc20aaedb70.js",
+      "http_code": 200,
+      "dns": 0.000898,
+      "connect": 0.008713,
+      "tls": 0.027524,
+      "ready": 0.027619,
+      "ttfb": 0.057234,
+      "waitAfterTls": 0.029615,
+      "total": 0.057598,
+      "headers": {
+        "age": "454",
+        "server": "cloudflare",
+        "x-vercel-cache": "MISS",
+        "x-vercel-id": "iad1::6wc75-1793277599930-dcbdddccee7e",
+        "cf-cache-status": "HIT"
+      }
+    },
+    {
+      "run": 2,
+      "url": "https://stock.quanganh.org/vi",
+      "http_code": 200,
+      "dns": 0.000935,
+      "connect": 0.009217,
+      "tls": 0.024752,
+      "ready": 0.024848,
+      "ttfb": 0.141394,
+      "waitAfterTls": 0.116546,
+      "total": 0.143012,
+      "headers": {
+        "age": "86",
+        "server": "cloudflare",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::r6rf9-1793278054405-1874a7258a0f",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 2,
+      "url": "https://stock.quanganh.org/en",
+      "http_code": 200,
+      "dns": 0.000774,
+      "connect": 0.008597,
+      "tls": 0.027365,
+      "ready": 0.027449,
+      "ttfb": 0.174159,
+      "waitAfterTls": 0.14671,
+      "total": 0.176098,
+      "headers": {
+        "age": "1",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::qxqq7-1793278054644-6ffb22b5bc26",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 2,
+      "url": "https://stock.quanganh.org/vi/about",
+      "http_code": 200,
+      "dns": 0.000852,
+      "connect": 0.008669,
+      "tls": 0.029226,
+      "ready": 0.02931,
+      "ttfb": 0.155551,
+      "waitAfterTls": 0.126241,
+      "total": 0.156204,
+      "headers": {
+        "age": "1",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::k6wvk-1793278054760-fb4d33f41a4f",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 2,
+      "url": "https://stock.quanganh.org/favicon.ico",
+      "http_code": 200,
+      "dns": 0.001946,
+      "connect": 0.009421,
+      "tls": 0.029982,
+      "ready": 0.030089,
+      "ttfb": 0.060237,
+      "waitAfterTls": 0.030147999999999998,
+      "total": 0.060562,
+      "headers": {
+        "age": "0",
+        "server": "cloudflare",
+        "x-vercel-cache": "PRERENDER",
+        "x-vercel-id": "iad1::dd8rn-1793278053597-fcb6b092daa0",
+        "cf-cache-status": "HIT"
+      }
+    },
+    {
+      "run": 2,
+      "url": "https://kalshi.com/",
+      "http_code": 429,
+      "dns": 0.016438,
+      "connect": 0.01785,
+      "tls": 0.035862,
+      "ready": 0.035959,
+      "ttfb": 0.051175,
+      "waitAfterTls": 0.015216,
+      "total": 0.052348,
+      "headers": {
+        "server": "Vercel",
+        "x-vercel-id": "iad1::1793278054-r1NQUntIxCh9qIZchXKrP6ll8S2yruta"
+      }
+    },
+    {
+      "run": 2,
+      "url": "https://stock.quanganh.org/_next/static/chunks/9d739cc20aaedb70.js",
+      "http_code": 200,
+      "dns": 0.005474,
+      "connect": 0.012949,
+      "tls": 0.035729,
+      "ready": 0.035816,
+      "ttfb": 0.060939,
+      "waitAfterTls": 0.025123,
+      "total": 0.061378,
+      "headers": {
+        "age": "455",
+        "server": "cloudflare",
+        "x-vercel-cache": "MISS",
+        "x-vercel-id": "iad1::6wc75-1793277599930-dcbdddccee7e",
+        "cf-cache-status": "HIT"
+      }
+    },
+    {
+      "run": 3,
+      "url": "https://stock.quanganh.org/vi",
+      "http_code": 200,
+      "dns": 0.000882,
+      "connect": 0.008379,
+      "tls": 0.028995,
+      "ready": 0.029655,
+      "ttfb": 0.137003,
+      "waitAfterTls": 0.10734800000000001,
+      "total": 0.139077,
+      "headers": {
+        "age": "87",
+        "server": "cloudflare",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::hg4zc-1793278055167-8b291214e285",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "url": "https://stock.quanganh.org/en",
+      "http_code": 200,
+      "dns": 0.000956,
+      "connect": 0.009284,
+      "tls": 0.027944,
+      "ready": 0.028034,
+      "ttfb": 0.173076,
+      "waitAfterTls": 0.145042,
+      "total": 0.175026,
+      "headers": {
+        "age": "2",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::xxj49-1793278055326-b493144eee44",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "url": "https://stock.quanganh.org/vi/about",
+      "http_code": 200,
+      "dns": 0.001029,
+      "connect": 0.008902,
+      "tls": 0.024132,
+      "ready": 0.024221,
+      "ttfb": 0.117463,
+      "waitAfterTls": 0.09324199999999999,
+      "total": 0.117914,
+      "headers": {
+        "age": "2",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sxx5g-1793278055512-995713d6a553",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "url": "https://stock.quanganh.org/favicon.ico",
+      "http_code": 200,
+      "dns": 0.001013,
+      "connect": 0.00865,
+      "tls": 0.025823,
+      "ready": 0.02593,
+      "ttfb": 0.045588,
+      "waitAfterTls": 0.019657999999999995,
+      "total": 0.04588,
+      "headers": {
+        "age": "1",
+        "server": "cloudflare",
+        "x-vercel-cache": "PRERENDER",
+        "x-vercel-id": "iad1::dd8rn-1793278053597-fcb6b092daa0",
+        "cf-cache-status": "HIT"
+      }
+    },
+    {
+      "run": 3,
+      "url": "https://kalshi.com/",
+      "http_code": 429,
+      "dns": 0.018447,
+      "connect": 0.019944,
+      "tls": 0.037635,
+      "ready": 0.037719,
+      "ttfb": 0.048148,
+      "waitAfterTls": 0.010429,
+      "total": 0.049544,
+      "headers": {
+        "server": "Vercel",
+        "x-vercel-id": "iad1::1793278055-OIH4A6whWU3jNWnEY79ytDzxtFYgkfIA"
+      }
+    },
+    {
+      "run": 3,
+      "url": "https://stock.quanganh.org/_next/static/chunks/9d739cc20aaedb70.js",
+      "http_code": 200,
+      "dns": 0.000978,
+      "connect": 0.008198,
+      "tls": 0.026593,
+      "ready": 0.026676,
+      "ttfb": 0.066826,
+      "waitAfterTls": 0.04015,
+      "total": 0.067255,
+      "headers": {
+        "age": "455",
+        "server": "cloudflare",
+        "x-vercel-cache": "MISS",
+        "x-vercel-id": "iad1::6wc75-1793277599930-dcbdddccee7e",
+        "cf-cache-status": "HIT"
+      }
+    }
+  ],
+  "browser-ttfb-before": [
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 1,
+      "at": "2026-10-29T12:52:47.638Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278367074.2021,
+        "domainLookupStart": 1.679,
+        "domainLookupEnd": 50.656,
+        "connectStart": 50.784,
+        "secureConnectionStart": 58.196,
+        "connectEnd": 82.084,
+        "requestStart": 82.287,
+        "responseStart": 501.272,
+        "responseEnd": 555.995
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::vvvl4-1793278367230-58aadc696e14",
+        "cf-cache-status": "DYNAMIC",
+        "age": "41"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 1,
+      "at": "2026-10-29T12:52:48.108Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278367715.477,
+        "domainLookupStart": 0.824,
+        "domainLookupEnd": 26.076,
+        "connectStart": 26.142,
+        "secureConnectionStart": 27.58,
+        "connectEnd": 46.646,
+        "requestStart": 46.774,
+        "responseStart": 119.353,
+        "responseEnd": 377.217
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::jgf5h-1793278367767-c9b9ba1d5217",
+        "age": "33"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 2,
+      "at": "2026-10-29T12:52:48.588Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278368168.449,
+        "domainLookupStart": 1.181,
+        "domainLookupEnd": 17.565,
+        "connectStart": 17.642,
+        "secureConnectionStart": 19.184,
+        "connectEnd": 41.62,
+        "requestStart": 41.737,
+        "responseStart": 101.396,
+        "responseEnd": 361.604
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::c9s86-1793278368213-6453f8fc006c",
+        "age": "33"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 2,
+      "at": "2026-10-29T12:52:48.910Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278368663.261,
+        "domainLookupStart": 0.193,
+        "domainLookupEnd": 1.711,
+        "connectStart": 1.756,
+        "secureConnectionStart": 9.998,
+        "connectEnd": 27.092,
+        "requestStart": 27.21,
+        "responseStart": 191.299,
+        "responseEnd": 238.829
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::n6l8r-1793278368788-b420529ee5e9",
+        "cf-cache-status": "DYNAMIC",
+        "age": "42"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 3,
+      "at": "2026-10-29T12:52:49.141Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278368978.16,
+        "domainLookupStart": 0.241,
+        "domainLookupEnd": 1.02,
+        "connectStart": 1.074,
+        "secureConnectionStart": 8.408,
+        "connectEnd": 20.885,
+        "requestStart": 21.008,
+        "responseStart": 103.963,
+        "responseEnd": 156.351
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::6ckrz-1793278369027-eaaf928c542c",
+        "cf-cache-status": "DYNAMIC",
+        "age": "42"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 3,
+      "at": "2026-10-29T12:52:49.598Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278369231.1611,
+        "domainLookupStart": 0.213,
+        "domainLookupEnd": 11.402,
+        "connectStart": 11.477,
+        "secureConnectionStart": 13.005,
+        "connectEnd": 32.065,
+        "requestStart": 32.214,
+        "responseStart": 92.012,
+        "responseEnd": 352.012
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::hzr2n-1793278369267-df76a8289a9b",
+        "age": "34"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 4,
+      "at": "2026-10-29T12:52:50.045Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278369667.1099,
+        "domainLookupStart": 0.163,
+        "domainLookupEnd": 17.079,
+        "connectStart": 17.162,
+        "secureConnectionStart": 18.489,
+        "connectEnd": 35.837,
+        "requestStart": 35.973,
+        "responseStart": 101.881,
+        "responseEnd": 361.754
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::cf5pg-1793278369709-23b99e87b7ca",
+        "age": "35"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 4,
+      "at": "2026-10-29T12:52:50.276Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278370100.938,
+        "domainLookupStart": 0.25,
+        "domainLookupEnd": 1.036,
+        "connectStart": 1.078,
+        "secureConnectionStart": 8.898,
+        "connectEnd": 28.154,
+        "requestStart": 28.299,
+        "responseStart": 122.853,
+        "responseEnd": 169.032
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::wzxms-1793278370162-fa0590b92fe4",
+        "cf-cache-status": "DYNAMIC",
+        "age": "43"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 5,
+      "at": "2026-10-29T12:52:50.486Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278370338.639,
+        "domainLookupStart": 0.176,
+        "domainLookupEnd": 1.085,
+        "connectStart": 1.139,
+        "secureConnectionStart": 9.18,
+        "connectEnd": 25.014,
+        "requestStart": 25.152,
+        "responseStart": 97.566,
+        "responseEnd": 142.847
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::wzxms-1793278370393-decf1f83c7c4",
+        "cf-cache-status": "DYNAMIC",
+        "age": "44"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 5,
+      "at": "2026-10-29T12:52:51.009Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278370570.7622,
+        "domainLookupStart": 0.137,
+        "domainLookupEnd": 15.877,
+        "connectStart": 15.99,
+        "secureConnectionStart": 17.499,
+        "connectEnd": 35.737,
+        "requestStart": 35.853,
+        "responseStart": 127.024,
+        "responseEnd": 386.492
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::wdnk2-1793278370610-cefa89ecda9e",
+        "age": "36"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    }
+  ],
+  "browser-ttfb-after": [
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 1,
+      "at": "2026-10-29T12:55:30.023Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278529477.4639,
+        "domainLookupStart": 0.282,
+        "domainLookupEnd": 1.383,
+        "connectStart": 1.486,
+        "secureConnectionStart": 9.793,
+        "connectEnd": 31.6,
+        "requestStart": 31.899,
+        "responseStart": 488.017,
+        "responseEnd": 535.619
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "PRERENDER",
+        "x-vercel-id": "iad1::2xrvl-1793278529561-febcc079bce7",
+        "cf-cache-status": "DYNAMIC",
+        "age": "0"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 1,
+      "at": "2026-10-29T12:55:30.482Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278530101.553,
+        "domainLookupStart": 0.231,
+        "domainLookupEnd": 23.325,
+        "connectStart": 23.407,
+        "secureConnectionStart": 24.937,
+        "connectEnd": 43.865,
+        "requestStart": 43.993,
+        "responseStart": 110.787,
+        "responseEnd": 368.833
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::pgjd6-1793278530149-eed7ca1e1cda",
+        "age": "7"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 2,
+      "at": "2026-10-29T12:55:30.922Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278530542.491,
+        "domainLookupStart": 0.344,
+        "domainLookupEnd": 25.962,
+        "connectStart": 26.025,
+        "secureConnectionStart": 27.517,
+        "connectEnd": 45.703,
+        "requestStart": 45.829,
+        "responseStart": 112.775,
+        "responseEnd": 368.828
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::l9zd5-1793278530593-dd6ee920e01d",
+        "age": "8"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 2,
+      "at": "2026-10-29T12:55:31.247Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278530985.52,
+        "domainLookupStart": 0.141,
+        "domainLookupEnd": 1.639,
+        "connectStart": 1.693,
+        "secureConnectionStart": 10.26,
+        "connectEnd": 27.904,
+        "requestStart": 28.018,
+        "responseStart": 185.572,
+        "responseEnd": 245.637
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::9jf8q-1793278531060-b4405f5dedba",
+        "cf-cache-status": "DYNAMIC",
+        "age": "1"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 3,
+      "at": "2026-10-29T12:55:31.535Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278531356.525,
+        "domainLookupStart": 0.232,
+        "domainLookupEnd": 1.006,
+        "connectStart": 1.046,
+        "secureConnectionStart": 9.096,
+        "connectEnd": 24.985,
+        "requestStart": 25.111,
+        "responseStart": 122.911,
+        "responseEnd": 171.677
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::tsdbn-1793278531407-0c1bb8a5417d",
+        "cf-cache-status": "DYNAMIC",
+        "age": "1"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 3,
+      "at": "2026-10-29T12:55:32.007Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278531616.4492,
+        "domainLookupStart": 0.24,
+        "domainLookupEnd": 25.822,
+        "connectStart": 25.889,
+        "secureConnectionStart": 27.455,
+        "connectEnd": 46.932,
+        "requestStart": 47.052,
+        "responseStart": 109.367,
+        "responseEnd": 374.68
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::glf7g-1793278531667-691008c5214c",
+        "age": "9"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 4,
+      "at": "2026-10-29T12:55:32.508Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278532065.9312,
+        "domainLookupStart": 0.172,
+        "domainLookupEnd": 18.98,
+        "connectStart": 19.053,
+        "secureConnectionStart": 20.406,
+        "connectEnd": 40.728,
+        "requestStart": 40.854,
+        "responseStart": 104.273,
+        "responseEnd": 362.355
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::st7qr-1793278532110-876abe21454b",
+        "age": "9"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 4,
+      "at": "2026-10-29T12:55:32.765Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278532577.169,
+        "domainLookupStart": 0.228,
+        "domainLookupEnd": 1.239,
+        "connectStart": 1.279,
+        "secureConnectionStart": 9.199,
+        "connectEnd": 25.337,
+        "requestStart": 25.452,
+        "responseStart": 135.156,
+        "responseEnd": 183.128
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::6hld6-1793278532654-aae3b003fa7e",
+        "cf-cache-status": "DYNAMIC",
+        "age": "2"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "valuation",
+      "url": "https://stock.quanganh.org/vi",
+      "run": 5,
+      "at": "2026-10-29T12:55:32.962Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278532822.27,
+        "domainLookupStart": 0.464,
+        "domainLookupEnd": 1.487,
+        "connectStart": 1.546,
+        "secureConnectionStart": 8.994,
+        "connectEnd": 20.13,
+        "requestStart": 20.259,
+        "responseStart": 81.371,
+        "responseEnd": 129.55
+      },
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::tsdbn-1793278532865-41650943659e",
+        "cf-cache-status": "DYNAMIC",
+        "age": "2"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "site": "kalshi",
+      "url": "https://kalshi.com/",
+      "run": 5,
+      "at": "2026-10-29T12:55:33.404Z",
+      "status": 200,
+      "timing": {
+        "startTime": 1793278533026.989,
+        "domainLookupStart": 0.142,
+        "domainLookupEnd": 16.789,
+        "connectStart": 16.856,
+        "secureConnectionStart": 18.35,
+        "connectEnd": 38.712,
+        "requestStart": 38.879,
+        "responseStart": 98.442,
+        "responseEnd": 357.948
+      },
+      "headers": {
+        "server": "Vercel",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::cle1::ln8fq-1793278533069-c2039fbadd37",
+        "age": "10"
+      },
+      "requestCacheHeaders": {
+        "pragma": "no-cache",
+        "cache-control": "no-cache"
+      }
+    }
+  ],
+  "origin-ablation-before": [
+    {
+      "run": 1,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.385612,
+      "dns": 0.000812,
+      "tls": 0.024864,
+      "ready": 0.024961,
+      "wait": 0.360651,
+      "headers": {
+        "age": "12",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::9zw44-1793278487828-7c7aad887f6b",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 1,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.191876,
+      "dns": 1.9e-05,
+      "tls": 0.023427,
+      "ready": 0.023518,
+      "wait": 0.16835799999999998,
+      "headers": {
+        "age": "13",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::qdfnd-1793278488205-81c3d3aa1180"
+      }
+    },
+    {
+      "run": 2,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.085551,
+      "dns": 1.8e-05,
+      "tls": 0.025736,
+      "ready": 0.025843,
+      "wait": 0.059708,
+      "headers": {
+        "age": "13",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::6skp9-1793278488413-e6cb95cc66fe"
+      }
+    },
+    {
+      "run": 2,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.128434,
+      "dns": 0.000867,
+      "tls": 0.027185,
+      "ready": 0.027273,
+      "wait": 0.101161,
+      "headers": {
+        "age": "13",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::86nmt-1793278488545-6e4ccff8f3f4",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.098486,
+      "dns": 0.000766,
+      "tls": 0.026428,
+      "ready": 0.026519,
+      "wait": 0.071967,
+      "headers": {
+        "age": "13",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::zzwlp-1793278488675-9fdf35d2f770",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.062579,
+      "dns": 1.5e-05,
+      "tls": 0.023101,
+      "ready": 0.023184,
+      "wait": 0.039395,
+      "headers": {
+        "age": "13",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::s4htk-1793278488764-8ec79922bcd0"
+      }
+    },
+    {
+      "run": 4,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.074975,
+      "dns": 1.7e-05,
+      "tls": 0.018339,
+      "ready": 0.018452,
+      "wait": 0.056523000000000004,
+      "headers": {
+        "age": "13",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::8vr97-1793278488834-e157c0b8a835"
+      }
+    },
+    {
+      "run": 4,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.189962,
+      "dns": 0.000969,
+      "tls": 0.026301,
+      "ready": 0.026395,
+      "wait": 0.163567,
+      "headers": {
+        "age": "13",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::s7hrp-1793278489039-02d7ea4ed580",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 5,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.140817,
+      "dns": 0.000886,
+      "tls": 0.023983,
+      "ready": 0.024073,
+      "wait": 0.116744,
+      "headers": {
+        "age": "14",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::hxlnn-1793278489201-39e43edd3240",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 5,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.066807,
+      "dns": 1.8e-05,
+      "tls": 0.020916,
+      "ready": 0.021119,
+      "wait": 0.045688000000000006,
+      "headers": {
+        "age": "14",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::ghxxl-1793278489285-f42deadca3f1"
+      }
+    }
+  ],
+  "origin-ablation-after": [
+    {
+      "run": 1,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.086334,
+      "dns": 0.000901,
+      "tls": 0.028101,
+      "ready": 0.028203,
+      "wait": 0.058130999999999995,
+      "headers": {
+        "age": "3",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::6hld6-1793278533585-cb37df1cae35",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 1,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.097503,
+      "dns": 1.8e-05,
+      "tls": 0.021212,
+      "ready": 0.021338,
+      "wait": 0.07616500000000001,
+      "headers": {
+        "age": "3",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::ghn8s-1793278533650-a43ffa93f9f0"
+      }
+    },
+    {
+      "run": 2,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.062782,
+      "dns": 1.8e-05,
+      "tls": 0.018604,
+      "ready": 0.018694,
+      "wait": 0.044088,
+      "headers": {
+        "age": "3",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::hxlnn-1793278533757-50681e9d37b5"
+      }
+    },
+    {
+      "run": 2,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.081112,
+      "dns": 0.000835,
+      "tls": 0.027041,
+      "ready": 0.027124,
+      "wait": 0.05398800000000001,
+      "headers": {
+        "age": "3",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::f9szs-1793278533863-989e7347f25e",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.172897,
+      "dns": 0.00111,
+      "tls": 0.030365,
+      "ready": 0.030547,
+      "wait": 0.14235,
+      "headers": {
+        "age": "4",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::st5tl-1793278534051-7bcc398be1cd",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.039406,
+      "dns": 2.1e-05,
+      "tls": 0.020251,
+      "ready": 0.020353,
+      "wait": 0.019052999999999997,
+      "headers": {
+        "age": "4",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::755js-1793278534193-ebb0ddf1290d"
+      }
+    },
+    {
+      "run": 4,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.050011,
+      "dns": 1.8e-05,
+      "tls": 0.024618,
+      "ready": 0.024731,
+      "wait": 0.02528,
+      "headers": {
+        "age": "4",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::p7vzs-1793278534251-512e7131cc2e"
+      }
+    },
+    {
+      "run": 4,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.095256,
+      "dns": 0.001147,
+      "tls": 0.031435,
+      "ready": 0.031524,
+      "wait": 0.06373199999999998,
+      "headers": {
+        "age": "4",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::4446q-1793278534350-65090bb02499",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 5,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.080876,
+      "dns": 0.000955,
+      "tls": 0.027161,
+      "ready": 0.027254,
+      "wait": 0.053622,
+      "headers": {
+        "age": "4",
+        "server": "cloudflare",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::chxbl-1793278534445-f928dcf5eec9",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 5,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.07036,
+      "dns": 1.8e-05,
+      "tls": 0.023798,
+      "ready": 0.0239,
+      "wait": 0.04646,
+      "headers": {
+        "age": "4",
+        "server": "Vercel",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::vgqdf-1793278534518-25028a5c0da4"
+      }
+    }
+  ],
+  "proxyOnly": [
+    {
+      "site": "valuation",
+      "mode": "desktop",
+      "run": 1,
+      "at": "2026-10-29T12:56:30.375Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::vgqdf-1793278578399-33abab85011f",
+        "cf-cache-status": "DYNAMIC",
+        "age": "41"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 398,
+        "fcp": 860,
+        "lcp": 860,
+        "cls": 0.02815800739756784
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "desktop",
+      "run": 2,
+      "at": "2026-10-29T12:56:42.629Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::7k2r6-1793278590714-8a5a7a77ae91",
+        "cf-cache-status": "DYNAMIC",
+        "age": "7"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 485.39999997615814,
+        "fcp": 916,
+        "lcp": 916,
+        "cls": 0.028167067629155544
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "desktop",
+      "run": 3,
+      "at": "2026-10-29T12:56:54.734Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::zg7mh-1793278602789-7e2914e73a5d",
+        "cf-cache-status": "DYNAMIC",
+        "age": "18"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 112.2999999821186,
+        "fcp": 540,
+        "lcp": 540,
+        "cls": 0.02815800739756784
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "mobile",
+      "run": 1,
+      "at": "2026-10-29T12:57:06.854Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::5vdjm-1793278614909-f7e31e0d00ab",
+        "cf-cache-status": "DYNAMIC",
+        "age": "8"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 501.59999999403954,
+        "fcp": 956,
+        "lcp": 956,
+        "cls": 0.014899623859440573
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "mobile",
+      "run": 2,
+      "at": "2026-10-29T12:57:19.126Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::gfbq9-1793278627209-164a80bc350f",
+        "cf-cache-status": "DYNAMIC",
+        "age": "20"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 165.5,
+        "fcp": 572,
+        "lcp": 1128,
+        "cls": 0.014899623859440573
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "mobile",
+      "run": 3,
+      "at": "2026-10-29T12:57:31.245Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::jm4mm-1793278639295-21096b7582f3",
+        "cf-cache-status": "DYNAMIC",
+        "age": "8"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 439,
+        "fcp": 884,
+        "lcp": 1300,
+        "cls": 0.014899623859440573
+      },
+      "chartSnapshot": true
+    }
+  ],
+  "edgeCacheExperiment": [
+    {
+      "site": "valuation",
+      "mode": "desktop",
+      "run": 1,
+      "at": "2026-10-29T13:03:22.441Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "x-vercel-cache": "PRERENDER",
+        "x-vercel-id": "gru1::znrg5-1793278990891-024c18b73305",
+        "cf-cache-status": "DYNAMIC",
+        "age": "0"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 1415.2999999821186,
+        "fcp": 2444,
+        "lcp": 2444,
+        "cls": 0.03295978627260679
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "desktop",
+      "run": 2,
+      "at": "2026-10-29T13:03:34.637Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "s-maxage=15, stale-while-revalidate=31535985",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "gru1::sin1::lzmfr-1793279002956-3522b96486ac",
+        "cf-cache-status": "DYNAMIC",
+        "age": "7"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 910.1000000238419,
+        "fcp": 1232,
+        "lcp": 1232,
+        "cls": 0.025448198687759126
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "desktop",
+      "run": 3,
+      "at": "2026-10-29T13:03:46.721Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "s-maxage=15, stale-while-revalidate=31535985",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::fprcz-1793279014803-1059296c0ffe",
+        "cf-cache-status": "DYNAMIC",
+        "age": "18"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 543.0999999940395,
+        "fcp": 992,
+        "lcp": 992,
+        "cls": 0.02815800739756784
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "mobile",
+      "run": 1,
+      "at": "2026-10-29T13:03:58.832Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "s-maxage=15, stale-while-revalidate=31535985",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "gru1::sin1::znmqm-1793279027117-0e62202d7def",
+        "cf-cache-status": "DYNAMIC",
+        "age": "30"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 428.7000000178814,
+        "fcp": 928,
+        "lcp": 928,
+        "cls": 0.014899623859440573
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "mobile",
+      "run": 2,
+      "at": "2026-10-29T13:04:11.006Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "s-maxage=15, stale-while-revalidate=31535985",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::qq5v6-1793279039075-75b2d13f49c5",
+        "cf-cache-status": "DYNAMIC",
+        "age": "42"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 137.90000000596046,
+        "fcp": 548,
+        "lcp": 548,
+        "cls": 0.014899623859440573
+      },
+      "chartSnapshot": true
+    },
+    {
+      "site": "valuation",
+      "mode": "mobile",
+      "run": 3,
+      "at": "2026-10-29T13:04:23.130Z",
+      "headers": {
+        "server": "cloudflare",
+        "cache-control": "s-maxage=15, stale-while-revalidate=31535985",
+        "x-vercel-cache": "HIT",
+        "x-vercel-id": "iad1::sin1::966jz-1793279051214-2a87d9b491ab",
+        "cf-cache-status": "DYNAMIC",
+        "age": "54"
+      },
+      "status": 200,
+      "metrics": {
+        "ttfb": 191.90000000596046,
+        "fcp": 668,
+        "lcp": 668,
+        "cls": 0.014899623859440573
+      },
+      "chartSnapshot": true
+    }
+  ],
+  "note": "The 60-second CDN cache experiment was reverted in 86a7691 after no consistent improvement. curl Kalshi 429 responses are not comparable with successful HTML and must not be used as speed results.",
+  "recommendedCnamePairs": [
+    {
+      "run": 1,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.153464,
+      "tls": 0.036971,
+      "headers": {
+        "age": "84",
+        "server": "cloudflare",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::gfk5t-1793279387054-7607e14a20a3",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 1,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.057926,
+      "tls": 0.026602,
+      "headers": {
+        "age": "84",
+        "server": "Vercel",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::k5fl2-1793279387136-b5eb7da2acd7"
+      }
+    },
+    {
+      "run": 2,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.051936,
+      "tls": 0.024979,
+      "headers": {
+        "age": "84",
+        "server": "Vercel",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::dnk4s-1793279387208-89e7c82f9434"
+      }
+    },
+    {
+      "run": 2,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.095263,
+      "tls": 0.024895,
+      "headers": {
+        "age": "84",
+        "server": "cloudflare",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::zg7mh-1793279387298-d20a25976372",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.122629,
+      "tls": 0.025654,
+      "headers": {
+        "age": "84",
+        "server": "cloudflare",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::p7vzs-1793279387443-ed8af723d5e4",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 3,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.047615,
+      "tls": 0.020796,
+      "headers": {
+        "age": "85",
+        "server": "Vercel",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::qwftp-1793279387512-39ec6d5d74c8"
+      }
+    },
+    {
+      "run": 4,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.049931,
+      "tls": 0.024923,
+      "headers": {
+        "age": "85",
+        "server": "Vercel",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::x4rxk-1793279387574-544284c8f13b"
+      }
+    },
+    {
+      "run": 4,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.09477,
+      "tls": 0.02715,
+      "headers": {
+        "age": "85",
+        "server": "cloudflare",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::lncgc-1793279387672-5d7915e137dd",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 5,
+      "direct": false,
+      "status": 200,
+      "ttfb": 0.280487,
+      "tls": 0.027555,
+      "headers": {
+        "age": "85",
+        "server": "cloudflare",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::tsqvp-1793279387771-56f3f1922783",
+        "cf-cache-status": "DYNAMIC"
+      }
+    },
+    {
+      "run": 5,
+      "direct": true,
+      "status": 200,
+      "ttfb": 0.080773,
+      "tls": 0.035196,
+      "headers": {
+        "age": "85",
+        "server": "Vercel",
+        "x-vercel-cache": "STALE",
+        "x-vercel-id": "iad1::sin1::2dthv-1793279388059-36e62ed9aa09"
+      }
+    }
+  ],
+  "directBrowserSimulation": {
+    "publicDnsChanged": false,
+    "chromiumHostOverride": "stock.quanganh.org -> 216.198.79.1",
+    "runs": [
+      {
+        "site": "valuation",
+        "mode": "desktop",
+        "run": 1,
+        "at": "2026-10-29T13:10:35.239Z",
+        "headers": {
+          "server": "Vercel",
+          "cache-control": "public, max-age=0, must-revalidate",
+          "x-vercel-cache": "STALE",
+          "x-vercel-id": "iad1::sin1::mgwc8-1793279423204-9498c828fb66",
+          "age": "32"
+        },
+        "status": 200,
+        "containsChartSnapshot": true,
+        "metrics": {
+          "ttfb": 37.20000001788139,
+          "fcp": 736,
+          "lcp": 736,
+          "cls": 0.02815800739756784
+        },
+        "pageErrors": []
+      },
+      {
+        "site": "valuation",
+        "mode": "desktop",
+        "run": 2,
+        "at": "2026-10-29T13:10:47.471Z",
+        "headers": {
+          "server": "Vercel",
+          "cache-control": "public, max-age=0, must-revalidate",
+          "x-vercel-cache": "HIT",
+          "x-vercel-id": "iad1::sin1::r6rf9-1793279435476-d430c2d36ec0",
+          "age": "8"
+        },
+        "status": 200,
+        "containsChartSnapshot": true,
+        "metrics": {
+          "ttfb": 38.400000005960464,
+          "fcp": 704,
+          "lcp": 704,
+          "cls": 0.02815800739756784
+        },
+        "pageErrors": []
+      },
+      {
+        "site": "valuation",
+        "mode": "desktop",
+        "run": 3,
+        "at": "2026-10-29T13:10:59.580Z",
+        "headers": {
+          "server": "Vercel",
+          "cache-control": "public, max-age=0, must-revalidate",
+          "x-vercel-cache": "STALE",
+          "x-vercel-id": "iad1::sin1::h9zfv-1793279447589-d44523a98411",
+          "age": "20"
+        },
+        "status": 200,
+        "containsChartSnapshot": true,
+        "metrics": {
+          "ttfb": 34,
+          "fcp": 464,
+          "lcp": 464,
+          "cls": 0.02815800739756784
+        },
+        "pageErrors": []
+      },
+      {
+        "site": "valuation",
+        "mode": "mobile",
+        "run": 1,
+        "at": "2026-10-29T13:11:11.706Z",
+        "headers": {
+          "server": "Vercel",
+          "cache-control": "public, max-age=0, must-revalidate",
+          "x-vercel-cache": "HIT",
+          "x-vercel-id": "iad1::sin1::qxzrg-1793279459685-f33574a48059",
+          "age": "8"
+        },
+        "status": 200,
+        "containsChartSnapshot": true,
+        "metrics": {
+          "ttfb": 31.5,
+          "fcp": 888,
+          "lcp": 1264,
+          "cls": 0.014899623859440573
+        },
+        "pageErrors": []
+      },
+      {
+        "site": "valuation",
+        "mode": "mobile",
+        "run": 2,
+        "at": "2026-10-29T13:11:23.902Z",
+        "headers": {
+          "server": "Vercel",
+          "cache-control": "public, max-age=0, must-revalidate",
+          "x-vercel-cache": "STALE",
+          "x-vercel-id": "iad1::sin1::k6wvk-1793279471901-b83d0a47d499",
+          "age": "20"
+        },
+        "status": 200,
+        "containsChartSnapshot": true,
+        "metrics": {
+          "ttfb": 31.700000017881393,
+          "fcp": 692,
+          "lcp": 692,
+          "cls": 0.014899623859440573
+        },
+        "pageErrors": []
+      },
+      {
+        "site": "valuation",
+        "mode": "mobile",
+        "run": 3,
+        "at": "2026-10-29T13:11:36.013Z",
+        "headers": {
+          "server": "Vercel",
+          "cache-control": "public, max-age=0, must-revalidate",
+          "x-vercel-cache": "HIT",
+          "x-vercel-id": "iad1::sin1::5jchs-1793279483990-52d578f97a70",
+          "age": "8"
+        },
+        "status": 200,
+        "containsChartSnapshot": true,
+        "metrics": {
+          "ttfb": 35.099999994039536,
+          "fcp": 780,
+          "lcp": 1196,
+          "cls": 0.014899623859440573
+        },
+        "pageErrors": []
+      }
+    ]
+  }
+}
