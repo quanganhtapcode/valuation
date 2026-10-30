@@ -1,6 +1,6 @@
 # Quy ước API công khai
 
-Frontend gọi REST trực tiếp tới `https://api.quanganh.org/v1/valuation`. Trong các bảng dưới, `/api` là tiền tố nội bộ Flask; khi gọi công khai, thay bằng `/v1/valuation`. Các route Next.js `/api` còn giữ cho tương thích và rollback. Xem `public-api-architecture.md`.
+Frontend gọi REST trực tiếp tới `https://trading-api.quanganh.org/v1/valuation`. Trong các bảng dưới, `/api` là tiền tố nội bộ Flask; khi gọi công khai, thay bằng `/v1/valuation`. Các route Next.js `/api` còn giữ cho tương thích và rollback. Xem `public-api-architecture.md`.
 
 ## Đặt tên và tương thích
 

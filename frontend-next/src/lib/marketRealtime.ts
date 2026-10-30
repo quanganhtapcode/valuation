@@ -65,7 +65,7 @@ export function getWsUrl(path: string): string {
         process.env.NEXT_PUBLIC_BACKEND_WS_URL ||
         (process.env.NODE_ENV === 'development'
             ? 'ws://127.0.0.1:8000'
-            : (/^https?:\/\//.test(API_BASE) ? API_BASE : 'https://api.quanganh.org/v1/valuation'))
+            : (/^https?:\/\//.test(API_BASE) ? API_BASE : 'https://trading-api.quanganh.org/v1/valuation'))
     ).trim().replace(/\/+$/, '').replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
     return `${base}/${path.replace(/^\/+/, '')}`;
 }

@@ -1,6 +1,6 @@
 # Stock quote transport
 
-Production stock quotes use `https://api.quanganh.org/v1/valuation/stocks/<symbol>/quote`
+Production stock quotes use `https://trading-api.quanganh.org/v1/valuation/stocks/<symbol>/quote`
 directly from the browser. The subsequent central API migration extends this
 transport to the other REST resources. See `public-api-architecture.md` for the
 current configuration and deployment order.

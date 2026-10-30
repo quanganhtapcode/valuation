@@ -1,14 +1,14 @@
 # Central public API
 
 The frontend is served by Vercel at `stock.quanganh.org`. All first-party public
-REST data and exports use `https://api.quanganh.org/v1/valuation` through Cloudflare
+REST data and exports use `https://trading-api.quanganh.org/v1/valuation` through Cloudflare
 and the VPS Nginx gateway. WebSockets use the same backend. Images, fonts, signed
 storage downloads and vendor-operated streams are separate asset/feed transports.
 
 ## Configuration
 
 - `NEXT_PUBLIC_API_BASE_URL`: public REST base, baked into the browser bundle.
-  Production defaults to `https://api.quanganh.org/v1/valuation`; development to
+  Production defaults to `https://trading-api.quanganh.org/v1/valuation`; development to
   `/api`. Set `/api` and rebuild to roll back to the compatibility proxy.
 - `BACKEND_API_URL` / `BACKEND_API_URL_LOCAL`: server-rendered data and legacy
   Next.js API routes call these backend bases.

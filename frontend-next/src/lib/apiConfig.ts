@@ -2,7 +2,7 @@
 // development / rollback option and a compatibility endpoint for older clients.
 export const API_BASE = (
     process.env.NEXT_PUBLIC_API_BASE_URL
-    || (process.env.NODE_ENV === 'production' ? 'https://api.quanganh.org/v1/valuation' : '/api')
+    || (process.env.NODE_ENV === 'production' ? 'https://trading-api.quanganh.org/v1/valuation' : '/api')
 ).trim().replace(/\/+$/, '');
 export const REALTIME_API_BASE = API_BASE;
 
