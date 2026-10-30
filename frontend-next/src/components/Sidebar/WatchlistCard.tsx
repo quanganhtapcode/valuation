@@ -98,7 +98,18 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (watchlist.length === 0) { setItems([]); return; }
 
+        // Create rows before starting either request: prices can return before
+        // the ticker catalogue, and must not be applied to an empty list.
+        setItems(prev => {
+            const existing = new Map(prev.map(item => [item.symbol, item]));
+            return watchlist.map(symbol => existing.get(symbol) ?? {
+                symbol, name: symbol, exchange: '', price: 0, changePercent: 0, loading: true,
+            });
+        });
+
+        let cancelled = false;
         enrichWithMeta(watchlist).then(metas => {
+            if (cancelled) return;
             setItems(prev => {
                 const map = new Map(prev.map(i => [i.symbol, i]));
                 return metas.map(m => ({
@@ -111,7 +122,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
         });
 
         if (useExternalOnly) {
-            return;
+            return () => { cancelled = true; };
         }
 
         const ctrl = new AbortController();
@@ -130,7 +141,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
         };
         fetchPrices();
         const interval = setInterval(fetchPrices, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
-        return () => { ctrl.abort(); clearInterval(interval); };
+        return () => { cancelled = true; ctrl.abort(); clearInterval(interval); };
     }, [watchlist, enrichWithMeta, useExternalOnly]);
 
     useEffect(() => {

@@ -143,7 +143,7 @@ export function OverviewWidgets() {
 }
 
 export function OverviewWatchlist() {
-    return <DeferredPanel height={208}><WatchlistCard /></DeferredPanel>;
+    return <WatchlistCard />;
 }
 
 export function OverviewEarnings() {
