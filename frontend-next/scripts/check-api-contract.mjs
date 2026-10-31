@@ -29,6 +29,7 @@ function load(name) {
     return sandboxModule.exports;
 }
 const { apiFetch, decodeApiEnvelope, withApiSchema } = load('apiFetch');
+const { apiUrl } = load('apiConfig');
 const plain = value => JSON.parse(JSON.stringify(value));
 for (const fixture of fixtures) {
     assert.deepEqual(plain(decodeApiEnvelope(fixture.envelope, fixture.shape)), fixture.payload, fixture.name);
@@ -36,11 +37,11 @@ for (const fixture of fixtures) {
         status: fixture.status,
         headers: { 'X-API-Schema': '2', 'X-API-Shape': fixture.shape, 'Content-Type': 'application/json' },
     });
-    const response = await apiFetch('https://api.quanganh.org/v1/valuation/stocks/VCB/quote');
+    const response = await apiFetch('https://trading-api.quanganh.org/v1/valuation/stocks/VCB/quote');
     assert.deepEqual(plain(await response.clone().json()), fixture.payload, fixture.name);
     assert.deepEqual(await response.payload(), fixture.envelope, fixture.name);
 }
-const url = 'https://api.quanganh.org/v1/valuation/stocks/VCB/news?page=2&compact=1';
+const url = 'https://trading-api.quanganh.org/v1/valuation/stocks/VCB/news?page=2&compact=1';
 assert.equal(new URL(withApiSchema(url)).searchParams.get('page'), '2');
 assert.equal(new URL(withApiSchema(url)).searchParams.get('schema'), '2');
 assert.equal(withApiSchema('/api/stocks/VCB/quote'), '/api/stocks/VCB/quote?schema=2');
@@ -59,4 +60,13 @@ assert.equal(calls.at(-1).options.method, 'POST');
 assert(!Object.keys(calls.at(-1).options.headers).some(key => key.toLowerCase().startsWith('x-api')));
 assert.throws(() => decodeApiEnvelope({ meta: {} }, 'object'), /missing data/);
 assert.throws(() => decodeApiEnvelope({ data: {} }, 'unknown'), /Unknown API shape/);
+const { fetchNews } = load('newsApi');
+responseFactory = () => new Response(JSON.stringify({ data: [{ title: 'Test' }] }), {
+    headers: { 'X-API-Schema': '2', 'X-API-Shape': 'data' },
+});
+await fetchNews(1, 30);
+assert.equal(new URL(calls.at(-1).url).origin, 'https://trading-api.quanganh.org');
+assert.equal(new URL(calls.at(-1).url).pathname, '/v1/valuation/market/news');
+assert.equal(new URL(calls.at(-1).url).searchParams.get('schema'), '2');
+assert.equal(apiUrl('/market/p2p'), 'https://trading-api.quanganh.org/v1/valuation/market/p2p');
 console.log(`PASS: ${fixtures.length} cross-language response fixtures, legacy fallback, typed envelopes, URL negotiation, binary downloads and unchanged POST bodies.`);

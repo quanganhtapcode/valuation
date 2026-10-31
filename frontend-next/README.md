@@ -13,27 +13,28 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Các lệnh hỗ trợ: `npm run lint`, `npm test`, `npm run build`, `npm run start`.
+Các lệnh hỗ trợ: `npm run lint`, `npm run test:api`, `npm run build`, `npm run start`.
 `npm run start` cần bản build đã hoàn tất.
 
 ## Kết nối API
 
-HTTP đi qua proxy cùng domain:
+Trên production, trình duyệt gọi trực tiếp API công khai:
 
 ```text
-Trình duyệt -> /api/... -> src/app/api/[...path]/route.ts -> Flask API
+Trình duyệt -> trading-api.quanganh.org/v1/valuation/... -> Flask API
 ```
 
 | Biến | Vai trò |
 | --- | --- |
 | `BACKEND_API_URL` | Backend cho proxy phía server ở production |
 | `BACKEND_API_URL_LOCAL` | Backend cho môi trường development |
+| `NEXT_PUBLIC_API_BASE_URL` | Gốc REST API phía trình duyệt |
 | `NEXT_PUBLIC_BACKEND_WS_URL` | Địa chỉ WebSocket phía trình duyệt |
 
 Giá trị production của HTTP và WebSocket lần lượt là
-`https://api.quanganh.org/v1/valuation` và `wss://api.quanganh.org/v1/valuation`.
+`https://trading-api.quanganh.org/v1/valuation` và `wss://trading-api.quanganh.org/v1/valuation`.
 Local thường dùng `http://127.0.0.1:8000/api` và `ws://127.0.0.1:8000`.
-WebSocket kết nối trực tiếp tới VPS. Không đặt địa chỉ backend rải rác trong component.
+Proxy `/api/...` vẫn phục vụ development và tương thích với client cũ; giá cổ phiếu có thể dùng proxy khi request trực tiếp thất bại. WebSocket kết nối trực tiếp tới VPS. Không đặt địa chỉ backend rải rác trong component.
 
 Không dùng lại `NEXT_PUBLIC_API_URL` hoặc `NEXT_PUBLIC_REALTIME_API_URL`.
 Thay đổi biến `NEXT_PUBLIC_*` cần build và triển khai lại frontend.
@@ -53,7 +54,7 @@ Thay đổi biến `NEXT_PUBLIC_*` cần build và triển khai lại frontend.
 
 ```bash
 npm run lint
-npm test
+npm run test:api
 npm run build
 ```
 
