@@ -8,7 +8,11 @@ export async function GET() {
     const snapshot = await getP2PSnapshot();
     if (!snapshot.cashUsd) {
         try {
-            const response = await fetch(`${BACKEND_API}/market/p2p/cash-usd`, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+            const response = await fetch(`${BACKEND_API}/market/p2p/cash-usd`, {
+                cache: 'no-store',
+                signal: AbortSignal.timeout(4000),
+                headers: { Origin: 'https://stock.quanganh.org', Referer: 'https://stock.quanganh.org/' },
+            });
             if (response.ok) {
                 const data = await response.json();
                 if (Number.isFinite(data.buy) && data.buy > 0 && Number.isFinite(data.sell) && data.sell > 0 &&
