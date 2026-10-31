@@ -50,7 +50,8 @@ test('slow secondary sources do not block the index/chart snapshot', async () =>
     const { snapshots, requests, reply } = fixture();
     assert.equal(requests.size, 7, 'all sources start before awaiting any section');
     const chartUrl = [...requests.keys()].find(url => url.startsWith('/market/index-valuations'));
-    assert(chartUrl?.includes('limit=250'));
+    assert(chartUrl);
+    assert(chartUrl.includes('limit=250'));
     assert(!chartUrl.includes('timeFrame='));
     const chart = { columns: ['date', 'vnindex', 'pe', 'pb'], data: [['2026-10-28', 1600, 14, 2]] };
     reply('/market/indices', [{ symbol: 'VNINDEX', price: 1600, refPrice: 1500 }]);
