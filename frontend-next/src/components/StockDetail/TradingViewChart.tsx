@@ -365,9 +365,9 @@ export default function TradingViewChart({ data, isLoading, onLoadOlderHistory, 
             return;
         }
 
-        // Start with readable candles; older sessions are fetched on pan/zoom demand.
+        // Show roughly two months of trading sessions on first load.
         chartRef.current.timeScale().setVisibleLogicalRange({
-            from: Math.max(0, normalizedData.length - 90),
+            from: Math.max(0, normalizedData.length - 45),
             to: normalizedData.length - 1 + 5,
         });
     }, [normalizedData]);
