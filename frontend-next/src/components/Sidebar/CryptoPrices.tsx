@@ -7,6 +7,8 @@ import SidebarCard from './SidebarCard';
 import { OKX_INSTRUMENTS, useOkxTickers } from '@/hooks/useOkxTickers';
 import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { apiUrl } from '@/lib/apiCore';
+import { apiFetch } from '@/lib/apiFetch';
 
 const p2pDelay = () => 60_000;
 type P2POffer = { price: number; seller: string; completionRate: number; positiveRate: number | null; available: number; orders: number; id: string };
@@ -58,7 +60,7 @@ export default function CryptoPrices() {
     const p2p = p2pState?.current;
     const refreshP2p = useCallback(async () => {
         try {
-            const response = await fetch('/api/p2p', { cache: 'no-store' });
+            const response = await apiFetch(apiUrl('/market/p2p'), { cache: 'no-store' });
             if (!response.ok) throw new Error('P2P request failed');
             const next: P2PData = await response.json();
             setP2pState(previous => ({ current: next, previous: previous?.current.fetchedAt === next.fetchedAt ? previous.previous : previous?.current ?? null }));
