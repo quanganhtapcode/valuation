@@ -21,6 +21,7 @@ sudo cp "$SCRIPT_DIR/vps-storage-clean.service" "$SCRIPT_DIR/vps-storage-clean.t
 sudo cp "$SCRIPT_DIR/vps-storage-monitor.service" "$SCRIPT_DIR/vps-storage-monitor.timer" /etc/systemd/system/
 sudo cp "$SCRIPT_DIR/valuation-data-backup.service" "$SCRIPT_DIR/valuation-data-backup.timer" /etc/systemd/system/
 sudo cp "$SCRIPT_DIR/valuation-backup-health.service" "$SCRIPT_DIR/valuation-backup-health.timer" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/p2p-history.service" "$SCRIPT_DIR/p2p-history.timer" /etc/systemd/system/
 
 # 2. Reload systemd
 echo "2. Reloading systemd daemon..."
@@ -40,6 +41,7 @@ sudo systemctl start earnings-telegram.timer
 sudo systemctl enable --now vps-storage-clean.timer vps-storage-monitor.timer
 sudo systemctl enable --now valuation-data-backup.timer
 sudo systemctl enable --now valuation-backup-health.timer
+sudo systemctl enable --now p2p-history.timer
 
 # 5. Check status
 echo ""

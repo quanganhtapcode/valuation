@@ -1,0 +1,12 @@
+[Unit]
+Description=Collect USD and USDT P2P reference prices
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/valuation
+ExecStart=/var/www/valuation/.venv/bin/python -m automation.update_p2p_history
+TimeoutStartSec=90
+Nice=10
+UMask=0077

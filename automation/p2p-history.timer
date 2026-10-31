@@ -1,0 +1,10 @@
+[Unit]
+Description=Collect USD and USDT P2P reference prices every five minutes
+
+[Timer]
+OnCalendar=*-*-* *:0/5:00
+Persistent=true
+Unit=p2p-history.service
+
+[Install]
+WantedBy=timers.target
