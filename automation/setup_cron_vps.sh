@@ -59,9 +59,9 @@ CRON_VIETNAM_MACRO="0 8 * * * cd /var/www/valuation && bash automation/vci_safe_
 
 # ── Weekly jobs ───────────────────────────────────────────────────────────────
 
-# Sunday 02:00. Refresh metadata, regenerate the frontend ticker catalogue, and
-# publish the generated catalogue to GitHub so Vercel deploys the update.
-CRON_COMPANY="0 2 * * 0 cd /var/www/valuation && bash automation/vci_safe_run.sh --name company --db data/sqlite/vci_company.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.20 --keep-ratio 0.80 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_company.py --db data/sqlite/vci_company.sqlite && .venv/bin/python scripts/generate_ticker_data.py && bash automation/publish_ticker_catalog.sh\" >> logs/cron_vci_company.log 2>&1"
+# Daily 02:00. Refresh metadata; after the health check passes, regenerate and
+# publish the frontend ticker catalogue to GitHub for the Vercel deployment.
+CRON_COMPANY="0 2 * * * cd /var/www/valuation && bash automation/vci_safe_run.sh --name company --db data/sqlite/vci_company.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.20 --keep-ratio 0.80 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_vci_company.py --db data/sqlite/vci_company.sqlite\" >> logs/cron_vci_company.log 2>&1 && .venv/bin/python scripts/generate_ticker_data.py >> logs/cron_vci_company.log 2>&1 && bash automation/publish_ticker_catalog.sh >> logs/cron_vci_company.log 2>&1"
 
 # Sunday 03:00
 CRON_FIREANT_BETA="0 3 * * 0 cd /var/www/valuation && bash automation/vci_safe_run.sh --name fireant_beta --db data/sqlite/fireant_macro.sqlite --retries 2 --retry-sleep 20 --drop-total-pct 0.30 --keep-ratio 0.70 $RCLONE --command \".venv/bin/python scripts/fetchers/fetch_fireant_beta.py --db data/sqlite/fireant_macro.sqlite --workers 1 --delay 1\" >> logs/cron_fireant_beta.log 2>&1"
