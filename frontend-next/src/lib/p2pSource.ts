@@ -3,6 +3,7 @@ const BINANCE_BASE = 'https://www.binance.com/bapi/c2c/v1/public/c2c/agent/ad-li
 const CHOGIA_URL = 'https://chogia.vn/get-live-price.php?k=8fgY0d9s%25238g023j5lagu9%25248G72935jsaf987DF2935%255EuflskaB%2540j9873Y5&t=currencynames';
 const AMOUNT = 1000;
 const MIN_RATE = 0.95;
+const MIN_POSITIVE_RATE = 0.95;
 
 type Offer = { price: number; seller: string; completionRate: number; positiveRate: number | null; available: number; orders: number; min: number; max: number; id: string };
 type Result = { offer: Offer | null; error: boolean; scanned: number };
@@ -50,6 +51,10 @@ async function getOffer(exchange: Exchange, direction: Direction): Promise<Resul
             const id = exchange === 'okx' ? ad.id : ad.adNo;
             const rawPositive = numberOrNull(exchange === 'okx' ? ad.posReviewPercentage : ad.advertiser?.positiveRate);
             const positiveRate = rawPositive !== null && rawPositive >= 0 && rawPositive <= 1 ? rawPositive : null;
+            // Binance supplies positiveRate; do not treat missing data as a high rating.
+            // OKX commonly reports -1 (unavailable), so keep those offers unverified.
+            if ((exchange === 'binance' && positiveRate === null) ||
+                (positiveRate !== null && positiveRate < MIN_POSITIVE_RATE)) return [];
             if (price === null || price <= 0 || completionRate === null || completionRate < MIN_RATE || completionRate > 1 ||
                 available === null || available < AMOUNT || orders === null || orders <= 0 || min === null || max === null ||
                 typeof seller !== 'string' || !seller || typeof id !== 'string') return [];
