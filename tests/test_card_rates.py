@@ -22,9 +22,32 @@ class CardRatesTest(unittest.TestCase):
     def test_source_failure_does_not_break_other_rates(self):
         card_rates._next_refresh = 0
         card_rates._cached = None
+        card_rates._mastercard_next_refresh = 0
+        card_rates._mastercard_cached = None
         with patch.object(card_rates.requests, 'get', side_effect=card_rates.requests.Timeout('timeout')), \
                 patch.object(card_rates.LOGGER, 'warning', Mock()):
             self.assertEqual(card_rates.get_card_rates(), {'visa': None, 'mastercard': None})
+
+    def test_mastercard_uses_returned_date_and_no_cookie(self):
+        card_rates._mastercard_next_refresh = 0
+        response = Mock()
+        response.json.return_value = {'data': {'conversionRate': '25710', 'fxDate': '2026-11-04',
+                                               'transCurr': 'USD', 'crdhldBillCurr': 'VND'}}
+        with patch.object(card_rates.requests, 'get', return_value=response) as request:
+            result = card_rates.get_mastercard_rate(date(2026, 11, 5))
+        self.assertEqual(result['rate'], 25710)
+        self.assertEqual(result['date'], '2026-11-04')
+        self.assertEqual(request.call_args.kwargs['params']['bank_fee'], '0')
+        self.assertNotIn('Cookie', request.call_args.kwargs['headers'])
+
+    def test_mastercard_rejects_stale_data(self):
+        card_rates._mastercard_next_refresh = 0
+        response = Mock()
+        response.json.return_value = {'data': {'conversionRate': '25710', 'fxDate': '2026-03-01',
+                                               'transCurr': 'USD', 'crdhldBillCurr': 'VND'}}
+        with patch.object(card_rates.requests, 'get', return_value=response), \
+                patch.object(card_rates.LOGGER, 'warning', Mock()):
+            self.assertIsNone(card_rates.get_mastercard_rate(date(2026, 11, 5)))
 
 
 if __name__ == '__main__':

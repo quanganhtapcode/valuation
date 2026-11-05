@@ -13,7 +13,8 @@ import { apiFetch } from '@/lib/apiFetch';
 const p2pDelay = () => 60_000;
 type P2POffer = { price: number; seller: string; completionRate: number; positiveRate: number | null; available: number; orders: number; id: string };
 type P2PResult = { offer: P2POffer | null; error: boolean; scanned: number };
-type P2PData = { okx: { buy: P2PResult; sell: P2PResult }; binance: { buy: P2PResult; sell: P2PResult }; cashUsd: { buy: number; sell: number } | null; bankUsd: { buy: number; sell: number; date: string; updatedAt: string } | null; cardRates?: { visa: { rate: number; date: string; source: string; feePercent: number } | null; mastercard: null }; fetchedAt: number };
+type CardRate = { rate: number; date: string; source: string; feePercent: number };
+type P2PData = { okx: { buy: P2PResult; sell: P2PResult }; binance: { buy: P2PResult; sell: P2PResult }; cashUsd: { buy: number; sell: number } | null; bankUsd: { buy: number; sell: number; date: string; updatedAt: string } | null; cardRates?: { visa: CardRate | null; mastercard: CardRate | null }; fetchedAt: number };
 
 const CRYPTO_LOGOS: Record<string, string> = {
     BTC: '/crypto-logos/btc-551c3d5fe4751a9ca984.svg',
@@ -149,10 +150,11 @@ export default function CryptoPrices() {
                                 <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visa?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
                             </div>
                             <div className="mt-1 flex items-center justify-between gap-2 text-sm">
-                                <span className="font-medium text-gray-700 dark:text-gray-300">Mastercard</span>
-                                <span className="font-semibold text-gray-400">—</span>
+                                <a href="https://www.mastercard.com/mea/en/personal/get-support/currency-exchange-rate-converter.html" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Mastercard</a>
+                                <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.mastercard?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
                             </div>
-                            <p className="mt-1 text-[10px] text-gray-400">{p2p?.cardRates?.visa ? `${lang === 'vi' ? 'Visa qua ForexRadar · ngày' : 'Visa via ForexRadar · dated'} ${p2p.cardRates.visa.date}` : (lang === 'vi' ? 'Chưa có dữ liệu thẻ gần đây' : 'Recent card rates unavailable')}</p>
+                            <p className="mt-1 text-[10px] text-gray-400">{p2p?.cardRates?.visa ? `${lang === 'vi' ? 'Visa qua ForexRadar · ngày' : 'Visa via ForexRadar · dated'} ${p2p.cardRates.visa.date}` : (lang === 'vi' ? 'Visa chưa có dữ liệu gần đây' : 'Recent Visa rate unavailable')}</p>
+                            {p2p?.cardRates?.mastercard && <p className="text-[10px] text-gray-400">{lang === 'vi' ? 'Mastercard · ngày' : 'Mastercard · dated'} {p2p.cardRates.mastercard.date}</p>}
                         </div>
                         <div className="mt-4 space-y-2 rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/50">
                             {([['okx', 'binance'], ['binance', 'okx']] as const).map(([buyExchange, sellExchange]) => {

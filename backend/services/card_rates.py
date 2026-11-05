@@ -1,4 +1,4 @@
-"""Reference Visa card FX rate published in ForexRadar's public archive."""
+"""Reference card FX rates for USD transactions billed in VND."""
 from __future__ import annotations
 
 import csv
@@ -12,11 +12,19 @@ import requests
 
 LOGGER = logging.getLogger(__name__)
 _ARCHIVE_URL = 'https://raw.githubusercontent.com/avishj/ForexRadar/main/db/USD/{year}.csv'
+_MASTERCARD_URL = 'https://www.mastercard.com/marketingservices/public/mccom-services/currency-conversions/conversion-rates'
+_MASTERCARD_HEADERS = {
+    'Accept': '*/*',
+    'Referer': 'https://www.mastercard.com/mea/en/personal/get-support/currency-exchange-rate-converter.html',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36',
+}
 _MAX_AGE_DAYS = 3
 _CACHE_SECONDS = 3600
 _FAILURE_RETRY_SECONDS = 300
 _cached: dict | None = None
 _next_refresh = 0.0
+_mastercard_cached: dict | None = None
+_mastercard_next_refresh = 0.0
 
 
 def parse_visa_rate(content: str, today: date) -> dict | None:
@@ -37,6 +45,34 @@ def parse_visa_rate(content: str, today: date) -> dict | None:
     if latest is None:
         return None
     return {'rate': latest[1], 'date': latest[0].isoformat(), 'source': 'ForexRadar', 'feePercent': 0}
+
+
+def get_mastercard_rate(today: date) -> dict | None:
+    global _mastercard_cached, _mastercard_next_refresh
+    now = time.monotonic()
+    if now >= _mastercard_next_refresh:
+        result = None
+        try:
+            response = requests.get(_MASTERCARD_URL, headers=_MASTERCARD_HEADERS, timeout=8, params={
+                'exchange_date': today.isoformat(), 'transaction_currency': 'USD',
+                'cardholder_billing_currency': 'VND', 'bank_fee': '0', 'transaction_amount': '1',
+            })
+            response.raise_for_status()
+            data = response.json().get('data') or {}
+            if data.get('transCurr') != 'USD' or data.get('crdhldBillCurr') != 'VND':
+                raise ValueError('Unexpected Mastercard currency pair')
+            observed = date.fromisoformat(data.get('fxDate', ''))
+            rate = float(data.get('conversionRate', ''))
+            if not 0 <= (today - observed).days <= _MAX_AGE_DAYS or not math.isfinite(rate) or rate <= 0:
+                raise ValueError('Invalid or stale Mastercard rate')
+            result = {'rate': rate, 'date': observed.isoformat(), 'source': 'Mastercard', 'feePercent': 0}
+        except (requests.RequestException, ValueError, TypeError, AttributeError):
+            LOGGER.warning('Unable to read Mastercard rate', exc_info=True)
+        _mastercard_cached = result
+        _mastercard_next_refresh = now + (_CACHE_SECONDS if result else _FAILURE_RETRY_SECONDS)
+    if _mastercard_cached and 0 <= (today - date.fromisoformat(_mastercard_cached['date'])).days <= _MAX_AGE_DAYS:
+        return _mastercard_cached
+    return None
 
 
 def get_card_rates() -> dict:
@@ -63,4 +99,4 @@ def get_card_rates() -> dict:
         _cached = result
         _next_refresh = now + (_CACHE_SECONDS if result else _FAILURE_RETRY_SECONDS)
     visa = _cached if _cached and 0 <= (today - date.fromisoformat(_cached['date'])).days <= _MAX_AGE_DAYS else None
-    return {'visa': visa, 'mastercard': None}
+    return {'visa': visa, 'mastercard': get_mastercard_rate(today)}
