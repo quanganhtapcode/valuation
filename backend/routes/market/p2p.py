@@ -10,6 +10,7 @@ import time
 
 from flask import Blueprint, jsonify
 
+from backend.services.card_rates import get_card_rates
 from .p2p_cash import read_cash_usd
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -35,6 +36,7 @@ def get_snapshot() -> dict:
             cash = read_cash_usd()
             if cash:
                 data['cashUsd'] = {'buy': cash['buy'], 'sell': cash['sell']}
+        data['cardRates'] = get_card_rates()
         _cached = data
         _cached_at = time.monotonic()
         return data

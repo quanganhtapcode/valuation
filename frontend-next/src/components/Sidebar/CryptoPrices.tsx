@@ -13,7 +13,7 @@ import { apiFetch } from '@/lib/apiFetch';
 const p2pDelay = () => 60_000;
 type P2POffer = { price: number; seller: string; completionRate: number; positiveRate: number | null; available: number; orders: number; id: string };
 type P2PResult = { offer: P2POffer | null; error: boolean; scanned: number };
-type P2PData = { okx: { buy: P2PResult; sell: P2PResult }; binance: { buy: P2PResult; sell: P2PResult }; cashUsd: { buy: number; sell: number } | null; bankUsd: { buy: number; sell: number; date: string; updatedAt: string } | null; fetchedAt: number };
+type P2PData = { okx: { buy: P2PResult; sell: P2PResult }; binance: { buy: P2PResult; sell: P2PResult }; cashUsd: { buy: number; sell: number } | null; bankUsd: { buy: number; sell: number; date: string; updatedAt: string } | null; cardRates?: { visa: { rate: number; date: string; source: string; feePercent: number } | null; mastercard: null }; fetchedAt: number };
 
 const CRYPTO_LOGOS: Record<string, string> = {
     BTC: '/crypto-logos/btc-551c3d5fe4751a9ca984.svg',
@@ -138,6 +138,21 @@ export default function CryptoPrices() {
                                 const change = price !== undefined && previousPrice !== undefined ? Math.sign(price - previousPrice) : 0;
                                 return <span key={direction} title={lang === 'vi' ? 'So với lần cập nhật trước' : 'Compared with previous update'} className={`text-right font-semibold tabular-nums ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{change > 0 ? '↑ ' : change < 0 ? '↓ ' : ''}{price?.toLocaleString('vi-VN') ?? '—'}</span>;
                             })}
+                        </div>
+                        <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800/50">
+                            <div className="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                <span>{lang === 'vi' ? 'Tỷ giá thẻ · USD → VND' : 'Card rates · USD → VND'}</span>
+                                <span>{lang === 'vi' ? 'Chưa cộng phí' : 'Before fees'}</span>
+                            </div>
+                            <div className="mt-2 flex items-center justify-between gap-2 text-sm">
+                                <a href="https://github.com/avishj/ForexRadar/tree/main/db/USD" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Visa</a>
+                                <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visa?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
+                            </div>
+                            <div className="mt-1 flex items-center justify-between gap-2 text-sm">
+                                <span className="font-medium text-gray-700 dark:text-gray-300">Mastercard</span>
+                                <span className="font-semibold text-gray-400">—</span>
+                            </div>
+                            <p className="mt-1 text-[10px] text-gray-400">{p2p?.cardRates?.visa ? `${lang === 'vi' ? 'Visa qua ForexRadar · ngày' : 'Visa via ForexRadar · dated'} ${p2p.cardRates.visa.date}` : (lang === 'vi' ? 'Chưa có dữ liệu thẻ gần đây' : 'Recent card rates unavailable')}</p>
                         </div>
                         <div className="mt-4 space-y-2 rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/50">
                             {([['okx', 'binance'], ['binance', 'okx']] as const).map(([buyExchange, sellExchange]) => {

@@ -20,11 +20,13 @@ class P2PEndpointTest(unittest.TestCase):
     def test_cache_and_cash_fallback(self):
         payload = {'okx': {}, 'binance': {}, 'cashUsd': None, 'bankUsd': None, 'fetchedAt': 123}
         with patch.object(p2p.subprocess, 'run', return_value=SimpleNamespace(stdout=json.dumps(payload))) as run, \
-                patch.object(p2p, 'read_cash_usd', return_value={'buy': 26090, 'sell': 25990, 'fetchedAt': 123}):
+                patch.object(p2p, 'read_cash_usd', return_value={'buy': 26090, 'sell': 25990, 'fetchedAt': 123}), \
+                patch.object(p2p, 'get_card_rates', return_value={'visa': {'rate': 25800, 'date': '2026-11-04'}, 'mastercard': None}):
             first = self.client.get('/api/market/p2p')
             second = self.client.get('/api/market/p2p')
         self.assertEqual(first.status_code, 200)
         self.assertEqual(first.get_json()['cashUsd'], {'buy': 26090, 'sell': 25990})
+        self.assertEqual(first.get_json()['cardRates']['visa']['rate'], 25800)
         self.assertEqual(second.status_code, 200)
         self.assertEqual(run.call_count, 1)
 
