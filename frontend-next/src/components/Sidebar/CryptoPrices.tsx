@@ -143,7 +143,7 @@ export default function CryptoPrices() {
                         <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800/50">
                             <div className="text-right text-[11px] text-gray-400">USD → VND</div>
                             <div className="mt-2 flex items-center justify-between gap-2 text-sm">
-                                <a href={p2p?.cardRates?.visa?.source === 'Visa' ? 'https://www.visa.com.vn/support/consumer/travel-support/exchange-rate-calculator.html' : 'https://github.com/avishj/ForexRadar/tree/main/db/USD'} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Visa</a>
+                                <a href="https://www.visa.com.vn/support/consumer/travel-support/exchange-rate-calculator.html" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Visa</a>
                                 <span title={p2p?.cardRates?.visa ? `${p2p.cardRates.visa.source} · ${p2p.cardRates.visa.date}` : undefined} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visa?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
                             </div>
                             <div className="mt-2 flex items-center justify-between gap-2 text-sm">
