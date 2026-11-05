@@ -14,7 +14,7 @@ const p2pDelay = () => 60_000;
 type P2POffer = { price: number; seller: string; completionRate: number; positiveRate: number | null; available: number; orders: number; id: string };
 type P2PResult = { offer: P2POffer | null; error: boolean; scanned: number };
 type CardRate = { rate: number; date: string; source: string; feePercent: number };
-type P2PData = { okx: { buy: P2PResult; sell: P2PResult }; binance: { buy: P2PResult; sell: P2PResult }; cashUsd: { buy: number; sell: number } | null; bankUsd: { buy: number; sell: number; date: string; updatedAt: string } | null; cardRates?: { visa: CardRate | null; mastercard: CardRate | null }; fetchedAt: number };
+type P2PData = { okx: { buy: P2PResult; sell: P2PResult }; binance: { buy: P2PResult; sell: P2PResult }; cashUsd: { buy: number; sell: number } | null; bankUsd: { buy: number; sell: number; date: string; updatedAt: string } | null; cardRates?: { visa: CardRate | null; visaReverse?: CardRate | null; mastercard: CardRate | null; mastercardReverse?: CardRate | null }; fetchedAt: number };
 
 const CRYPTO_LOGOS: Record<string, string> = {
     BTC: '/crypto-logos/btc-551c3d5fe4751a9ca984.svg',
@@ -141,20 +141,22 @@ export default function CryptoPrices() {
                             })}
                         </div>
                         <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800/50">
-                            <div className="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                <span>{lang === 'vi' ? 'Tỷ giá thẻ · USD → VND' : 'Card rates · USD → VND'}</span>
-                                <span>{lang === 'vi' ? 'Chưa cộng phí' : 'Before fees'}</span>
+                            <div className="grid grid-cols-[1.3fr_1fr_1fr] gap-2 text-right text-[11px] text-gray-400">
+                                <span />
+                                <span>USD → VND</span>
+                                <span>VND → USD</span>
                             </div>
-                            <div className="mt-2 flex items-center justify-between gap-2 text-sm">
+                            <div className="mt-2 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 text-sm">
                                 <a href="https://github.com/avishj/ForexRadar/tree/main/db/USD" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Visa</a>
-                                <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visa?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
+                                <span title={p2p?.cardRates?.visa?.date} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visa?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
+                                <span title={p2p?.cardRates?.visaReverse?.date} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visaReverse?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 8 }) ?? '—'}</span>
                             </div>
-                            <div className="mt-1 flex items-center justify-between gap-2 text-sm">
+                            <div className="mt-2 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 text-sm">
                                 <a href="https://www.mastercard.com/mea/en/personal/get-support/currency-exchange-rate-converter.html" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Mastercard</a>
-                                <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.mastercard?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
+                                <span title={p2p?.cardRates?.mastercard?.date} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.mastercard?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
+                                <span title={p2p?.cardRates?.mastercardReverse?.date} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.mastercardReverse?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 8 }) ?? '—'}</span>
                             </div>
-                            <p className="mt-1 text-[10px] text-gray-400">{p2p?.cardRates?.visa ? `${lang === 'vi' ? 'Visa qua ForexRadar · ngày' : 'Visa via ForexRadar · dated'} ${p2p.cardRates.visa.date}` : (lang === 'vi' ? 'Visa chưa có dữ liệu gần đây' : 'Recent Visa rate unavailable')}</p>
-                            {p2p?.cardRates?.mastercard && <p className="text-[10px] text-gray-400">{lang === 'vi' ? 'Mastercard · ngày' : 'Mastercard · dated'} {p2p.cardRates.mastercard.date}</p>}
+                            {p2p?.cardRates?.visa && <p className="mt-1 text-[10px] text-gray-400">Visa · ForexRadar · {p2p.cardRates.visa.date}</p>}
                         </div>
                         <div className="mt-4 space-y-2 rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/50">
                             {([['okx', 'binance'], ['binance', 'okx']] as const).map(([buyExchange, sellExchange]) => {
