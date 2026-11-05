@@ -64,6 +64,26 @@ class CardRatesTest(unittest.TestCase):
         result = card_rates.parse_visa_rate(content, date(2026, 11, 5), 'USD')
         self.assertEqual(result['rate'], 0.0000387597)
 
+    def test_visa_direct_uses_current_pair_and_no_cookie(self):
+        response = Mock()
+        response.json.return_value = {'status': 'success', 'originalValues': {
+            'fromCurrency': 'USD', 'toCurrency': 'VND', 'fxRateVisa': '25800',
+            'lastUpdatedVisaRate': 1793750400,
+        }}
+        with patch.object(card_rates.requests, 'get', return_value=response) as request:
+            result = card_rates.get_visa_rate(date(2026, 11, 5), 'USD', 'VND')
+        self.assertEqual(result['source'], 'Visa')
+        self.assertEqual(result['rate'], 25800)
+        self.assertEqual(request.call_args.kwargs['params']['fromCurr'], 'VND')
+        self.assertEqual(request.call_args.kwargs['params']['toCurr'], 'USD')
+        self.assertNotIn('Cookie', request.call_args.kwargs['headers'])
+
+    def test_visa_falls_back_when_direct_request_is_rejected(self):
+        archive = Mock(status_code=200, content=b'x', text='date,to_curr,provider,rate,markup\n2026-11-04,VND,VISA,25800,0\n')
+        with patch.object(card_rates.requests, 'get', side_effect=[card_rates.requests.HTTPError('403'), archive]):
+            result = card_rates.get_visa_rate(date(2026, 11, 5), 'USD', 'VND')
+        self.assertEqual(result['source'], 'ForexRadar')
+
 
 if __name__ == '__main__':
     unittest.main()

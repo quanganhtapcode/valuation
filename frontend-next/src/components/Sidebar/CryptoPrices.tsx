@@ -147,16 +147,17 @@ export default function CryptoPrices() {
                                 <span>VND → USD</span>
                             </div>
                             <div className="mt-2 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 text-sm">
-                                <a href="https://github.com/avishj/ForexRadar/tree/main/db/USD" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Visa</a>
-                                <span title={p2p?.cardRates?.visa?.date} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visa?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
-                                <span title={p2p?.cardRates?.visaReverse?.date} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visaReverse?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 8 }) ?? '—'}</span>
+                                <a href={p2p?.cardRates?.visa?.source === 'Visa' ? 'https://www.visa.com.vn/support/consumer/travel-support/exchange-rate-calculator.html' : 'https://github.com/avishj/ForexRadar/tree/main/db/USD'} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Visa</a>
+                                <span title={p2p?.cardRates?.visa ? `${p2p.cardRates.visa.source} · ${p2p.cardRates.visa.date}` : undefined} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visa?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
+                                <span title={p2p?.cardRates?.visaReverse ? `${p2p.cardRates.visaReverse.source} · ${p2p.cardRates.visaReverse.date}` : undefined} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.visaReverse?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 8 }) ?? '—'}</span>
                             </div>
                             <div className="mt-2 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 text-sm">
                                 <a href="https://www.mastercard.com/mea/en/personal/get-support/currency-exchange-rate-converter.html" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">Mastercard</a>
                                 <span title={p2p?.cardRates?.mastercard?.date} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.mastercard?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) ?? '—'}</span>
                                 <span title={p2p?.cardRates?.mastercardReverse?.date} className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{p2p?.cardRates?.mastercardReverse?.rate.toLocaleString('vi-VN', { maximumFractionDigits: 8 }) ?? '—'}</span>
                             </div>
-                            {p2p?.cardRates?.visa && <p className="mt-1 text-[10px] text-gray-400">Visa · ForexRadar · {p2p.cardRates.visa.date}</p>}
+                            {p2p?.cardRates?.visa && <p className="mt-1 text-[10px] text-gray-400">Visa · {p2p.cardRates.visa.source} · {p2p.cardRates.visa.date}</p>}
+                            {p2p?.cardRates?.visaReverse && (p2p.cardRates.visaReverse.source !== p2p.cardRates.visa?.source || p2p.cardRates.visaReverse.date !== p2p.cardRates.visa?.date) && <p className="text-[10px] text-gray-400">VND → USD · {p2p.cardRates.visaReverse.source} · {p2p.cardRates.visaReverse.date}</p>}
                         </div>
                         <div className="mt-4 space-y-2 rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/50">
                             {([['okx', 'binance'], ['binance', 'okx']] as const).map(([buyExchange, sellExchange]) => {

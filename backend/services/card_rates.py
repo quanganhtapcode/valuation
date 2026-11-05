@@ -12,6 +12,12 @@ import requests
 
 LOGGER = logging.getLogger(__name__)
 _ARCHIVE_URL = 'https://raw.githubusercontent.com/avishj/ForexRadar/main/db/{currency}/{year}.csv'
+_VISA_URL = 'https://www.visa.com.vn/cmsapi/fx/rates'
+_VISA_HEADERS = {
+    'Accept': 'application/json, text/plain, */*',
+    'Referer': 'https://www.visa.com.vn/support/consumer/travel-support/exchange-rate-calculator.html',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36',
+}
 _MASTERCARD_URL = 'https://www.mastercard.com/marketingservices/public/mccom-services/currency-conversions/conversion-rates'
 _MASTERCARD_HEADERS = {
     'Accept': '*/*',
@@ -81,9 +87,27 @@ def get_visa_rate(today: date, transaction: str, billing: str) -> dict | None:
     if now >= next_refresh:
         result = None
         try:
+            day = today.strftime('%m/%d/%Y')
+            response = requests.get(_VISA_URL, headers=_VISA_HEADERS, timeout=5, params={
+                'amount': '1', 'fee': '0', 'utcConvertedDate': day,
+                'exchangedate': day, 'fromCurr': billing, 'toCurr': transaction,
+            })
+            response.raise_for_status()
+            data = response.json()
+            values = data.get('originalValues') or {}
+            if data.get('status') != 'success' or values.get('fromCurrency') != transaction or values.get('toCurrency') != billing:
+                raise ValueError('Unexpected Visa currency pair or status')
+            rate = float(values.get('fxRateVisa', ''))
+            observed = datetime.fromtimestamp(float(values['lastUpdatedVisaRate']), timezone.utc).date()
+            if not math.isfinite(rate) or rate <= 0 or not 0 <= (today - observed).days <= _MAX_AGE_DAYS:
+                raise ValueError('Invalid or stale Visa rate')
+            result = {'rate': rate, 'date': observed.isoformat(), 'source': 'Visa', 'feePercent': 0}
+        except (requests.RequestException, ValueError, TypeError, AttributeError, KeyError, OverflowError, OSError):
+            LOGGER.debug('Direct Visa rate unavailable; trying archive')
+        try:
             # Early January may require the preceding year's latest observation.
             years = [today.year, today.year - 1] if today.timetuple().tm_yday <= _MAX_AGE_DAYS else [today.year]
-            for year in years:
+            for year in years if result is None else []:
                 response = requests.get(_ARCHIVE_URL.format(currency=transaction, year=year), timeout=8)
                 if response.status_code == 404:
                     continue
