@@ -126,22 +126,36 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
         }
 
         const ctrl = new AbortController();
-        const fetchPrices = () => {
-            apiFetch(apiUrl(`/market/prices?symbols=${watchlist.join(',')}`), { signal: ctrl.signal })
-                .then(r => r.ok ? r.json() : null)
-                .then((data: Record<string, { price: number; changePercent: number }> | null) => {
-                    if (!data) return;
-                    setItems(prev => prev.map(i => {
-                        const snap = data[i.symbol];
-                        if (!snap) return { ...i, loading: false };
-                        return { ...i, price: snap.price, changePercent: snap.changePercent, loading: false };
-                    }));
-                })
-                .catch(() => {});
+        let timer: ReturnType<typeof setTimeout>;
+        let retries = 0;
+        const fetchPrices = async () => {
+            let complete = false;
+            try {
+                const response = await apiFetch(apiUrl(`/market/prices?symbols=${watchlist.join(',')}`), { signal: ctrl.signal });
+                if (!response.ok) throw new Error('Price request failed');
+                const data: Record<string, { price: number; changePercent: number }> = await response.json();
+                if (cancelled) return;
+                complete = watchlist.every(symbol => data[symbol]?.price > 0);
+                setItems(prev => prev.map(item => {
+                    const snap = data[item.symbol];
+                    if (!snap || snap.price <= 0) return item;
+                    return { ...item, price: snap.price, changePercent: snap.changePercent, loading: false };
+                }));
+            } catch {
+                if (cancelled) return;
+            }
+
+            if (!complete && retries < 5) {
+                retries += 1;
+                timer = setTimeout(fetchPrices, 2000);
+            } else {
+                if (!complete) setItems(prev => prev.map(item => ({ ...item, loading: false })));
+                retries = 0;
+                timer = setTimeout(fetchPrices, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
+            }
         };
         fetchPrices();
-        const interval = setInterval(fetchPrices, isTradingHours() ? PRICE_SYNC_INTERVAL_MS : IDLE_REFRESH_INTERVAL_MS);
-        return () => { cancelled = true; ctrl.abort(); clearInterval(interval); };
+        return () => { cancelled = true; ctrl.abort(); clearTimeout(timer); };
     }, [watchlist, enrichWithMeta, useExternalOnly]);
 
     useEffect(() => {
@@ -225,7 +239,7 @@ export default function WatchlistCard({ externalPrices = {}, useExternalOnly = f
                                                     {item.price > 0 ? formatNumber(item.price) : '--'}
                                                 </div>
                                                 <div className={`text-xs font-medium tabular-nums ${item.changePercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
-                                                    {item.changePercent > 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
+                                                    {item.price > 0 ? `${item.changePercent > 0 ? '+' : ''}${item.changePercent.toFixed(2)}%` : '--'}
                                                 </div>
                                             </>
                                         )}
