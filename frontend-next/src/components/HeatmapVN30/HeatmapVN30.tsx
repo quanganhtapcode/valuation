@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { API_BASE, isTradingHours, PRICE_SYNC_INTERVAL_MS } from '@/lib/api';
 import type { HeatmapData, HeatmapExchange } from '@/lib/heatmapTypes';
 import { heatmapRefreshDelay, heatmapRetryDelay } from '@/lib/heatmapRefresh';
+import { heatmapSectorName } from '@/lib/heatmapLabels';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import { localizedPath } from '@/lib/localePath';
@@ -326,6 +327,10 @@ export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, 
 
               const sign = sector.avgChange >= 0 ? '+' : '';
               const pct = `${sign}${sector.avgChange.toFixed(2)}%`;
+              const sectorLabel = heatmapSectorName(sector.name, lang, sector.shortName);
+              const maxLabelLength = Math.max(1, Math.floor((sw - 48) / 6));
+              const visibleLabel = sectorLabel.length > maxLabelLength
+                ? `${sectorLabel.slice(0, Math.max(0, maxLabelLength - 1))}…` : sectorLabel;
 
               return (
                 <g key={sector.name}>
@@ -334,7 +339,7 @@ export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, 
                   {hasLabel && (
                     <g transform={`translate(${sx}, ${sy})`} style={{ pointerEvents: 'none' }}>
                       <text x={0} y={15} fontSize={11} fontWeight="700" fill={labelText}>
-                        {sector.shortName}
+                        {visibleLabel}
                         <tspan dx={6} fill={sectorTextColor(sector.avgChange, isDark)} fontSize={10} fontWeight="600">{pct}</tspan>
                       </text>
                     </g>
@@ -412,10 +417,10 @@ export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, 
               return (
                 <g style={{ pointerEvents: 'none' }}>
                   <rect x={tx} y={ty} width={TW} height={TH} fill={tBg} rx={8} stroke={tStroke} strokeWidth={1} filter="drop-shadow(0 4px 8px rgba(0,0,0,0.08))" />
-                  <text x={tx + 12} y={ty + 20} fill={theme.tooltipMuted} fontSize={11} fontWeight="600">{hover.sector}</text>
+                  <text x={tx + 12} y={ty + 20} fill={theme.tooltipMuted} fontSize={11} fontWeight="600">{heatmapSectorName(hover.sector, lang)}</text>
                   <text x={tx + 12} y={ty + 42} fill={isDark ? '#f8fafc' : '#0f172a'} fontSize={15} fontWeight="800">{hover.ticker}</text>
                   <text x={tx + 12} y={ty + 58} fill={isDark ? '#f1f5f9' : '#0f172a'} fontSize={13} fontWeight="700">
-                    {hover.price > 0 ? hover.price.toLocaleString('vi-VN') : '--'}
+                    {hover.price > 0 ? hover.price.toLocaleString(translations[lang].overview.locale) : '--'}
                   </text>
                   <g transform={`translate(${tx + 105}, ${ty + 44})`}>
                     <rect x={0} y={0} width={80} height={18} rx={6} fill={bgSubtle} />
