@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { apiFetch } from '@/lib/apiFetch';
 
 import { chartColors, getChartTheme } from '@/lib/chartTheme';
@@ -136,7 +138,7 @@ function PctChip({ pct, large = false }: { pct: number; large?: boolean }) {
 
 export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardProps) {
     const { lang } = useLanguage();
-    const referenceLabel = lang === 'vi' ? 'Giá tham chiếu' : 'Reference price';
+    const referenceLabel = localizedCopy[lang].components_HeroIndexCard_HeroIndexCard.referencePrice;
     const isDark = useDarkMode();
     const theme  = useMemo(() => buildTheme(isDark), [isDark]);
 
@@ -690,7 +692,7 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                             )}
                             <button
                                 type="button"
-                                aria-label={lang === 'vi' ? 'Lịch sử chỉ số' : 'Index history'}
+                                aria-label={localizedCopy[lang].components_HeroIndexCard_HeroIndexCard.indexHistory}
                                 onClick={() => setModalOpen(true)}
                                 className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700/60 rounded-lg text-[11px] font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer transition-colors"
                             >
@@ -704,11 +706,11 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                 <div className="relative pt-3">
                     {isLoading && <LoadingOverlay isDark={isDark} />}
                     {isVN && vnLoad && vnRows.length > 0 && <div role="status" className="pointer-events-none absolute left-3 top-5 z-20 rounded-md bg-white/90 px-2 py-1 text-xs text-gray-500 dark:bg-gray-900/90">
-                        {lang === 'vi' ? 'Đang tải lịch sử…' : 'Loading history…'}
+                        {localizedCopy[lang].components_HeroIndexCard_HeroIndexCard.loadingHistory}
                     </div>}
                     {isVN && vnError && !vnLoad && <div role="alert" className="absolute inset-x-0 top-8 z-20 flex justify-center gap-2 text-xs text-gray-500">
-                        <span>{vnRows.length ? (lang === 'vi' ? 'Chưa tải được đoạn lịch sử trước.' : 'Earlier history is unavailable.') : (lang === 'vi' ? 'Chưa tải được dữ liệu biểu đồ.' : 'Chart data is unavailable.')}</span>
-                        <button type="button" className="underline" onClick={() => setVnRetry(value => value + 1)}>{lang === 'vi' ? 'Thử lại' : 'Retry'}</button>
+                        <span>{vnRows.length ? (localizedCopy[lang].components_HeroIndexCard_HeroIndexCard.earlierHistoryIsUnavailable) : (localizedCopy[lang].components_HeroIndexCard_HeroIndexCard.chartDataIsUnavailable)}</span>
+                        <button type="button" className="underline" onClick={() => setVnRetry(value => value + 1)}>{localizedCopy[lang].components_HeroIndexCard_HeroIndexCard.retry}</button>
                     </div>}
 
                     <ChartTooltip

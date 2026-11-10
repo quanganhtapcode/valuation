@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { apiFetch } from '@/lib/apiFetch';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -152,7 +154,7 @@ function CardGrid({ items, isVnd }: { items: RateItem[]; isVnd: boolean }) {
                                 event.currentTarget.querySelector('button')?.focus({ preventScroll: true });
                                 openHistory(item.symbol);
                             }} className="cursor-pointer transition-colors hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20">
-                                <td className="px-3 py-3.5 md:px-4"><button type="button" aria-haspopup="dialog" aria-label={`${item.name}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`} className="text-left font-semibold text-slate-900 dark:text-slate-100">{item.name}</button>{!isVnd && item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
+                                <td className="px-3 py-3.5 md:px-4"><button type="button" aria-haspopup="dialog" aria-label={`${item.name}: ${localizedCopy[lang].app_lang_macro_page.viewChartAndDownloadData}`} className="text-left font-semibold text-slate-900 dark:text-slate-100">{item.name}</button>{!isVnd && item.unit && <p className="mt-0.5 text-xs text-slate-500">{item.unit}</p>}</td>
                                 <td className="px-3 py-3.5 text-right font-medium tabular-nums md:px-4">{format(item.price)}{!isVnd && item.updatedAt && <p className="mt-0.5 whitespace-nowrap text-xs font-normal text-slate-400">{macroDate(item.updatedAt, lang)}</p>}</td>
                                 <td className="hidden px-3 py-3.5 text-right tabular-nums sm:table-cell md:px-4">{format(item.price - item.change)}</td>
                                 <td className={`px-3 py-3.5 text-right font-semibold tabular-nums md:px-4 ${tone}`}>{isVnd ? fmtVndChange(item.change) : fmtUsdChange(item.change)}</td>
@@ -217,7 +219,7 @@ function VietnamTvRow({ sym, points, onOpen }: { sym: string; points: PricePoint
         onOpen();
     }} className="group cursor-pointer border-b border-slate-100 transition-colors hover:bg-emerald-50/60 dark:border-slate-800 dark:hover:bg-emerald-950/20">
         <td className="px-3 py-3.5 md:px-4">
-            <button type="button" aria-haspopup="dialog" aria-label={`${label}: ${lang === 'vi' ? 'xem biểu đồ và tải dữ liệu' : 'view chart and download data'}`}
+            <button type="button" aria-haspopup="dialog" aria-label={`${label}: ${localizedCopy[lang].app_lang_macro_page.viewChartAndDownloadData}`}
                 className="rounded text-left font-semibold outline-none transition-colors group-hover:text-emerald-700 focus-visible:underline focus-visible:underline-offset-4 dark:group-hover:text-emerald-400">
                 {label}<span aria-hidden="true" className="ml-2 inline-block text-emerald-600 dark:text-emerald-400">↗</span>
             </button>
@@ -287,7 +289,7 @@ function VietnamMacroTab() {
                     ))}
                 </div>
 
-                <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'Chọn một chỉ số để xem biểu đồ và dữ liệu.' : 'Select an indicator to view its chart and data.'}</p>
+                <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{localizedCopy[lang].app_lang_macro_page.selectAnIndicatorToViewIts}</p>
                 <div className="mt-3 overflow-x-auto border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:text-slate-300"><tr><th className="px-3 py-3 md:px-4">{copy.indicator}</th><th className="px-3 py-3 text-right md:px-4">{copy.latest}</th><th className="px-3 py-3 text-right md:px-4">{copy.change}</th><th className="px-3 py-3 text-right md:px-4">{copy.date}</th></tr></thead><tbody>{activeSymbols.map(sym => <VietnamTvRow key={sym} sym={sym} onOpen={() => setSelected(sym)} points={history?.tab === activeSubTab ? history.data[sym] ?? [] : null} />)}</tbody></table></div>
 
 

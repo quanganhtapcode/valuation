@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { apiFetch } from '@/lib/apiFetch';
 
 import { API } from '@/lib/apiCore';
@@ -93,9 +95,9 @@ function ratingLabel(rating: TechnicalRating, lang: 'vi' | 'en'): string {
     const n = rating.toUpperCase();
     const strong = n.includes('STRONG') || n.includes('VERY');
     const tone = ratingTone(rating);
-    if (tone === 'bull') return lang === 'vi' ? (strong ? 'Mua mạnh' : 'Mua') : (strong ? 'Strong buy' : 'Buy');
-    if (tone === 'bear') return lang === 'vi' ? (strong ? 'Bán mạnh' : 'Bán') : (strong ? 'Strong sell' : 'Sell');
-    if (n.includes('NEUTRAL')) return lang === 'vi' ? 'Trung lập' : 'Neutral';
+    if (tone === 'bull') return strong ? localizedCopy[lang].components_StockDetail_TechnicalTab.strongBuy : localizedCopy[lang].components_StockDetail_TechnicalTab.buy;
+    if (tone === 'bear') return strong ? localizedCopy[lang].components_StockDetail_TechnicalTab.strongSell : localizedCopy[lang].components_StockDetail_TechnicalTab.sell;
+    if (n.includes('NEUTRAL')) return localizedCopy[lang].components_StockDetail_TechnicalTab.neutral;
     return rating.replaceAll('_', ' ');
 }
 
@@ -259,7 +261,7 @@ function PivotGrid({ pivot, lang }: { pivot?: TechnicalPivot; lang: 'vi' | 'en' 
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead className="border-y border-slate-100 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
-                        <tr><th className="px-3 py-3 text-left font-medium">{lang === 'vi' ? 'Mức giá' : 'Level'}</th><th className="px-3 py-3 text-right font-medium">Classic</th><th className="px-3 py-3 text-right font-medium">Fibonacci</th></tr>
+                        <tr><th className="px-3 py-3 text-left font-medium">{localizedCopy[lang].components_StockDetail_TechnicalTab.level}</th><th className="px-3 py-3 text-right font-medium">Classic</th><th className="px-3 py-3 text-right font-medium">Fibonacci</th></tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {classicRows.map(row => (
@@ -271,7 +273,7 @@ function PivotGrid({ pivot, lang }: { pivot?: TechnicalPivot; lang: 'vi' | 'en' 
                         ))}
                     </tbody>
                 </table>
-                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{lang === 'vi' ? 'R: Kháng cự · S: Hỗ trợ · Pivot: Điểm xoay' : 'R: Resistance · S: Support · Pivot: Pivot point'}</p>
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{localizedCopy[lang].components_StockDetail_TechnicalTab.rResistanceSSupportPivotPivot}</p>
             </div>
         </div>
     );

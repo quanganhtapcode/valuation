@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { apiFetch } from '@/lib/apiFetch';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -81,10 +83,10 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
     const { lang } = useLanguage();
     const vi = lang === 'vi';
     const labels = {
-        institutional: vi ? 'Cổ đông tổ chức' : 'Institutional',
-        individuals: vi ? 'Cổ đông cá nhân' : 'Regular Shareholders',
-        loading: vi ? 'Đang tải cổ đông...' : 'Loading holders...',
-        error: vi ? 'Không thể tải dữ liệu cổ đông' : 'Unable to load holders data',
+        institutional: localizedCopy[lang].components_StockDetail_HoldersTab.institutional,
+        individuals: localizedCopy[lang].components_StockDetail_HoldersTab.regularShareholders,
+        loading: localizedCopy[lang].components_StockDetail_HoldersTab.loadingHolders,
+        error: localizedCopy[lang].components_StockDetail_HoldersTab.unableToLoadHoldersData,
     };
     const holderName = (row: InstitutionalHolder) =>
         (vi ? row.name_vi : row.name_en) || row.manager || row.name_vi || '-';
@@ -191,7 +193,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
     return (
         <div className="space-y-3">
             <div className="flex w-full items-center justify-between gap-2">
-                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{vi ? 'Cổ đông' : 'Holders'}</h3>
+                <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{localizedCopy[lang].components_StockDetail_HoldersTab.holders}</h3>
                 <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
                     <StockTabDropdown
                         align="right"
@@ -202,9 +204,9 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
                             { id: 'institutional', label: labels.institutional },
                             { id: 'individuals', label: labels.individuals },
                         ]}
-                        ariaLabel={vi ? 'Loại cổ đông' : 'Shareholder type'}
+                        ariaLabel={localizedCopy[lang].components_StockDetail_HoldersTab.shareholderType}
                     />
-                    <StockTabIconButton onClick={downloadCsv} title={vi ? 'Tải danh sách cổ đông' : 'Download all shareholders'} disabled={allRowsForDownload.length === 0}>
+                    <StockTabIconButton onClick={downloadCsv} title={localizedCopy[lang].components_StockDetail_HoldersTab.downloadAllShareholders} disabled={allRowsForDownload.length === 0}>
                         <DownloadIcon />
                     </StockTabIconButton>
                 </div>
@@ -215,11 +217,11 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
                     <table className="min-w-full text-tremor-default">
                         <thead>
                             <tr className="border-b border-gray-100 text-left text-gray-600 dark:border-gray-800 dark:text-gray-300">
-                                <th className="px-4 py-3 font-medium">{vi ? 'Cổ đông' : 'Manager'}</th>
-                                <th className="px-4 py-3 text-right font-medium">{vi ? 'Số cổ phiếu' : 'Shares Owned'}</th>
-                                <th className="px-4 py-3 text-right font-medium">{vi ? 'Giá trị hiện tại' : 'Current Value'}</th>
-                                <th className="px-4 py-3 text-right font-medium">{vi ? 'Sở hữu (%)' : 'Ownership (%)'}</th>
-                                <th className="px-4 py-3 text-right font-medium">{vi ? 'Ngày cập nhật' : 'Updated At'}</th>
+                                <th className="px-4 py-3 font-medium">{localizedCopy[lang].components_StockDetail_HoldersTab.manager}</th>
+                                <th className="px-4 py-3 text-right font-medium">{localizedCopy[lang].components_StockDetail_HoldersTab.sharesOwned}</th>
+                                <th className="px-4 py-3 text-right font-medium">{localizedCopy[lang].components_StockDetail_HoldersTab.currentValue}</th>
+                                <th className="px-4 py-3 text-right font-medium">{localizedCopy[lang].components_StockDetail_HoldersTab.ownership}</th>
+                                <th className="px-4 py-3 text-right font-medium">{localizedCopy[lang].components_StockDetail_HoldersTab.updatedAt}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -233,7 +235,7 @@ export default function HoldersTab({ symbol }: HoldersTabProps) {
                                 </tr>
                             ) : rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">{vi ? 'Chưa có dữ liệu.' : 'No data for this section.'}</td>
+                                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">{localizedCopy[lang].components_StockDetail_HoldersTab.noDataForThisSection}</td>
                                 </tr>
                             ) : rows.map((row, idx) => (
                                 <tr key={`${row.manager || 'row'}-${idx}`} className="border-b border-gray-100 last:border-b-0 dark:border-gray-800">

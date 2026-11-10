@@ -16,7 +16,7 @@ export default function LanguageSwitch() {
     const changeLanguage = (value: string) => {
         const next = value as "vi" | "en"
         setLanguage(next)
-        const href = localizedPath(pathname, next)
+        const href = `${localizedPath(pathname, next)}${window.location.search}${window.location.hash}`
         startStockNavigation(href)
         router.replace(href)
     }

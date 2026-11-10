@@ -8,7 +8,7 @@ interface LanguageContextValue {
 }
 
 const LanguageContext = createContext<LanguageContextValue>({
-    lang: "en",
+    lang: "vi",
     setLanguage: () => {},
 })
 
@@ -52,9 +52,8 @@ export function useI18n() {
             new Intl.DateTimeFormat(locale, options).format(typeof value === "string" ? new Date(value) : value),
         vnd: (value: number, unit: "million" | "billion" | "trillion" = "billion") => {
             const divisor = unit === "million" ? 1e6 : unit === "billion" ? 1e9 : 1e12
-            const label = lang === "vi"
-                ? (unit === "million" ? "triệu VND" : unit === "billion" ? "tỷ VND" : "nghìn tỷ VND")
-                : `${unit} VND`
+            const labels = translations[lang].units
+            const label = unit === "million" ? labels.millionVnd : unit === "billion" ? labels.billionVnd : labels.trillionVnd
             return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value / divisor)} ${label}`
         },
     }), [lang, locale])

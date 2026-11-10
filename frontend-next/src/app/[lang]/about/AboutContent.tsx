@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/lib/translations';
 import styles from './page.module.css';
@@ -30,18 +32,16 @@ export default function AboutContent() {
             </section>
             <section className={styles.profile} aria-labelledby="founder-profile">
                 <div>
-                    <p className={styles.profileEyebrow}>{lang === 'vi' ? 'Người xây dựng nền tảng' : 'Platform creator'}</p>
+                    <p className={styles.profileEyebrow}>{localizedCopy[lang].app_lang_about_AboutContent.platformCreator}</p>
                     <h2 id="founder-profile">Lê Quang Anh</h2>
                     <p>
-                        {lang === 'vi'
-                            ? 'Quang Anh xây dựng các sản phẩm và công cụ phân tích giúp nhà đầu tư tiếp cận dữ liệu chứng khoán Việt Nam rõ ràng, thuận tiện hơn.'
-                            : 'Quang Anh builds products and analysis tools that make Vietnamese stock-market data clearer and more accessible to investors.'}
+                        {localizedCopy[lang].app_lang_about_AboutContent.quangAnhBuildsProductsAndAnalysis}
                     </p>
                 </div>
                 <div className={styles.profileLinks}>
                     <a href="https://quanganh.org" target="_blank" rel="noopener noreferrer">quanganh.org</a>
                     <a href="https://sites.google.com/view/anhqle" target="_blank" rel="noopener noreferrer">
-                        {lang === 'vi' ? 'Hồ sơ Quang Anh' : 'Quang Anh profile'}
+                        {localizedCopy[lang].app_lang_about_AboutContent.quangAnhProfile}
                     </a>
                 </div>
             </section>

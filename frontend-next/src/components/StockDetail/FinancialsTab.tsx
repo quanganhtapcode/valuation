@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { apiUrl } from '@/lib/apiCore';
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -1245,8 +1247,8 @@ export default function FinancialsTab({
                                 getSectionTitle={sectionTitle}
                                 divisor={DISPLAY_UNITS.find(u => u.id === displayUnit)?.divisor}
                                 unitLabel={displayUnit === 'billions'
-                                    ? (lang === 'vi' ? 'Đơn vị: tỷ VND' : 'Unit: VND bn')
-                                    : (lang === 'vi' ? 'Đơn vị: nghìn tỷ VND' : 'Unit: VND tn')}
+                                    ? (localizedCopy[lang].components_StockDetail_FinancialsTab.unitVNDBn)
+                                    : (localizedCopy[lang].components_StockDetail_FinancialsTab.unitVNDTn)}
                                 showAllRows={isBank}
                                 chronological={isBank && displayMode === 'annual'}
                                 lang={lang}

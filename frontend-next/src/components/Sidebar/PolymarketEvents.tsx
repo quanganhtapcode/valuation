@@ -5,7 +5,7 @@ import SidebarCard from './SidebarCard';
 import { fetchPolymarketEvents, PolymarketEvent } from '@/lib/polymarketApi';
 import MarketChange from './MarketChange';
 import { useVisiblePolling } from '@/hooks/useVisiblePolling';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useI18n } from '@/contexts/LanguageContext';
 
 const getRefreshDelay = () => 5 * 60 * 1000;
 
@@ -17,7 +17,7 @@ function formatVolume(volume?: number): string {
 }
 
 export default function PolymarketEvents() {
-    const { lang } = useLanguage();
+    const { messages: { polymarket } } = useI18n();
     const [events, setEvents] = useState<PolymarketEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
@@ -38,11 +38,11 @@ export default function PolymarketEvents() {
     useVisiblePolling(loadEvents, getRefreshDelay);
 
     return (
-        <SidebarCard title={lang === 'vi' ? 'Sự kiện Polymarket' : 'Polymarket Events'}>
+        <SidebarCard title={polymarket.title}>
             <div className="px-4 pb-4">
                 {failed && (
                     <p role="status" className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                        {lang === 'vi' ? 'Không thể cập nhật Polymarket. Sẽ tự động thử lại.' : 'Unable to refresh Polymarket. Retrying automatically.'}
+                        {polymarket.retry}
                     </p>
                 )}
                 {loading ? (
@@ -68,7 +68,7 @@ export default function PolymarketEvents() {
                                                 </span>
                                                 <MarketChange
                                                     value={outcome.change}
-                                                    title={lang === 'vi' ? 'Thay đổi xác suất trong 24 giờ (điểm phần trăm)' : '24-hour probability change (percentage points)'}
+                                                    title={polymarket.change}
                                                 />
                                             </div>
                                         );
@@ -76,14 +76,14 @@ export default function PolymarketEvents() {
                                 </div>
                                 <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                     <span>{formatVolume(event.volume)} vol.</span>
-                                    <span>{event.marketCount || 0} {lang === 'vi' ? 'thị trường' : 'markets'}</span>
+                                    <span>{event.marketCount || 0} {polymarket.markets}</span>
                                 </div>
                             </a>
                         ))}
                     </div>
                 ) : (
                     <p className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                        {lang === 'vi' ? 'Chưa có sự kiện.' : 'No events available.'}
+                        {polymarket.empty}
                     </p>
                 )}
             </div>

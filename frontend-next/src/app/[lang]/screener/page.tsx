@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { useEffect, useMemo, useState } from 'react';
 import StockLink from '@/components/StockLink';
 import { sharedRange, sharedSymbols } from '@/lib/screenerState';
@@ -265,7 +267,7 @@ export default function ScreenerPage() {
         setItems(resp.items || []);
         setTotal(resp.total || 0);
         setHasValuationData(!!resp.hasValuationData);
-        setReceivedAt(new Date().toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-GB'));
+        setReceivedAt(new Date().toLocaleString(localizedCopy[lang].app_lang_screener_page.enGB));
       } catch (error) {
         if (active) setError(error instanceof Error ? error.message : t.loadFailed);
       } finally {
@@ -505,17 +507,17 @@ export default function ScreenerPage() {
               <div className="mt-0.5 text-sm font-semibold text-slate-600 tabular-nums dark:text-slate-300">{summary}</div>
             </div>
             <div className="flex gap-2">
-              <select aria-label={lang === 'vi' ? 'Sắp xếp theo' : 'Sort by'} className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as ScreenerSortKey)}>
-                {SORT_OPTIONS.map((x) => <option key={x.value} value={x.value}>{lang === 'vi' ? ({ market_cap: 'Vốn hóa', upside_pct: 'Tiềm năng tăng', price: 'Giá', daily_change: 'Thay đổi giá', revenue_growth: 'Tăng trưởng DT', net_profit_growth: 'Tăng trưởng LN' } as Partial<Record<ScreenerSortKey, string>>)[x.value] ?? x.label : x.label}</option>)}
+              <select aria-label={localizedCopy[lang].app_lang_screener_page.sortBy} className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as ScreenerSortKey)}>
+                {SORT_OPTIONS.map((x) => <option key={x.value} value={x.value}>{(localizedCopy[lang].app_lang_screener_page.sortLabels as Partial<Record<ScreenerSortKey, string>>)[x.value] ?? x.label}</option>)}
               </select>
-              <select aria-label={lang === 'vi' ? 'Thứ tự sắp xếp' : 'Sort order'} className="input" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}>
+              <select aria-label={localizedCopy[lang].app_lang_screener_page.sortOrder} className="input" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}>
                 <option value="desc">↓</option>
                 <option value="asc">↑</option>
               </select>
             </div>
           </div>
 
-          <p className="mb-3 text-sm text-slate-500 sm:hidden">{lang === 'vi' ? 'Chọn 2–5 mã để đối chiếu riêng.' : 'Select 2–5 stocks for a focused comparison.'}</p>
+          <p className="mb-3 text-sm text-slate-500 sm:hidden">{localizedCopy[lang].app_lang_screener_page.select25StocksForA}</p>
           <div className="divide-y divide-slate-200 dark:divide-slate-800 sm:hidden">
             {items.map(row => {
               const selected = selectedSymbols.includes(row.ticker);
@@ -529,12 +531,12 @@ export default function ScreenerPage() {
                   <div className="shrink-0 text-right">
                     <p className="text-lg font-semibold tabular-nums">{fmtNum(row.marketPrice, 0)}<span className="ml-1 text-xs font-normal text-slate-500">₫</span></p>
                     <label className={`mt-1 flex min-h-11 cursor-pointer items-center justify-end gap-2 rounded-lg px-2 text-sm ${selected ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'text-slate-600 dark:text-slate-300'}`}>
-                      <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={selected} disabled={!selected && selectedSymbols.length >= 5} onChange={() => toggleComparison(row.ticker)} aria-label={`${lang === 'vi' ? 'So sánh' : 'Compare'} ${row.ticker}`} />{selected ? (lang === 'vi' ? 'Đã chọn' : 'Selected') : (lang === 'vi' ? 'So sánh' : 'Compare')}
+                      <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={selected} disabled={!selected && selectedSymbols.length >= 5} onChange={() => toggleComparison(row.ticker)} aria-label={`${localizedCopy[lang].app_lang_screener_page.compare} ${row.ticker}`} />{selected ? (localizedCopy[lang].app_lang_screener_page.selected) : (localizedCopy[lang].app_lang_screener_page.compare)}
                     </label>
                   </div>
                 </div>
                 <dl className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-                  {[['P/E', fmtNum(row.ttmPe, 1)], ['P/B', fmtNum(row.ttmPb, 1)], ['ROE', fmtPct(row.ttmRoe)], [lang === 'vi' ? 'Vốn hóa' : 'Market cap', fmtMCap(row.marketCap)], [lang === 'vi' ? 'DT YoY' : 'Revenue YoY', fmtPct(row.revenueGrowthYoy)], [lang === 'vi' ? 'LN YoY' : 'Profit YoY', fmtPct(row.npatmiGrowthYoyQm1)]].map(([label, value]) => <div key={label}><dt className="text-xs text-slate-500 dark:text-slate-400">{label}</dt><dd className="mt-1 text-sm font-semibold tabular-nums">{value}</dd></div>)}
+                  {[['P/E', fmtNum(row.ttmPe, 1)], ['P/B', fmtNum(row.ttmPb, 1)], ['ROE', fmtPct(row.ttmRoe)], [localizedCopy[lang].app_lang_screener_page.marketCap, fmtMCap(row.marketCap)], [localizedCopy[lang].app_lang_screener_page.revenueYoY, fmtPct(row.revenueGrowthYoy)], [localizedCopy[lang].app_lang_screener_page.profitYoY, fmtPct(row.npatmiGrowthYoyQm1)]].map(([label, value]) => <div key={label}><dt className="text-xs text-slate-500 dark:text-slate-400">{label}</dt><dd className="mt-1 text-sm font-semibold tabular-nums">{value}</dd></div>)}
                 </dl>
                 {hasValuationData && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t.intrinsic}: {fmtNum(row.intrinsicValue, 0)} ₫ · {t.upside}: {fmtPct(row.upsidePct)}</p>}
               </article>;
@@ -544,7 +546,7 @@ export default function ScreenerPage() {
             <table className="w-full text-sm min-w-[480px]">
               <thead>
                 <tr className="text-left border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                  <th className="p-2"><span className="sr-only">{lang === 'vi' ? 'So sánh' : 'Compare'}</span></th>
+                  <th className="p-2"><span className="sr-only">{localizedCopy[lang].app_lang_screener_page.compare}</span></th>
                   <th className="py-2 pl-3 md:pl-0 pr-2 font-medium">{t.ticker}</th>
                   <th className="py-2 px-2 font-medium text-right">{t.price}</th>
                   {hasValuationData && (
@@ -573,7 +575,7 @@ export default function ScreenerPage() {
                                         'text-red-500 dark:text-red-400';
                   return (
                     <tr key={row.ticker} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-2"><input type="checkbox" checked={selectedSymbols.includes(row.ticker)} disabled={!selectedSymbols.includes(row.ticker) && selectedSymbols.length >= 5} onChange={() => toggleComparison(row.ticker)} aria-label={`${lang === 'vi' ? 'So sánh' : 'Compare'} ${row.ticker}`} /></td>
+                      <td className="p-2"><input type="checkbox" checked={selectedSymbols.includes(row.ticker)} disabled={!selectedSymbols.includes(row.ticker) && selectedSymbols.length >= 5} onChange={() => toggleComparison(row.ticker)} aria-label={`${localizedCopy[lang].app_lang_screener_page.compare} ${row.ticker}`} /></td>
                       <td className="py-2 pl-3 md:pl-0 pr-2">
                         <StockLink symbol={row.ticker} href={localizedPath(`/stock/${row.ticker}`, lang)} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                           {row.ticker}
@@ -613,12 +615,12 @@ export default function ScreenerPage() {
           </div>
         </div>
         <details className="rounded-xl border border-slate-200 p-3 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
-          <summary className="cursor-pointer font-semibold">{lang === 'vi' ? 'Nguồn dữ liệu, thời gian & cách đọc chỉ tiêu' : 'Data sources, timestamps & metric guide'}</summary>
-          <p className="mt-2">{lang === 'vi' ? 'Nguồn: dữ liệu Vietcap/VCI lưu tại hệ thống; tỷ số và biên lợi nhuận có thể được bổ sung từ bộ dữ liệu tỷ số và tài chính. Giá trị nội tại lấy từ bộ nhớ định giá của hệ thống.' : 'Source: locally stored Vietcap/VCI data; ratios and margins may be supplemented from ratio and financial datasets. Intrinsic values come from the valuation cache.'}</p>
-          <p className="mt-2">{lang === 'vi' ? 'Giá: VND/cổ phiếu. Tăng trưởng và biên lợi nhuận: %. P/E, P/B: lần. T = nghìn tỷ, B = tỷ, M = triệu VND. YoY = so với cùng kỳ năm trước. Dấu — hoặc - là thiếu dữ liệu, khác với 0.' : 'Price: VND/share. Growth and margins: %. P/E and P/B: multiples. T = trillion, B = billion, M = million VND. YoY = year over year. — or - indicates missing data, distinct from zero.'}</p>
-          <p className="mt-2">{lang === 'vi' ? 'API chưa cung cấp kỳ báo cáo và thời điểm cập nhật gốc cho từng chỉ tiêu. Thời gian nhận kết quả không phải thời gian giao dịch; kết quả có thể được lưu đệm 120 giây.' : 'The API does not expose reporting periods or original update timestamps per metric. Receipt time is not trade time; results may be cached for 120 seconds.'}</p>
-          <p className="mt-2">{lang === 'vi' ? 'Cách đọc: P/E = giá / lợi nhuận mỗi cổ phiếu; P/B = giá / giá trị sổ sách mỗi cổ phiếu; ROE = lợi nhuận / vốn chủ sở hữu; biên lợi nhuận = lợi nhuận / doanh thu; tăng trưởng YoY = (kỳ này / cùng kỳ − 1) × 100%. Cách chọn kỳ và mẫu số cụ thể theo nguồn dữ liệu.' : 'Guide: P/E = price / earnings per share; P/B = price / book value per share; ROE = profit / equity; margin = profit / revenue; YoY growth = (current / prior-year period − 1) × 100%. Exact periods and denominator conventions follow the data source.'}</p>
-          {receivedAt && <p className="mt-2">{lang === 'vi' ? 'Nhận kết quả bộ lọc lúc' : 'Screen response received at'}: {receivedAt}{loading ? (lang === 'vi' ? ' · Đang cập nhật' : ' · Refreshing') : error ? (lang === 'vi' ? ' · Cập nhật thất bại; dữ liệu trước đó có thể còn hiển thị' : ' · Refresh failed; previous data may remain visible') : ''}</p>}
+          <summary className="cursor-pointer font-semibold">{localizedCopy[lang].app_lang_screener_page.dataSourcesTimestampsMetricGuide}</summary>
+          <p className="mt-2">{localizedCopy[lang].app_lang_screener_page.sourceLocallyStoredVietcapVCIData}</p>
+          <p className="mt-2">{localizedCopy[lang].app_lang_screener_page.priceVNDShareGrowthAndMargins}</p>
+          <p className="mt-2">{localizedCopy[lang].app_lang_screener_page.theAPIDoesNotExposeReporting}</p>
+          <p className="mt-2">{localizedCopy[lang].app_lang_screener_page.guidePEPriceEarningsPer}</p>
+          {receivedAt && <p className="mt-2">{localizedCopy[lang].app_lang_screener_page.screenResponseReceivedAt}: {receivedAt}{loading ? (localizedCopy[lang].app_lang_screener_page.refreshing) : error ? (localizedCopy[lang].app_lang_screener_page.refreshFailedPreviousDataMayRemain) : ''}</p>}
         </details>
       </div>
 

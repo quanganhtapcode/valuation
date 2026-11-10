@@ -19,9 +19,12 @@ function inspect(path) {
   if (ignored.has(file) || file.endsWith('/layout.tsx') || file === 'app/layout.tsx') return;
   const lines = readFileSync(path, 'utf8').split('\n');
   lines.forEach((line, index) => {
-    const directLangConditional = /lang\s*===\s*['"](?:vi|en)['"].*\?.*['"`].*:\s*['"`]/.test(line);
+    const directLangConditional = /\blang\s*===\s*['"](?:vi|en)['"]\s*\?\s*['"`].*:\s*['"`]/.test(line)
+      && !/\?\s*['"](?:vi|en)['"]\s*:\s*['"](?:vi|en)['"]/.test(line)
+      && !/\?\s*['"](?:vi-VN|en-US)['"]\s*:\s*['"](?:vi-VN|en-US)['"]/.test(line);
     const localeAliasConditional = /\b(?:vi|isEnglish|isVietnamese)\s*\?.*['"`].*:\s*['"`]/.test(line);
-    const bilingualInlineObject = /\bvi\s*:\s*['"`\[].*\ben\s*:\s*['"`\[]/.test(line);
+    const bilingualInlineObject = /\bvi\s*:\s*(?:['"`]|\[\s*['"`]).*\ben\s*:\s*(?:['"`]|\[\s*['"`])/.test(line)
+      && !/\bvi\s*:\s*['"]vi-VN['"]\s*,\s*en\s*:\s*['"]en-US['"]/.test(line);
     if (directLangConditional || localeAliasConditional || bilingualInlineObject) {
       findings.push(`${file}:${index + 1}: inline locale conditional`);
     }
@@ -35,5 +38,5 @@ if (findings.length) {
   console.log(`\n${findings.length} inline locale conditionals remain.`);
   if (strict) process.exitCode = 1;
 } else {
-  console.log('i18n audit passed: no inline locale conditionals.');
+  console.log('i18n audit passed: no matching inline translation patterns.');
 }

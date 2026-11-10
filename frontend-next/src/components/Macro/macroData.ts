@@ -1,3 +1,5 @@
+
+import { localizedCopy } from '@/lib/localizedCopy';
 export interface MacroPoint {
     date: string;
     close: number;
@@ -14,5 +16,5 @@ export function normalizeMacroPoints(points: MacroPoint[]): MacroPoint[] {
 }
 
 export function macroDate(date: string, lang: 'vi' | 'en') {
-    return new Date(`${date}T00:00:00Z`).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-GB', { timeZone: 'UTC' });
+    return new Date(`${date}T00:00:00Z`).toLocaleDateString(localizedCopy[lang].components_Macro_macroData.enGB, { timeZone: 'UTC' });
 }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { useCallback, useState } from 'react';
 import Image from 'next/image';
 import { Card } from '@tremor/react';
@@ -67,10 +69,10 @@ export default function EarningsSeason() {
     return (
         <Card className="p-0 overflow-hidden border-tremor-border dark:border-dark-tremor-border shadow-sm">
             <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-3">
-                <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{isEnglish ? 'News signals · 24h' : 'Tín hiệu tin tức · 24h'}</h2>
+                <h2 className="text-base font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">{localizedCopy[lang].components_EarningsSeason_EarningsSeason.newsSignals24h}</h2>
                 {takeaways && (
                     <p className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
-                        {takeaways.stale || takeaways.news_stale ? (isEnglish ? 'Last available' : 'Dữ liệu gần nhất') : (isEnglish ? 'Updated' : 'Cập nhật')}{' '}
+                        {takeaways.stale || takeaways.news_stale ? (localizedCopy[lang].components_EarningsSeason_EarningsSeason.lastAvailable) : (localizedCopy[lang].components_EarningsSeason_EarningsSeason.updated)}{' '}
                         {new Date(takeaways.news_generated_at || takeaways.generated_at).toLocaleString(translations[lang].overview.locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' })}
                     </p>
                 )}
@@ -86,9 +88,9 @@ export default function EarningsSeason() {
                             const symbol = rawSymbol?.trim().toUpperCase();
                             const title = (isEnglish ? source?.title_en : source?.title_vi)
                                 || (!isEnglish ? source?.title : undefined)
-                                || (isEnglish ? `News update ${index + 1}` : `Tin nổi bật ${index + 1}`);
+                                || localizedCopy[lang].components_EarningsSeason_EarningsSeason.newsUpdate.replace('{index}', String(index + 1));
                             const detail = item.trim().toLocaleLowerCase() === title.trim().toLocaleLowerCase()
-                                ? (isEnglish ? 'Read the original article for details.' : 'Xem bài gốc để đọc chi tiết.')
+                                ? (localizedCopy[lang].components_EarningsSeason_EarningsSeason.readTheOriginalArticleForDetails)
                                 : item;
                             return (
                                 <details key={source?.url || `${index}-${item}`} className="group">
@@ -102,7 +104,7 @@ export default function EarningsSeason() {
                                     <p className="px-4 pb-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{detail}</p>
                                     {source?.url && (
                                         <a href={source.url} target="_blank" rel="noopener noreferrer" className="mx-4 mb-3 inline-flex text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
-                                            {isEnglish ? 'Read original article' : 'Đọc bài gốc'} ↗
+                                            {localizedCopy[lang].components_EarningsSeason_EarningsSeason.readOriginalArticle} ↗
                                         </a>
                                     )}
                                 </details>
@@ -110,7 +112,7 @@ export default function EarningsSeason() {
                         })}
                     </div>
                     <div className="px-4 py-3">
-                        <NewsSourceLogos sources={takeaways.recent_news?.length ? takeaways.recent_news : takeaways.news_sources} label={isEnglish ? 'Sources' : 'Nguồn'} />
+                        <NewsSourceLogos sources={takeaways.recent_news?.length ? takeaways.recent_news : takeaways.news_sources} label={localizedCopy[lang].components_EarningsSeason_EarningsSeason.sources} />
                     </div>
                 </div>
             )}

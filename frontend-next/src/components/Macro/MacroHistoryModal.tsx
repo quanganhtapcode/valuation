@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { apiFetch } from '@/lib/apiFetch';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -98,7 +100,7 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
     }
 
     function download() {
-        const header = [c.date, c.value, lang === 'vi' ? 'Đơn vị' : 'Unit', lang === 'vi' ? 'Chỉ tiêu' : 'Indicator', c.source];
+        const header = [c.date, c.value, localizedCopy[lang].components_Macro_MacroHistoryModal.unit, localizedCopy[lang].components_Macro_MacroHistoryModal.indicator, c.source];
         const csv = '\uFEFF' + [header.map(csvCell).join(','), ...filtered.map(point =>
             [point.date, point.close / (series.valueScale ?? 1), series.unit, series.title, series.source].map(csvCell).join(','))].join('\r\n');
         const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
@@ -120,7 +122,7 @@ export default function MacroHistoryModal({ series, onClose }: { series: MacroSe
                         <span className="sr-only">{c.range}</span>
                         <select value={range} onChange={event => selectRange(Number(event.target.value))} disabled={loading || error || !points.length}
                             className="h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-sm font-medium text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
-                            {RANGES.map(days => <option key={days} value={days}>{days === 0 ? c.all : lang === 'en' && days === 365 ? '1 year' : `${days / 365} ${c.year}`}</option>)}
+                            {RANGES.map(days => <option key={days} value={days}>{days === 0 ? c.all : days === 365 ? localizedCopy[lang].components_Macro_MacroHistoryModal.oneYear : `${days / 365} ${c.year}`}</option>)}
                         </select>
                         <RiArrowDownSLine aria-hidden="true" className="pointer-events-none absolute right-2 top-3 h-4 w-4 text-slate-400" />
                     </label>

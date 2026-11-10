@@ -2,6 +2,9 @@ export type Lang = "vi" | "en";
 
 export const translations = {
     vi: {
+        pagination: { label: 'Phân trang', previous: 'Trước', next: 'Sau' },
+        fundTabs: { label: 'Thông tin quỹ', compare: 'So sánh' },
+        polymarket: { title: 'Sự kiện Polymarket', retry: 'Không thể cập nhật Polymarket. Sẽ tự động thử lại.', change: 'Thay đổi xác suất trong 24 giờ (điểm phần trăm)', markets: 'thị trường', empty: 'Chưa có sự kiện.' },
         nav: {
             funds: "Quỹ đầu tư",
             fundsDesc: "NAV & hiệu suất quỹ mở",
@@ -263,6 +266,9 @@ export const translations = {
         },
     },
     en: {
+        pagination: { label: 'Pagination', previous: 'Previous', next: 'Next' },
+        fundTabs: { label: 'Fund information', compare: 'Compare' },
+        polymarket: { title: 'Polymarket Events', retry: 'Unable to refresh Polymarket. Retrying automatically.', change: '24-hour probability change (percentage points)', markets: 'markets', empty: 'No events available.' },
         nav: {
             funds: "Investment funds",
             fundsDesc: "Mutual fund NAV & performance",

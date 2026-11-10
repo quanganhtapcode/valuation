@@ -1,7 +1,9 @@
+import { localizedCopy } from '@/lib/localizedCopy';
+
 export default function StockPageShell({ symbol, lang }: { symbol: string; lang: 'vi' | 'en' }) {
     return (
         <div data-stock-loading={symbol} role="status" aria-live="polite"
-            aria-label={lang === 'en' ? `Opening ${symbol}` : `Đang mở ${symbol}`}
+            aria-label={localizedCopy[lang].components_StockPageShell.opening.replace('{symbol}', symbol)}
             className="mx-auto max-w-[1600px] space-y-4 px-4 py-4 sm:px-6">
             <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                 <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">{symbol}</h1>

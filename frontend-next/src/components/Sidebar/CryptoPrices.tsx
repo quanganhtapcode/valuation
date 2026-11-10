@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import Image from 'next/image';
 import { useCallback, useState } from 'react';
 import MarketChange from './MarketChange';
@@ -108,8 +110,8 @@ export default function CryptoPrices() {
                             <span className="text-sm text-gray-400">USD/VND</span>
                         </div>
                         <div className="mt-3 grid grid-cols-[1.3fr_1fr_1fr] gap-2 text-right text-[11px] text-gray-400">
-                            <span className="text-left">{lang === 'vi' ? 'Sàn' : 'Exchange'}</span>
-                            <span>{lang === 'vi' ? 'Mua' : 'Buy'}</span><span>{lang === 'vi' ? 'Bán' : 'Sell'}</span>
+                            <span className="text-left">{localizedCopy[lang].components_Sidebar_CryptoPrices.exchange}</span>
+                            <span>{localizedCopy[lang].components_Sidebar_CryptoPrices.buy}</span><span>{localizedCopy[lang].components_Sidebar_CryptoPrices.sell}</span>
                         </div>
                         {(['okx', 'binance'] as const).map(exchange => <div key={exchange} className="mt-2 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 text-sm">
                             <span className="font-medium text-gray-700 dark:text-gray-300">{exchange === 'okx' ? 'OKX' : 'Binance'}</span>
@@ -117,27 +119,27 @@ export default function CryptoPrices() {
                                 const price = p2p?.[exchange][direction].offer?.price;
                                 const previousPrice = p2pState?.previous?.[exchange][direction].offer?.price;
                                 const change = price !== undefined && previousPrice !== undefined ? Math.sign(price - previousPrice) : 0;
-                                return <span key={direction} title={lang === 'vi' ? 'So với lần cập nhật trước' : 'Compared with previous update'} className={`text-right font-semibold tabular-nums ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                return <span key={direction} title={localizedCopy[lang].components_Sidebar_CryptoPrices.comparedWithPreviousUpdate} className={`text-right font-semibold tabular-nums ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
                                     {change > 0 ? '↑ ' : change < 0 ? '↓ ' : ''}{price?.toLocaleString('vi-VN') ?? '—'}
                                 </span>;
                             })}
                         </div>)}
                         <div className="mt-3 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 border-t border-gray-100 pt-3 text-sm dark:border-gray-800/50">
-                            <a href="https://www.vietcombank.com.vn/vi-VN/KHCN/Cong-cu-tien-ich/Ty-gia" target="_blank" rel="noopener noreferrer" title={p2p?.bankUsd ? `${lang === 'vi' ? 'Tiền mặt, tỷ giá ngày' : 'Cash rate dated'} ${p2p.bankUsd.date}` : (lang === 'vi' ? 'Tỷ giá tiền mặt' : 'Cash rate')} className="font-medium text-gray-700 hover:underline dark:text-gray-300">Vietcombank</a>
+                            <a href="https://www.vietcombank.com.vn/vi-VN/KHCN/Cong-cu-tien-ich/Ty-gia" target="_blank" rel="noopener noreferrer" title={p2p?.bankUsd ? `${localizedCopy[lang].components_Sidebar_CryptoPrices.cashRateDated} ${p2p.bankUsd.date}` : (localizedCopy[lang].components_Sidebar_CryptoPrices.cashRate)} className="font-medium text-gray-700 hover:underline dark:text-gray-300">Vietcombank</a>
                             {(['buy', 'sell'] as const).map(direction => {
                                 const price = p2p?.bankUsd?.[direction];
                                 const previousPrice = p2pState?.previous?.bankUsd?.[direction];
                                 const change = price !== undefined && previousPrice !== undefined ? Math.sign(price - previousPrice) : 0;
-                                return <span key={direction} title={lang === 'vi' ? 'So với lần cập nhật trước' : 'Compared with previous update'} className={`text-right font-semibold tabular-nums ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{change > 0 ? '↑ ' : change < 0 ? '↓ ' : ''}{price?.toLocaleString('vi-VN') ?? '—'}</span>;
+                                return <span key={direction} title={localizedCopy[lang].components_Sidebar_CryptoPrices.comparedWithPreviousUpdate} className={`text-right font-semibold tabular-nums ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{change > 0 ? '↑ ' : change < 0 ? '↓ ' : ''}{price?.toLocaleString('vi-VN') ?? '—'}</span>;
                             })}
                         </div>
                         <div className="mt-2 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 text-sm">
-                            <a href="https://chogia.vn/ngoai-te/usd-cho-den/" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">{lang === 'vi' ? 'USD tự do' : 'Cash USD'}</a>
+                            <a href="https://chogia.vn/ngoai-te/usd-cho-den/" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 hover:underline dark:text-gray-300">{localizedCopy[lang].components_Sidebar_CryptoPrices.cashUSD}</a>
                             {(['buy', 'sell'] as const).map(direction => {
                                 const price = p2p?.cashUsd?.[direction];
                                 const previousPrice = p2pState?.previous?.cashUsd?.[direction];
                                 const change = price !== undefined && previousPrice !== undefined ? Math.sign(price - previousPrice) : 0;
-                                return <span key={direction} title={lang === 'vi' ? 'So với lần cập nhật trước' : 'Compared with previous update'} className={`text-right font-semibold tabular-nums ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{change > 0 ? '↑ ' : change < 0 ? '↓ ' : ''}{price?.toLocaleString('vi-VN') ?? '—'}</span>;
+                                return <span key={direction} title={localizedCopy[lang].components_Sidebar_CryptoPrices.comparedWithPreviousUpdate} className={`text-right font-semibold tabular-nums ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{change > 0 ? '↑ ' : change < 0 ? '↓ ' : ''}{price?.toLocaleString('vi-VN') ?? '—'}</span>;
                             })}
                         </div>
                         <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800/50">

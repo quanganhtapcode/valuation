@@ -1,5 +1,7 @@
 'use client';
 
+
+import { localizedCopy } from '@/lib/localizedCopy';
 import { apiUrl } from '@/lib/apiCore';
 
 import { StockTabDropdown } from './StockTabControls';
@@ -190,11 +192,11 @@ const BankingPeerTable = ({ symbol, initialPeers }: Props) => {
                     )}
                     <StockTabDropdown
                         align="right"
-                        label={mode === 'quarter' ? (lang === 'vi' ? 'Quý' : 'Quarter') : (lang === 'vi' ? 'Năm' : 'Year')}
+                        label={mode === 'quarter' ? (localizedCopy[lang].components_StockDetail_BankingPeerTable.quarter) : (localizedCopy[lang].components_StockDetail_BankingPeerTable.year)}
                         value={mode}
                         onChange={(value) => setMode(value as Mode)}
-                        options={[{ id: 'quarter', label: lang === 'vi' ? 'Quý' : 'Quarter' }, { id: 'year', label: lang === 'vi' ? 'Năm' : 'Year' }]}
-                        ariaLabel={lang === 'vi' ? 'Kỳ so sánh' : 'Comparison period'}
+                        options={[{ id: 'quarter', label: localizedCopy[lang].components_StockDetail_BankingPeerTable.quarter }, { id: 'year', label: localizedCopy[lang].components_StockDetail_BankingPeerTable.year }]}
+                        ariaLabel={localizedCopy[lang].components_StockDetail_BankingPeerTable.comparisonPeriod}
                     />
                 </div>
             </div>
