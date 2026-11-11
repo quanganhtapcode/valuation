@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,7 +22,7 @@ class P2PHistoryTest(unittest.TestCase):
             snapshot['okx']['buy']['offer']['price'] = 27000
             snapshot['binance']['sell']['offer'] = {'price': 25700}
             save_snapshot(snapshot, db)
-            with sqlite3.connect(db) as conn:
+            with closing(sqlite3.connect(db)) as conn, conn:
                 rows = conn.execute('SELECT source, direction, price_vnd FROM price_snapshots ORDER BY source, direction').fetchall()
             self.assertEqual(rows, [('binance', 'sell', 25700), ('cashUsd', 'buy', 26000),
                                     ('cashUsd', 'sell', 25900), ('okx', 'buy', 26400)])

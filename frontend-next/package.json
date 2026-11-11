@@ -5,10 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:webpack": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test:api": "node scripts/check-api-contract.mjs",
     "test:dependency-compat": "node scripts/dependency-compat.test.mjs",
+    "test": "node scripts/dependency-compat.test.mjs && node scripts/check-api-contract.mjs && node scripts/check-routing.mjs && node scripts/check-overview-loading.mjs && node scripts/check-valuation-history.mjs && node scripts/check-p2p-filter.mjs && node scripts/check-profile-text.mjs",
     "i18n:audit": "node scripts/check-i18n.mjs",
     "i18n:check": "node scripts/check-i18n.mjs --strict"
   },

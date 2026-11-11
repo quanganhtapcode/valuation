@@ -41,7 +41,6 @@ function classNames(...classes: Array<string | false | undefined | null>) {
 interface ValuationTabProps {
     symbol: string;
     currentPrice: number;
-    initialData?: ValuationResult | null;
     isBank?: boolean;
     stockData?: StockApiData;
 }
@@ -103,7 +102,7 @@ function UpsideBadge({ value, size = 'sm' }: { value: number; size?: 'sm' | 'lg'
     return <Badge color={pos ? 'emerald' : 'red'} size="xs">{pct(value)}</Badge>;
 }
 
-const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initialData, isBank, stockData }) => {
+const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, isBank, stockData }) => {
     const { lang } = useLanguage();
     const isVietnamese = lang === 'vi';
     const copy = translations[lang].detail.valuationTab;
@@ -115,9 +114,10 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     const editVersion = useRef(0);
     const customSelection = useRef(false);
     useEffect(() => () => activeRequest.current?.abort(), []);
-    const [result, setResult] = useState<ValuationResult | null>(initialData || null);
-    const [manualPrice, setManualPrice] = useState<number>(currentPrice || 0);
+    const [result, setResult] = useState<ValuationResult | null>(null);
+    const [editedPrice, setManualPrice] = useState<number>(0);
     const [userEditedPrice, setUserEditedPrice] = useState<boolean>(false);
+    const manualPrice = userEditedPrice ? editedPrice : Math.round(currentPrice * 100) / 100 || 0;
     const [userCustomizedModels, setUserCustomizedModels] = useState(false);
     const [userEditedGrowth, setUserEditedGrowth] = useState(false);
 
@@ -141,24 +141,6 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     }), [isBank]);
 
     const [models, setModels] = useState(initModels);
-
-    useEffect(() => {
-        if (currentPrice > 0 && !userEditedPrice) {
-            setManualPrice(Math.round(currentPrice * 100) / 100);
-        }
-    }, [currentPrice, userEditedPrice]);
-
-    useEffect(() => {
-        if (initialData && (!initialData.symbol || initialData.symbol === symbol)) {
-            setResult(initialData);
-            setModels(prev => reconcileModelSelection(prev, initialData, customSelection.current));
-        }
-    }, [initialData, symbol]);
-
-    useEffect(() => {
-        setAssumptions(defaultAssumptions);
-        setUserEditedGrowth(false);
-    }, [symbol]); // eslint-disable-line
 
     const handleAssumptionChange = (key: string, value: string) => {
         editVersion.current++;
@@ -271,7 +253,10 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
     };
 
     useEffect(() => {
-        if (symbol && manualPrice > 0 && !result && !loading && !errorMessage) void handleCalculate();
+        if (!symbol || manualPrice <= 0 || result || loading || errorMessage) return;
+        // Cancel the pending launch if the inputs change before the request starts.
+        const timer = window.setTimeout(() => { void handleCalculate(); }, 0);
+        return () => window.clearTimeout(timer);
     }, [symbol, manualPrice, result]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const formatPrice = (val: number) => {

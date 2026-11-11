@@ -129,9 +129,6 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
     const [stockInfo, setStockInfo] = useState<StockInfo | null>(initialStockInfo);
     const [storedPriceData, setPriceData] = useState<PriceData | null>(null);
     const [priceRequestSettled, setPriceRequestSettled] = useState(false);
-    // Only show fallback quotes after the current-price request finishes.
-    const priceData = storedPriceData?.source === 'realtime' || priceRequestSettled
-        ? storedPriceData : null;
     const [targetPrice, setTargetPrice] = useState<number | null>(null);
     const [financials, setFinancials] = useState<FinancialData | null>({});
     const [history, setHistory] = useState<{ symbol: string; rows: HistoricalData[] }>(() => {
@@ -139,10 +136,26 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         return { symbol, rows: (cached?.data || []).map(row => ({ ...row, time: row.time || row.date || '' })) };
     });
     const historicalData = history.symbol === symbol ? history.rows : EMPTY_HISTORY;
+    // Historical closes supersede the undated summary, but never a live quote.
+    const latest = historicalData[historicalData.length - 1];
+    const previousClose = historicalData.length > 1 ? historicalData[historicalData.length - 2].close : latest?.open;
+    const priceData: PriceData | null = storedPriceData?.source === 'realtime' ? storedPriceData
+        : !priceRequestSettled ? null
+        : latest && latest.close > 0 ? {
+            ...storedPriceData, source: 'history', price: latest.close,
+            change: latest.close - (previousClose || 0),
+            changePercent: previousClose && previousClose > 0 ? (latest.close - previousClose) / previousClose * 100 : 0,
+            open: latest.open, high: latest.high, low: latest.low, volume: latest.volume,
+            ref: previousClose || 0, value: 0, ceiling: 0, floor: 0,
+        } : storedPriceData;
     const [historyRequest, setHistoryRequest] = useState<{ symbol: string; period: HistoryPeriod }>({ symbol: '', period: '1Y' });
     const historyPeriod: HistoryPeriod = historyRequest.symbol === symbol ? historyRequest.period : '1Y';
     const [historyError, setHistoryError] = useState(false);
+    const [isChartLoading, setIsChartLoading] = useState(true);
     const loadOlderHistory = useCallback(() => {
+        if (historyPeriod === 'ALL') return;
+        setIsChartLoading(true);
+        setHistoryError(false);
         setHistoryRequest(previous => {
             const current = previous.symbol === symbol ? previous.period : '1Y';
             const next: HistoryPeriod = current === '1Y' ? '2Y'
@@ -151,7 +164,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                 : 'ALL';
             return { symbol, period: next };
         });
-    }, [symbol]);
+    }, [symbol, historyPeriod]);
     const [isDescExpanded, setIsDescExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -166,19 +179,9 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         if (nextTab === activeTab) return;
         startTransition(() => {
             setActiveTab(nextTab);
+            setVisitedTabs(prev => new Set(prev).add(nextTab));
         });
     }, [activeTab, startTransition]);
-
-    // New state for chart loading
-    const [isChartLoading, setIsChartLoading] = useState(false);
-
-    useEffect(() => {
-        setVisitedTabs(prev => {
-            const next = new Set(prev);
-            next.add(activeTab);
-            return next;
-        });
-    }, [activeTab]);
 
     const handleDownloadExcel = useCallback(async () => {
         if (!symbol) return;
@@ -440,42 +443,11 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
         };
     }, [symbol]);
 
-    // Historical closes supersede the undated summary, but never a live quote.
-    // This also handles history completing before the summary request.
-    useEffect(() => {
-        if (!priceRequestSettled || historicalData.length === 0) return;
-        const latest = historicalData[historicalData.length - 1];
-        if (!(latest.close > 0)) return;
-        const previousClose = historicalData.length > 1
-            ? historicalData[historicalData.length - 2].close : latest.open;
-        const change = latest.close - previousClose;
-        setPriceData(prev => {
-            if (prev?.source === 'realtime') return prev;
-            return {
-                ...prev,
-                source: 'history',
-                price: latest.close,
-                change,
-                changePercent: previousClose > 0 ? change / previousClose * 100 : 0,
-                open: latest.open,
-                high: latest.high,
-                low: latest.low,
-                volume: latest.volume,
-                ref: previousClose,
-                value: 0,
-                ceiling: 0,
-                floor: 0,
-            };
-        });
-    }, [historicalData, priceRequestSettled]);
-
     // Load the visible year first; older sessions are requested only on demand.
     useEffect(() => {
         if (!symbol) return;
         const controller = new AbortController();
 
-        setIsChartLoading(true);
-        setHistoryError(false);
         let fetching = false;
         let retryTimer: ReturnType<typeof setTimeout> | undefined;
         let retryDelay = 2_000;
@@ -499,6 +471,7 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                         // Sort by date ascending to ensure proper charting
                         mapped.sort((a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime());
                         setHistory({ symbol, rows: mapped });
+                        setHistoryError(false);
                         retryDelay = 2_000;
                         clearTimeout(retryTimer);
                     }
@@ -776,7 +749,6 @@ export default function StockDetailClient({ initialStockInfo }: { initialStockIn
                             key={symbol}
                             symbol={symbol}
                             currentPrice={priceData?.price || 0}
-                            initialData={null}
                             stockData={rawOverviewData ?? undefined}
                             isBank={stockInfo?.sector === 'Ngân hàng' || ['VCB', 'BID', 'CTG', 'VPB', 'MBB', 'TCB', 'ACB', 'HDB', 'VIB', 'STB', 'TPB', 'MSB', 'LPB', 'SHB', 'OCB', 'VBB', 'BAB', 'BVB', 'EIB', 'KLB', 'SGB', 'PGB', 'NVB', 'VAB'].includes(symbol)}
                         />

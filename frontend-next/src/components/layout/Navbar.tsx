@@ -60,6 +60,11 @@ function ChatGPTSidebarIcon({ className }: { className?: string }) {
 }
 
 export function Navbar() {
+    const pathname = usePathname();
+    return <NavbarContent key={pathname} pathname={pathname} />;
+}
+
+function NavbarContent({ pathname }: { pathname: string }) {
     const { lang } = useLanguage()
     const t = translations[lang].nav
 
@@ -95,7 +100,6 @@ export function Navbar() {
     const [searchQuery, setSearchQuery] = useState('');
     const deferredQuery = useDeferredValue(searchQuery);
     const [allTickers, setAllTickers] = useState<Ticker[]>([]);
-    const [searchResults, setSearchResults] = useState<Ticker[]>([]);
     const [tickersLoaded, setTickersLoaded] = useState(false);
     const tickerLoadingRef = useRef(false);
     const searchRef = useRef<HTMLDivElement>(null);
@@ -106,7 +110,6 @@ export function Navbar() {
     const dropdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const router = useRouter();
-    const pathname = usePathname();
 
     // Compute mobile menu height dynamically so every mobile link is visible on open.
     const mobileOpenHeight = useMemo(() => {
@@ -114,19 +117,6 @@ export function Navbar() {
         const h = HEADER_ROW_H + NAV_MARGIN_H + NAV_GROUPS.length * GROUP_BTN_H + itemHeight + (NAV_GROUPS.length - 1) * 4;
         return h + MOBILE_SETTINGS_H + 8; // controls + small buffer
     }, [NAV_GROUPS]);
-
-    // Close everything on navigation
-    useEffect(() => {
-        setSearchOpen(false);
-        setSearchQuery('');
-        setOpen(false);
-        setActiveDropdown(null);
-        setSettingsOpen(false);
-    }, [pathname]);
-
-    useEffect(() => {
-        if (searchOpen && window.innerWidth < 768) setOpen(false);
-    }, [searchOpen]);
 
     useEffect(() => {
         const mq = window.matchMedia("(min-width: 768px)")
@@ -163,10 +153,9 @@ export function Navbar() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [searchOpen, settingsOpen]);
 
-    useEffect(() => {
+    const searchResults = useMemo(() => {
         if (typeof deferredQuery !== 'string' || deferredQuery.length < 1) {
-            setSearchResults([]);
-            return;
+            return [];
         }
         const upper = deferredQuery.toUpperCase();
         const lower = deferredQuery.toLowerCase();
@@ -184,8 +173,7 @@ export function Navbar() {
             const group = symbol === upper ? exact : symbol.startsWith(upper) ? prefix : other;
             if (group.length < 10) group.push(ticker);
         }
-        const filtered = [...exact, ...prefix, ...other].slice(0, 10);
-        setSearchResults(filtered);
+        return [...exact, ...prefix, ...other].slice(0, 10);
     }, [deferredQuery, allTickers]);
 
     useEffect(() => {
@@ -369,7 +357,7 @@ export function Navbar() {
                                             setSearchQuery('');
                                         }
                                     }}
-                                    onFocus={() => { setSearchOpen(true); if (!tickersLoaded) void ensureTickersLoaded(); }}
+                                    onFocus={() => { setSearchOpen(true); if (window.innerWidth < 768) setOpen(false); if (!tickersLoaded) void ensureTickersLoaded(); }}
                                     onPointerEnter={() => { if (!tickersLoaded) void ensureTickersLoaded(); }}
                                 />
                                 <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center">

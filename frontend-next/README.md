@@ -54,9 +54,11 @@ Thay đổi biến `NEXT_PUBLIC_*` cần build và triển khai lại frontend.
 
 ```bash
 npm run lint
-npm run test:api
+npm test
 npm run build
 ```
+
+Nếu môi trường sandbox chặn tạo cổng loopback, Turbopack có thể báo `binding to a port: Operation not permitted` khi xử lý CSS. Có thể dùng `npm run build:webpack` để kiểm tra production build; lệnh này vẫn cần quyền tạo các tiến trình con. Đây là tùy chọn dự phòng, không thay đổi build mặc định.
 
 Với thay đổi proxy, kiểm tra `/api/health` qua frontend khi backend local đang chạy.
 Frontend production được triển khai riêng trên Vercel; sửa source trên VPS không

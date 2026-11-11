@@ -72,8 +72,8 @@ export default function DownloadsPage() {
     const [activeTab, setActiveTab] = useState<DownloadTab>('query');
     const [downloadKind, setDownloadKind] = useState<'financials' | 'market'>('financials');
     const [fieldCodes, setFieldCodes] = useState<FieldCodeMap>({});
-    const [fieldCodesLoading, setFieldCodesLoading] = useState(false);
     const [fieldSection, setFieldSection] = useState<FieldCodeSection>('INCOME_STATEMENT');
+    const fieldCodesLoading = activeTab === 'variables' && fieldCodes[fieldSection] === undefined;
 
     useEffect(() => {
         const controller = new AbortController();
@@ -103,14 +103,14 @@ export default function DownloadsPage() {
     })(); }, [c.errorTickers]);
 
     useEffect(() => {
-        if (activeTab !== 'variables' || fieldCodesLoading || fieldCodes[fieldSection] !== undefined) return;
-        setFieldCodesLoading(true);
+        if (!fieldCodesLoading) return;
+        let cancelled = false;
         void apiFetch(apiUrl(`/financials/fields?compact=1&section=${fieldSection}`), { cache: 'force-cache' })
             .then((response) => { if (!response.ok) throw new Error(); return response.json() as Promise<FieldCodeMap>; })
-            .then(data => setFieldCodes(previous => ({ ...previous, ...data })))
-            .catch(() => setFieldCodes(previous => ({ ...previous, [fieldSection]: [] })))
-            .finally(() => setFieldCodesLoading(false));
-    }, [activeTab, fieldCodes, fieldCodesLoading, fieldSection]);
+            .then(data => { if (!cancelled) setFieldCodes(previous => ({ ...previous, ...data })); })
+            .catch(() => { if (!cancelled) setFieldCodes(previous => ({ ...previous, [fieldSection]: [] })); });
+        return () => { cancelled = true; };
+    }, [fieldCodesLoading, fieldSection]);
 
     const sectors = useMemo(() => Array.from(new Set(tickers.map((ticker) => ticker.sector).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'vi')), [tickers]);
     const symbols = query.split(/[\s,]+/).map((value) => value.trim().toUpperCase()).filter(Boolean);

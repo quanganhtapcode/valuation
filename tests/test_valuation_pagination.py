@@ -1,6 +1,7 @@
 """Cursor history pages must be bounded, exclusive, and work offline."""
 
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from datetime import date, timedelta
@@ -20,7 +21,7 @@ class ValuationPaginationTests(unittest.TestCase):
         db = Path(self.directory.name) / "history.sqlite"
         self.dates = [(date(2024, 1, 1) + timedelta(days=i)).isoformat()
                       for i in range(603)]
-        with sqlite3.connect(db) as conn:
+        with closing(sqlite3.connect(db)) as conn, conn:
             conn.execute("CREATE TABLE valuation_history (date TEXT PRIMARY KEY, "
                          "pe REAL, pb REAL, vnindex REAL, open REAL, high REAL, "
                          "low REAL, close REAL, ema50 REAL, volume REAL)")
@@ -112,7 +113,7 @@ class ValuationPaginationTests(unittest.TestCase):
         self.assertNotIn("pagination", response.json)
 
     def test_empty_store_is_retryable_for_initial_page(self):
-        with sqlite3.connect(valuation_chart._VALUATION_SQLITE) as conn:
+        with closing(sqlite3.connect(valuation_chart._VALUATION_SQLITE)) as conn, conn:
             conn.execute("DELETE FROM valuation_history")
         self.assertEqual(self.page().status_code, 503)
 

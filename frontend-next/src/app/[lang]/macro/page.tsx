@@ -321,9 +321,12 @@ function WorldTab() {
     const [ffForex, setFfForex]     = useState<Map<string, FFPrice>>(new Map());
     const [ffIndices, setFfIndices] = useState<Map<string, FFPrice>>(new Map());
 
-    const loadRates = useCallback(async () => {
-        try { const r = await apiFetch(API.MACRO_RATES, { cache: 'no-store' }); if (r.ok) setRates(await r.json()); }
-        catch { /* ignore */ } finally { setRL(false); }
+    const loadRates = useCallback(() => {
+        void apiFetch(API.MACRO_RATES, { cache: 'no-store' })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data) setRates(data); })
+            .catch(() => { /* Retain the last available rates. */ })
+            .finally(() => setRL(false));
     }, []);
 
     useEffect(() => {

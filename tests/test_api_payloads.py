@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from pathlib import Path
@@ -91,7 +92,7 @@ class ApiPayloadTests(unittest.TestCase):
     def test_ai_objects_remove_duplicate_text_without_breaking_old_clients(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "ai.sqlite"
-            with sqlite3.connect(path) as conn:
+            with closing(sqlite3.connect(path)) as conn, conn:
                 conn.execute("CREATE TABLE ai_financial_analysis (ticker, year_report, quarter_report, analysis_vi, analysis_json, news_json, model, generated_at)")
                 conn.execute("INSERT INTO ai_financial_analysis VALUES (?,?,?,?,?,?,?,?)", (
                     "VCB", 2026, 3, "duplicate narrative " * 200, json.dumps({"value": 1.123456789}),

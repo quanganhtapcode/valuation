@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,7 +12,7 @@ class CashUsdTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'history.sqlite'
             now = 1793457000000
-            with sqlite3.connect(path) as conn:
+            with closing(sqlite3.connect(path)) as conn, conn:
                 conn.execute('CREATE TABLE price_snapshots (bucket_utc INTEGER, fetched_at_ms INTEGER, source TEXT, direction TEXT, price_vnd REAL)')
                 conn.executemany('INSERT INTO price_snapshots VALUES (?, ?, ?, ?, ?)', [
                     (100, now - 1000, 'cashUsd', 'buy', 26090),

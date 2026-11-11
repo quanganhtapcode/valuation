@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -46,7 +47,7 @@ def save_snapshot(snapshot: dict, db_path: Path = DB_PATH) -> int:
     if not rows:
         raise ValueError('No valid prices in snapshot')
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path, timeout=30) as conn:
+    with closing(sqlite3.connect(db_path, timeout=30)) as conn, conn:
         conn.execute('PRAGMA journal_mode=WAL')
         conn.execute('''CREATE TABLE IF NOT EXISTS price_snapshots (
             bucket_utc INTEGER NOT NULL, fetched_at_ms INTEGER NOT NULL,
