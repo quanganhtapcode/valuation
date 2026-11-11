@@ -656,7 +656,7 @@ const ValuationTab: React.FC<ValuationTabProps> = ({ symbol, currentPrice, initi
                                         </TableRow>
                                     );
                                 })}
-                                <TableRow className="bg-tremor-background-subtle font-bold">
+                                <TableRow className="bg-tremor-background-subtle font-bold dark:bg-dark-tremor-background-subtle">
                                     <TableCell colSpan={2}>
                                         <Text className="font-bold">{copy.weightedAverage}</Text>
                                     </TableCell>

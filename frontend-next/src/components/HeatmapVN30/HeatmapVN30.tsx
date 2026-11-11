@@ -97,15 +97,13 @@ function squarifyTile<T>(
 function changeColor(pct: number, isDark: boolean): string {
   if (pct === undefined || pct === null) return '#ffffff';
   if (isDark) {
-    // The medium-contrast green / wine palette used by the original dark
-    // heatmap: strong enough to read immediately, without neon saturation.
-    if (pct <= -5) return '#98596b';
-    if (pct <= -2) return '#805060';
-    if (pct < 0) return '#714a58';
+    if (pct <= -5) return '#c43d58';
+    if (pct <= -2) return '#aa4056';
+    if (pct < 0) return '#873d50';
     if (pct === 0) return '#34435a';
-    if (pct < 2) return '#2d725e';
-    if (pct < 5) return '#347f67';
-    return '#3b8b70';
+    if (pct < 2) return '#16845f';
+    if (pct < 5) return '#119b6c';
+    return '#0cac75';
   }
   if (pct <= -5) return '#f4889a';
   if (pct <= -2) return '#f8a9b4';
@@ -174,8 +172,7 @@ export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, 
 
   // Dark mode detection
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const check = () => setIsDark(document.documentElement.classList.contains('dark') || mq.matches);
+    const check = () => setIsDark(document.documentElement.classList.contains('dark'));
     check();
     const obs = new MutationObserver(check);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
@@ -259,9 +256,9 @@ export default function HeatmapVN30({ initialData = null, initialFetchedAt = 0, 
   }, [exchange, useExternalOnly]);
 
   const theme = getChartTheme(isDark);
-  const svgBg = theme.tooltipBg;
-  const labelBg = theme.tooltipBg;
-  const labelText = theme.text;
+  const svgBg = 'var(--chart-surface)';
+  const labelBg = 'var(--chart-surface)';
+  const labelText = 'var(--chart-muted)';
 
   const sectorTiles = useMemo(
     () => squarifyTile(data?.sectors ?? [], s => s.totalCap, 0, 0, cw, ch).map(({ item: sector, rect }) => {

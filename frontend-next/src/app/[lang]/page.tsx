@@ -4,7 +4,7 @@ import { NewsPanel, MoversPanel, GoldPanel, PanelSkeleton, OverviewEarnings, Ove
 import styles from './page.module.css';
 import { Suspense } from 'react';
 import { getOverviewSnapshots } from '@/lib/overviewSnapshot.server';
-import { createLocalizedMetadata, type LocalizedPageProps } from '@/lib/i18nRouting';
+import { createLocalizedMetadata, getRequestLang, type LocalizedPageProps } from '@/lib/i18nRouting';
 
 // Live updates remain client-side; a bounded snapshot supplies the initial HTML.
 export const revalidate = 15;
@@ -36,7 +36,8 @@ async function GoldSection({ snapshot }: { snapshot: Snapshots['gold'] }) {
   return <GoldPanel {...await snapshot} />;
 }
 
-export default function OverviewPage() {
+export default async function OverviewPage({ params }: LocalizedPageProps) {
+  const lang = await getRequestLang(params);
   const snapshots = getOverviewSnapshots();
   return (
     <div className={styles.container}>
@@ -57,7 +58,9 @@ export default function OverviewPage() {
           <Suspense fallback={<PanelSkeleton />}><GoldSection snapshot={snapshots.gold} /></Suspense>
           <OverviewPredictions />
           <p className="px-1 text-[11px] leading-relaxed text-justify text-gray-400 dark:text-gray-500">
-            Market and company data is aggregated from sources including Vietcap, Yahoo Finance, SBV (State Bank of Vietnam), Polymarket, and other relevant public sources. All data is provided for informational purposes only and is not intended for trading purposes or as financial, investment, tax, legal, accounting, or other professional advice.
+            {lang === 'vi'
+              ? 'Dữ liệu thị trường và doanh nghiệp được tổng hợp từ Vietcap, SSI, Yahoo Finance, Ngân hàng Nhà nước Việt Nam, Polymarket và các nguồn công khai khác. Dữ liệu và kết quả định giá chỉ mang tính tham khảo, không phục vụ mục đích giao dịch và không phải là lời khuyên tài chính, đầu tư, thuế, pháp lý, kế toán hoặc tư vấn chuyên môn khác.'
+              : 'Market and company data is aggregated from Vietcap, SSI, Yahoo Finance, the State Bank of Vietnam, Polymarket, and other public sources. Data and valuation results are for informational purposes only, are not intended for trading, and do not constitute financial, investment, tax, legal, accounting, or other professional advice.'}
           </p>
         </aside>
       </div>
