@@ -28,6 +28,9 @@ const immutableAssetHeaders = [
 const nextConfig = {
   compress: true,
   poweredByHeader: false,
+  experimental: {
+    useTypeScriptCli: false,
+  },
   turbopack: {
     root: projectRoot,
   },

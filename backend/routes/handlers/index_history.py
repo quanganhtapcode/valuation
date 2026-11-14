@@ -57,7 +57,8 @@ def resolve_index_db_path(*, base_dir: str, index: str) -> str | None:
     return None
 
 
-def read_index_history(*, db_path: str, days: int, index: str | None = None) -> list[dict]:
+def read_index_history(*, db_path: str, days: int, index: str | None = None,
+                       before: str | None = None) -> list[dict]:
     with read_connection(db_path) as conn:
         cur = conn.cursor()
 
@@ -69,15 +70,20 @@ def read_index_history(*, db_path: str, days: int, index: str | None = None) -> 
         # Unified DB path: filter by symbol when table supports it.
         columns = [row[1] for row in cur.execute("PRAGMA table_info(market_index_history)").fetchall()]
         has_symbol = "symbol" in columns
+        conditions: list[str] = []
+        params: list[str | int] = []
         if has_symbol and index_symbol:
             aliases = _index_aliases(index_symbol)
             placeholders = ",".join("?" * len(aliases))
-            cur.execute(
-                "SELECT * FROM market_index_history WHERE symbol IN ({}) "
-                "ORDER BY tradingDate DESC LIMIT ?".format(placeholders),
-                (*aliases, days),
-            )
-        else:
-            cur.execute("SELECT * FROM market_index_history ORDER BY tradingDate DESC LIMIT ?", (days,))
+            conditions.append(f"symbol IN ({placeholders})")
+            params.extend(aliases)
+        if before:
+            conditions.append("tradingDate < ?")
+            params.append(before)
+        where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+        cur.execute(
+            f"SELECT * FROM market_index_history{where} ORDER BY tradingDate DESC LIMIT ?",
+            (*params, days),
+        )
         rows = cur.fetchall()
     return [dict(r) for r in rows]

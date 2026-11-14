@@ -68,6 +68,7 @@ const INDEX_TABS = [
 const PE_COLOR  = chartColors.secondary;
 const PB_COLOR  = chartColors.tertiary;
 const AREA_COLOR = '#0E6BFF';
+const INDEX_HISTORY_PAGE_SIZE = 260;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -121,10 +122,10 @@ function PctChip({ pct, large = false }: { pct: number; large?: boolean }) {
     const up = pct >= 0;
     return (
         <span className={cx(
-            'inline-flex items-center gap-1 rounded-md font-semibold tabular-nums whitespace-nowrap',
-            large ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5 text-[11px]',
-            up  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
+            'inline-flex items-center gap-1 rounded-full font-semibold tabular-nums whitespace-nowrap',
+            large ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[11px]',
+            up  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400',
         )}>
             <svg width={large ? 9 : 7} height={large ? 9 : 7} viewBox="0 0 10 10">
                 <path d={up ? 'M5 1 L9 8 L1 8 Z' : 'M5 9 L1 2 L9 2 Z'} fill="currentColor" />
@@ -158,6 +159,9 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
     const [idxBars,  setIdxBars]  = useState<SimpleBar[]>([]);
     const [idxLoad,  setIdxLoad]  = useState(false);
     const idxCache  = useRef<Map<string, SimpleBar[]>>(new Map());
+    const idxNextBefore = useRef<Map<string, string | null>>(new Map());
+    const [idxRequest, setIdxRequest] = useState<{ index: string; before: string } | null>(null);
+    const idxLoadingRef = useRef(false);
     const paginationRef = useRef(parseValuationPagination(initialChart) ?? {
         hasMore: initialRows.length > 0,
         nextBefore: initialRows.length ? dateToISO(initialRows[0].date) : null,
@@ -238,9 +242,10 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
         if (cached) { setIdxBars(cached); setIdxLoad(false); return; }
 
         const controller = new AbortController();
+        idxLoadingRef.current = true;
         setIdxLoad(true);
         setIdxBars([]);
-        apiFetch(`${API_BASE}/market/indices/history?index=${info.vciSymbol}&days=-1&compact=1`, { signal: controller.signal })
+        apiFetch(`${API_BASE}/market/indices/history?index=${info.vciSymbol}&days=${INDEX_HISTORY_PAGE_SIZE}&compact=1`, { signal: controller.signal })
             .then(r => r.json())
             .then((rows: any[]) => {
                 if (controller.signal.aborted || !Array.isArray(rows)) return;
@@ -252,6 +257,7 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                         volume: Number(r.totalVolume || r.totalMatchVolume || 0),
                     }))
                     .sort((a, b) => a.date.localeCompare(b.date));
+                idxNextBefore.current.set(selectedId, bars.length >= INDEX_HISTORY_PAGE_SIZE ? bars[0].date : null);
                 idxCache.current.set(selectedId, bars);
                 setIdxBars(bars);
             })
@@ -259,10 +265,45 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                 if (error.name !== 'AbortError') console.error(error);
             })
             .finally(() => {
-                if (!controller.signal.aborted) setIdxLoad(false);
+                if (!controller.signal.aborted) { idxLoadingRef.current = false; setIdxLoad(false); }
             });
         return () => controller.abort();
     }, [selectedId, isVN]);
+
+    useEffect(() => {
+        if (!idxRequest || idxRequest.index !== selectedId) return;
+        const info = Object.values(INDEX_MAP).find(i => i.id === idxRequest.index);
+        if (!info) return;
+        const controller = new AbortController();
+        idxLoadingRef.current = true;
+        const query = new URLSearchParams({ index: info.vciSymbol, days: String(INDEX_HISTORY_PAGE_SIZE), compact: '1', before: idxRequest.before });
+        apiFetch(`${API_BASE}/market/indices/history?${query}`, { signal: controller.signal })
+            .then(r => r.json())
+            .then((rows: any[]) => {
+                if (controller.signal.aborted || !Array.isArray(rows)) return;
+                const older = rows.filter(r => r.tradingDate && r.closeIndex).map(r => ({
+                    date: String(r.tradingDate).slice(0, 10),
+                    close: Number(r.closeIndex),
+                    volume: Number(r.totalVolume || r.totalMatchVolume || 0),
+                }));
+                idxNextBefore.current.set(idxRequest.index, older.length >= INDEX_HISTORY_PAGE_SIZE ? older[older.length - 1].date : null);
+                const current = idxCache.current.get(idxRequest.index) ?? [];
+                const merged = [...new Map([...current, ...older].map(bar => [bar.date, bar])).values()]
+                    .sort((a, b) => a.date.localeCompare(b.date));
+                idxCache.current.set(idxRequest.index, merged);
+                if (selectedIdRef.current === idxRequest.index) {
+                    preserveVisibleRangeRef.current = true;
+                    setIdxBars(merged);
+                }
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') console.error(error);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) { idxLoadingRef.current = false; setIdxLoad(false); }
+            });
+        return () => controller.abort();
+    }, [idxRequest, selectedId]);
 
     // ── Derive full-history chart series ─────────────────────────────────────
 
@@ -445,13 +486,26 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
         ro.observe(wrapRef.current);
 
         const onVisibleRangeChange = (range: { from: number; to: number } | null) => {
-            if (!range || updatingSeriesRef.current || vnLoadingRef.current || !userChartInteractionRef.current || selectedIdRef.current !== 'vnindex') return;
+            if (!range || updatingSeriesRef.current || !userChartInteractionRef.current) return;
             // Load with half a screen of history still available.
             if (range.from > Math.max(60, (range.to - range.from) * 0.5)) return;
+            if (selectedIdRef.current !== 'vnindex') {
+                const id = selectedIdRef.current;
+                const before = idxNextBefore.current.get(id);
+                if (!idxLoadingRef.current && before) {
+                    idxLoadingRef.current = true;
+                    userChartInteractionRef.current = false;
+                    setIdxLoad(true);
+                    setIdxRequest({ index: id, before });
+                }
+                return;
+            }
+            if (vnLoadingRef.current) return;
             const page = paginationRef.current;
             if (!page.hasMore || !page.nextBefore || vnErrorRef.current) return;
             // Lock before React processes another pan event.
             vnLoadingRef.current = true;
+            userChartInteractionRef.current = false;
             setVnRequest(current => ({ before: page.nextBefore!, id: current.id + 1 }));
         };
         chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange);
@@ -582,7 +636,7 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
     return (
         <>
             {/* ── Index sub-bar ── */}
-            <div className="flex items-stretch overflow-x-auto rounded-xl border border-slate-200/80 bg-white/90 shadow-sm dark:border-slate-800/80 dark:bg-slate-900/90 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div role="tablist" aria-label={lang === 'vi' ? 'Chọn chỉ số thị trường' : 'Select market index'} className="flex items-stretch overflow-x-auto rounded-t-2xl border border-b-0 border-slate-200/80 bg-white px-2 pt-2 dark:border-slate-800 dark:bg-slate-900 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {INDEX_TABS.map(tab => {
                     const idx    = indices.find(i => i.id === tab.id);
                     const active = tab.id === selectedId;
@@ -590,28 +644,33 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                     return (
                         <button
                             key={tab.id}
+                            type="button"
+                            role="tab"
+                            id={`index-tab-${tab.id}`}
+                            aria-controls="index-market-panel"
+                            aria-selected={active}
                             onClick={() => setSelectedId(tab.id)}
                             className={cx(
-                                'flex items-center gap-2.5 px-4 h-11 border-r border-gray-100 dark:border-gray-800/60 flex-shrink-0 cursor-pointer transition-colors last:border-r-0',
+                                'relative flex min-w-[136px] flex-shrink-0 cursor-pointer flex-col items-start gap-1 rounded-t-lg border-b-2 px-4 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-500 sm:min-w-[160px]',
                                 active
-                                    ? 'border-b-2 border-b-blue-600 bg-blue-50/60 -mb-[1px] dark:bg-blue-500/10'
-                                    : 'border-b-2 border-b-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40',
+                                    ? 'border-b-blue-600 bg-blue-50/60 dark:bg-blue-500/10'
+                                    : 'border-b-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40',
                             )}
                         >
-                            <span className={cx('text-xs font-semibold whitespace-nowrap', active ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500')}>
+                            <span className={cx('text-[11px] font-semibold whitespace-nowrap', active ? 'text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400')}>
                                 {tab.label}
                             </span>
                             {idx && idx.value > 0 && (
-                                <>
-                                    <span className={cx('text-xs font-medium tabular-nums', active ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500')}>
+                                <span className="flex items-baseline gap-2 whitespace-nowrap">
+                                    <span className={cx('text-sm font-bold tracking-tight tabular-nums', active ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300')}>
                                         {idx.value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                                     </span>
-                                    <span className={cx('text-[11px] font-semibold tabular-nums', idx.isReference
-                                        ? 'text-gray-500 dark:text-gray-400'
-                                        : up ? 'text-emerald-500' : 'text-red-500')}>
+                                    <span className={cx('text-[10px] font-semibold tabular-nums', idx.isReference
+                                        ? 'text-slate-400 dark:text-slate-500'
+                                        : up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}>
                                         {idx.isReference ? referenceLabel : `${up ? '+' : ''}${idx.percentChange.toFixed(2)}%`}
                                     </span>
-                                </>
+                                </span>
                             )}
                         </button>
                     );
@@ -620,24 +679,22 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
             </div>
 
             {/* ── Hero card ── */}
-            <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
+            <div id="index-market-panel" role="tabpanel" aria-labelledby={`index-tab-${selectedId}`} className="overflow-hidden rounded-b-2xl border border-slate-200/80 bg-white shadow-[0_10px_32px_rgba(15,23,42,0.045)] dark:border-slate-800 dark:bg-slate-900">
 
                 {/* Stats header */}
-                <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-0 md:px-6 md:pt-6">
+                <div className="flex flex-wrap items-start justify-between gap-4 px-5 pt-6 pb-0 md:px-7 md:pt-7">
 
                     {/* Left: price + KPIs */}
                     <div className="min-w-0">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                             {selected?.name || '—'}
                         </div>
 
                         {selected && selected.value > 0 ? (
                             <>
-                                <div className="flex items-baseline gap-3 mt-2 flex-wrap">
+                                <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-2">
                                     <span className={cx(
-                                        'text-[44px] font-bold tabular-nums leading-none tracking-[-0.05em]',
-                                        selected.isReference ? 'text-gray-800 dark:text-gray-200'
-                                            : isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+                                        'text-[40px] font-bold tabular-nums leading-none tracking-[-0.045em] text-slate-950 dark:text-white sm:text-[48px]',
                                     )}>
                                         {selected.value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                                     </span>
@@ -649,7 +706,7 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                                     </div>}
                                 </div>
 
-                                <div className="flex flex-wrap gap-5 mt-3">
+                                <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3 border-t border-slate-100 pt-4 dark:border-slate-800/80">
                                     {!!selected.totalShares && (
                                         <Stat label="VOL" value={selected.totalShares.toLocaleString('en-US')} />
                                     )}
@@ -681,7 +738,7 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                     </div>
 
                     {/* Right: controls */}
-                    <div className="flex flex-col gap-2 items-end flex-shrink-0 pt-1">
+                    <div className="flex flex-col gap-2 items-end flex-shrink-0 pt-0.5">
                         {/* PE / PB toggles (VN-Index only) + History */}
                         <div className="flex gap-1.5">
                             {isVN && (
@@ -694,7 +751,7 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                                 type="button"
                                 aria-label={localizedCopy[lang].components_HeroIndexCard_HeroIndexCard.indexHistory}
                                 onClick={() => setModalOpen(true)}
-                                className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700/60 rounded-lg text-[11px] font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer transition-colors"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                             >
                                 <RiHistoryLine className="w-3.5 h-3.5" />
                             </button>
@@ -703,9 +760,9 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
                 </div>
 
                 {/* Chart area */}
-                <div className="relative pt-3">
+                <div className="relative pt-5">
                     {isLoading && <LoadingOverlay isDark={isDark} />}
-                    {isVN && vnLoad && vnRows.length > 0 && <div role="status" className="pointer-events-none absolute left-3 top-5 z-20 rounded-md bg-white/90 px-2 py-1 text-xs text-gray-500 dark:bg-gray-900/90">
+                    {((isVN && vnLoad && vnRows.length > 0) || (!isVN && idxLoad && idxBars.length > 0)) && <div role="status" className="pointer-events-none absolute left-3 top-5 z-20 rounded-md bg-white/90 px-2 py-1 text-xs text-gray-500 dark:bg-gray-900/90">
                         {localizedCopy[lang].components_HeroIndexCard_HeroIndexCard.loadingHistory}
                     </div>}
                     {isVN && vnError && !vnLoad && <div role="alert" className="absolute inset-x-0 top-8 z-20 flex justify-center gap-2 text-xs text-gray-500">
@@ -760,9 +817,9 @@ function Stat({ label, value, color, labelColor, suffix, suffixColor }: {
     suffix?: string; suffixColor?: string;
 }) {
     return (
-        <div>
-            <div className={cx('text-[9.5px] font-semibold uppercase tracking-[0.06em]', labelColor ?? 'text-gray-400')}>{label}</div>
-            <div className={cx('text-xs font-medium tabular-nums mt-0.5', color ?? 'text-gray-700 dark:text-gray-300')}>
+        <div className="min-w-[54px]">
+            <div className={cx('text-[10px] font-semibold uppercase tracking-[0.08em]', labelColor ?? 'text-slate-400 dark:text-slate-500')}>{label}</div>
+            <div className={cx('mt-1 text-[13px] font-semibold tabular-nums', color ?? 'text-slate-800 dark:text-slate-200')}>
                 {value}
                 {suffix && <span className={cx('ml-0.5', suffixColor)}>{suffix}</span>}
             </div>
@@ -775,12 +832,12 @@ function ToggleBtn({ active, color, label, onClick }: {
 }) {
     return (
         <button type="button" aria-pressed={active} onClick={onClick} className={cx(
-            'px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer',
+            'rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-500',
             active && color === 'blue'
-                ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400'
+                ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400'
                 : active && color === 'violet'
-                ? 'bg-violet-50 border-violet-200 text-violet-600 dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-400'
-                : 'bg-gray-50 border-gray-100 text-gray-400 dark:bg-gray-800 dark:border-gray-700/60 hover:text-gray-600',
+                ? 'bg-violet-50 border-violet-200 text-violet-700 dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-400'
+                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
         )}>
             {label}
         </button>
@@ -825,7 +882,7 @@ function ChartTooltip({ store, cw, theme, showPE, showPB }: {
     if (!tooltip) return null;
     return (
         <div
-            className="pointer-events-none absolute z-30 rounded-lg px-3 py-2 text-xs shadow-xl"
+            className="pointer-events-none absolute z-30 min-w-[156px] rounded-xl px-3 py-2.5 text-xs shadow-[0_12px_30px_rgba(15,23,42,0.14)]"
             style={{
                 left:  Math.max(0, Math.min(tooltip.x + 14, cw - 200)),
                 top:   Math.max(tooltip.y - 10, 36),
@@ -834,8 +891,8 @@ function ChartTooltip({ store, cw, theme, showPE, showPB }: {
                 color:  theme.tooltipText,
             }}
         >
-            <div className="font-semibold mb-1" style={{ color: theme.tooltipMuted }}>{tooltip.time}</div>
-            <div className="grid gap-y-0.5" style={{ gridTemplateColumns: 'auto auto', columnGap: 14 }}>
+            <div className="mb-2 border-b pb-1.5 font-semibold tabular-nums" style={{ color: theme.tooltipMuted, borderColor: theme.tooltipBorder }}>{tooltip.time}</div>
+            <div className="grid gap-y-1" style={{ gridTemplateColumns: 'auto auto', columnGap: 18 }}>
                 <span style={{ color: theme.tooltipMuted }}>Close</span>
                 <span className="font-bold text-right text-blue-500">{tooltip.close}</span>
                 {tooltip.change && (

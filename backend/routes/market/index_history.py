@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import date
 
 from flask import Blueprint, jsonify, request
 
@@ -19,6 +20,12 @@ def register(market_bp: Blueprint) -> None:
             days = int(request.args.get("days", "30"))
         except ValueError:
             days = 30
+        before = request.args.get("before")
+        if before:
+            try:
+                before = date.fromisoformat(before).isoformat()
+            except ValueError:
+                return jsonify({"error": "Invalid before date"}), 400
 
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         db_path = resolve_index_db_path(base_dir=base_dir, index=index)
@@ -26,7 +33,7 @@ def register(market_bp: Blueprint) -> None:
             return jsonify([])
 
         try:
-            data = read_index_history(db_path=db_path, days=days, index=index)
+            data = read_index_history(db_path=db_path, days=days, index=index, before=before)
             if request.args.get("compact") == "1":
                 data = [
                     {
