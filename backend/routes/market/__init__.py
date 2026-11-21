@@ -45,6 +45,7 @@ def register_market_routes(bp: Blueprint) -> None:
     from .ai_takeaways import register as register_ai_takeaways
     from .p2p_cash import register as register_p2p_cash
     from .p2p import register as register_p2p
+    from .p2p_history import register as register_p2p_history
 
     register_gold(bp)
     register_funds(bp)
@@ -65,6 +66,7 @@ def register_market_routes(bp: Blueprint) -> None:
     register_ai_takeaways(bp)
     register_p2p_cash(bp)
     register_p2p(bp)
+    register_p2p_history(bp)
 
 
 # Register routes at import time (deps are set later by init_market_routes).

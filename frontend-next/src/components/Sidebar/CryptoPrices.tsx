@@ -3,6 +3,8 @@
 
 import { localizedCopy } from '@/lib/localizedCopy';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
+import type { P2PSelection } from './P2PHistoryModal';
 import { useCallback, useState } from 'react';
 import MarketChange from './MarketChange';
 import SidebarCard from './SidebarCard';
@@ -11,6 +13,8 @@ import { useVisiblePolling } from '@/hooks/useVisiblePolling';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { apiUrl } from '@/lib/apiCore';
 import { apiFetch } from '@/lib/apiFetch';
+
+const P2PHistoryModal = dynamic(() => import('./P2PHistoryModal'), { ssr: false });
 
 const p2pDelay = () => 60_000;
 type P2POffer = { price: number; seller: string; completionRate: number; positiveRate: number | null; available: number; orders: number; id: string };
@@ -61,6 +65,7 @@ export default function CryptoPrices() {
     const { lang } = useLanguage();
     const [p2pState, setP2pState] = useState<{ current: P2PData; previous: P2PData | null } | null>(null);
     const p2p = p2pState?.current;
+    const [history, setHistory] = useState<P2PSelection | null>(null);
     const refreshP2p = useCallback(async () => {
         try {
             const response = await apiFetch(apiUrl('/market/p2p'), { cache: 'no-store' });
@@ -119,9 +124,9 @@ export default function CryptoPrices() {
                                 const price = p2p?.[exchange][direction].offer?.price;
                                 const previousPrice = p2pState?.previous?.[exchange][direction].offer?.price;
                                 const change = price !== undefined && previousPrice !== undefined ? Math.sign(price - previousPrice) : 0;
-                                return <span key={direction} title={localizedCopy[lang].components_Sidebar_CryptoPrices.comparedWithPreviousUpdate} className={`text-right font-semibold tabular-nums ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                                return <button type="button" key={direction} onClick={() => setHistory({ source: exchange, direction })} aria-haspopup="dialog" aria-label={`${exchange === 'okx' ? 'OKX' : 'Binance'} ${direction === 'buy' ? localizedCopy[lang].components_Sidebar_CryptoPrices.buy : localizedCopy[lang].components_Sidebar_CryptoPrices.sell}: ${lang === 'vi' ? 'Xem lịch sử giá' : 'View price history'}`} title={localizedCopy[lang].components_Sidebar_CryptoPrices.comparedWithPreviousUpdate} className={`text-right font-semibold tabular-nums hover:underline focus-visible:outline-2 focus-visible:outline-emerald-500 ${change > 0 ? 'text-emerald-600 dark:text-emerald-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
                                     {change > 0 ? '↑ ' : change < 0 ? '↓ ' : ''}{price?.toLocaleString('vi-VN') ?? '—'}
-                                </span>;
+                                </button>;
                             })}
                         </div>)}
                         <div className="mt-3 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 border-t border-gray-100 pt-3 text-sm dark:border-gray-800/50">
@@ -168,6 +173,7 @@ export default function CryptoPrices() {
                     </div>
                 </div>
             </div>
+            {history && <P2PHistoryModal selection={history} onClose={() => setHistory(null)} />}
         </SidebarCard>
     );
 }
