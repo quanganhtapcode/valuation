@@ -119,7 +119,11 @@ export default function CryptoPrices() {
                             <span>{localizedCopy[lang].components_Sidebar_CryptoPrices.buy}</span><span>{localizedCopy[lang].components_Sidebar_CryptoPrices.sell}</span>
                         </div>
                         {(['okx', 'binance'] as const).map(exchange => <div key={exchange} className="mt-2 grid grid-cols-[1.3fr_1fr_1fr] items-center gap-2 text-sm">
-                            <span className="font-medium text-gray-700 dark:text-gray-300">{exchange === 'okx' ? 'OKX' : 'Binance'}</span>
+                            <button type="button" aria-haspopup="dialog"
+                                onClick={() => setHistory({ source: exchange, direction: 'buy' })}
+                                className="justify-self-start text-left font-medium text-gray-700 hover:underline focus-visible:outline-2 focus-visible:outline-emerald-500 dark:text-gray-300">
+                                {exchange === 'okx' ? 'OKX' : 'Binance'}
+                            </button>
                             {(['buy', 'sell'] as const).map(direction => {
                                 const price = p2p?.[exchange][direction].offer?.price;
                                 const previousPrice = p2pState?.previous?.[exchange][direction].offer?.price;
