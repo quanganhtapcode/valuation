@@ -13,6 +13,7 @@ import {
     ISeriesApi,
     AreaSeries,
     LineSeries,
+    LineStyle,
     HistogramSeries,
     BusinessDay,
     ColorType,
@@ -314,7 +315,7 @@ export default function HeroIndexCard({ indices, initialChart }: HeroIndexCardPr
             },
             grid: {
                 vertLines: { visible: false },
-                horzLines: { visible: true, color: t0.gridLine },
+                horzLines: { visible: true, color: t0.gridLine, style: LineStyle.Dotted },
             },
             crosshair: {
                 mode:     CrosshairMode.Normal,
