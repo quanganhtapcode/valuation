@@ -27,12 +27,14 @@ _MASTERCARD_HEADERS = {
 _MAX_AGE_DAYS = 3
 _CACHE_SECONDS = 3600
 _FAILURE_RETRY_SECONDS = 300
-_visa_cache: dict[str, tuple[float, dict | None]] = {}
+_visa_cache: dict[tuple[str, str, bool], tuple[float, dict | None]] = {}
 _mastercard_cache: dict[str, tuple[float, dict | None]] = {}
 
 
-def parse_visa_rate(content: str, today: date, target: str = 'VND') -> dict | None:
-    """Return the newest recent Visa quote for the requested billing currency."""
+def parse_visa_rate(
+    content: str, today: date, target: str = 'VND', *, allow_older: bool = False,
+) -> dict | None:
+    """Return the newest eligible Visa quote for the requested billing currency."""
     latest = None
     for row in csv.DictReader(io.StringIO(content)):
         if (row.get('to_curr') or '').upper() != target or (row.get('provider') or '').upper() != 'VISA':
@@ -42,7 +44,8 @@ def parse_visa_rate(content: str, today: date, target: str = 'VND') -> dict | No
             rate = float(row.get('rate', ''))
         except (ValueError, TypeError):
             continue
-        if not 0 <= (today - observed).days <= _MAX_AGE_DAYS or not math.isfinite(rate) or rate <= 0:
+        age = (today - observed).days
+        if age < 0 or (age > _MAX_AGE_DAYS and not allow_older) or not math.isfinite(rate) or rate <= 0:
             continue
         if latest is None or observed > latest[0]:
             latest = (observed, rate)
@@ -80,9 +83,11 @@ def get_mastercard_rate(today: date, transaction: str = 'USD', billing: str = 'V
     return None
 
 
-def get_visa_rate(today: date, transaction: str, billing: str) -> dict | None:
+def get_visa_rate(
+    today: date, transaction: str, billing: str, *, allow_older_archive: bool = False,
+) -> dict | None:
     now = time.monotonic()
-    key = f'{transaction}/{billing}'
+    key = (transaction, billing, allow_older_archive)
     next_refresh, cached = _visa_cache.get(key, (0.0, None))
     if now >= next_refresh:
         result = None
@@ -105,8 +110,9 @@ def get_visa_rate(today: date, transaction: str, billing: str) -> dict | None:
         except (requests.RequestException, ValueError, TypeError, AttributeError, KeyError, OverflowError, OSError):
             LOGGER.debug('Direct Visa rate unavailable; trying archive')
         try:
-            # Early January may require the preceding year's latest observation.
-            years = [today.year, today.year - 1] if today.timetuple().tm_yday <= _MAX_AGE_DAYS else [today.year]
+            years = [today.year]
+            if allow_older_archive or today.timetuple().tm_yday <= _MAX_AGE_DAYS:
+                years.append(today.year - 1)
             for year in years if result is None else []:
                 response = requests.get(_ARCHIVE_URL.format(currency=transaction, year=year), timeout=8)
                 if response.status_code == 404:
@@ -114,21 +120,26 @@ def get_visa_rate(today: date, transaction: str, billing: str) -> dict | None:
                 response.raise_for_status()
                 if len(response.content) > 5_000_000:
                     raise ValueError('Card rate archive too large')
-                result = parse_visa_rate(response.text, today, billing)
+                result = parse_visa_rate(response.text, today, billing, allow_older=allow_older_archive)
                 if result:
                     break
         except (requests.RequestException, ValueError):
             LOGGER.warning('Unable to read Visa rate archive', exc_info=True)
         cached = result
-        _visa_cache[key] = (now + (_CACHE_SECONDS if result else _FAILURE_RETRY_SECONDS), result)
-    return cached if cached and 0 <= (today - date.fromisoformat(cached['date'])).days <= _MAX_AGE_DAYS else None
+        recent = result and (today - date.fromisoformat(result['date'])).days <= _MAX_AGE_DAYS
+        _visa_cache[key] = (now + (_CACHE_SECONDS if recent else _FAILURE_RETRY_SECONDS), result)
+    if cached:
+        age = (today - date.fromisoformat(cached['date'])).days
+        if 0 <= age <= _MAX_AGE_DAYS or (age > _MAX_AGE_DAYS and allow_older_archive and cached['source'] == 'ForexRadar'):
+            return cached
+    return None
 
 
 def get_card_rates() -> dict:
     today = datetime.now(timezone(timedelta(hours=7))).date()
     return {
-        'visa': get_visa_rate(today, 'USD', 'VND'),
-        'visaReverse': get_visa_rate(today, 'VND', 'USD'),
+        'visa': get_visa_rate(today, 'USD', 'VND', allow_older_archive=True),
+        'visaReverse': get_visa_rate(today, 'VND', 'USD', allow_older_archive=True),
         'mastercard': get_mastercard_rate(today, 'USD', 'VND'),
         'mastercardReverse': get_mastercard_rate(today, 'VND', 'USD'),
     }

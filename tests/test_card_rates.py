@@ -84,6 +84,28 @@ class CardRatesTest(unittest.TestCase):
             result = card_rates.get_visa_rate(date(2026, 11, 5), 'USD', 'VND')
         self.assertEqual(result['source'], 'ForexRadar')
 
+    def test_live_visa_uses_older_archive_rates_in_both_directions(self):
+        archive = Mock(status_code=200, content=b'x', text=(
+            'date,to_curr,provider,rate,markup\n'
+            '2026-11-17,VND,VISA,25800,0\n'
+            '2026-11-17,USD,VISA,0.00003875,0\n'
+        ))
+        with patch.object(card_rates.requests, 'get', side_effect=[
+            card_rates.requests.HTTPError('403'), archive,
+            card_rates.requests.HTTPError('403'), archive,
+        ]) as request, patch.object(card_rates, 'datetime') as clock, \
+                patch.object(card_rates, 'get_mastercard_rate', return_value=None):
+            clock.now.return_value.date.return_value = date(2026, 11, 26)
+            rates = card_rates.get_card_rates()
+            self.assertEqual(card_rates.get_card_rates(), rates)
+        self.assertEqual(request.call_count, 4)
+        self.assertEqual(rates['visa'], {
+            'rate': 25800.0, 'date': '2026-11-17', 'source': 'ForexRadar', 'feePercent': 0,
+        })
+        self.assertEqual(rates['visaReverse'], {
+            'rate': 0.00003875, 'date': '2026-11-17', 'source': 'ForexRadar', 'feePercent': 0,
+        })
+
 
 if __name__ == '__main__':
     unittest.main()
